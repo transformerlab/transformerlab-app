@@ -207,207 +207,64 @@ const JobsList: React.FC<JobsListProps> = ({
               String(job?.short_id ?? '').trim() || fullJobId.slice(0, 8);
             return (
               <tr key={job.id}>
-              <td style={{ verticalAlign: 'top', border: 'none' }}>
-                {selectMode &&
-                  job?.job_data?.eval_results &&
-                  Array.isArray(job.job_data.eval_results) &&
-                  job.job_data.eval_results.length > 0 && (
-                    <Checkbox
-                      size="sm"
-                      checked={selectedJobIds.includes(String(job.id))}
-                      onChange={() => onToggleJobSelected?.(String(job.id))}
-                      sx={{ mr: 1 }}
-                    />
-                  )}
-                <b title={fullJobId}>{displayJobId}</b>
-              </td>
-              <td style={{ verticalAlign: 'top', border: 'none' }}>
-                {formatJobConfig(job)}
-              </td>
-              <td style={{ verticalAlign: 'top', border: 'none' }}>
-                <JobProgress
-                  job={job}
-                  showLaunchResultInfo
-                  launchProgress={
-                    launchProgressByJobId?.[String(job.id)] ??
-                    job?.job_data?.launch_progress
-                  }
-                />
-              </td>
-              <td
-                style={{
-                  verticalAlign: 'top',
-                  width: 'fit-content',
-                  border: 'none',
-                }}
-              >
-                <ButtonGroup
-                  sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}
-                >
-                  {job?.placeholder && (
-                    <Skeleton variant="rectangular" width={100} height={28} />
-                  )}
-                  {job?.job_data?.tensorboard_output_dir && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewTensorboard?.(job?.id)}
-                      startDecorator={<LineChartIcon />}
-                    >
-                      Tensorboard
-                    </Button>
-                  )}
-
-                  {job?.job_data?.wandb_run_url && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => {
-                        window.open(job.job_data.wandb_run_url, '_blank');
-                      }}
-                      startDecorator={<LineChartIcon />}
-                    >
-                      <Box
-                        sx={{
-                          display: {
-                            xs: 'none',
-                            sm: 'none',
-                            md: 'inline-flex',
-                          },
-                        }}
-                      >
-                        W&B Tracking
-                      </Box>
-                    </Button>
-                  )}
-
-                  {(job?.job_data?.trackio_db_artifact_path ||
-                    job?.job_data?.trackio_project_name) && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewTrackio?.(String(job?.id))}
-                      startDecorator={<LineChartIcon />}
-                    >
-                      <Box
-                        sx={{
-                          display: {
-                            xs: 'none',
-                            sm: 'none',
-                            md: 'inline-flex',
-                          },
-                        }}
-                      >
-                        Trackio
-                      </Box>
-                    </Button>
-                  )}
-
-                  <Button
-                    size="sm"
-                    variant="plain"
-                    onClick={() => onViewOutput?.(job?.id)}
-                    startDecorator={<LogsIcon />}
-                  >
-                    <Box
-                      sx={{
-                        display: {
-                          xs: 'none',
-                          sm: 'none',
-                          md: 'inline-flex',
-                        },
-                      }}
-                    >
-                      Output
-                    </Box>
-                  </Button>
-                  {job?.job_data?.eval_images_dir && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewEvalImages?.(job?.id)}
-                    >
-                      View Eval Images
-                    </Button>
-                  )}
-                  {job?.job_data?.eval_results &&
+                <td style={{ verticalAlign: 'top', border: 'none' }}>
+                  {selectMode &&
+                    job?.job_data?.eval_results &&
                     Array.isArray(job.job_data.eval_results) &&
                     job.job_data.eval_results.length > 0 && (
+                      <Checkbox
+                        size="sm"
+                        checked={selectedJobIds.includes(String(job.id))}
+                        onChange={() => onToggleJobSelected?.(String(job.id))}
+                        sx={{ mr: 1 }}
+                      />
+                    )}
+                  <b title={fullJobId}>{displayJobId}</b>
+                </td>
+                <td style={{ verticalAlign: 'top', border: 'none' }}>
+                  {formatJobConfig(job)}
+                </td>
+                <td style={{ verticalAlign: 'top', border: 'none' }}>
+                  <JobProgress
+                    job={job}
+                    showLaunchResultInfo
+                    launchProgress={
+                      launchProgressByJobId?.[String(job.id)] ??
+                      job?.job_data?.launch_progress
+                    }
+                  />
+                </td>
+                <td
+                  style={{
+                    verticalAlign: 'top',
+                    width: 'fit-content',
+                    border: 'none',
+                  }}
+                >
+                  <ButtonGroup
+                    sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}
+                  >
+                    {job?.placeholder && (
+                      <Skeleton variant="rectangular" width={100} height={28} />
+                    )}
+                    {job?.job_data?.tensorboard_output_dir && (
                       <Button
                         size="sm"
                         variant="plain"
-                        onClick={() => onViewEvalResults?.(job?.id)}
-                        startDecorator={<FileTextIcon />}
+                        onClick={() => onViewTensorboard?.(job?.id)}
+                        startDecorator={<LineChartIcon />}
                       >
-                        <Box
-                          sx={{
-                            display: {
-                              xs: 'none',
-                              sm: 'none',
-                              md: 'inline-flex',
-                            },
-                          }}
-                        >
-                          Eval Results
-                        </Box>
+                        Tensorboard
                       </Button>
                     )}
-                  {(job?.job_data?.artifacts ||
-                    job?.job_data?.artifacts_dir ||
-                    job?.job_data?.generated_datasets ||
-                    job?.job_data?.models ||
-                    job?.job_data?.has_profiling) && (
-                    <Dropdown>
-                      <MenuButton
-                        size="sm"
-                        variant="plain"
-                        startDecorator={<ArchiveIcon />}
-                      >
-                        <Box
-                          sx={{
-                            display: {
-                              xs: 'none',
-                              sm: 'none',
-                              md: 'inline-flex',
-                            },
-                          }}
-                        >
-                          Artifacts
-                        </Box>
-                      </MenuButton>
-                      <Menu>
-                        {(job?.job_data?.artifacts ||
-                          job?.job_data?.artifacts_dir) && (
-                          <MenuItem onClick={() => onViewArtifacts?.(job?.id)}>
-                            View Artifacts
-                          </MenuItem>
-                        )}
-                        {job?.job_data?.has_profiling && (
-                          <MenuItem onClick={() => onViewProfiling?.(job?.id)}>
-                            View Profiling
-                          </MenuItem>
-                        )}
-                        {job?.job_data?.generated_datasets && (
-                          <MenuItem
-                            onClick={() => onViewJobDatasets?.(job?.id)}
-                          >
-                            View Datasets
-                          </MenuItem>
-                        )}
-                        {job?.job_data?.models && (
-                          <MenuItem onClick={() => onViewJobModels?.(job?.id)}>
-                            View Models
-                          </MenuItem>
-                        )}
-                      </Menu>
-                    </Dropdown>
-                  )}
-                  {(job?.type === 'SWEEP' || job?.job_data?.sweep_parent) &&
-                    job?.status === 'COMPLETE' && (
+
+                    {job?.job_data?.wandb_run_url && (
                       <Button
                         size="sm"
                         variant="plain"
-                        onClick={() => onViewSweepResults?.(job?.id)}
+                        onClick={() => {
+                          window.open(job.job_data.wandb_run_url, '_blank');
+                        }}
                         startDecorator={<LineChartIcon />}
                       >
                         <Box
@@ -419,34 +276,68 @@ const JobsList: React.FC<JobsListProps> = ({
                             },
                           }}
                         >
-                          Sweep Results
+                          W&B Tracking
                         </Box>
                       </Button>
                     )}
-                  {job?.job_data?.sweep_output_file && (
+
+                    {(job?.job_data?.trackio_db_artifact_path ||
+                      job?.job_data?.trackio_project_name) && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewTrackio?.(String(job?.id))}
+                        startDecorator={<LineChartIcon />}
+                      >
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
+                        >
+                          Trackio
+                        </Box>
+                      </Button>
+                    )}
+
                     <Button
                       size="sm"
                       variant="plain"
-                      onClick={() => onViewSweepOutput?.(job?.id)}
+                      onClick={() => onViewOutput?.(job?.id)}
+                      startDecorator={<LogsIcon />}
                     >
-                      Sweep Output
+                      <Box
+                        sx={{
+                          display: {
+                            xs: 'none',
+                            sm: 'none',
+                            md: 'inline-flex',
+                          },
+                        }}
+                      >
+                        Output
+                      </Box>
                     </Button>
-                  )}
-                  {job?.status === 'INTERACTIVE' &&
-                    job?.job_data?.subtype === 'interactive' && (
-                      <>
+                    {job?.job_data?.eval_images_dir && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewEvalImages?.(job?.id)}
+                      >
+                        View Eval Images
+                      </Button>
+                    )}
+                    {job?.job_data?.eval_results &&
+                      Array.isArray(job.job_data.eval_results) &&
+                      job.job_data.eval_results.length > 0 && (
                         <Button
                           size="sm"
                           variant="plain"
-                          onClick={() => onViewInteractive?.(job?.id)}
-                        >
-                          Interactive Setup
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="plain"
-                          onClick={() => onViewOutput?.(job?.id)}
-                          startDecorator={<LogsIcon />}
+                          onClick={() => onViewEvalResults?.(job?.id)}
+                          startDecorator={<FileTextIcon />}
                         >
                           <Box
                             sx={{
@@ -457,64 +348,179 @@ const JobsList: React.FC<JobsListProps> = ({
                               },
                             }}
                           >
-                            Output
+                            Eval Results
                           </Box>
                         </Button>
-                      </>
+                      )}
+                    {(job?.job_data?.artifacts ||
+                      job?.job_data?.artifacts_dir ||
+                      job?.job_data?.generated_datasets ||
+                      job?.job_data?.models ||
+                      job?.job_data?.has_profiling) && (
+                      <Dropdown>
+                        <MenuButton
+                          size="sm"
+                          variant="plain"
+                          startDecorator={<ArchiveIcon />}
+                        >
+                          <Box
+                            sx={{
+                              display: {
+                                xs: 'none',
+                                sm: 'none',
+                                md: 'inline-flex',
+                              },
+                            }}
+                          >
+                            Artifacts
+                          </Box>
+                        </MenuButton>
+                        <Menu>
+                          {(job?.job_data?.artifacts ||
+                            job?.job_data?.artifacts_dir) && (
+                            <MenuItem
+                              onClick={() => onViewArtifacts?.(job?.id)}
+                            >
+                              View Artifacts
+                            </MenuItem>
+                          )}
+                          {job?.job_data?.has_profiling && (
+                            <MenuItem
+                              onClick={() => onViewProfiling?.(job?.id)}
+                            >
+                              View Profiling
+                            </MenuItem>
+                          )}
+                          {job?.job_data?.generated_datasets && (
+                            <MenuItem
+                              onClick={() => onViewJobDatasets?.(job?.id)}
+                            >
+                              View Datasets
+                            </MenuItem>
+                          )}
+                          {job?.job_data?.models && (
+                            <MenuItem
+                              onClick={() => onViewJobModels?.(job?.id)}
+                            >
+                              View Models
+                            </MenuItem>
+                          )}
+                        </Menu>
+                      </Dropdown>
                     )}
-                  {job?.job_data?.checkpoints && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewCheckpoints?.(job?.id)}
-                      startDecorator={<WaypointsIcon />}
-                      sx={{
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Box
+                    {(job?.type === 'SWEEP' || job?.job_data?.sweep_parent) &&
+                      job?.status === 'COMPLETE' && (
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewSweepResults?.(job?.id)}
+                          startDecorator={<LineChartIcon />}
+                        >
+                          <Box
+                            sx={{
+                              display: {
+                                xs: 'none',
+                                sm: 'none',
+                                md: 'inline-flex',
+                              },
+                            }}
+                          >
+                            Sweep Results
+                          </Box>
+                        </Button>
+                      )}
+                    {job?.job_data?.sweep_output_file && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewSweepOutput?.(job?.id)}
+                      >
+                        Sweep Output
+                      </Button>
+                    )}
+                    {job?.status === 'INTERACTIVE' &&
+                      job?.job_data?.subtype === 'interactive' && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="plain"
+                            onClick={() => onViewInteractive?.(job?.id)}
+                          >
+                            Interactive Setup
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="plain"
+                            onClick={() => onViewOutput?.(job?.id)}
+                            startDecorator={<LogsIcon />}
+                          >
+                            <Box
+                              sx={{
+                                display: {
+                                  xs: 'none',
+                                  sm: 'none',
+                                  md: 'inline-flex',
+                                },
+                              }}
+                            >
+                              Output
+                            </Box>
+                          </Button>
+                        </>
+                      )}
+                    {job?.job_data?.checkpoints && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewCheckpoints?.(job?.id)}
+                        startDecorator={<WaypointsIcon />}
                         sx={{
-                          display: {
-                            xs: 'none',
-                            sm: 'none',
-                            md: 'inline-flex',
-                          },
+                          justifyContent: 'center',
                         }}
                       >
-                        Checkpoints
-                      </Box>
-                    </Button>
-                  )}
-                  {!job?.placeholder && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewFileBrowser?.(job?.id)}
-                      startDecorator={<FolderOpenIcon />}
-                    >
-                      <Box
-                        sx={{
-                          display: {
-                            xs: 'none',
-                            sm: 'none',
-                            md: 'inline-flex',
-                          },
-                        }}
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
+                        >
+                          Checkpoints
+                        </Box>
+                      </Button>
+                    )}
+                    {!job?.placeholder && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewFileBrowser?.(job?.id)}
+                        startDecorator={<FolderOpenIcon />}
                       >
-                        Files
-                      </Box>
-                    </Button>
-                  )}
-                  {!job?.placeholder && (
-                    <IconButton variant="plain">
-                      <Trash2Icon
-                        onClick={() => onDeleteJob?.(job.id)}
-                        style={{ cursor: 'pointer' }}
-                      />
-                    </IconButton>
-                  )}
-                </ButtonGroup>
-              </td>
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
+                        >
+                          Files
+                        </Box>
+                      </Button>
+                    )}
+                    {!job?.placeholder && (
+                      <IconButton variant="plain">
+                        <Trash2Icon
+                          onClick={() => onDeleteJob?.(job.id)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </IconButton>
+                    )}
+                  </ButtonGroup>
+                </td>
               </tr>
             );
           })
