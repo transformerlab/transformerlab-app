@@ -2,20 +2,13 @@ import asyncio
 import os
 import re
 import subprocess
-import sys
 import threading
 import time
 import unicodedata
 import math
 
-from anyio import open_process
-from anyio.streams.text import TextReceiveStream
-
-from transformerlab.services.job_service import job_update_status
-import transformerlab.services.job_service as job_service
 from lab import Job
 from lab import storage
-from lab.job_status import JobStatus
 
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
@@ -94,104 +87,6 @@ def slugify(value, allow_unicode=False):
         value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
     value = re.sub(r"[^\w\s-]", "", value.lower())
     return re.sub(r"[-\s]+", "-", value).strip("-_")
-
-
-async def async_run_python_script_and_update_status(
-    python_script: list[str], job_id: str, begin_string: str, env: dict | None = None
-):
-    """
-    Use this script for one time, long running scripts that have a definite end. For example
-    downloading a model.
-
-    This function runs a python script and updates the status of the job in the database
-    to RUNNING when the python script prints begin_string to stderr
-
-    The FastAPI worker uses stderr, not stdout
-
-    Args:
-        python_script: List of command-line arguments for the Python script
-        job_id: Job ID for status updates
-        begin_string: String to look for in output to mark job as RUNNING
-        env: Optional dictionary of environment variables to pass to subprocess.
-             These are merged with the current environment and are process-local (won't leak to API).
-    """
-
-    print(f"Job {job_id} Running async python script: " + str(python_script))
-    # Extract plugin location from the python_script list
-    plugin_location = None
-    if "--plugin_dir" in python_script:
-        for i, arg in enumerate(python_script):
-            if arg == "--plugin_dir" and i + 1 < len(python_script):
-                plugin_location = python_script[i + 1]
-                break
-
-    # Check if plugin has a venv directory
-    if plugin_location:
-        plugin_location = os.path.normpath(plugin_location)
-        from lab.dirs import get_plugin_dir
-
-        plugin_dir_root = await get_plugin_dir()
-        if not plugin_location.startswith(plugin_dir_root):
-            print(f"Plugin location {plugin_location} is not in {plugin_dir_root}")
-            raise Exception(f"Plugin location {plugin_location} is not in {plugin_dir_root}")
-        if os.path.exists(os.path.join(plugin_location, "venv")) and os.path.isdir(
-            os.path.join(plugin_location, "venv")
-        ):
-            venv_path = os.path.join(plugin_location, "venv")
-            print(f">Plugin has virtual environment, activating venv from {venv_path}")
-            venv_python = os.path.join(venv_path, "bin", "python")
-            command = [venv_python, *python_script]
-        else:
-            print(">Using system Python interpreter")
-            command = [sys.executable, *python_script]
-
-    else:
-        print(">Using system Python interpreter")
-        command = [sys.executable, *python_script]  # Skip the original Python interpreter
-
-    # Prepare environment variables for subprocess
-    # Start with current environment and merge any provided env vars
-    process_env = os.environ.copy()
-    if env:
-        process_env.update(env)
-
-    experiment_id = process_env.get("_TFL_EXPERIMENT_ID")
-    process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=process_env)
-
-    # read stderr and print:
-    if process.stdout:
-        async for text in TextReceiveStream(process.stdout):
-            print(">> " + text)
-            if begin_string in text:
-                print(f"Job {job_id} now in progress!")
-                await job_update_status(job_id=job_id, status=JobStatus.RUNNING, experiment_id=experiment_id)
-
-            # Check the job_data column for the stop flag:
-            job_row = await job_service.job_get(job_id, experiment_id=experiment_id) if experiment_id else None
-            job_data = job_row.get("job_data", None) if job_row else None
-            if job_data and job_data.get("stop", False):
-                print(f"Job {job_id}: 'stop' flag detected. Cancelling job.")
-                raise asyncio.CancelledError()
-
-    try:
-        await process.wait()
-
-        if process.returncode == 0:
-            print(f"Job {job_id} completed successfully")
-            await job_update_status(job_id=job_id, status=JobStatus.COMPLETE, experiment_id=experiment_id)
-        else:
-            print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
-            await job_update_status(job_id=job_id, status=JobStatus.FAILED, experiment_id=experiment_id)
-
-        return process
-
-    except asyncio.CancelledError:
-        process.kill()
-        await process.wait()
-
-        print(f"Job {job_id} cancelled.")
-
-        raise asyncio.CancelledError()
 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str = None, experiment_name: str = None):
