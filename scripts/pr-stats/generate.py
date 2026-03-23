@@ -373,10 +373,14 @@ def build_report(prs: list[dict]) -> str:
     # Subtitle
     first_week = week_labels[0]
     last_week = week_labels[-1]
-    repo_name = subprocess.run(
-        ["gh", "repo", "view", "--json", "name", "--jq", ".name"],
-        capture_output=True, text=True,
-    ).stdout.strip() or "unknown-repo"
+    repo_name = (
+        subprocess.run(
+            ["gh", "repo", "view", "--json", "name", "--jq", ".name"],
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        or "unknown-repo"
+    )
     subtitle = f"{repo_name} — {first_week} to {last_week} ({len(prs)} PRs)"
 
     return HTML_TEMPLATE.format(
