@@ -6,8 +6,6 @@ Service layer for working with models.
 
 from transformerlab.models import localmodel
 
-from lab import storage, get_models_dir
-
 
 async def list_installed_models(embedding: bool = False) -> list:
     """
