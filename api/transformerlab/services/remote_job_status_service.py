@@ -25,6 +25,7 @@ from transformerlab.services import job_service, team_service
 
 
 REMOTE_JOB_STATUS_INTERVAL_SECONDS = int(os.getenv("REMOTE_JOB_STATUS_INTERVAL_SECONDS", "15"))
+EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD = int(os.getenv("EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD", "2"))
 
 # Circuit breaker: after this many consecutive provider failures, back off.
 _PROVIDER_FAILURE_THRESHOLD = 3
@@ -280,22 +281,57 @@ async def _check_job_via_provider(
             return False
 
         terminal_job_states = {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
-        # Treat an empty list of provider jobs as "finished" – once the provider
-        # reports no jobs, there's nothing left running for this cluster.
-        jobs_finished = not provider_jobs or all(
-            getattr(pj, "state", JobState.UNKNOWN) in terminal_job_states for pj in provider_jobs
-        )
+        jobs_finished = False
+
         if not provider_jobs:
+            empty_poll_count_raw = (job_data.get("provider_empty_jobs_polls", 0) if isinstance(job_data, dict) else 0) or 0
+            try:
+                empty_poll_count = int(empty_poll_count_raw)
+            except (TypeError, ValueError):
+                empty_poll_count = 0
+            empty_poll_count += 1
+
+            try:
+                await job_service.job_update_job_data_insert_key_value(
+                    job_id, "provider_empty_jobs_polls", empty_poll_count, experiment_id
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"Remote job status worker: failed to update provider_empty_jobs_polls for job {job_id}: {exc}"
+                )
+
             logger.warning(
                 "Remote job status worker: provider returned no jobs for cluster %s (job %s); "
-                "interpreting as terminal and marking COMPLETE unless other terminal signals indicate FAILED/STOPPED.",
+                "empty_poll_count=%s threshold=%s.",
                 cluster_name,
                 job_id,
+                empty_poll_count,
+                EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD,
             )
             print(
                 f"[remote_job_status_worker] provider returned no jobs for cluster '{cluster_name}' "
-                f"(job {job_id}); interpreting as terminal completion"
+                f"(job {job_id}); empty_poll_count={empty_poll_count}/{EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD}"
             )
+            jobs_finished = empty_poll_count >= EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD
+            if not jobs_finished:
+                return False
+        else:
+            # Provider queue is non-empty. Prime empty-poll counter to threshold so that
+            # the next empty queue observation can be treated as terminal immediately.
+            if isinstance(job_data, dict):
+                try:
+                    await job_service.job_update_job_data_insert_key_value(
+                        job_id,
+                        "provider_empty_jobs_polls",
+                        EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD,
+                        experiment_id,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        f"Remote job status worker: failed to prime provider_empty_jobs_polls for job {job_id}: {exc}"
+                    )
+            jobs_finished = all(getattr(pj, "state", JobState.UNKNOWN) in terminal_job_states for pj in provider_jobs)
+
         if jobs_finished:
             end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
             await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
