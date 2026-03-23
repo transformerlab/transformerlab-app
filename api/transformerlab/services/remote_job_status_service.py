@@ -284,7 +284,9 @@ async def _check_job_via_provider(
         jobs_finished = False
 
         if not provider_jobs:
-            empty_poll_count_raw = (job_data.get("provider_empty_jobs_polls", 0) if isinstance(job_data, dict) else 0) or 0
+            empty_poll_count_raw = (
+                job_data.get("provider_empty_jobs_polls", 0) if isinstance(job_data, dict) else 0
+            ) or 0
             try:
                 empty_poll_count = int(empty_poll_count_raw)
             except (TypeError, ValueError):
