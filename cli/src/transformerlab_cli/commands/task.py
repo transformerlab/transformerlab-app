@@ -4,21 +4,18 @@ import os
 import zipfile
 from pathlib import Path
 
+import httpx
 import typer
 import yaml
-from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 
 import transformerlab_cli.util.api as api
 from transformerlab_cli.state import cli_state
 from transformerlab_cli.util.config import require_current_experiment
-from transformerlab_cli.util.ui import render_object, render_table
+from transformerlab_cli.util.ui import console, render_object, render_table
 
 app = typer.Typer()
-
-
-console = Console()
 
 REQUIRED_TASK_FIELDS = ["name", "type"]
 
@@ -26,7 +23,7 @@ REQUIRED_TASK_FIELDS = ["name", "type"]
 def list_tasks(output_format: str = "pretty", experiment_id: str = "alpha") -> None:
     """List all REMOTE tasks."""
     if output_format != "json":
-        with console.status("[bold green]Fetching tasks...[/bold green]", spinner="dots"):
+        with console.status("[bold success]Fetching tasks...[/bold success]", spinner="dots"):
             response = api.get(f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE")
     else:
         response = api.get(f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE")
@@ -39,36 +36,36 @@ def list_tasks(output_format: str = "pretty", experiment_id: str = "alpha") -> N
         if output_format == "json":
             print(json.dumps({"error": f"Failed to fetch tasks. Status code: {response.status_code}"}))
             raise typer.Exit(1)
-        console.print(f"[red]Error:[/red] Failed to fetch tasks. Status code: {response.status_code}")
+        console.print(f"[error]Error:[/error] Failed to fetch tasks. Status code: {response.status_code}")
 
 
 def delete_task(task_id: str, experiment_id: str) -> None:
     """Delete a task by ID."""
-    with console.status(f"[bold green]Deleting task {task_id}...[/bold green]", spinner="dots"):
+    with console.status(f"[bold success]Deleting task {task_id}...[/bold success]", spinner="dots"):
         response = api.get(f"/experiment/{experiment_id}/task/{task_id}/delete")
     if response.status_code == 200:
         body = response.json()
         if body.get("message") == "OK":
-            console.print(f"[green]✓[/green] Task [bold]{task_id}[/bold] deleted.")
+            console.print(f"[success]✓[/success] Task [bold]{task_id}[/bold] deleted.")
         else:
-            console.print(f"[red]Error:[/red] Task not found. {body.get('message', '')}")
+            console.print(f"[error]Error:[/error] Task not found. {body.get('message', '')}")
             raise typer.Exit(1)
     else:
-        console.print(f"[red]Error:[/red] Failed to delete task. Status code: {response.status_code}")
+        console.print(f"[error]Error:[/error] Failed to delete task. Status code: {response.status_code}")
         raise typer.Exit(1)
 
 
 def info_task(task_id: str, experiment_id: str) -> None:
     """Get info for a task by ID."""
-    with console.status(f"[bold green]Fetching info for task {task_id}...[/bold green]", spinner="dots"):
+    with console.status(f"[bold success]Fetching info for task {task_id}...[/bold success]", spinner="dots"):
         response = api.get(f"/experiment/{experiment_id}/task/{task_id}/get")
 
     if response.status_code == 200:
         task_info = response.json()
-        # console.print(f"[bold green]Task Info for ID {task_id}:[/bold green]")
+        # console.print(f"[bold success]Task Info for ID {task_id}:[/bold success]")
         render_object(task_info)
     else:
-        console.print(f"[red]Error:[/red] Failed to fetch task info. Status code: {response.status_code}")
+        console.print(f"[error]Error:[/error] Failed to fetch task info. Status code: {response.status_code}")
 
 
 def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_run: bool = False) -> None:
@@ -76,12 +73,12 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
     task_dir = Path(task_directory_path).resolve()
 
     if not task_dir.is_dir():
-        console.print(f"[red]Error:[/red] Directory not found: {task_dir}")
+        console.print(f"[error]Error:[/error] Directory not found: {task_dir}")
         raise typer.Exit(1)
 
     task_yaml_path = task_dir / "task.yaml"
     if not task_yaml_path.exists():
-        console.print(f"[red]Error:[/red] task.yaml not found in {task_dir}")
+        console.print(f"[error]Error:[/error] task.yaml not found in {task_dir}")
         console.print("The directory must contain a task.yaml file.")
         raise typer.Exit(1)
 
@@ -91,11 +88,11 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
     try:
         yaml.safe_load(task_yaml_content)
     except yaml.YAMLError as e:
-        console.print(f"[red]Error:[/red] Invalid YAML in task.yaml: {e}")
+        console.print(f"[error]Error:[/error] Invalid YAML in task.yaml: {e}")
         raise typer.Exit(1)
 
     # Validate against server-side task.yaml schema (run, resources, etc.)
-    with console.status("[bold green]Validating task.yaml...[/bold green]", spinner="dots"):
+    with console.status("[bold success]Validating task.yaml...[/bold success]", spinner="dots"):
         response = api.post_text(
             f"/experiment/{experiment_id}/task2/validate",
             text=task_yaml_content,
@@ -103,15 +100,15 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
     if response.status_code != 200:
         try:
             detail = response.json().get("detail", response.text)
-        except Exception:
+        except (ValueError, KeyError):
             detail = response.text
-        console.print("[red]Error:[/red] task.yaml failed validation.")
-        console.print(f"[red]Detail:[/red] {detail}")
+        console.print("[error]Error:[/error] task.yaml failed validation.")
+        console.print(f"[error]Detail:[/error] {detail}")
         raise typer.Exit(1)
 
-    console.print("\n[bold cyan]Task Configuration (task.yaml):[/bold cyan]")
+    console.print("\n[bold label]Task Configuration (task.yaml):[/bold label]")
     syntax = Syntax(task_yaml_content, "yaml", theme="monokai", line_numbers=True)
-    console.print(Panel(syntax, border_style="cyan"))
+    console.print(Panel(syntax, border_style="label"))
 
     all_files = []
     total_size = 0
@@ -124,18 +121,20 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
             total_size += file_size
 
     if len(all_files) > 1:
-        console.print(f"\n[bold cyan]Files to upload ({len(all_files)} files, {_format_size(total_size)}):[/bold cyan]")
+        console.print(
+            f"\n[bold label]Files to upload ({len(all_files)} files, {_format_size(total_size)}):[/bold label]"
+        )
         for rel_path, size in sorted(all_files):
             console.print(f"  • {rel_path} ({_format_size(size)})")
     else:
-        console.print(f"\n[bold cyan]Files to upload:[/bold cyan] task.yaml ({_format_size(total_size)})")
+        console.print(f"\n[bold label]Files to upload:[/bold label] task.yaml ({_format_size(total_size)})")
 
     if dry_run:
-        console.print("\n[yellow]Dry run mode:[/yellow] Task would be created but was not submitted.")
+        console.print("\n[warning]Dry run mode:[/warning] Task would be created but was not submitted.")
         return
 
     if cli_state.output_format != "json" and not typer.confirm("\nProceed with task creation?"):
-        console.print("[yellow]Cancelled.[/yellow]")
+        console.print("[warning]Cancelled.[/warning]")
         raise typer.Exit(0)
 
     zip_buffer = io.BytesIO()
@@ -147,7 +146,7 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
                 zf.write(file_path, arcname)
     zip_buffer.seek(0)
 
-    with console.status("[bold green]Creating task...[/bold green]", spinner="dots"):
+    with console.status("[bold success]Creating task...[/bold success]", spinner="dots"):
         response = api.post(
             f"/experiment/{experiment_id}/task2/from_directory",
             files={"directory_zip": ("task.zip", zip_buffer, "application/zip")},
@@ -156,20 +155,20 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
     if response.status_code == 200:
         result = response.json()
         task_id = result.get("id")
-        console.print(f"[green]✓[/green] Task created with ID: [bold]{task_id}[/bold]")
+        console.print(f"[success]✓[/success] Task created with ID: [bold]{task_id}[/bold]")
     else:
-        console.print(f"[red]Error:[/red] Failed to create task. Status code: {response.status_code}")
+        console.print(f"[error]Error:[/error] Failed to create task. Status code: {response.status_code}")
         try:
             detail = response.json().get("detail", response.text)
-            console.print(f"[red]Detail:[/red] {detail}")
+            console.print(f"[error]Detail:[/error] {detail}")
         except Exception:
-            console.print(f"[red]Response:[/red] {response.text}")
+            console.print(f"[error]Response:[/error] {response.text}")
         raise typer.Exit(1)
 
 
 def add_task_from_github(repo_url: str, experiment_id: str) -> None:
     """Add a task from a GitHub repository URL."""
-    with console.status("[bold green]Creating task from GitHub...[/bold green]", spinner="dots"):
+    with console.status("[bold success]Creating task from GitHub...[/bold success]", spinner="dots"):
         response = api.post_json(
             f"/experiment/{experiment_id}/task2/from_directory",
             json_data={"git_url": repo_url},
@@ -178,14 +177,14 @@ def add_task_from_github(repo_url: str, experiment_id: str) -> None:
     if response.status_code == 200:
         result = response.json()
         task_id = result.get("id")
-        console.print(f"[green]✓[/green] Task created with ID: [bold]{task_id}[/bold]")
+        console.print(f"[success]✓[/success] Task created with ID: [bold]{task_id}[/bold]")
     else:
-        console.print(f"[red]Error:[/red] Failed to create task. Status code: {response.status_code}")
+        console.print(f"[error]Error:[/error] Failed to create task. Status code: {response.status_code}")
         try:
             detail = response.json().get("detail", response.text)
-            console.print(f"[red]Detail:[/red] {detail}")
+            console.print(f"[error]Detail:[/error] {detail}")
         except Exception:
-            console.print(f"[red]Response:[/red] {response.text}")
+            console.print(f"[error]Response:[/error] {response.text}")
         raise typer.Exit(1)
 
 
@@ -222,7 +221,7 @@ def command_task_add(
     elif task_directory:
         add_task_from_directory(task_directory, experiment_id=current_experiment, dry_run=dry_run)
     else:
-        console.print("[red]Error:[/red] Provide a task directory path or use --from-git <url>")
+        console.print("[error]Error:[/error] Provide a task directory path or use --from-git <url>")
         raise typer.Exit(1)
 
 
@@ -250,7 +249,7 @@ def fetch_providers() -> list[dict]:
         response = api.get("/compute_provider/")
         if response.status_code == 200:
             return response.json()
-    except Exception:
+    except httpx.HTTPError:
         pass
     return []
 
@@ -316,7 +315,7 @@ def _print_resources(task: dict) -> dict:
         "minutes_requested": get("minutes_requested"),
     }
 
-    console.print("\n[bold cyan]Resource requirements:[/bold cyan]")
+    console.print("\n[bold label]Resource requirements:[/bold label]")
     console.print(f"  CPUs: {current['cpus'] or '[not set]'}")
     console.print(f"  Memory: {current['memory'] or '[not set]'}")
     console.print(f"  Disk space: {current['disk_space'] or '[not set]'}")
@@ -371,7 +370,7 @@ def launch_task_on_provider(provider_id: str, payload: dict) -> dict:
 
 def _prompt_provider(providers: list[dict]) -> dict:
     """Prompt user to select a provider from the list."""
-    console.print("\n[bold cyan]Available Providers:[/bold cyan]")
+    console.print("\n[bold label]Available Providers:[/bold label]")
     for i, provider in enumerate(providers, 1):
         console.print(f"  [bold]{i}[/bold]. {provider.get('name', provider.get('id'))}")
 
@@ -381,9 +380,9 @@ def _prompt_provider(providers: list[dict]) -> dict:
             idx = int(choice) - 1
             if 0 <= idx < len(providers):
                 return providers[idx]
-            console.print(f"[red]Please enter a number between 1 and {len(providers)}[/red]")
+            console.print(f"[error]Please enter a number between 1 and {len(providers)}[/error]")
         except ValueError:
-            console.print("[red]Please enter a valid number[/red]")
+            console.print("[error]Please enter a valid number[/error]")
 
 
 def _prompt_parameters(parameters: dict) -> dict:
@@ -391,7 +390,7 @@ def _prompt_parameters(parameters: dict) -> dict:
     if not parameters:
         return {}
 
-    console.print("\n[bold cyan]Task Parameters:[/bold cyan]")
+    console.print("\n[bold label]Task Parameters:[/bold label]")
     values = {}
 
     for key, raw_value in parameters.items():
@@ -423,11 +422,11 @@ def _prompt_parameters(parameters: dict) -> dict:
 
 def queue_task(task_id: str, experiment_id: str, interactive: bool = True) -> None:
     """Queue a task on a compute provider."""
-    with console.status("[bold green]Fetching task...[/bold green]", spinner="dots"):
+    with console.status("[bold success]Fetching task...[/bold success]", spinner="dots"):
         response = api.get(f"/experiment/{experiment_id}/task/{task_id}/get")
 
     if response.status_code != 200:
-        console.print(f"[red]Error:[/red] Failed to fetch task. Status code: {response.status_code}")
+        console.print(f"[error]Error:[/error] Failed to fetch task. Status code: {response.status_code}")
         raise typer.Exit(1)
 
     task = response.json()
@@ -439,11 +438,11 @@ def queue_task(task_id: str, experiment_id: str, interactive: bool = True) -> No
         if not typer.confirm("\nUse these resource requirements?", default=True):
             resource_overrides = _prompt_resource_overrides(current_resources)
 
-    with console.status("[bold green]Fetching providers...[/bold green]", spinner="dots"):
+    with console.status("[bold success]Fetching providers...[/bold success]", spinner="dots"):
         providers = fetch_providers()
 
     if not providers:
-        console.print("[red]Error:[/red] No compute providers available. Add one in team settings first.")
+        console.print("[error]Error:[/error] No compute providers available. Add one in team settings first.")
         raise typer.Exit(1)
 
     if interactive:
@@ -464,13 +463,13 @@ def queue_task(task_id: str, experiment_id: str, interactive: bool = True) -> No
     payload = build_launch_payload(task, provider.get("name"), param_values, resource_overrides)
     provider_id = provider.get("id")
 
-    with console.status("[bold green]Queuing task...[/bold green]", spinner="dots"):
+    with console.status("[bold success]Queuing task...[/bold success]", spinner="dots"):
         try:
             data = launch_task_on_provider(provider_id, payload)
             job_id = data.get("job_id", "unknown")
-            console.print(f"[green]✓[/green] Task queued successfully. Job ID: [bold]{job_id}[/bold]")
+            console.print(f"[success]✓[/success] Task queued successfully. Job ID: [bold]{job_id}[/bold]")
         except RuntimeError as e:
-            console.print(f"[red]Error:[/red] {e}")
+            console.print(f"[error]Error:[/error] {e}")
             raise typer.Exit(1)
 
 
