@@ -14,13 +14,6 @@ class CLIState:
         if not hasattr(self, "output_format"):
             self.output_format = "pretty"  # Default output format
 
-    @classmethod
-    def get_instance(cls):
-        """
-        Get the singleton instance of CLIState.
-        """
-        return cls()
 
-
-# Convenience function to access the singleton
-cli_state = CLIState.get_instance()
+# Module-level singleton instance
+cli_state = CLIState()

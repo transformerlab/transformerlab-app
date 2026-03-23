@@ -1,3 +1,4 @@
+import httpx
 from textual.app import ComposeResult
 from textual.widgets import (
     Static,
@@ -256,7 +257,7 @@ class TaskQueueModal(ModalScreen):
 
             try:
                 widget = self.query_one(f"#{widget_id}")
-            except Exception:
+            except LookupError:
                 continue
 
             if isinstance(widget, Switch):
@@ -383,7 +384,7 @@ class TaskListModal(ModalScreen):
                 data = response.json()
             else:
                 data = []
-        except Exception:
+        except httpx.HTTPError:
             data = []
 
         self.app.call_from_thread(self.populate_tasks, data)
@@ -402,7 +403,6 @@ class TaskListModal(ModalScreen):
 
         self.tasks_data = tasks
         option_list.clear_options()
-        print("[DEBUG] Populating tasks:", tasks)
         for task in tasks:
             task_id = task.get("id", "?")
             task_name = task.get("name", "Unknown")
