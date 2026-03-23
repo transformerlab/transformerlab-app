@@ -201,7 +201,15 @@ async def async_run_python_script_and_update_status(
 
 async def get_job_output_file_name(job_id: str, plugin_name: str = None, experiment_name: str = None):
     try:
-        job_obj = await Job.get(job_id)
+        experiment_id = experiment_name
+        if not experiment_id:
+            job_row = await job_service.job_get(job_id)
+            experiment_id = job_row.get("experiment_id") if job_row else None
+
+        if not experiment_id:
+            raise FileNotFoundError(f"Job '{job_id}' not found in any experiment directory")
+
+        job_obj = await Job.get(job_id, experiment_id)
         output_file = await job_obj.get_log_path()
         return output_file
     except Exception as e:

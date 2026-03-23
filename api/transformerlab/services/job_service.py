@@ -91,23 +91,25 @@ def _job_cache_key(job_id: str) -> str:
     return f"jobs:{job_id}"
 
 
-async def _job_get_live(job_id: str) -> Optional[Dict[str, Any]]:
+async def _job_get_live(job_id: str, experiment_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not experiment_id:
+        raise ValueError(f"experiment_id is required for job lookup (job_id={job_id})")
     try:
-        job = await Job.get(job_id)
+        job = await Job.get(job_id, experiment_id)
         return await job.get_json_data(uncached=True)
     except Exception as e:
         print("Error getting job data", e)
         return None
 
 
-async def job_get(job_id: str) -> Optional[Dict[str, Any]]:
+async def job_get(job_id: str, experiment_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Backward-compatible live getter that bypasses the per-node cache.
     """
-    return await _job_get_live(job_id)
+    return await _job_get_live(job_id, experiment_id)
 
 
-async def job_get_cached(job_id: str) -> Optional[Dict[str, Any]]:
+async def job_get_cached(job_id: str, experiment_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Per-node cached getter for job JSON backed by cashews.
 
@@ -124,7 +126,7 @@ async def job_get_cached(job_id: str) -> Optional[Dict[str, Any]]:
         return cached
 
     # 2) Fallback to live
-    job_dict = await _job_get_live(job_id)
+    job_dict = await _job_get_live(job_id, experiment_id)
     if not job_dict:
         return None
 
@@ -152,7 +154,7 @@ async def job_delete_all(experiment_id):
 
 async def job_delete(job_id, experiment_id):
     try:
-        job = await Job.get(job_id)
+        job = await Job.get(job_id, experiment_id)
         exp_id = await job.get_experiment_id()
         if experiment_id is not None and exp_id != experiment_id:
             return
@@ -163,7 +165,7 @@ async def job_delete(job_id, experiment_id):
 
 async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id):
     try:
-        job = await Job.get(job_id)
+        job = await Job.get(job_id, experiment_id)
         exp_id = await job.get_experiment_id()
         if experiment_id is not None and exp_id != experiment_id:
             return
@@ -180,7 +182,7 @@ async def job_update_job_data_insert_key_values(job_id, updates: Dict[str, Any],
         if not isinstance(updates, dict):
             raise TypeError("updates must be a dict")
 
-        job = await Job.get(job_id)
+        job = await Job.get(job_id, experiment_id)
         exp_id = await job.get_experiment_id()
         if experiment_id is not None and exp_id != experiment_id:
             return
@@ -202,7 +204,7 @@ async def job_update_progress(job_id, progress, experiment_id):
     progress: int representing percent complete
     """
     try:
-        job = await Job.get(job_id)
+        job = await Job.get(job_id, experiment_id)
         exp_id = await job.get_experiment_id()
         if experiment_id is not None and exp_id != experiment_id:
             return
@@ -216,7 +218,7 @@ async def job_update_sweep_progress(job_id, value, experiment_id):
     Update the 'sweep_progress' key in the job_data JSON column for a given job.
     """
     try:
-        job = await Job.get(job_id)
+        job = await Job.get(job_id, experiment_id)
         exp_id = await job.get_experiment_id()
         if experiment_id is not None and exp_id != experiment_id:
             return
@@ -273,7 +275,10 @@ async def jobs_get_sweep_children(parent_job_id, experiment_id=None):
     Get all child jobs that belong to a sweep parent job.
     """
     try:
-        parent_job = await Job.get(parent_job_id)
+        if experiment_id is None:
+            return []
+
+        parent_job = await Job.get(parent_job_id, experiment_id)
         if experiment_id is not None:
             exp_id = await parent_job.get_experiment_id()
             if exp_id != experiment_id:
@@ -291,7 +296,7 @@ async def jobs_get_sweep_children(parent_job_id, experiment_id=None):
         child_jobs = []
         for child_job_id in sweep_job_ids:
             try:
-                child_job = await Job.get(child_job_id)
+                child_job = await Job.get(child_job_id, experiment_id)
                 # Get full job data (including type, status, etc.)
                 job_json = await child_job.get_json_data()
                 child_jobs.append(job_json)
@@ -311,7 +316,10 @@ async def job_get_sweep_parent(child_job_id, experiment_id=None):
     Returns None if the job is not a sweep child.
     """
     try:
-        child_job = await Job.get(child_job_id)
+        if experiment_id is None:
+            return None
+
+        child_job = await Job.get(child_job_id, experiment_id)
         if experiment_id is not None:
             exp_id = await child_job.get_experiment_id()
             if exp_id != experiment_id:
@@ -325,7 +333,7 @@ async def job_get_sweep_parent(child_job_id, experiment_id=None):
         if not parent_job_id:
             return None
 
-        parent_job = await Job.get(parent_job_id)
+        parent_job = await Job.get(parent_job_id, experiment_id)
         return await parent_job.get_json_data()
     except Exception as e:
         print(f"Error getting sweep parent for job {child_job_id}: {e}")
@@ -484,9 +492,12 @@ async def job_update_status(
     except ValueError:
         raise ValueError(f"Invalid job status: {status!r}. Must be one of: {[s.value for s in JobStatus]}")
 
+    if experiment_id is None:
+        return
+
     # Get old status before updating for queue management
     try:
-        job = await Job.get(job_id)
+        job = await Job.get(job_id, experiment_id)
         exp_id = await job.get_experiment_id()
         if experiment_id is not None and exp_id != experiment_id:
             return
@@ -521,7 +532,7 @@ async def job_update_status(
     # Populate per-node cache for terminal jobs (best-effort).
     if is_terminal_state(status):
         try:
-            live_dict = await _job_get_live(job_id)
+            live_dict = await _job_get_live(job_id, experiment_id)
             if live_dict:
                 key = _job_cache_key(job_id)
                 await cache.set(key, live_dict, ttl="7d", tags=["jobs", f"job:{job_id}"])
@@ -540,7 +551,9 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
         experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
     """
     try:
-        job = await Job.get(job_id)
+        if experiment_id is None:
+            return
+        job = await Job.get(job_id, experiment_id)
         exp_id = await job.get_experiment_id()
         if experiment_id is not None and exp_id != experiment_id:
             return
@@ -563,7 +576,9 @@ def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, exp
         experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
     """
     try:
-        job = asyncio.run(Job.get(job_id))
+        if experiment_id is None:
+            return
+        job = asyncio.run(Job.get(job_id, experiment_id))
         exp_id = asyncio.run(job.get_experiment_id())
         if experiment_id is not None and exp_id != experiment_id:
             return
@@ -596,7 +611,12 @@ async def get_artifacts_from_sdk(job_id: str) -> Optional[List[Dict]]:
     try:
         from lab.job import Job
 
-        sdk_job = Job(job_id)
+        job = await job_get(job_id)
+        experiment_id = job.get("experiment_id") if job else None
+        if not experiment_id:
+            return None
+
+        sdk_job = Job(job_id, experiment_id)
         artifact_paths = sdk_job.get_artifact_paths()
 
         if not artifact_paths:
@@ -668,13 +688,16 @@ async def get_all_artifact_paths(job_id: str) -> List[str]:
     job = await job_get(job_id)
     if job:
         job_data = job.get("job_data", {})
+        experiment_id = job.get("experiment_id")
         artifacts_dir = job_data.get("artifacts_dir")
 
         if not artifacts_dir:
             try:
                 from lab.dirs import get_job_artifacts_dir
 
-                artifacts_dir = await get_job_artifacts_dir(job_id)
+                if not experiment_id:
+                    return []
+                artifacts_dir = await get_job_artifacts_dir(job_id, experiment_id)
             except Exception:
                 pass
 

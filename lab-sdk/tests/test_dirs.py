@@ -25,7 +25,7 @@ async def test_dirs_structure_created(monkeypatch, tmp_path):
 
     # Key directories exist
     assert os.path.isdir(await dirs.get_experiments_dir())
-    assert os.path.isdir(await dirs.get_jobs_dir())
+    assert os.path.isdir(await dirs.get_jobs_dir("exp1"))
     assert os.path.isdir(await dirs.get_models_dir())
     assert os.path.isdir(await dirs.get_datasets_dir())
     assert os.path.isdir(await dirs.get_temp_dir())

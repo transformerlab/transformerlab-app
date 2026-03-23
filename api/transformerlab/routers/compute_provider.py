@@ -2454,7 +2454,7 @@ async def resume_from_checkpoint(
         )
 
     # Verify checkpoint exists using workspace-aware path resolution
-    checkpoints_dir = await get_job_checkpoints_dir(job_id)
+    checkpoints_dir = await get_job_checkpoints_dir(job_id, experimentId)
     checkpoint_path = storage.join(checkpoints_dir, request.checkpoint)
     if not await storage.exists(checkpoint_path):
         raise HTTPException(status_code=404, detail=f"Checkpoint '{request.checkpoint}' not found")

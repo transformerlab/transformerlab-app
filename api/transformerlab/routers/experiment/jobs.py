@@ -109,8 +109,8 @@ async def job_delete_all(experimentId: str):
 
 
 @router.get("/{job_id}")
-async def get_training_job(job_id: str):
-    job = await job_service.job_get_cached(job_id)
+async def get_training_job(job_id: str, experimentId: str):
+    job = await job_service.job_get_cached(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     return job
@@ -175,7 +175,11 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                 # If still no file after retry, create an empty one in the jobs directory
                 print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
-                job_obj = Job(job_id)
+                job_dict = await job_service.job_get_cached(job_id)
+                experiment_id = job_dict.get("experiment_id") if job_dict else None
+                if not experiment_id:
+                    return []
+                job_obj = Job(job_id, experiment_id)
                 output_file_name = await job_obj.get_log_path()
                 # Get directory by removing filename from path using storage.join
                 output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
@@ -244,7 +248,7 @@ async def get_provider_job_logs(
         try:
             from lab.dirs import get_job_dir
 
-            job_dir = await get_job_dir(job_id)
+            job_dir = await get_job_dir(job_id, experimentId)
             provider_logs_path = storage.join(job_dir, "provider_logs.txt")
             if await storage.exists(provider_logs_path):
                 async with await storage.open(provider_logs_path, "r", encoding="utf-8") as f:
@@ -608,7 +612,19 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 # If still no file after retry, create an empty one in the jobs directory
                 print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
-                job_obj = Job(job_id)
+                job_dict = await job_service.job_get_cached(job_id)
+                experiment_id = job_dict.get("experiment_id") if job_dict else None
+                if not experiment_id:
+                    return StreamingResponse(
+                        iter(["data: Error: An internal error has occurred!\n\n"]),
+                        media_type="text/event-stream",
+                        headers={
+                            "Cache-Control": "no-cache",
+                            "Connection": "keep-alive",
+                            "Access-Control-Allow-Origin": "*",
+                        },
+                    )
+                job_obj = Job(job_id, experiment_id)
                 output_file_name = await job_obj.get_log_path()
                 # Get directory by removing filename from path using storage.join
                 output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
@@ -670,8 +686,8 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
 
 
 @router.get("/{job_id}/get_additional_details")
-async def stream_job_additional_details(job_id: str, task: str = "view"):
-    job = await job_service.job_get(job_id)
+async def stream_job_additional_details(job_id: str, experimentId: str, task: str = "view"):
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -706,8 +722,8 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
 
 
 @router.get("/{job_id}/get_figure_json")
-async def get_figure_path(job_id: str):
-    job = await job_service.job_get(job_id)
+async def get_figure_path(job_id: str, experimentId: str):
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -723,8 +739,8 @@ async def get_figure_path(job_id: str):
 
 
 @router.get("/{job_id}/get_generated_dataset")
-async def get_generated_dataset(job_id: str):
-    job = await job_service.job_get(job_id)
+async def get_generated_dataset(job_id: str, experimentId: str):
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     # Get experiment name
@@ -834,9 +850,9 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
 
 
 @router.get("/{job_id}/get_eval_images")
-async def get_eval_images(job_id: str):
+async def get_eval_images(job_id: str, experimentId: str):
     """Get list of evaluation images for a job"""
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -921,9 +937,9 @@ async def get_eval_images(job_id: str):
 
 
 @router.get("/{job_id}/image/{filename}")
-async def get_eval_image(job_id: str, filename: str):
+async def get_eval_image(job_id: str, filename: str, experimentId: str):
     """Serve individual evaluation image files"""
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -986,29 +1002,31 @@ async def get_checkpoints(job_id: str, request: Request):
     if job is None:
         return {"checkpoints": []}
 
+    experiment_id = job.get("experiment_id")
     job_data = job["job_data"]
     # First try to use the new SDK method to get checkpoints
     try:
         from lab.job import Job
 
         # Get checkpoints using the SDK method
-        sdk_job = Job(job_id)
-        checkpoint_paths = await sdk_job.get_checkpoint_paths()
+        if experiment_id:
+            sdk_job = Job(job_id, experiment_id)
+            checkpoint_paths = await sdk_job.get_checkpoint_paths()
 
-        if checkpoint_paths and len(checkpoint_paths) > 0:
-            checkpoints = []
-            for checkpoint_path in checkpoint_paths:
-                try:
-                    # Get filename from path
-                    filename = checkpoint_path.split("/")[-1] if "/" in checkpoint_path else checkpoint_path
-                    checkpoints.append({"filename": filename})
-                except Exception as e:
-                    print(f"Error processing checkpoint {checkpoint_path}: {e}")
-                    continue
+            if checkpoint_paths and len(checkpoint_paths) > 0:
+                checkpoints = []
+                for checkpoint_path in checkpoint_paths:
+                    try:
+                        # Get filename from path
+                        filename = checkpoint_path.split("/")[-1] if "/" in checkpoint_path else checkpoint_path
+                        checkpoints.append({"filename": filename})
+                    except Exception as e:
+                        print(f"Error processing checkpoint {checkpoint_path}: {e}")
+                        continue
 
-            # Sort checkpoints by filename in reverse (descending) order for consistent ordering
-            checkpoints.sort(key=lambda x: x["filename"], reverse=True)
-            return {"checkpoints": checkpoints}
+                # Sort checkpoints by filename in reverse (descending) order for consistent ordering
+                checkpoints.sort(key=lambda x: x["filename"], reverse=True)
+                return {"checkpoints": checkpoints}
     except Exception as e:
         print(f"SDK checkpoint method failed for job {job_id}, falling back to legacy method: {e}")
 
@@ -1037,7 +1055,9 @@ async def get_checkpoints(job_id: str, request: Request):
     if not checkpoints_dir:
         from lab.dirs import get_job_checkpoints_dir
 
-        checkpoints_dir = await get_job_checkpoints_dir(job_id)
+        if not experiment_id:
+            return {"checkpoints": []}
+        checkpoints_dir = await get_job_checkpoints_dir(job_id, experiment_id)
     if not checkpoints_dir or not await storage.exists(checkpoints_dir):
         return {"checkpoints": []}
     elif await storage.isdir(checkpoints_dir):
@@ -1100,7 +1120,12 @@ async def get_artifacts(job_id: str, request: Request):
     try:
         from lab.dirs import get_job_artifacts_dir
 
-        artifacts_dir = await get_job_artifacts_dir(job_id)
+        job_dict = await job_service.job_get_cached(job_id)
+        experiment_id = job_dict.get("experiment_id") if job_dict else None
+        if not experiment_id:
+            return {"artifacts": []}
+
+        artifacts_dir = await get_job_artifacts_dir(job_id, experiment_id)
         artifacts = await get_artifacts_from_directory(artifacts_dir)
     except Exception as e:
         print(f"Error getting artifacts for job {job_id}: {e}")
@@ -1155,6 +1180,7 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
         return Response("Job not found", status_code=404)
 
     job_data = job["job_data"]
+    experiment_id = job.get("experiment_id")
 
     # First try to use the new SDK method to get artifact paths
     artifact_file_path = None
@@ -1162,18 +1188,19 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
         from lab.job import Job
 
         # Get artifacts using the SDK method
-        sdk_job = Job(job_id)
-        artifact_paths = await sdk_job.get_artifact_paths()
+        if experiment_id:
+            sdk_job = Job(job_id, experiment_id)
+            artifact_paths = await sdk_job.get_artifact_paths()
 
-        if artifact_paths:
-            # Look for the file in the artifact paths
-            filename_secure = secure_filename(filename)
-            for artifact_path in artifact_paths:
-                # Check if this path matches the filename
-                path_filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
-                if path_filename == filename_secure:
-                    artifact_file_path = artifact_path
-                    break
+            if artifact_paths:
+                # Look for the file in the artifact paths
+                filename_secure = secure_filename(filename)
+                for artifact_path in artifact_paths:
+                    # Check if this path matches the filename
+                    path_filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
+                    if path_filename == filename_secure:
+                        artifact_file_path = artifact_path
+                        break
     except Exception as e:
         print(f"Error using SDK method to get artifact paths: {e}")
 
@@ -1358,7 +1385,7 @@ async def sweep_results(job_id: str):
 
 
 @router.get("/{job_id}/datasets")
-async def get_job_datasets(job_id: str, request: Request):
+async def get_job_datasets(job_id: str, experimentId: str, request: Request):
     """Get list of datasets in the job's datasets directory"""
 
     if not job_id or job_id in ("", "-1"):
@@ -1367,7 +1394,7 @@ async def get_job_datasets(job_id: str, request: Request):
     try:
         from lab.dirs import get_job_datasets_dir
 
-        datasets_dir = await get_job_datasets_dir(job_id)
+        datasets_dir = await get_job_datasets_dir(job_id, experimentId)
         datasets = await job_service.get_datasets_from_directory(datasets_dir)
     except Exception as e:
         print(f"Error getting datasets for job {job_id}: {e}")
@@ -1379,7 +1406,7 @@ async def get_job_datasets(job_id: str, request: Request):
 
 
 @router.get("/{job_id}/models")
-async def get_job_models(job_id: str, request: Request):
+async def get_job_models(job_id: str, experimentId: str, request: Request):
     """Get list of models in the job's models directory"""
 
     if not job_id or job_id in ("", "-1"):
@@ -1388,7 +1415,7 @@ async def get_job_models(job_id: str, request: Request):
     try:
         from lab.dirs import get_job_models_dir
 
-        models_dir = await get_job_models_dir(job_id)
+        models_dir = await get_job_models_dir(job_id, experimentId)
         models = await job_service.get_models_from_directory(models_dir)
     except Exception as e:
         print(f"Error getting models for job {job_id}: {e}")
@@ -1403,6 +1430,7 @@ async def get_job_models(job_id: str, request: Request):
 async def save_dataset_to_registry(
     job_id: str,
     dataset_name: str,
+    experimentId: str,
     target_name: Optional[str] = Query(None, description="Custom name for the dataset in the registry"),
     mode: str = Query(
         "new", description="'new' to create a new entry, 'existing' to merge into an existing registry dataset"
@@ -1424,7 +1452,7 @@ async def save_dataset_to_registry(
         dataset_name_secure = secure_filename(dataset_name)
 
         # Get source path (job's datasets directory)
-        job_datasets_dir = await get_job_datasets_dir(job_id)
+        job_datasets_dir = await get_job_datasets_dir(job_id, experimentId)
         source_path = storage.join(job_datasets_dir, dataset_name_secure)
 
         if not await storage.exists(source_path):
@@ -1485,6 +1513,7 @@ async def save_dataset_to_registry(
 async def save_model_to_registry(
     job_id: str,
     model_name: str,
+    experimentId: str,
     target_name: Optional[str] = Query(None, description="Custom name for the model in the registry"),
     mode: str = Query(
         "new", description="'new' to create a new entry, 'existing' to merge into an existing registry model"
@@ -1504,7 +1533,7 @@ async def save_model_to_registry(
         model_name_secure = secure_filename(model_name)
 
         # Get source path (job's models directory)
-        job_models_dir = await get_job_models_dir(job_id)
+        job_models_dir = await get_job_models_dir(job_id, experimentId)
         source_path = storage.join(job_models_dir, model_name_secure)
 
         if not await storage.exists(source_path):
@@ -1563,11 +1592,11 @@ async def save_model_to_registry(
 
 
 @router.get("/{job_id}/files")
-async def list_job_files(job_id: str, subpath: str = ""):
+async def list_job_files(job_id: str, experimentId: str, subpath: str = ""):
     """List files and directories in a job's directory."""
     from lab.dirs import get_job_dir
 
-    job_dir = await get_job_dir(job_id)
+    job_dir = await get_job_dir(job_id, experimentId)
     if not await storage.exists(job_dir):
         return {"files": [], "path": subpath}
 
@@ -1607,11 +1636,11 @@ async def list_job_files(job_id: str, subpath: str = ""):
 
 
 @router.get("/{job_id}/file/{file_path:path}")
-async def get_job_file(job_id: str, file_path: str):
+async def get_job_file(job_id: str, file_path: str, experimentId: str):
     """Serve a file from a job's directory."""
     from lab.dirs import get_job_dir
 
-    job_dir = await get_job_dir(job_id)
+    job_dir = await get_job_dir(job_id, experimentId)
     target = storage.join(job_dir, file_path)
 
     if not await storage.exists(target) or not await storage.isfile(target):
