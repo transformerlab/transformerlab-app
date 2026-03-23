@@ -275,6 +275,17 @@ async def get_job_artifacts_dir(job_id: str | int, experiment_id: str) -> str:
     return path
 
 
+async def get_job_profiling_dir(job_id: str | int) -> str:
+    """
+    Return the profiling directory for a specific job, creating it if needed.
+    Example: ~/.transformerlab/workspace/jobs/<job_id>/profiling
+    """
+    job_dir = await get_job_dir(job_id)
+    path = storage.join(job_dir, "profiling")
+    await storage.makedirs(path, exist_ok=True)
+    return path
+
+
 async def get_job_checkpoints_dir(job_id: str | int, experiment_id: str) -> str:
     """
     Return the checkpoints directory for a specific job, creating it if needed.
