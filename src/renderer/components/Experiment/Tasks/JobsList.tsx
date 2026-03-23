@@ -201,8 +201,12 @@ const JobsList: React.FC<JobsListProps> = ({
     <Table style={{ tableLayout: 'auto' }} stickyHeader>
       <tbody style={{ overflow: 'auto', height: '100%' }}>
         {jobs?.length > 0 ? (
-          jobs?.map((job) => (
-            <tr key={job.id}>
+          jobs?.map((job) => {
+            const fullJobId = String(job?.id ?? '');
+            const displayJobId =
+              String(job?.short_id ?? '').trim() || fullJobId.slice(0, 8);
+            return (
+              <tr key={job.id}>
               <td style={{ verticalAlign: 'top', border: 'none' }}>
                 {selectMode &&
                   job?.job_data?.eval_results &&
@@ -215,7 +219,7 @@ const JobsList: React.FC<JobsListProps> = ({
                       sx={{ mr: 1 }}
                     />
                   )}
-                <b>{job.id}</b>
+                <b title={fullJobId}>{displayJobId}</b>
               </td>
               <td style={{ verticalAlign: 'top', border: 'none' }}>
                 {formatJobConfig(job)}
@@ -511,8 +515,9 @@ const JobsList: React.FC<JobsListProps> = ({
                   )}
                 </ButtonGroup>
               </td>
-            </tr>
-          ))
+              </tr>
+            );
+          })
         ) : (
           <tr>
             <td

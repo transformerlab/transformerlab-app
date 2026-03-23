@@ -315,8 +315,11 @@ async def job_update_launch_progress(
     Appends a step to the timeline and sets phase, percent, and message.
     """
     try:
-        existing = await job_get(job_id)
-        if not existing or (experiment_id is not None and existing.get("experiment_id") != experiment_id):
+        if not experiment_id:
+            return
+
+        existing = await job_get(job_id, experiment_id)
+        if not existing or existing.get("experiment_id") != experiment_id:
             return
         job_data = existing.get("job_data") or {}
         existing_progress = job_data.get("launch_progress") or {}
