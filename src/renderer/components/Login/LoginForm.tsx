@@ -243,6 +243,7 @@ export default function LoginForm() {
                   autoFocus
                   disabled={loadingState !== null}
                   variant="outlined"
+                  slotProps={{ input: { autoComplete: 'username' } }}
                 />
               </FormControl>
               <FormControl required>
@@ -253,6 +254,7 @@ export default function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loadingState !== null}
                   variant="outlined"
+                  slotProps={{ input: { autoComplete: 'current-password' } }}
                 />
               </FormControl>
 

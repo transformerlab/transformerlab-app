@@ -1,6 +1,7 @@
 import os
 import json
 import importlib
+import asyncio
 import pytest
 
 
@@ -21,7 +22,6 @@ async def test_experiment_dir_and_jobs_index(tmp_path, monkeypatch):
     monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
 
     from lab.experiment import Experiment
-    from lab.job import Job
 
     exp = await Experiment.create("exp1")
     exp_dir = await exp.get_dir()
@@ -36,23 +36,14 @@ async def test_experiment_dir_and_jobs_index(tmp_path, monkeypatch):
     assert "index" in data
     assert "TRAIN" in data["index"]
 
-    # Create two jobs and assign to experiment
-    j1 = await Job.create("10")
-    await j1.set_experiment("exp1", sync_rebuild=True)
-    j2 = await Job.create("11")
-    await j2.set_experiment("exp1", sync_rebuild=True)
-
-    # Manually trigger rebuild to ensure jobs are in the index
-    from lab.dirs import get_workspace_dir
-
-    workspace = await get_workspace_dir()
-    await exp.rebuild_jobs_index(workspace_dir=workspace)
+    # Create two jobs via experiment API and ensure they are indexed immediately.
+    j1 = await exp.create_job()
+    j2 = await exp.create_job()
 
     all_jobs = await exp._get_all_jobs()
-    # Jobs should now be visible after rebuild
     job_ids = set(all_jobs)
-    assert "10" in job_ids
-    assert "11" in job_ids
+    assert str(j1.id) in job_ids
+    assert str(j2.id) in job_ids
 
 
 @pytest.mark.asyncio
@@ -66,16 +57,13 @@ async def test_get_jobs_filters(tmp_path, monkeypatch):
     monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
 
     from lab.experiment import Experiment
-    from lab.job import Job
 
     exp = await Experiment.create("exp2")
 
-    j1 = await Job.create("21")
-    await j1.set_experiment("exp2", sync_rebuild=True)
+    j1 = await exp.create_job()
     await j1.update_status("RUNNING")
 
-    j2 = await Job.create("22")
-    await j2.set_experiment("exp2", sync_rebuild=True)
+    j2 = await exp.create_job()
     await j2.update_status("NOT_STARTED")
 
     # get all
@@ -139,3 +127,47 @@ async def test_experiment_config_validation(tmp_path, monkeypatch):
     except TypeError:
         # Expected behavior - should raise TypeError for non-dict config
         pass
+
+
+@pytest.mark.asyncio
+async def test_update_cached_job_is_safe_under_concurrent_writes(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+
+    exp = await Experiment.create("exp-concurrent")
+
+    original_read = Experiment._read_jobs_json_file
+    gate = asyncio.Event()
+    counter = {"count": 0}
+
+    async def delayed_read(self, jobs_json_path, max_retries=5):
+        result = await original_read(self, jobs_json_path, max_retries=max_retries)
+        counter["count"] += 1
+        if counter["count"] <= 2:
+            if counter["count"] == 2:
+                gate.set()
+            try:
+                await asyncio.wait_for(gate.wait(), timeout=0.2)
+            except TimeoutError:
+                pass
+        return result
+
+    monkeypatch.setattr(Experiment, "_read_jobs_json_file", delayed_read)
+
+    await asyncio.gather(
+        exp._update_cached_job("job-1", {"id": "job-1", "status": "COMPLETE"}),
+        exp._update_cached_job("job-2", {"id": "job-2", "status": "COMPLETE"}),
+    )
+
+    jobs_json_path = await exp._jobs_json_file()
+    with open(jobs_json_path, encoding="utf-8") as f:
+        jobs_data = json.load(f)
+    cached_jobs = jobs_data.get("cached_jobs", {})
+    assert set(cached_jobs.keys()) >= {"job-1", "job-2"}

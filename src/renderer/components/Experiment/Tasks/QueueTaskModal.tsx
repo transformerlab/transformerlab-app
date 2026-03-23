@@ -25,7 +25,12 @@ import {
   Chip,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
-import { PlayIcon, AlertTriangleIcon, CheckCircleIcon } from 'lucide-react';
+import {
+  PlayIcon,
+  AlertTriangleIcon,
+  CheckCircleIcon,
+  ChevronDownIcon,
+} from 'lucide-react';
 import { setTheme } from 'renderer/lib/monacoConfig';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -108,6 +113,8 @@ export default function QueueTaskModal({
   const [lowerIsBetter, setLowerIsBetter] = React.useState(true);
   const [jobSlurmFlags, setJobSlurmFlags] = React.useState<string[]>(['']);
   const [useTrackio, setUseTrackio] = React.useState(false);
+  const [useProfiling, setUseProfiling] = React.useState(false);
+  const [useProfilingTorch, setUseProfilingTorch] = React.useState(false);
   const [trackioProjectName, setTrackioProjectName] = React.useState('');
   const [cpusInput, setCpusInput] = React.useState('');
   const [memoryInput, setMemoryInput] = React.useState('');
@@ -115,6 +122,11 @@ export default function QueueTaskModal({
   const [acceleratorsInput, setAcceleratorsInput] = React.useState('');
   const [numNodesInput, setNumNodesInput] = React.useState('');
   const [minutesRequestedInput, setMinutesRequestedInput] = React.useState('');
+  const [showResourceOverrides, setShowResourceOverrides] =
+    React.useState(false);
+  const [showParameterOverrides, setShowParameterOverrides] =
+    React.useState(true);
+  const resourceOverridesRef = React.useRef<HTMLDivElement | null>(null);
   const loadingMessages = React.useMemo(
     () => [
       'Contacting compute provider…',
@@ -151,6 +163,18 @@ export default function QueueTaskModal({
       window.clearInterval(interval);
     };
   }, [open, isSubmitting, loadingMessages]);
+
+  React.useEffect(() => {
+    if (!showResourceOverrides) {
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      resourceOverridesRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    });
+  }, [showResourceOverrides]);
 
   // Fetch available models and datasets from the API
   const { data: modelsData } = useSWR(
@@ -737,6 +761,15 @@ export default function QueueTaskModal({
       config.trackio_project_name = trackioProjectName.trim() || undefined;
     }
 
+    // Profiling: when enabled, backend will set _TFL_PROFILING=1 so tfl-remote-trap
+    // samples CPU/GPU/memory during the job and writes profiling_report.json.
+    if (useProfiling) {
+      config.enable_profiling = true;
+      if (useProfilingTorch) {
+        config.enable_profiling_torch = true;
+      }
+    }
+
     onSubmit(config);
   };
 
@@ -1275,213 +1308,75 @@ export default function QueueTaskModal({
                   </FormHelperText>
                 </FormControl>
               )}
-
-              {/* Resource Requirements Section */}
-              <Divider />
-              <Stack spacing={2}>
-                <Typography level="title-sm">Resource Requirements</Typography>
-                <Stack direction="row" spacing={2}>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>CPUs</FormLabel>
-                    <Input
-                      placeholder="e.g. 4"
-                      value={cpusInput}
-                      onChange={(e) => setCpusInput(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Memory</FormLabel>
-                    <Input
-                      placeholder="e.g. 16GB"
-                      value={memoryInput}
-                      onChange={(e) => setMemoryInput(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                </Stack>
-                <Stack direction="row" spacing={2}>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Disk space</FormLabel>
-                    <Input
-                      placeholder="e.g. 100GB"
-                      value={diskSpaceInput}
-                      onChange={(e) => setDiskSpaceInput(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Accelerators</FormLabel>
-                    <Input
-                      placeholder="e.g. A100:1, RTX3090:2, 1"
-                      value={acceleratorsInput}
-                      onChange={(e) => setAcceleratorsInput(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                </Stack>
-                <Stack direction="row" spacing={2}>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Num nodes</FormLabel>
-                    <Input
-                      placeholder="e.g. 1"
-                      value={numNodesInput}
-                      onChange={(e) => setNumNodesInput(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Minutes requested</FormLabel>
-                    <Input
-                      type="number"
-                      placeholder="e.g. 60"
-                      value={minutesRequestedInput}
-                      onChange={(e) => setMinutesRequestedInput(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                </Stack>
-                <FormHelperText>
-                  These values override the template&apos;s resource
-                  requirements for this run only. Leave a field empty to use the
-                  template default.
-                </FormHelperText>
-              </Stack>
-
-              {/* Incompatibility Warning */}
-              {selectedProvider &&
-                effectiveResources?.accelerators &&
-                !isProviderCompatible(selectedProvider) && (
-                  <Alert
-                    variant="soft"
-                    color="warning"
-                    startDecorator={<AlertTriangleIcon size={18} />}
-                    sx={{ mt: 1 }}
-                  >
-                    <Typography level="body-sm">
-                      This provider may not support the requested accelerators (
-                      <strong>{effectiveResources.accelerators}</strong>).
-                    </Typography>
-                  </Alert>
-                )}
-
-              {/* Local Provider Resource Validation */}
-              {isLocalProvider &&
-                resourceValidation &&
-                !resourceValidation.isCompatible && (
-                  <Alert
-                    variant="soft"
-                    color={resourceValidation.hasErrors ? 'danger' : 'warning'}
-                    startDecorator={<AlertTriangleIcon size={18} />}
-                    sx={{ mt: 1 }}
-                  >
-                    <Stack spacing={1}>
-                      <Typography
-                        level="title-sm"
-                        color={
-                          resourceValidation.hasErrors ? 'danger' : 'warning'
-                        }
-                      >
-                        {resourceValidation.hasErrors
-                          ? 'Local provider cannot meet task requirements'
-                          : 'Local provider may not meet task requirements'}
-                      </Typography>
-                      <Stack spacing={0.5}>
-                        {resourceValidation.issues.map((issue, idx) => (
-                          <Stack
-                            key={idx}
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                          >
-                            <Chip
-                              size="sm"
-                              variant="solid"
-                              color={
-                                issue.type === 'error' ? 'danger' : 'warning'
-                              }
-                            >
-                              {issue.label}
-                            </Chip>
-                            <Typography level="body-xs">
-                              Required: <strong>{issue.required}</strong> —
-                              Available: <strong>{issue.available}</strong>
-                            </Typography>
-                          </Stack>
-                        ))}
-                      </Stack>
-                      {resourceValidation.hasErrors && (
-                        <Typography level="body-xs" color="danger">
-                          Consider selecting a different provider with the
-                          required resources.
-                        </Typography>
-                      )}
-                    </Stack>
-                  </Alert>
-                )}
-
-              {isLocalProvider &&
-                resourceValidation?.isCompatible &&
-                effectiveResources && (
-                  <Alert
-                    variant="soft"
-                    color="success"
-                    startDecorator={<CheckCircleIcon size={18} />}
-                    sx={{ mt: 1 }}
-                  >
-                    <Typography level="body-sm" color="success">
-                      Local provider meets the task resource requirements.
-                    </Typography>
-                  </Alert>
-                )}
             </Stack>
 
             <Divider />
 
             {/* Task Parameters Section */}
             <Stack spacing={2}>
-              <Typography level="title-sm">Task Parameters</Typography>
-              {parameters.length === 0 ||
-              (parameters.length === 1 &&
-                !parameters[0].key &&
-                !parameters[0].value) ? (
-                <Typography level="body-sm" color="neutral">
-                  This task has no parameters defined. Click Submit to queue
-                  with default configuration.
-                </Typography>
-              ) : (
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ cursor: 'pointer' }}
+                onClick={() => setShowParameterOverrides((prev) => !prev)}
+              >
+                <Typography level="title-sm">Parameter overrides</Typography>
+                <ChevronDownIcon
+                  size={18}
+                  style={{
+                    transform: showParameterOverrides
+                      ? 'rotate(180deg)'
+                      : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease',
+                  }}
+                />
+              </Stack>
+              {showParameterOverrides && (
                 <Stack spacing={2}>
-                  {parameters.map((param, index) => {
-                    const schema = param.schema;
-                    const label = schema?.title || param.key;
+                  {parameters.length === 0 ||
+                  (parameters.length === 1 &&
+                    !parameters[0].key &&
+                    !parameters[0].value) ? (
+                    <Typography level="body-sm" color="neutral">
+                      This task has no parameters defined. Click Submit to queue
+                      with default configuration.
+                    </Typography>
+                  ) : (
+                    <Stack spacing={2}>
+                      {parameters.map((param, index) => {
+                        const schema = param.schema;
+                        const label = schema?.title || param.key;
 
-                    return (
-                      <FormControl
-                        key={param.key || index}
-                        sx={{ width: '100%' }}
-                      >
-                        <Stack
-                          direction="row"
-                          spacing={2}
-                          alignItems="center"
-                          sx={{ width: '100%' }}
-                        >
-                          <FormLabel
-                            sx={{ alignSelf: 'center', minWidth: 160 }}
+                        return (
+                          <FormControl
+                            key={param.key || index}
+                            sx={{ width: '100%' }}
                           >
-                            {label}:
-                          </FormLabel>
-                          {renderParameterInput(param, index)}
-                        </Stack>
-                      </FormControl>
-                    );
-                  })}
+                            <Stack
+                              direction="row"
+                              spacing={2}
+                              alignItems="center"
+                              sx={{ width: '100%' }}
+                            >
+                              <FormLabel
+                                sx={{ alignSelf: 'center', minWidth: 160 }}
+                              >
+                                {label}:
+                              </FormLabel>
+                              {renderParameterInput(param, index)}
+                            </Stack>
+                          </FormControl>
+                        );
+                      })}
+                    </Stack>
+                  )}
+                  <Typography level="body-sm" color="neutral">
+                    Parameters can be accessed in your task script using{' '}
+                    <code>lab.get_config()</code>
+                  </Typography>
                 </Stack>
               )}
-              <Typography level="body-sm" color="neutral">
-                Parameters can be accessed in your task script using{' '}
-                <code>lab.get_config()</code>
-              </Typography>
             </Stack>
 
             <Divider />
@@ -1535,6 +1430,49 @@ export default function QueueTaskModal({
 
             <Divider />
 
+            {/* Profiling Section */}
+            <Stack spacing={2}>
+              <Typography level="title-sm">Profiling</Typography>
+              <FormControl
+                orientation="horizontal"
+                sx={{ alignItems: 'center' }}
+              >
+                <Checkbox
+                  checked={useProfiling}
+                  onChange={(e) => {
+                    setUseProfiling(e.target.checked);
+                    if (!e.target.checked) setUseProfilingTorch(false);
+                  }}
+                  disabled={isSubmitting}
+                />
+                <FormLabel sx={{ ml: 1 }}>
+                  Enable CPU &amp; GPU profiling for this run
+                </FormLabel>
+              </FormControl>
+              <FormHelperText>
+                Samples CPU%, memory, and GPU utilization every few seconds
+                during the job. Results are available in the Profiling tab after
+                the job completes.
+              </FormHelperText>
+              {useProfiling && (
+                <FormControl
+                  orientation="horizontal"
+                  sx={{ alignItems: 'center', ml: 3 }}
+                >
+                  <Checkbox
+                    checked={useProfilingTorch}
+                    onChange={(e) => setUseProfilingTorch(e.target.checked)}
+                    disabled={isSubmitting}
+                  />
+                  <FormLabel sx={{ ml: 1 }}>
+                    Also capture PyTorch op-level trace (Chrome trace format)
+                  </FormLabel>
+                </FormControl>
+              )}
+            </Stack>
+
+            <Divider />
+
             {/* Sweep Configuration Section */}
             <SweepConfigSection
               runSweeps={runSweeps}
@@ -1547,6 +1485,197 @@ export default function QueueTaskModal({
               onLowerIsBetterChange={setLowerIsBetter}
               parameters={parameters}
             />
+
+            {/* Optional Resource Overrides Section */}
+            <Divider />
+            <Stack spacing={1}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ cursor: 'pointer' }}
+                onClick={() => setShowResourceOverrides((prev) => !prev)}
+              >
+                <Typography level="title-sm">
+                  Optional resource overrides
+                </Typography>
+                <ChevronDownIcon
+                  size={18}
+                  style={{
+                    transform: showResourceOverrides
+                      ? 'rotate(180deg)'
+                      : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease',
+                  }}
+                />
+              </Stack>
+              {showResourceOverrides && (
+                <Stack spacing={2} ref={resourceOverridesRef}>
+                  <Stack direction="row" spacing={2}>
+                    <FormControl sx={{ flex: 1 }}>
+                      <FormLabel>CPUs</FormLabel>
+                      <Input
+                        placeholder="e.g. 4"
+                        value={cpusInput}
+                        onChange={(e) => setCpusInput(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                    <FormControl sx={{ flex: 1 }}>
+                      <FormLabel>Memory</FormLabel>
+                      <Input
+                        placeholder="e.g. 16GB"
+                        value={memoryInput}
+                        onChange={(e) => setMemoryInput(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                  </Stack>
+                  <Stack direction="row" spacing={2}>
+                    <FormControl sx={{ flex: 1 }}>
+                      <FormLabel>Disk space</FormLabel>
+                      <Input
+                        placeholder="e.g. 100GB"
+                        value={diskSpaceInput}
+                        onChange={(e) => setDiskSpaceInput(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                    <FormControl sx={{ flex: 1 }}>
+                      <FormLabel>Accelerators</FormLabel>
+                      <Input
+                        placeholder="e.g. A100:1, RTX3090:2, 1"
+                        value={acceleratorsInput}
+                        onChange={(e) => setAcceleratorsInput(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                  </Stack>
+                  <Stack direction="row" spacing={2}>
+                    <FormControl sx={{ flex: 1 }}>
+                      <FormLabel>Num nodes</FormLabel>
+                      <Input
+                        placeholder="e.g. 1"
+                        value={numNodesInput}
+                        onChange={(e) => setNumNodesInput(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                    <FormControl sx={{ flex: 1 }}>
+                      <FormLabel>Minutes requested</FormLabel>
+                      <Input
+                        type="number"
+                        placeholder="e.g. 60"
+                        value={minutesRequestedInput}
+                        onChange={(e) =>
+                          setMinutesRequestedInput(e.target.value)
+                        }
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                  </Stack>
+                  <FormHelperText>
+                    These values override the template&apos;s resource
+                    requirements for this run only. Leave a field empty to use
+                    the template default.
+                  </FormHelperText>
+
+                  {/* Incompatibility Warning */}
+                  {selectedProvider &&
+                    effectiveResources?.accelerators &&
+                    !isProviderCompatible(selectedProvider) && (
+                      <Alert
+                        variant="soft"
+                        color="warning"
+                        startDecorator={<AlertTriangleIcon size={18} />}
+                        sx={{ mt: 1 }}
+                      >
+                        <Typography level="body-sm">
+                          This provider may not support the requested
+                          accelerators (
+                          <strong>{effectiveResources.accelerators}</strong>).
+                        </Typography>
+                      </Alert>
+                    )}
+
+                  {/* Local Provider Resource Validation */}
+                  {isLocalProvider &&
+                    resourceValidation &&
+                    !resourceValidation.isCompatible && (
+                      <Alert
+                        variant="soft"
+                        color={
+                          resourceValidation.hasErrors ? 'danger' : 'warning'
+                        }
+                        startDecorator={<AlertTriangleIcon size={18} />}
+                        sx={{ mt: 1 }}
+                      >
+                        <Stack spacing={1}>
+                          <Typography
+                            level="title-sm"
+                            color={
+                              resourceValidation.hasErrors
+                                ? 'danger'
+                                : 'warning'
+                            }
+                          >
+                            {resourceValidation.hasErrors
+                              ? 'Local provider cannot meet task requirements'
+                              : 'Local provider may not meet task requirements'}
+                          </Typography>
+                          <Stack spacing={0.5}>
+                            {resourceValidation.issues.map((issue, idx) => (
+                              <Stack
+                                key={idx}
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                              >
+                                <Chip
+                                  size="sm"
+                                  variant="solid"
+                                  color={
+                                    issue.type === 'error'
+                                      ? 'danger'
+                                      : 'warning'
+                                  }
+                                >
+                                  {issue.label}
+                                </Chip>
+                                <Typography level="body-xs">
+                                  Required: <strong>{issue.required}</strong> —
+                                  Available: <strong>{issue.available}</strong>
+                                </Typography>
+                              </Stack>
+                            ))}
+                          </Stack>
+                          {resourceValidation.hasErrors && (
+                            <Typography level="body-xs" color="danger">
+                              Consider selecting a different provider with the
+                              required resources.
+                            </Typography>
+                          )}
+                        </Stack>
+                      </Alert>
+                    )}
+
+                  {isLocalProvider &&
+                    resourceValidation?.isCompatible &&
+                    effectiveResources && (
+                      <Alert
+                        variant="soft"
+                        color="success"
+                        startDecorator={<CheckCircleIcon size={18} />}
+                        sx={{ mt: 1 }}
+                      >
+                        <Typography level="body-sm" color="success">
+                          Local provider meets the task resource requirements.
+                        </Typography>
+                      </Alert>
+                    )}
+                </Stack>
+              )}
+            </Stack>
           </Stack>
         </DialogContent>
         <DialogActions>

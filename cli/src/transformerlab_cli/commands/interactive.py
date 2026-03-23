@@ -1,14 +1,13 @@
 import re
 import time
 
+import httpx
 import typer
-from rich.console import Console
 from rich.panel import Panel
 
 from transformerlab_cli.util import api
 from transformerlab_cli.util.config import require_current_experiment
-
-console = Console()
+from transformerlab_cli.util.ui import console
 
 DEFAULT_TIMEOUT = 300
 POLL_INTERVAL = 3
@@ -21,19 +20,19 @@ def _get_experiment_id() -> str:
 
 def _select_provider() -> dict:
     """Fetch providers and prompt user to select one."""
-    with console.status("[bold green]Fetching providers...[/bold green]", spinner="dots"):
+    with console.status("[bold success]Fetching providers...[/bold success]", spinner="dots"):
         response = api.get("/compute_provider/")
 
     if response.status_code != 200:
-        console.print("[red]Error:[/red] Failed to fetch providers.")
+        console.print("[error]Error:[/error] Failed to fetch providers.")
         raise typer.Exit(1)
 
     providers = response.json()
     if not providers:
-        console.print("[red]Error:[/red] No compute providers available. Add one in team settings first.")
+        console.print("[error]Error:[/error] No compute providers available. Add one in team settings first.")
         raise typer.Exit(1)
 
-    console.print("\n[bold cyan]Select a compute provider:[/bold cyan]")
+    console.print("\n[bold label]Select a compute provider:[/bold label]")
     for i, provider in enumerate(providers, 1):
         ptype = provider.get("type", "")
         console.print(f"  [bold]{i}[/bold]. {provider.get('name', provider.get('id'))} ({ptype})")
@@ -44,18 +43,18 @@ def _select_provider() -> dict:
             idx = int(choice) - 1
             if 0 <= idx < len(providers):
                 return providers[idx]
-            console.print(f"[red]Please enter a number between 1 and {len(providers)}[/red]")
+            console.print(f"[error]Please enter a number between 1 and {len(providers)}[/error]")
         except ValueError:
-            console.print("[red]Please enter a valid number[/red]")
+            console.print("[error]Please enter a valid number[/error]")
 
 
 def _select_template(experiment_id: str, provider: dict) -> dict:
     """Fetch interactive gallery and prompt user to select a template, filtered by provider."""
-    with console.status("[bold green]Fetching interactive tasks...[/bold green]", spinner="dots"):
+    with console.status("[bold success]Fetching interactive tasks...[/bold success]", spinner="dots"):
         response = api.get(f"/experiment/{experiment_id}/task/gallery/interactive")
 
     if response.status_code != 200:
-        console.print("[red]Error:[/red] Failed to fetch interactive gallery.")
+        console.print("[error]Error:[/error] Failed to fetch interactive gallery.")
         raise typer.Exit(1)
 
     # Response is wrapped: {"status": "success", "data": [...]}
@@ -87,12 +86,12 @@ def _select_template(experiment_id: str, provider: dict) -> dict:
         compatible.append(entry)
 
     if not compatible:
-        console.print("[yellow]No compatible interactive tasks for this provider.[/yellow]")
+        console.print("[warning]No compatible interactive tasks for this provider.[/warning]")
         if is_local:
             console.print("[dim]Some tasks are only available on remote providers.[/dim]")
         raise typer.Exit(1)
 
-    console.print("\n[bold cyan]Available interactive tasks:[/bold cyan]")
+    console.print("\n[bold label]Available interactive tasks:[/bold label]")
     for i, entry in enumerate(compatible, 1):
         console.print(f"  [bold]{i}[/bold]. {entry.get('name', entry.get('id'))} - {entry.get('description', '')}")
 
@@ -102,9 +101,9 @@ def _select_template(experiment_id: str, provider: dict) -> dict:
             idx = int(choice) - 1
             if 0 <= idx < len(compatible):
                 return compatible[idx]
-            console.print(f"[red]Please enter a number between 1 and {len(compatible)}[/red]")
+            console.print(f"[error]Please enter a number between 1 and {len(compatible)}[/error]")
         except ValueError:
-            console.print("[red]Please enter a valid number[/red]")
+            console.print("[error]Please enter a valid number[/error]")
 
 
 def _collect_env_params(gallery_entry: dict, provider: dict) -> dict[str, str]:
@@ -116,7 +115,7 @@ def _collect_env_params(gallery_entry: dict, provider: dict) -> dict[str, str]:
     is_local = provider.get("type") == "local"
     env_vars: dict[str, str] = {}
 
-    console.print("\n[bold cyan]Configuration:[/bold cyan]")
+    console.print("\n[bold label]Configuration:[/bold label]")
     for param in env_parameters:
         env_var = param.get("env_var", "")
         field_name = param.get("field_name", env_var)
@@ -149,7 +148,7 @@ def _collect_env_params(gallery_entry: dict, provider: dict) -> dict[str, str]:
             )
             if value or not required:
                 break
-            console.print(f"[red]  {field_name} is required.[/red]")
+            console.print(f"[error]  {field_name} is required.[/error]")
 
         if value:
             env_vars[env_var] = value
@@ -159,7 +158,7 @@ def _collect_env_params(gallery_entry: dict, provider: dict) -> dict[str, str]:
 
 def _collect_resources(gallery_entry: dict) -> dict:
     """Collect resource configuration for remote providers."""
-    console.print("\n[bold cyan]Resource configuration:[/bold cyan]")
+    console.print("\n[bold label]Resource configuration:[/bold label]")
 
     def ask(label: str, default_val: str = "") -> str:
         return typer.prompt(f"  {label}", default=default_val, show_default=bool(default_val))
@@ -202,15 +201,15 @@ def _import_task(experiment_id: str, gallery_entry: dict, env_vars: dict) -> str
     if response.status_code != 200:
         try:
             detail = response.json().get("detail", response.text)
-        except Exception:
+        except (ValueError, KeyError):
             detail = response.text
-        console.print(f"[red]Error:[/red] Failed to import task: {detail}")
+        console.print(f"[error]Error:[/error] Failed to import task: {detail}")
         raise typer.Exit(1)
 
     data = response.json()
     task_id = data.get("id")
     if not task_id:
-        console.print("[red]Error:[/red] No task ID returned from import.")
+        console.print("[error]Error:[/error] No task ID returned from import.")
         raise typer.Exit(1)
 
     return str(task_id)
@@ -262,15 +261,15 @@ def _launch(provider: dict, payload: dict) -> int:
     if response.status_code != 200:
         try:
             detail = response.json().get("detail", response.text)
-        except Exception:
+        except (ValueError, KeyError):
             detail = response.text
-        console.print(f"[red]Error:[/red] Failed to launch task: {detail}")
+        console.print(f"[error]Error:[/error] Failed to launch task: {detail}")
         raise typer.Exit(1)
 
     data = response.json()
     job_id = data.get("job_id")
     if not job_id:
-        console.print("[red]Error:[/red] No job ID returned from launch.")
+        console.print("[error]Error:[/error] No job ID returned from launch.")
         raise typer.Exit(1)
 
     return int(job_id)
@@ -286,19 +285,19 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
     jobs_url = f"/experiment/{experiment_id}/jobs/list?type=REMOTE"
     logs_url = f"/experiment/{experiment_id}/jobs/{job_id}/provider_logs?live=true"
     seen_log_lines = 0
-    spinner = console.status("[bold green]Waiting for service...[/bold green]", spinner="dots")
+    spinner = console.status("[bold success]Waiting for service...[/bold success]", spinner="dots")
     spinner.start()
 
     while True:
         elapsed = int(time.time() - start)
         if elapsed >= timeout:
             spinner.stop()
-            console.print(f"\n[yellow]Timed out after {timeout}s waiting for service.[/yellow]")
+            console.print(f"\n[warning]Timed out after {timeout}s waiting for service.[/warning]")
             console.print(f"Check status with: [bold]lab job info {job_id}[/bold]")
             raise typer.Exit(1)
 
         if seen_log_lines == 0:
-            spinner.update(f"[bold green]Waiting for service... ({elapsed}s)[/bold green]")
+            spinner.update(f"[bold success]Waiting for service... ({elapsed}s)[/bold success]")
 
         try:
             # Check job status — only keep polling if in an active state
@@ -310,14 +309,14 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
                     if job_status not in ACTIVE_STATUSES:
                         spinner.stop()
                         error_msg = job.get("job_data", {}).get("error_msg", "")
-                        console.print(f"\n[red]Job {job_id} {job_status}.[/red]")
+                        console.print(f"\n[error]Job {job_id} {job_status}.[/error]")
                         if error_msg:
-                            console.print(f"[red]Error: {error_msg}[/red]")
+                            console.print(f"[error]Error: {error_msg}[/error]")
                         console.print(f"Check logs with: [bold]lab job info {job_id}[/bold]")
                         raise typer.Exit(1)
         except typer.Exit:
             raise
-        except Exception:
+        except httpx.HTTPError:
             pass
 
         # Stream new log lines to give the user feedback
@@ -334,7 +333,7 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
                         for line in lines[seen_log_lines:]:
                             console.print(f"[dim]{line}[/dim]")
                         seen_log_lines = len(lines)
-        except Exception:
+        except httpx.HTTPError:
             pass
 
         try:
@@ -345,7 +344,7 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
                     if seen_log_lines == 0:
                         spinner.stop()
                     return data
-        except Exception:
+        except httpx.HTTPError:
             pass  # Server unreachable, keep polling
 
         time.sleep(POLL_INTERVAL)
@@ -353,7 +352,7 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
 
 def _print_connection_info(tunnel_info: dict, job_id: int) -> None:
     """Render connection info from tunnel_info instructions."""
-    console.print("\n[green bold]✓ Service is ready![/green bold]\n")
+    console.print("\n[success bold]✓ Service is ready![/success bold]\n")
 
     instructions = tunnel_info.get("instructions", [])
     values = {k: str(v) for k, v in tunnel_info.items() if v is not None and isinstance(v, (str, int, float))}
@@ -417,13 +416,13 @@ def interactive(timeout: int = DEFAULT_TIMEOUT) -> None:
         resources = _collect_resources(template)
 
     # 5. Import task from gallery
-    with console.status("[bold green]Importing task...[/bold green]", spinner="dots"):
+    with console.status("[bold success]Importing task...[/bold success]", spinner="dots"):
         task_id = _import_task(experiment_id, template, env_vars)
 
     # 6. Launch
     payload = _build_interactive_launch_payload(experiment_id, task_id, provider, template, env_vars, resources)
 
-    with console.status("[bold green]Launching...[/bold green]", spinner="dots"):
+    with console.status("[bold success]Launching...[/bold success]", spinner="dots"):
         job_id = _launch(provider, payload)
 
     console.print(f"Job [bold]{job_id}[/bold] created.")
