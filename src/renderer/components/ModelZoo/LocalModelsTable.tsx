@@ -33,6 +33,8 @@ import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import SelectButton from '../Experiment/SelectButton';
 import { fetchWithAuth } from 'renderer/lib/authContext';
+import VersionGroupChip from '../Shared/VersionGroupChip';
+import AssetVersionsDrawer from '../Shared/AssetVersionsDrawer';
 
 type Order = 'asc' | 'desc';
 
@@ -50,6 +52,10 @@ const LocalModelsTable = ({
   const [order, setOrder] = useState<Order>('desc');
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
+  const [versionDrawer, setVersionDrawer] = useState<{
+    open: boolean;
+    groupName: string;
+  }>({ open: false, groupName: '' });
 
   const navigate = useNavigate();
 
@@ -246,6 +252,7 @@ const LocalModelsTable = ({
               <th style={{ width: 60, padding: 12 }}>Params</th>
               {/* <th style={{ width: 220, padding: 12 }}>Type</th> */}
               <th style={{ width: 180, padding: 12 }}>Model ID</th>
+              <th style={{ width: 120, padding: 12 }}>Versions</th>
               <th style={{ width: 60, padding: 12 }}> </th>
             </tr>
           </thead>
@@ -342,6 +349,14 @@ const LocalModelsTable = ({
                       ></Box>
                     </td> */}
                       <td>{row.model_id}</td>
+                      <td>
+                        <VersionGroupChip
+                          versionGroups={row.version_groups || []}
+                          onClick={(groupName) =>
+                            setVersionDrawer({ open: true, groupName })
+                          }
+                        />
+                      </td>
                       <td style={{ textAlign: 'right' }}>
                         {/* <Link fontWeight="lg" component="button" color="neutral">
                           Archive
@@ -485,6 +500,12 @@ const LocalModelsTable = ({
           <ReactRouterLink to="/zoo">Model Registry</ReactRouterLink>
         </Typography>
       )}
+      <AssetVersionsDrawer
+        open={versionDrawer.open}
+        onClose={() => setVersionDrawer({ open: false, groupName: '' })}
+        assetType="model"
+        groupName={versionDrawer.groupName}
+      />
     </>
   );
 };

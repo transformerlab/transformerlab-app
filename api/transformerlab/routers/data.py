@@ -841,6 +841,20 @@ async def dataset_list(generated: bool = True):
     except Exception:
         merged_list = []
 
+    # Augment each dataset with version group info if any
+    try:
+        from transformerlab.services import asset_version_service
+
+        group_map = await asset_version_service.get_all_asset_group_map("dataset")
+        for entry in merged_list:
+            dataset_id = entry.get("dataset_id", "")
+            if dataset_id in group_map:
+                entry["version_groups"] = group_map[dataset_id]
+            else:
+                entry["version_groups"] = []
+    except Exception as e:
+        print(f"Warning: could not fetch dataset version groups: {e}")
+
     if generated:
         return merged_list
 

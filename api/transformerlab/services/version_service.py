@@ -6,11 +6,14 @@ Caches the result in memory to avoid hitting GitHub's rate limits.
 
 import logging
 import time
+import asyncio
+from pathlib import Path
 
 import httpx
 from packaging.version import Version, InvalidVersion
 
-from tlab_package_init import __version__ as CURRENT_VERSION
+from lab import HOME_DIR
+from tlab_package_init import __version__ as PACKAGE_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +22,20 @@ CACHE_TTL_SECONDS = 3600  # 1 hour
 
 _cached_latest_version: str | None = None
 _cache_timestamp: float = 0.0
+
+
+async def get_current_version() -> str:
+    """Read the installed Transformer Lab version from ~/.transformerlab/src/LATEST_VERSION."""
+    latest_version_file = Path(HOME_DIR) / "src" / "LATEST_VERSION"
+    try:
+        version = (await asyncio.to_thread(latest_version_file.read_text, encoding="utf-8")).strip()
+        if version:
+            return version.lstrip("v")
+    except Exception as e:
+        logger.warning("Failed to read current version from %s: %s", latest_version_file, e)
+
+    # Fallback for dev/test environments where the install file may not exist.
+    return PACKAGE_VERSION
 
 
 async def fetch_latest_version_from_github() -> str | None:
@@ -66,9 +83,10 @@ def _is_update_available(current: str, latest: str | None) -> bool:
 
 async def get_version_info() -> dict:
     """Return current version, latest version, and whether an update is available."""
+    current = await get_current_version()
     latest = await fetch_latest_version_from_github()
     return {
-        "current_version": CURRENT_VERSION,
+        "current_version": current,
         "latest_version": latest,
-        "update_available": _is_update_available(CURRENT_VERSION, latest),
+        "update_available": _is_update_available(current, latest),
     }
