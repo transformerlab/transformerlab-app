@@ -1,10 +1,9 @@
 import typer
-from rich.console import Console
 from transformerlab_cli import __version__
+from transformerlab_cli.util.ui import console
 
 
 app = typer.Typer()
-console = Console()
 
 
 @app.command()

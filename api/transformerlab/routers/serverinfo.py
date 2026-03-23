@@ -124,6 +124,14 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Tr
             last_position = await f.tell()
 
 
+@router.get("/version")
+async def get_version():
+    """Return current API version and latest available version from GitHub."""
+    from transformerlab.services.version_service import get_version_info
+
+    return await get_version_info()
+
+
 @router.get("/stream_log")
 async def watch_log():
     global_log_path = await get_global_log_path()
