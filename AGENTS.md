@@ -93,6 +93,48 @@ When requested, verify the result with the following steps:
 5. Take screenshots and verify that no layouts are broken.
 6. If you see a visual bug in the screenshot, fix it immediately.
 
+## Using curl to Access the API (Authentication)
+
+The API uses `fastapi-users` with JWT cookies and API keys. Most endpoints require authentication **and** a team context. When debugging or inspecting API responses with curl, follow this pattern:
+
+### Quick Start (cookie auth)
+
+```bash
+# 1. Login — saves JWT cookies to cookies.txt
+curl -c cookies.txt -X POST http://localhost:8338/auth/cookie/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=admin@example.com&password=admin123"
+
+# 2. Get your team ID (required for most endpoints)
+curl -b cookies.txt http://localhost:8338/users/me/teams
+# Returns JSON array of teams — grab the "id" field from the first one
+
+# 3. Make authenticated requests — pass cookies + X-Team-Id header
+curl -b cookies.txt -H "X-Team-Id: <team-id>" http://localhost:8338/server/announcements
+```
+
+### Bearer token auth (no cookie file)
+
+```bash
+# Login via JWT endpoint — returns tokens in response body
+TOKEN=$(curl -s -X POST http://localhost:8338/auth/jwt/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=admin@example.com&password=admin123" | jq -r .access_token)
+
+# Use the token (expires in 1 hour)
+curl -H "Authorization: Bearer $TOKEN" \
+  -H "X-Team-Id: <team-id>" \
+  http://localhost:8338/server/announcements
+```
+
+### Key details
+
+- **Login format**: Must be `application/x-www-form-urlencoded` with `username` and `password` fields (OAuth2 password flow).
+- **Default credentials**: `admin@example.com` / `admin123` (seeded on first startup).
+- **X-Team-Id header**: Required on all protected endpoints. Get it from `GET /users/me/teams`. Without it, requests return 400.
+- **Token lifetime**: Access tokens expire after 1 hour. Re-login to get a new one.
+- **Unprotected endpoints**: `auth`, `api_keys`, `quota`, `compute_provider`, and the OpenAI-compatible API do not require auth.
+
 ## Architecture Deep Dives
 
 This section documents complex flows in the codebase to help agents quickly understand how things work.
