@@ -283,15 +283,9 @@ def _prompt_auth(existing: dict[str, str]) -> dict[str, str]:
 INSTALL_COMMAND = "curl -fsSL https://lab.cloud/install.sh | bash -s -- multiuser_setup"
 
 
-def _offer_install_script() -> None:
-    """Prompt the user to run the install script and stream output in real time."""
-    console.print(f"\n[info]Install command:[/info] [bold]{INSTALL_COMMAND}[/bold]")
-
-    if not typer.confirm("\nRun the install script now?", default=True):
-        console.print("[dim]Skipped. You can run it manually later.[/dim]")
-        return
-
-    console.print("\n[info]Running install script...[/info]\n")
+def _run_install_script() -> int:
+    """Run the install/update script, streaming output. Returns the exit code."""
+    console.print(f"\n[info]Command:[/info] [bold]{INSTALL_COMMAND}[/bold]\n")
     try:
         process = subprocess.run(
             ["bash", "-c", INSTALL_COMMAND],
@@ -299,13 +293,24 @@ def _offer_install_script() -> None:
             stderr=sys.stderr,
         )
         if process.returncode == 0:
-            console.print("\n[success]Install script completed successfully.[/success]")
+            console.print("\n[success]Script completed successfully.[/success]")
         else:
-            console.print(f"\n[error]Install script exited with code {process.returncode}.[/error]")
+            console.print(f"\n[error]Script exited with code {process.returncode}.[/error]")
+        return process.returncode
     except KeyboardInterrupt:
-        console.print("\n[warning]Install script interrupted.[/warning]")
+        console.print("\n[warning]Script interrupted.[/warning]")
+        return 130
     except OSError as e:
-        console.print(f"\n[error]Failed to run install script: {e}[/error]")
+        console.print(f"\n[error]Failed to run script: {e}[/error]")
+        return 1
+
+
+def _offer_install_script() -> None:
+    """Prompt the user to run the install script after writing config."""
+    if not typer.confirm("\nRun the install script now?", default=True):
+        console.print("[dim]Skipped. You can run it manually later.[/dim]")
+        return
+    _run_install_script()
 
 
 # ---------------------------------------------------------------------------
@@ -474,3 +479,12 @@ def server_install(
     console.print(f"  2. Open {frontend_url} in your browser")
     console.print("  3. Log in with [bold]admin@example.com[/bold] / [bold]admin123[/bold]")
     console.print("     [warning]Change the default password immediately![/warning]")
+
+
+@app.command("update")
+def server_update() -> None:
+    """Update Transformer Lab to the latest version."""
+    console.print("\n[bold header]Transformer Lab Server Update[/bold header]")
+    exit_code = _run_install_script()
+    if exit_code != 0:
+        raise typer.Exit(exit_code)
