@@ -48,19 +48,22 @@ def _save_config(config: dict[str, Any]) -> bool:
         return False
 
 
-def list_config() -> None:
+def list_config(output_format: str = "pretty") -> None:
     """Display all config values in a table."""
     config = load_config()
 
     if not config:
-        console.print("[warning]No configuration values set[/warning]")
+        if output_format == "json":
+            print(json.dumps([]))
+        else:
+            console.print("[warning]No configuration values set[/warning]")
         return
 
     json_with_key_value = [{"Key": k, "Value": str(v)} for k, v in sorted(config.items())]
 
     render_table(
         data=json_with_key_value,
-        format_type="pretty",
+        format_type=output_format,
         table_columns=["Key", "Value"],
         title=None,
     )
@@ -86,26 +89,38 @@ def _validate_url(url: str) -> str | None:
         return None
 
 
-def set_config(key: str, value: str) -> bool:
+def set_config(key: str, value: str, output_format: str = "pretty") -> bool:
     """Set a config value. Returns True on success."""
     if not key:
-        console.print("[error]Error:[/error] Key cannot be empty")
+        if output_format == "json":
+            print(json.dumps({"error": "Key cannot be empty"}))
+        else:
+            console.print("[error]Error:[/error] Key cannot be empty")
         return False
     if not value:
-        console.print("[error]Error:[/error] Value cannot be empty")
+        if output_format == "json":
+            print(json.dumps({"error": "Value cannot be empty"}))
+        else:
+            console.print("[error]Error:[/error] Value cannot be empty")
         return False
 
     if key not in VALID_CONFIG_KEYS:
         keys_list = ", ".join(VALID_CONFIG_KEYS)
-        console.print(f"[error]Error:[/error] Invalid config key '{key}'")
-        console.print(f"[warning]Valid keys:[/warning] {keys_list}")
+        if output_format == "json":
+            print(json.dumps({"error": f"Invalid config key '{key}'", "valid_keys": VALID_CONFIG_KEYS}))
+        else:
+            console.print(f"[error]Error:[/error] Invalid config key '{key}'")
+            console.print(f"[warning]Valid keys:[/warning] {keys_list}")
         return False
 
     if key == "server":
         normalized_url = _validate_url(value)
         if normalized_url is None:
-            console.print(f"[error]Error:[/error] Invalid URL '{value}'")
-            console.print("[warning]URL must start with http:// or https://[/warning]")
+            if output_format == "json":
+                print(json.dumps({"error": f"Invalid URL '{value}'"}))
+            else:
+                console.print(f"[error]Error:[/error] Invalid URL '{value}'")
+                console.print("[warning]URL must start with http:// or https://[/warning]")
             return False
         value = normalized_url
 
@@ -113,7 +128,10 @@ def set_config(key: str, value: str) -> bool:
     config[key] = value
 
     if _save_config(config):
-        console.print(f"[success]✓[/success] Set [label]{key}[/label] = [value]{value}[/value]")
+        if output_format == "json":
+            print(json.dumps({"key": key, "value": value}))
+        else:
+            console.print(f"[success]✓[/success] Set [label]{key}[/label] = [value]{value}[/value]")
         return True
     return False
 
