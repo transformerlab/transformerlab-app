@@ -111,7 +111,7 @@ List all jobs in the current experiment.
 
 | Option | Description |
 |---|---|
-| `--running` | Show only RUNNING, LAUNCHING, and INTERACTIVE jobs |
+| `--running` | Show only active jobs (WAITING, LAUNCHING, RUNNING, INTERACTIVE) |
 
 ### `job info <job_id>`
 
