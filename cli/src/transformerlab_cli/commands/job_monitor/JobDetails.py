@@ -6,7 +6,7 @@ from textual.containers import Vertical, VerticalScroll, Horizontal
 from textual.screen import ModalScreen
 from textual import work
 from transformerlab_cli.util import api
-from transformerlab_cli.util.config import check_configs
+from transformerlab_cli.util.config import check_configs, get_current_experiment
 
 
 def log_to_file(message: str) -> None:
@@ -54,9 +54,13 @@ class JobDetails(Vertical):
         with VerticalScroll(id="job-artifacts-container"):
             yield Static("[bold]Artifacts:[/bold]\nNo artifacts available.", id="job-artifacts")
 
+        # 3b. Connection info for interactive jobs
+        yield Static("", id="job-connection-info")
+
         # 4. Buttons (Bottom)
         with Horizontal(id="job-buttons"):
             yield Button("View Job Details", id="btn-view-json", variant="primary")
+            yield Button("View Job Logs", id="btn-view-logs", variant="primary")
             yield Button("Download All Artifacts", id="btn-download", variant="primary")
 
     def set_job(self, job: dict) -> None:
@@ -112,10 +116,76 @@ class JobDetails(Vertical):
         artifacts_container = self.query_one("#job-artifacts-container", VerticalScroll)
         artifacts_container.add_class("visible")
 
+        # Show connection info for interactive jobs
+        connection_view = self.query_one("#job-connection-info", Static)
+        connection_view.update("")
+        job_data = job.get("job_data", {})
+        if job_data.get("subtype") == "interactive" and job.get("status") == "INTERACTIVE":
+            self._fetch_connection_info(str(job.get("id", "")))
+
+    @work(thread=True)
+    def _fetch_connection_info(self, job_id: str) -> None:
+        """Fetch tunnel info for an interactive job, retrying until ready."""
+        import time
+
+        experiment_id = get_current_experiment() or "alpha"
+        for _ in range(20):  # retry up to ~60s
+            try:
+                response = api.get(f"/experiment/{experiment_id}/jobs/{job_id}/tunnel_info", timeout=10.0)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("is_ready"):
+                        self.app.call_from_thread(self._display_connection_info, data)
+                        return
+            except Exception:
+                pass
+            time.sleep(3)
+
+    def _display_connection_info(self, tunnel_info: dict) -> None:
+        """Display connection info in the artifacts section."""
+        instructions = tunnel_info.get("instructions", [])
+        values = {k: str(v) for k, v in tunnel_info.items() if v is not None and isinstance(v, (str, int, float))}
+
+        lines = ["[bold]Connection Info:[/bold]\n"]
+        for block in instructions:
+            kind = block.get("kind")
+            title = block.get("title", "")
+            value_key = block.get("value_key")
+            value = values.get(value_key, "") if value_key else ""
+
+            if kind in ("url", "code", "command") and value:
+                lines.append(f"[$primary]{title}:[/$primary] {value}")
+            elif kind == "kv":
+                for item in block.get("items", []):
+                    val = values.get(item.get("value_key", ""), "")
+                    if val:
+                        lines.append(f"  {item.get('label', '')}: {val}")
+
+        if len(lines) > 1:
+            info_text = "\n".join(lines)
+            connection_view = self.query_one("#job-connection-info", Static)
+            connection_view.update(info_text)
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-view-json":
             if self.current_job:
                 self.app.push_screen(JobJsonModal(self.current_job))
+        elif event.button.id == "btn-view-logs":
+            # Show the logs panel (hidden by default) and focus it.
+            try:
+                from transformerlab_cli.commands.job_monitor.JobLogs import JobLogs
+
+                logs_panel = self.app.query_one(JobLogs)
+                # Toggle visibility so the button can act as show/hide
+                if logs_panel.has_class("visible"):
+                    logs_panel.remove_class("visible")
+                    return
+                logs_panel.add_class("visible")
+                log_view = self.app.query_one("#job-log-view")
+                log_view.scroll_end(animate=False)
+                log_view.focus()
+            except Exception:
+                pass
         elif event.button.id == "btn-download":
             if self.current_job:
                 job_id = str(self.current_job.get("id", ""))

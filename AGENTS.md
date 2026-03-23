@@ -20,6 +20,7 @@
 - **API start**: `cd api && ./run.sh` or `npm run api:start`
 - **API test**: `cd api && pytest`
 - **API single test**: `cd api && pytest test/<file>::<test>`
+- **CLI test**: `cd cli && python -m pytest tests/ -v`. **Always run CLI tests after modifying code under `cli/src/`.**
 - **Python lint**: `cd api && ruff check` and `cd api && ruff format api.py` (or whichever files changed). **Always run both `ruff check` and `ruff format` on changed Python files before committing.**
 - **DB migrations**: `cd api && alembic upgrade head`
 - **Dev (no Docker)**: `python scripts/dev.py` — runs both frontend and API side by side with hot reload. Requires the API conda env and Node v22. Checks ports 8338 (API) and 1212 (frontend) on startup and reports conflicts.
@@ -33,6 +34,15 @@
 - **SDK**: `lab-sdk/` - Python SDK published to PyPI as `transformerlab`
 - **Database**: SQLite with Alembic migrations in `api/alembic/`
 - **CLI**: Typer-based Python CLI in `cli/`
+
+## Documentation
+
+Detailed internal documentation lives in `docs/` — read these before working on related subsystems:
+
+- **[Task Execution](docs/task-execution/README.md)** — How tasks are created, queued, dispatched to compute providers, and monitored through their lifecycle (5-part guide).
+- **[Authentication](docs/Auth.md)** — JWT auth, sliding-window refresh, registration/invite model, route protection, team access, and OIDC configuration.
+
+Agent skills and browser automation references live in `.agents/skills/`.
 
 ## Code Style
 
@@ -65,6 +75,11 @@
   - **Unit Tests**: Write `pytest` tests in `api/test/`.
   - **Mocking**: Mock external interactions (S3, GPU providers, filesystem operations) using `unittest.mock` or `pytest-mock`. Tests should be fast and deterministic.
   - **Service Tests**: Prefer testing the Service layer directly over testing the full API stack when checking business logic constants.
+- **CLI**:
+  - **Tests**: `pytest` tests in `cli/tests/`.
+  - **Run all**: `cd cli && python -m pytest tests/ -v`
+  - **Run one**: `cd cli && python -m pytest tests/commands/test_status.py -v`
+  - **Always run CLI tests after modifying any code under `cli/src/`.**
 - **Playwright (E2E)**:
   - **Location**: Tests live in `test/playwright/`. Config is in `playwright.config.ts` (base URL `http://localhost:8338`).
   - **Run all**: `npx playwright test` (requires the Docker test container).

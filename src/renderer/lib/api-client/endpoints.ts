@@ -78,6 +78,18 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task/gallery/team/add`,
   DeleteFromTeamGallery: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task/gallery/team/delete`,
+  TeamGalleryListFiles: (experimentId: string, galleryId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/${encodeURIComponent(
+      galleryId,
+    )}/files`,
+  TeamGalleryGetFile: (
+    experimentId: string,
+    galleryId: string,
+    filePath: string,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/${encodeURIComponent(
+      galleryId,
+    )}/file/${encodeURIComponent(filePath)}`,
   FetchTaskJson: (experimentId: string, url: string) =>
     `${API_URL()}experiment/${experimentId}/task/fetch_task_json?url=${encodeURIComponent(url)}`,
   FromDirectory: (experimentId: string) =>
@@ -133,6 +145,8 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/setup`,
   SetupStatus: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/setup/status`,
+  DetectLocalAccelerators: () =>
+    `${API_URL()}compute_provider/detect-accelerators`,
   EnsureQuotaRecorded: (experimentId?: string, jobId?: string) => {
     if (jobId) {
       return `${API_URL()}compute_provider/jobs/ensure-quota-recorded?job_id=${jobId}`;
@@ -275,42 +289,6 @@ Endpoints.Documents = {
     `${API_URL()}experiment/${experimentId}/documents/upload_links?folder=${
       folderName
     }`,
-};
-
-Endpoints.Rag = {
-  Query: (
-    experimentId: string,
-    model_name: string,
-    query: string,
-    settings: string,
-    ragFolder: string = 'rag',
-  ) =>
-    `${API_URL()}experiment/${experimentId}/rag/query?model=${model_name}&query=${query}&settings=${settings}&rag_folder=${ragFolder}`,
-  Embeddings: (experimentId: string) =>
-    `${API_URL()}experiment/${experimentId}/rag/embed`,
-};
-
-Endpoints.Prompts = {
-  List: () => `${API_URL()}prompts/list`,
-  New: () => `${API_URL()}prompts/new`,
-  Delete: (promptId: string) => `${API_URL()}prompts/delete/${promptId}`,
-};
-
-Endpoints.BatchedPrompts = {
-  List: () => `${API_URL()}batch/list`,
-  New: () => `${API_URL()}batch/new`,
-  Delete: (promptId: string) => `${API_URL()}batch/delete/${promptId}`,
-  InstallMcpPlugin: (serverName: string) =>
-    `${API_URL()}tools/install_mcp_server?server_name=${encodeURIComponent(serverName)}`,
-};
-
-Endpoints.Tools = {
-  Call: (function_name: string, function_arguments: string) =>
-    `${API_URL()}tools/call/${function_name}?params=${function_arguments}`,
-  List: () => `${API_URL()}tools/list`,
-  All: () => `${API_URL()}tools/all`,
-  InstallMcpPlugin: (serverName: string) =>
-    `${API_URL()}tools/install_mcp_server?server_name=${encodeURIComponent(serverName)}`,
 };
 
 Endpoints.ServerInfo = {
@@ -524,10 +502,6 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/update/${jobId}?status=${status}`,
   GetEvalImages: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
-};
-
-Endpoints.Global = {
-  PromptLog: () => `${API_URL()}prompt_log`,
 };
 
 Endpoints.Quota = {

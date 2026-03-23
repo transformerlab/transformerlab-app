@@ -158,6 +158,20 @@ class BaseLabResource(ABC):
         json_data[key] = value
         await self._set_json_data(json_data)
 
+    async def _update_json_data_fields(self, updates: dict):
+        """
+        Update multiple top-level fields in a JSON object in one write.
+
+        This performs a single read-modify-write cycle to reduce repeated writes when
+        several fields need updating at once.
+        """
+        if not isinstance(updates, dict):
+            raise TypeError("updates must be a dict")
+
+        json_data = await self.get_json_data(uncached=True)
+        json_data.update(updates)
+        await self._set_json_data(json_data)
+
     async def delete(self):
         """
         Delete this resource by deleting the containing directory.

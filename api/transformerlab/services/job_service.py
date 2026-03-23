@@ -5,7 +5,6 @@ import time
 from typing import List, Dict, Optional, Any
 
 from lab import Experiment, Job
-from lab import dirs as lab_dirs
 from lab import storage
 
 from lab.job_status import JobStatus, TERMINAL_STATUSES
@@ -48,9 +47,8 @@ async def job_create(type, status, experiment_id, job_data="{}"):
     # Create experiment if it doesn't exist
     exp = Experiment(experiment_id)
 
-    # Create job through experiment
-    job = await exp.create_job()
-    await job.set_experiment(experiment_id)  # Set the experiment_id on the job
+    # Create job through experiment — type is passed so the index is correct immediately
+    job = await exp.create_job(type=type)
     await job.set_type(type)
     await job.update_status(status)
     await job.set_job_data(job_data)
@@ -170,6 +168,23 @@ async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id
         if experiment_id is not None and exp_id != experiment_id:
             return
         await job.update_job_data_field(key, value)
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
+
+
+async def job_update_job_data_insert_key_values(job_id, updates: Dict[str, Any], experiment_id):
+    """
+    Bulk update multiple keys in job_data in one write.
+    """
+    try:
+        if not isinstance(updates, dict):
+            raise TypeError("updates must be a dict")
+
+        job = await Job.get(job_id)
+        exp_id = await job.get_experiment_id()
+        if experiment_id is not None and exp_id != experiment_id:
+            return
+        await job.update_job_data_field(updates, multiple=True)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
 
@@ -537,61 +552,6 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
         pass
 
 
-def job_update_status_sync(job_id: str, org_id: str, status: str, error_msg: Optional[str] = None):
-    """
-    Synchronous version of job status update.
-
-    Args:
-        job_id: The ID of the job to update
-        status: The new status to set
-        error_msg: Optional error message to add to job data
-    """
-    # Update the job status using SDK Job class
-    try:
-        # Set org context before accessing the job
-        if org_id:
-            lab_dirs.set_organization_id(org_id)
-
-        try:
-            job = asyncio.run(Job.get(str(job_id)))
-            asyncio.run(job.update_status(status))
-            if error_msg:
-                asyncio.run(job.set_error_message(error_msg))
-        finally:
-            # Clear org context
-            if org_id:
-                lab_dirs.set_organization_id(None)
-    except Exception as e:
-        print(f"Error updating job {job_id}: {e}")
-        # Ensure org context is cleared even on error
-        try:
-            lab_dirs.set_organization_id(None)
-        except Exception:
-            pass
-        pass
-
-
-def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = None):
-    """
-    Synchronous version of job update.
-
-    Args:
-        job_id: The ID of the job to update
-        status: The new status to set
-        experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
-    """
-    # Update the job in the database using SDK Job class
-    try:
-        job = asyncio.run(Job.get(job_id))
-        exp_id = asyncio.run(job.get_experiment_id())
-        if experiment_id is not None and exp_id != experiment_id:
-            return
-        asyncio.run(job.update_status(status))
-    except Exception as e:
-        print(f"Error updating job {job_id}: {e}")
-        pass
-
-
 def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, experiment_id: Optional[str] = None):
     """
     Synchronous version of job update for both type and status.
@@ -612,33 +572,6 @@ def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, exp
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
         pass
-
-
-def job_mark_as_complete_if_running(job_id: int, org_id: str) -> None:
-    """Service wrapper: mark job as complete if running."""
-    try:
-        # Set org context before accessing the job
-        if org_id:
-            lab_dirs.set_organization_id(org_id)
-
-        try:
-            job = asyncio.run(Job.get(str(job_id)))
-
-            # Only update if currently running
-            status = asyncio.run(job.get_status())
-            if status == JobStatus.RUNNING:
-                asyncio.run(job.update_status(JobStatus.COMPLETE))
-        finally:
-            # Clear org context
-            if org_id:
-                lab_dirs.set_organization_id(None)
-    except Exception as e:
-        print(f"Error marking job {job_id} as complete: {e}")
-        # Ensure org context is cleared even on error
-        try:
-            lab_dirs.set_organization_id(None)
-        except Exception:
-            pass
 
 
 async def format_artifact(file_path: str) -> Optional[Dict[str, any]]:

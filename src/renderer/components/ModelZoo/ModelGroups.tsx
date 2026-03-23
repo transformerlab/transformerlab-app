@@ -31,7 +31,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ModelDetailsModal from './ModelDetailsModal';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
-import ImportModelsBar from './ImportModelsBar';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 export type ModelGalleryEntry = {
   uniqueID: string;
@@ -49,10 +48,7 @@ export type ModelGalleryEntry = {
 };
 import { formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import {
-  downloadModelFromGallery,
-  useAPI,
-} from '../../lib/transformerlab-api-sdk';
+import { useAPI } from '../../lib/transformerlab-api-sdk';
 import { useDebounce } from 'use-debounce';
 
 function getModelHuggingFaceURL(model) {
@@ -884,25 +880,12 @@ export default function ModelGroups({ experimentInfo }) {
                                 );
                                 const newJobId = await response.json();
                                 setJobId(newJobId);
-                                response = await downloadModelFromGallery(
-                                  row?.uniqueID,
-                                  newJobId,
+                                // Model download from gallery is no longer supported.
+                                alert(
+                                  'Downloading models from the gallery has been disabled in this build.',
                                 );
-                                if (response?.status !== 'success') {
-                                  alert(
-                                    `Failed to download: ${response.message}`,
-                                  );
-                                  setCurrentlyDownloading(null);
-                                  setJobId(null);
-                                } else {
-                                  const updatedData = await mutate();
-                                  const updatedGroup = updatedData?.find(
-                                    (g) => g.name === selectedGroup?.name,
-                                  );
-                                  if (updatedGroup) {
-                                    setSelectedGroup(updatedGroup);
-                                  }
-                                }
+                                setCurrentlyDownloading(null);
+                                setJobId(null);
                               } catch (e) {
                                 alert('Failed to download');
                                 setCurrentlyDownloading(null);
@@ -926,16 +909,6 @@ export default function ModelGroups({ experimentInfo }) {
           </>
         </Box>
       </Sheet>
-
-      <Box
-        sx={{
-          borderTop: '1px solid #ccc',
-          padding: 1,
-          background: 'background.body',
-        }}
-      >
-        <ImportModelsBar jobId={jobId} setJobId={setJobId} />
-      </Box>
     </Sheet>
   );
 }

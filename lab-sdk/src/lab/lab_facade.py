@@ -13,6 +13,7 @@ from .job import Job
 from . import dirs
 from .model import Model as ModelService
 from . import storage
+from werkzeug.utils import secure_filename
 from .dataset import Dataset
 from .task_template import TaskTemplate
 from .generation import GenerationModel, load_generation_model as _load_generation_model
@@ -115,7 +116,6 @@ class Lab:
             self._experiment = _run_async(Experiment.create_or_get(experiment_id, create_new=True))
             self._job = _run_async(self._experiment.create_job())
             _run_async(self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))
-            _run_async(self._job.set_experiment(experiment_id))
             logger.info(f"Created new job ID: {self._job.id}")
 
         # Update status to RUNNING for both cases
@@ -140,6 +140,8 @@ class Lab:
         self._trackio_available = False
         self._trackio_managed = False
         auto_init_trackio = os.environ.get("TLAB_TRACKIO_AUTO_INIT", "false").lower() == "true"
+        trackio_project_name_env = (os.environ.get("TLAB_TRACKIO_PROJECT_NAME") or "").strip()
+        trackio_run_name_env = (os.environ.get("TLAB_TRACKIO_RUN_NAME") or "").strip()
         if auto_init_trackio:
             try:
                 import trackio  # type: ignore[import]
@@ -148,11 +150,29 @@ class Lab:
                 self._trackio_available = True
                 existing_run = context_vars.current_run.get()
                 if existing_run is None:
-                    # Use experiment_id as a natural default project name if available
-                    project_name = str(experiment_id or "TransformerLab")
-                    trackio.init(project=project_name)
-                    self._trackio_managed = True
-                    logger.info(f"📊 Trackio auto-init enabled for project '{project_name}'")
+                    if trackio_project_name_env:
+                        # Shared project: use temp dir, seed from shared path, init with project + run name
+                        job_id_env = os.environ.get("_TFL_JOB_ID", "unknown")
+                        temp_dir = f"/tmp/trackio/{job_id_env}"
+                        os.makedirs(temp_dir, exist_ok=True)
+                        os.environ["TRACKIO_DIR"] = temp_dir
+                        _run_async(
+                            self._seed_trackio_shared_path_async(
+                                experiment_id or "", trackio_project_name_env, temp_dir
+                            )
+                        )
+                        trackio.init(
+                            project=trackio_project_name_env,
+                            name=trackio_run_name_env or f"job-{job_id_env}",
+                        )
+                        self._trackio_managed = True
+                        logger.info(f"📊 Trackio auto-init enabled for shared project '{trackio_project_name_env}'")
+                    else:
+                        # Legacy: per-job project name
+                        project_name = str(experiment_id or "TransformerLab")
+                        trackio.init(project=project_name)
+                        self._trackio_managed = True
+                        logger.info(f"📊 Trackio auto-init enabled for project '{project_name}'")
             except Exception:
                 # Silently ignore any Trackio issues; lab core behavior must not be affected
                 self._trackio_available = False
@@ -539,10 +559,16 @@ class Lab:
         """
         self._ensure_initialized()
         _run_async(self._job.update_progress(100))  # type: ignore[union-attr]
-        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
-        _run_async(self._job.update_job_data_field("completion_status", "success"))  # type: ignore[union-attr]
-        _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
-        _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
+        _run_async(
+            self._job.update_job_data_field(
+                {
+                    "completion_status": "success",
+                    "completion_details": message,
+                    "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                },
+                multiple=True,
+            )
+        )  # type: ignore[union-attr]
         # Best-effort Trackio integration: finish our own run if we created one,
         # then capture the active Trackio DB (managed or user-created) into job artifacts.
         try:
@@ -572,6 +598,9 @@ class Lab:
             _run_async(self._job.update_job_data_field("additional_output_path", additional_output_path))  # type: ignore[union-attr]
         if plot_data_path is not None and plot_data_path.strip() != "":
             _run_async(self._job.update_job_data_field("plot_data_path", plot_data_path))  # type: ignore[union-attr]
+
+        # Important: update cached_jobs only when all completion fields are already written.
+        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
 
     def save_artifact(
         self,
@@ -1435,11 +1464,13 @@ class Lab:
         Mark the job as failed and set completion metadata.
         """
         self._ensure_initialized()
-        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_status", "failed"))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("status", JobStatus.FAILED))  # type: ignore[union-attr]
+
+        # Important: update cached_jobs after the job_data fields are written.
+        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
 
     def _detect_and_capture_wandb_url(self) -> None:
         """
@@ -1557,6 +1588,8 @@ class Lab:
     async def async_capture_trackio_metadata(self, db_path: str, project: Optional[str] = None) -> str:
         """
         Async implementation of capture_trackio_metadata().
+        When TLAB_TRACKIO_PROJECT_NAME is set (shared project), copies to trackio_runs/{experiment_id}/{project_name}/
+        and does not write trackio_db_artifact_path (dashboard derives path).
         """
         self._ensure_initialized()
 
@@ -1568,32 +1601,63 @@ class Lab:
         if not os.path.exists(src):
             raise FileNotFoundError(f"Trackio path does not exist: {src}")
 
-        # Resolve the job's artifacts directory and create a dedicated 'trackio' subfolder
-        artifacts_dir = await self._job.get_artifacts_dir()  # type: ignore[union-attr]
-        trackio_dir = storage.join(artifacts_dir, "trackio")
-
-        # Ensure the destination directory exists and is clean
-        if await storage.exists(trackio_dir):
-            # Remove any previous Trackio data for this job to avoid stale metrics
-            await storage.rm_tree(trackio_dir)
-
-        await storage.makedirs(trackio_dir, exist_ok=True)
-
-        # Copy directory contents or single file into the trackio subfolder
-        if os.path.isdir(src):
-            await storage.copy_dir(src, trackio_dir)
+        trackio_project_name_env = (os.environ.get("TLAB_TRACKIO_PROJECT_NAME") or "").strip()
+        if trackio_project_name_env and self._experiment is not None:
+            # Shared project: copy to trackio_runs/{experiment_id}/{project_name}/ (merge, do not rm)
+            workspace_dir = await dirs.get_workspace_dir()
+            trackio_dir = storage.join(
+                workspace_dir,
+                "trackio_runs",
+                secure_filename(str(self._experiment.id)),
+                secure_filename(trackio_project_name_env),
+            )
+            await storage.makedirs(trackio_dir, exist_ok=True)
+            if os.path.isdir(src):
+                await storage.copy_dir(src, trackio_dir)
+            else:
+                base_name = posixpath.basename(src)
+                dest_file = storage.join(trackio_dir, base_name)
+                await storage.copy_file(src, dest_file)
+            # Do not write trackio_db_artifact_path; dashboard derives from trackio_project_name
+            logger.info(f"📊 Saved Trackio metrics to shared project: {trackio_dir}")
+            return trackio_dir
         else:
-            base_name = posixpath.basename(src)
-            dest_file = storage.join(trackio_dir, base_name)
-            await storage.copy_file(src, dest_file)
+            # Legacy: per-job artifacts/trackio
+            artifacts_dir = await self._job.get_artifacts_dir()  # type: ignore[union-attr]
+            trackio_dir = storage.join(artifacts_dir, "trackio")
 
-        # Record the artifact location in job_data so the backend/UI can locate it
-        await self._job.update_job_data_field("trackio_db_artifact_path", trackio_dir)  # type: ignore[union-attr]
-        if project is not None and isinstance(project, str) and project.strip() != "":
-            await self._job.update_job_data_field("trackio_project", project.strip())  # type: ignore[union-attr]
+            if await storage.exists(trackio_dir):
+                await storage.rm_tree(trackio_dir)
+            await storage.makedirs(trackio_dir, exist_ok=True)
 
-        logger.info(f"📊 Saved Trackio metrics for job to: {trackio_dir}")
-        return trackio_dir
+            if os.path.isdir(src):
+                await storage.copy_dir(src, trackio_dir)
+            else:
+                base_name = posixpath.basename(src)
+                dest_file = storage.join(trackio_dir, base_name)
+                await storage.copy_file(src, dest_file)
+
+            await self._job.update_job_data_field("trackio_db_artifact_path", trackio_dir)  # type: ignore[union-attr]
+            if project is not None and isinstance(project, str) and project.strip() != "":
+                await self._job.update_job_data_field("trackio_project", project.strip())  # type: ignore[union-attr]
+
+            logger.info(f"📊 Saved Trackio metrics for job to: {trackio_dir}")
+            return trackio_dir
+
+    async def _seed_trackio_shared_path_async(self, experiment_id: str, project_name: str, dest_dir: str) -> None:
+        """If shared project path exists, copy its contents into dest_dir (seed for new run)."""
+        try:
+            workspace_dir = await dirs.get_workspace_dir()
+            shared_path = storage.join(
+                workspace_dir,
+                "trackio_runs",
+                secure_filename(str(experiment_id)),
+                secure_filename(project_name),
+            )
+            if await storage.exists(shared_path) and await storage.isdir(shared_path):
+                await storage.copy_dir(shared_path, dest_dir)
+        except Exception as e:
+            logger.debug("Trackio shared path seed failed: %s", e)
 
     def _capture_existing_trackio_run(self) -> None:
         """

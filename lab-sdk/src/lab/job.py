@@ -3,7 +3,6 @@ from werkzeug.utils import secure_filename
 
 from . import dirs
 from .labresource import BaseLabResource
-from .dirs import get_workspace_dir
 from . import storage
 from .job_status import JobStatus
 import logging
@@ -69,22 +68,6 @@ class Job(BaseLabResource):
             "progress": 0,
         }
 
-    async def set_experiment(self, experiment_id: str, sync_rebuild: bool = False):
-        await self._update_json_data_field("experiment_id", experiment_id)
-        await self.update_job_data_field("experiment_name", experiment_id)
-
-        # Trigger cache rebuild for the experiment to discover this job
-        try:
-            from .experiment import Experiment
-            from .dirs import get_workspace_dir
-
-            exp = Experiment(experiment_id)
-            workspace = await get_workspace_dir()
-            exp._trigger_cache_rebuild(workspace_dir=workspace, sync=sync_rebuild)
-        except Exception:
-            # Don't fail if cache rebuild trigger fails
-            pass
-
     async def update_progress(self, progress: int):
         """
         Update the percent complete for this job.
@@ -101,17 +84,24 @@ class Job(BaseLabResource):
         """
         await self._update_json_data_field("status", status)
 
-        # Trigger rebuild on every status update
+        # Update jobs.json incrementally — no full filesystem scan
         try:
             from .experiment import Experiment
 
             experiment_id = await self.get_experiment_id()
             if experiment_id:
                 exp = Experiment(experiment_id)
-                workspace = await get_workspace_dir()
-                exp._trigger_cache_rebuild(workspace_dir=workspace)
+                if status in (JobStatus.COMPLETE, JobStatus.STOPPED, JobStatus.FAILED):
+                    # Write current snapshot to cached_jobs so get_jobs() skips the live read
+                    job_data = await self.get_json_data(uncached=True)
+                    await exp._update_cached_job(str(self.id), job_data)
+                elif status == JobStatus.DELETED:
+                    # Remove from index and cached_jobs
+                    await exp._remove_job_from_index(str(self.id))
+                # For non-terminal statuses (RUNNING, LAUNCHING, etc.) nothing to do:
+                # get_jobs() always does a live read for those.
         except Exception:
-            # Don't fail if cache rebuild trigger fails
+            # Never let index updates break status writes
             pass
 
     async def get_status(self):
@@ -141,20 +131,49 @@ class Job(BaseLabResource):
         """
         await self.update_job_data_field("tensorboard_output_dir", tensorboard_dir)
 
-    async def update_job_data_field(self, key: str, value):
+    async def update_job_data_fields(self, updates):
         """
-        Updates a key-value pair in the job_data JSON object.
+        Update one or more fields in the job_data JSON object.
+
+        `updates` must be a dict of key/value pairs to merge into job_data.
+        Prefer this method when updating multiple fields at once.
         """
-        # Fetch current job_data (use uncached to avoid stale data)
+        if not isinstance(updates, dict):
+            raise TypeError("updates must be a dict of job_data updates")
+
+        # Fetch current job JSON (use uncached to avoid stale data)
         json_data = await self.get_json_data(uncached=True)
 
         # If there isn't a job_data property then make one
-        if "job_data" not in json_data:
-            json_data["job_data"] = {}
+        job_data = json_data.get("job_data")
+        if not isinstance(job_data, dict):
+            job_data = {}
 
-        # Set the key property to value and save the whole object
-        json_data["job_data"][key] = value
+        job_data.update(updates)
+        json_data["job_data"] = job_data
         await self._set_json_data(json_data)
+
+    async def update_job_data_field(self, key, value=None, multiple: bool = False):
+        """
+        Backwards-compatible wrapper for updating job_data.
+
+        - When multiple=False (default), `key` is the field name (str) and `value` is
+          the value to set for that single field.
+        - When multiple=True, `key` must be a dict of field/value pairs to update and
+          `value` is ignored. This is equivalent to calling update_job_data_fields(key).
+
+        New code should prefer `update_job_data_fields()` for multi-field updates.
+        """
+        if multiple:
+            if not isinstance(key, dict):
+                raise TypeError("When multiple=True, key must be a dict of job_data updates")
+            updates = key
+        else:
+            if not isinstance(key, str):
+                raise TypeError("key must be a str when multiple=False")
+            updates = {key: value}
+
+        await self.update_job_data_fields(updates)
 
     async def log_info(self, message):
         """
@@ -343,17 +362,3 @@ class Job(BaseLabResource):
         Mark this job as deleted.
         """
         await self.update_status(JobStatus.DELETED)
-
-        # Trigger cache rebuild since deleted jobs are removed from cache
-        # This is non-blocking - just adds to pending queue
-        try:
-            from .experiment import Experiment
-
-            experiment_id = await self.get_experiment_id()
-            if experiment_id:
-                exp = Experiment(experiment_id)
-                workspace = await get_workspace_dir()
-                exp._trigger_cache_rebuild(workspace_dir=workspace)
-        except Exception:
-            # Don't fail if cache rebuild trigger fails
-            pass
