@@ -7,7 +7,7 @@ from transformerlab_cli.util.version_check import check_for_update
 from transformerlab_cli.state import cli_state  # Import the CLI state singleton
 
 from transformerlab_cli.commands.version import app as version_app
-from transformerlab_cli.commands.config import app as config_app
+from transformerlab_cli.commands.config import command_config
 from transformerlab_cli.commands.status import app as status_app
 from transformerlab_cli.commands.login import app as login_app
 from transformerlab_cli.commands.logout import app as logout_app
@@ -33,7 +33,7 @@ app = typer.Typer(
     name="lab", help="Transformer Lab CLI", add_completion=False, no_args_is_help=True, cls=LogoTyperGroup
 )
 app.add_typer(version_app)
-app.add_typer(config_app)
+app.command("config")(command_config)
 app.add_typer(status_app)
 app.add_typer(login_app)
 app.add_typer(logout_app)
