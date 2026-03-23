@@ -310,10 +310,6 @@ async def _check_job_via_provider(
                 empty_poll_count,
                 EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD,
             )
-            print(
-                f"[remote_job_status_worker] provider returned no jobs for cluster '{cluster_name}' "
-                f"(job {job_id}); empty_poll_count={empty_poll_count}/{EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD}"
-            )
             jobs_finished = empty_poll_count >= EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD
             if not jobs_finished:
                 return False
