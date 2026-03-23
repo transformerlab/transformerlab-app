@@ -33,27 +33,6 @@ logging.getLogger("transformerlab").setLevel(
     getattr(logging, os.getenv("TLAB_LOG_LEVEL", "WARNING").upper(), logging.WARNING)
 )
 
-
-# Optional Datadog APM (does nothing unless enabled + installed)
-def _enable_datadog_if_setup():
-    if not os.getenv("DD_SERVICE"):
-        return
-
-    try:
-        from ddtrace import patch_all
-        from ddtrace.contrib.asgi import TraceMiddleware
-
-        print("Datadog trace middleware enabled")
-    except ImportError:
-        print("Datadog Init Error: Failed to import library")
-        return None
-
-    patch_all(fastapi=True, httpx=True)
-    return TraceMiddleware
-
-
-TRACE_MIDDLEWARE = _enable_datadog_if_setup()
-
 from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
@@ -240,10 +219,6 @@ app = fastapi.FastAPI(
     lifespan=lifespan,
     openapi_tags=tags_metadata,
 )
-
-# Add tracing middleware only if setup and enabled
-if TRACE_MIDDLEWARE is not None:
-    app.add_middleware(TRACE_MIDDLEWARE)
 
 # CORS configuration
 # When using cookies, allow_credentials must be True and allow_origins cannot be ["*"]
