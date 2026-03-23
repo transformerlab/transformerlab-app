@@ -203,7 +203,7 @@ def require_current_experiment() -> str:
     if not current_experiment or not str(current_experiment).strip():
         console.print(
             "[warning]current_experiment is not set in config. Set it with:[/warning]"
-            " [bold]lab config current_experiment <experiment_name>[/bold]"
+            " [bold]lab config set current_experiment <experiment_name>[/bold]"
         )
         raise typer.Exit(1)
     return str(current_experiment)
