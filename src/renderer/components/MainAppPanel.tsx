@@ -249,7 +249,26 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/tasks-gallery" element={<TasksGallery />} />
         <Route path="/compute" element={<Compute />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
-        <Route path="/user" element={<UserSettings />} />
+        <Route path="/user" element={<UserSettings tab="profile" />} />
+        <Route path="/user/profile" element={<UserSettings tab="profile" />} />
+        <Route path="/user/secrets" element={<UserSettings tab="secrets" />} />
+        <Route
+          path="/user/api-keys"
+          element={<UserSettings tab="api-keys" />}
+        />
+        <Route
+          path="/user/invitations"
+          element={<UserSettings tab="invitations" />}
+        />
+        <Route
+          path="/user/compute-providers"
+          element={<UserSettings tab="compute-providers" />}
+        />
+        <Route path="/user/quota" element={<UserSettings tab="quota" />} />
+        <Route
+          path="/user/notifications"
+          element={<UserSettings tab="notifications" />}
+        />
         <Route path="/team" element={<Team />} />
         <Route path="/team/usage-report" element={<UsageReport />} />
       </Routes>

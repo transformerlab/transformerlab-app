@@ -19,6 +19,7 @@ from transformerlab.routers.auth import get_user_and_team
 from transformerlab.routers.serverinfo import watch_file
 from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
 import transformerlab.services.job_service as job_service
+from transformerlab.services.cache_service import cache
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.shared import shared, zip_utils
 from transformerlab.shared.models.models import ProviderType
@@ -1433,11 +1434,24 @@ async def save_dataset_to_registry(
             if not target_name:
                 raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
             target_name_secure = secure_filename(target_name)
-            dest_path = storage.join(datasets_registry_dir, target_name_secure)
-            if not await storage.exists(dest_path):
-                raise HTTPException(status_code=404, detail=f"Dataset '{target_name}' not found in registry")
-            # When merging into an existing group, asset_name is the target folder itself.
-            effective_asset_name = target_name_secure
+
+            # Verify the group exists in the asset versioning system.
+            existing_groups = await asset_version_service.list_groups("dataset")
+            group_exists = any(g["group_name"] == target_name_secure for g in existing_groups)
+            if not group_exists:
+                raise HTTPException(status_code=404, detail=f"Dataset group '{target_name}' not found in registry")
+
+            # Determine the unique folder name for this new version's files.
+            if asset_name:
+                effective_asset_name = secure_filename(asset_name)
+            else:
+                effective_asset_name = dataset_name_secure
+            dest_path = storage.join(datasets_registry_dir, effective_asset_name)
+            if await storage.exists(dest_path):
+                from datetime import datetime
+
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                effective_asset_name = f"{effective_asset_name}_{timestamp}"
         else:
             # Determine the unique destination folder name (asset_name).
             # If the caller explicitly supplied asset_name, enforce uniqueness (409 on conflict).
@@ -1551,11 +1565,24 @@ async def save_model_to_registry(
             if not target_name:
                 raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
             target_name_secure = secure_filename(target_name)
-            dest_path = storage.join(models_registry_dir, target_name_secure)
-            if not await storage.exists(dest_path):
-                raise HTTPException(status_code=404, detail=f"Model '{target_name}' not found in registry")
-            # When merging into an existing group, asset_name is the target folder itself.
-            effective_asset_name = target_name_secure
+
+            # Verify the group exists in the asset versioning system.
+            existing_groups = await asset_version_service.list_groups("model")
+            group_exists = any(g["group_name"] == target_name_secure for g in existing_groups)
+            if not group_exists:
+                raise HTTPException(status_code=404, detail=f"Model group '{target_name}' not found in registry")
+
+            # Determine the unique folder name for this new version's files.
+            if asset_name:
+                effective_asset_name = secure_filename(asset_name)
+            else:
+                effective_asset_name = model_name_secure
+            dest_path = storage.join(models_registry_dir, effective_asset_name)
+            if await storage.exists(dest_path):
+                from datetime import datetime
+
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                effective_asset_name = f"{effective_asset_name}_{timestamp}"
         else:
             # Determine the unique destination folder name (asset_name).
             # If the caller explicitly supplied asset_name, enforce uniqueness (409 on conflict).

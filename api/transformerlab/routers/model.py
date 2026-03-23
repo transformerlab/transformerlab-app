@@ -14,6 +14,7 @@ from transformerlab.models import model_helper
 from transformerlab.models import basemodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
+from transformerlab.services.cache_service import cached
 from lab.dirs import get_workspace_dir
 from lab.model import Model as ModelService
 from lab import storage
@@ -160,6 +161,7 @@ async def get_model_prompt_template(model: str):
 
 
 @router.get("/model/list")
+@cached(key="models:list:{embedding}", ttl="7d", tags=["models", "models:list"])
 async def model_local_list(embedding=False):
     # the model list is a combination of downloaded hugging face models and locally generated models
     models = await model_helper.list_installed_models(embedding)

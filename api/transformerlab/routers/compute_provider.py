@@ -47,6 +47,7 @@ from transformerlab.services import job_service
 from transformerlab.services import quota_service
 from transformerlab.services.task_service import task_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
+from transformerlab.services.remote_provider_queue import enqueue_remote_launch
 
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
@@ -1618,8 +1619,7 @@ async def launch_template_on_provider(
         if not has_quota:
             raise HTTPException(status_code=403, detail=message)
 
-    # Get provider instance (resolves user's slurm_user for SLURM when user_id/team_id set)
-    provider_instance = await get_provider_instance(provider, user_id=user_id, team_id=team_id)
+    # NOTE: We no longer launch inline; provider instance is resolved in the remote launch worker.
 
     # Interactive templates should start directly in INTERACTIVE state instead of LAUNCHING,
     # except for LOCAL providers where we introduce a WAITING status while queued.
@@ -1656,6 +1656,8 @@ async def launch_template_on_provider(
             minutes_requested=request.minutes_requested,
             job_id=str(job_id),
         )
+        # We return immediately after enqueuing remote launches, so persist the hold now.
+        await session.commit()
 
     await job_service.job_update_launch_progress(
         job_id,
@@ -1814,9 +1816,27 @@ async def launch_template_on_provider(
 
     # Enable Trackio auto-init for this job if requested. When set, the lab SDK
     # running inside the remote script can automatically initialize Trackio
-    # and capture metrics for visualization in the Tasks UI.
+    # and capture metrics for visualization in the Tasks UI. For shared projects,
+    # pass project name and run name so the SDK can build trackio_runs/{experiment_id}/{project_name}/.
+    trackio_project_name_for_job: Optional[str] = None
+    trackio_run_name_for_job: Optional[str] = None
     if request.enable_trackio:
         env_vars["TLAB_TRACKIO_AUTO_INIT"] = "true"
+        project_name = (request.trackio_project_name or "").strip() or str(request.experiment_id)
+        trackio_run_name = f"{request.task_name or 'task'}-job-{job_id}"
+        trackio_project_name_for_job = project_name
+        trackio_run_name_for_job = trackio_run_name
+        env_vars["TLAB_TRACKIO_PROJECT_NAME"] = project_name
+        env_vars["TLAB_TRACKIO_RUN_NAME"] = trackio_run_name
+        # Create shared project dir so the SDK can sync into it; path is derived by dashboard when needed.
+        workspace_dir = await get_workspace_dir()
+        shared_path = storage.join(
+            workspace_dir,
+            "trackio_runs",
+            secure_filename(str(request.experiment_id)),
+            secure_filename(project_name),
+        )
+        await storage.makedirs(shared_path, exist_ok=True)
 
     # Get TFL_STORAGE_URI from storage context
     tfl_storage_uri = None
@@ -1984,6 +2004,10 @@ async def launch_template_on_provider(
         job_data["workspace_dir"] = provider_config_dict["workspace_dir"]
     if request.file_mounts is True and request.task_id:
         job_data["task_id"] = request.task_id
+    if trackio_project_name_for_job is not None:
+        job_data["trackio_project_name"] = trackio_project_name_for_job
+    if trackio_run_name_for_job is not None:
+        job_data["trackio_run_name"] = trackio_run_name_for_job
 
     for key, value in job_data.items():
         if value is not None:
@@ -2104,66 +2128,24 @@ async def launch_template_on_provider(
             "message": "Local provider launch waiting in queue",
         }
 
-    try:
-        launch_result = await asyncio.to_thread(
-            provider_instance.launch_cluster, formatted_cluster_name, cluster_config
-        )
-    except Exception as exc:
-        print(f"Failed to launch cluster: {exc}")
-        await job_service.job_update_launch_progress(
-            job_id,
-            request.experiment_id,
-            phase="failed",
-            percent=100,
-            message=f"Launch failed: {exc!s}",
-        )
-        # Release quota hold if launch failed
-        if quota_hold:
-            await quota_service.release_quota_hold(session, hold_id=quota_hold.id)
-            await session.commit()
-        await job_service.job_update_status(
-            job_id,
-            JobStatus.FAILED,
-            request.experiment_id,
-            error_msg=str(exc),
-        )
-        raise HTTPException(status_code=500, detail="Failed to launch cluster") from exc
-
-    await job_service.job_update_launch_progress(
-        job_id,
-        request.experiment_id,
-        phase="cluster_started",
-        percent=100,
-        message="Launch initiated",
+    await enqueue_remote_launch(
+        job_id=str(job_id),
+        experiment_id=str(request.experiment_id),
+        provider_id=str(provider.id),
+        team_id=str(team_id),
+        user_id=str(user.id),
+        cluster_name=formatted_cluster_name,
+        cluster_config=cluster_config,
+        quota_hold_id=str(quota_hold.id) if quota_hold else None,
+        subtype=request.subtype,
     )
-
-    # Commit quota hold creation after successful launch
-    if quota_hold:
-        await session.commit()
-
-    request_id = None
-    if isinstance(launch_result, dict):
-        await job_service.job_update_job_data_insert_key_value(
-            job_id,
-            "provider_launch_result",
-            launch_result,
-            request.experiment_id,
-        )
-        request_id = launch_result.get("request_id")
-        if request_id:
-            await job_service.job_update_job_data_insert_key_value(
-                job_id,
-                "orchestrator_request_id",
-                request_id,
-                request.experiment_id,
-            )
 
     return {
         "status": "success",
         "job_id": job_id,
         "cluster_name": formatted_cluster_name,
-        "request_id": request_id,
-        "message": "Provider launch initiated",
+        "request_id": None,
+        "message": "Provider launch enqueued",
     }
 
 
@@ -2719,7 +2701,8 @@ async def stop_cluster(
 
         # Return the result directly from the provider
         return result
-    except Exception:
+    except Exception as e:
+        print(f"Failed to stop cluster: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to stop cluster")
 
 

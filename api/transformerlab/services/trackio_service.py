@@ -3,11 +3,12 @@ import os
 import shutil
 import subprocess
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from fastapi import HTTPException
 
 from lab import HOME_DIR, storage
+from lab.dirs import get_workspace_dir
 from lab.job import Job
 
 from werkzeug.utils import secure_filename
@@ -44,10 +45,19 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
         raise HTTPException(status_code=400, detail="Job data is not a dictionary")
 
     source_path = job_data.get("trackio_db_artifact_path")
+    if not source_path and job_data.get("trackio_project_name") and experiment_id:
+        # Shared project: derive path from workspace + experiment_id + project_name
+        workspace_dir = await get_workspace_dir()
+        source_path = storage.join(
+            workspace_dir,
+            "trackio_runs",
+            secure_filename(str(experiment_id)),
+            secure_filename(str(job_data["trackio_project_name"]).strip()),
+        )
     if not source_path:
         raise HTTPException(
             status_code=404,
-            detail="Trackio metrics not found for this job (trackio_db_artifact_path missing)",
+            detail="Trackio metrics not found for this job (trackio_db_artifact_path or trackio_project_name missing)",
         )
 
     # If there's already a Trackio process for this job, just return its URL
@@ -55,7 +65,7 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
     if existing and isinstance(existing.get("url"), str):
         return {"url": existing["url"]}
 
-    project = job_data.get("trackio_project")
+    project = job_data.get("trackio_project") or job_data.get("trackio_project_name")
 
     # Always run Trackio from a local temporary copy of the metrics directory.
     # This works for both local and remote storage backends. Use HOME_DIR so the
@@ -240,3 +250,27 @@ async def stop_trackio_for_job(job_id: str) -> None:
         except Exception:
             # Ignore cleanup errors
             pass
+
+
+async def list_trackio_projects(experiment_id: str) -> List[str]:
+    """
+    List TrackIO project directory names for an experiment (shared project names).
+    Returns basenames of direct subdirs under workspace_dir/trackio_runs/{experiment_id}/.
+    """
+    if not experiment_id:
+        return []
+    workspace_dir = await get_workspace_dir()
+    parent = storage.join(workspace_dir, "trackio_runs", secure_filename(str(experiment_id)))
+    if not await storage.exists(parent) or not await storage.isdir(parent):
+        return []
+    try:
+        entries = await storage.ls(parent, detail=False)
+    except Exception:
+        return []
+    projects: List[str] = []
+    for path in entries:
+        if await storage.isdir(path):
+            name = path.rstrip("/").split("/")[-1].split("\\")[-1]
+            if name:
+                projects.append(name)
+    return sorted(projects)

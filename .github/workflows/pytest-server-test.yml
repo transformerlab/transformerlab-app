@@ -1,6 +1,7 @@
 # This workflow will install Python dependencies and run tests
+# Covers both Ubuntu and macOS (replaces the former separate macOS workflow)
 
-name: Test for Install and Serving (Ubuntu)
+name: Test for Install and Serving
 
 on:
   push:
@@ -14,9 +15,14 @@ on:
       - "api/**"
       - "lab-sdk/**"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: api
@@ -33,14 +39,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11"]
+        os: [ubuntu-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
       - name: Install dependencies
         run: |
           pip install uv

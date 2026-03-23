@@ -222,6 +222,7 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loadingState !== null}
+              slotProps={{ input: { autoComplete: 'new-password' } }}
             />
           </FormControl>
 
@@ -232,6 +233,7 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={loadingState !== null}
+              slotProps={{ input: { autoComplete: 'new-password' } }}
             />
           </FormControl>
 
