@@ -198,7 +198,9 @@ function RefreshIndicator({
   );
 }
 
-const TAB_OPTIONS: { value: 'output' | 'provider'; label: string }[] = [
+type TabValue = 'output' | 'provider';
+
+const TAB_OPTIONS: { value: TabValue; label: string }[] = [
   { value: 'output', label: 'Lab SDK Output' },
   { value: 'provider', label: 'Machine Logs' },
 ];
@@ -206,7 +208,7 @@ const TAB_OPTIONS: { value: 'output' | 'provider'; label: string }[] = [
 export interface EmbeddableStreamingOutputProps {
   jobId: number;
   /** Which tabs to show, in order. e.g. ['output', 'provider'] or ['provider'] for interactive tasks. */
-  tabs?: ('output' | 'provider')[];
+  tabs?: TabValue[];
   /** Current job status string (e.g. 'RUNNING', 'COMPLETE'). Passed from the parent to avoid extra polling. */
   jobStatus?: string;
 }
@@ -217,7 +219,7 @@ export default function EmbeddableStreamingOutput({
   jobStatus = '',
 }: EmbeddableStreamingOutputProps) {
   const { experimentInfo } = useExperimentInfo();
-  const [activeTab, setActiveTab] = useState<'output' | 'provider'>('output');
+  const [activeTab, setActiveTab] = useState<TabValue>('output');
   const [viewLiveProviderLogs, setViewLiveProviderLogs] =
     useState<boolean>(false);
 
@@ -227,9 +229,7 @@ export default function EmbeddableStreamingOutput({
 
   useEffect(() => {
     setActiveTab((current) =>
-      tabs.includes(current)
-        ? current
-        : ((tabs[0] ?? 'output') as 'output' | 'provider'),
+      tabs.includes(current) ? current : ((tabs[0] ?? 'output') as TabValue),
     );
     setViewLiveProviderLogs(false);
     // tabsKey is a stable serialization of tabs to avoid array reference churn
@@ -334,7 +334,7 @@ export default function EmbeddableStreamingOutput({
               typeof value === 'string' &&
               (value === 'output' || value === 'provider')
             ) {
-              setActiveTab(value);
+              setActiveTab(value as TabValue);
             }
           }}
         >
