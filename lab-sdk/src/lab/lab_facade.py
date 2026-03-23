@@ -116,7 +116,6 @@ class Lab:
             self._experiment = _run_async(Experiment.create_or_get(experiment_id, create_new=True))
             self._job = _run_async(self._experiment.create_job())
             _run_async(self._job.update_job_data_field("start_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))
-            _run_async(self._job.set_experiment(experiment_id))
             logger.info(f"Created new job ID: {self._job.id}")
 
         # Update status to RUNNING for both cases
@@ -560,7 +559,6 @@ class Lab:
         """
         self._ensure_initialized()
         _run_async(self._job.update_progress(100))  # type: ignore[union-attr]
-        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
         _run_async(
             self._job.update_job_data_field(
                 {
@@ -600,6 +598,9 @@ class Lab:
             _run_async(self._job.update_job_data_field("additional_output_path", additional_output_path))  # type: ignore[union-attr]
         if plot_data_path is not None and plot_data_path.strip() != "":
             _run_async(self._job.update_job_data_field("plot_data_path", plot_data_path))  # type: ignore[union-attr]
+
+        # Important: update cached_jobs only when all completion fields are already written.
+        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
 
     def save_artifact(
         self,
@@ -1463,11 +1464,13 @@ class Lab:
         Mark the job as failed and set completion metadata.
         """
         self._ensure_initialized()
-        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_status", "failed"))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("status", JobStatus.FAILED))  # type: ignore[union-attr]
+
+        # Important: update cached_jobs after the job_data fields are written.
+        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
 
     def _detect_and_capture_wandb_url(self) -> None:
         """

@@ -1,15 +1,16 @@
 import asyncio
-import threading
+import contextlib
 import time
 from werkzeug.utils import secure_filename
 
-from .dirs import get_experiments_dir, get_jobs_dir, get_workspace_dir
+from .dirs import get_experiments_dir, get_jobs_dir
 from .labresource import BaseLabResource
 from .job import Job
 from .job_status import JobStatus
 import json
 from . import storage
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +21,6 @@ class Experiment(BaseLabResource):
     """
 
     DEFAULT_JOBS_INDEX = {"TRAIN": []}
-
-    # Class-level cache for background rebuild tracking
-    _cache_rebuild_pending = set()  # set of (experiment_id, workspace_dir) tuples
-    _cache_rebuild_lock = threading.Lock()
-    _cache_rebuild_thread = None
 
     def __init__(self, experiment_id):
         # For consistency and simplicity, let's edit experiment name to match
@@ -172,7 +168,7 @@ class Experiment(BaseLabResource):
                     pass
         return experiments
 
-    async def create_job(self):
+    async def create_job(self, type: str = "REMOTE"):
         """
         Creates a new job with a blank template and returns a Job object.
         """
@@ -195,9 +191,13 @@ class Experiment(BaseLabResource):
 
         new_job_id = largest_numeric_subdir + 1
 
-        # Create job with next available job_id and associate the new job with this experiment
+        # Create job and set its experiment fields directly (no rebuild needed)
         new_job = await Job.create(new_job_id)
-        await new_job.set_experiment(self.id)
+        await new_job._update_json_data_field("experiment_id", self.id)
+        await new_job.update_job_data_field("experiment_name", self.id)
+
+        # Add to index incrementally — no filesystem scan
+        await self._add_job(str(new_job.id), type)
 
         return new_job
 
@@ -235,24 +235,15 @@ class Experiment(BaseLabResource):
                         JobStatus.INTERACTIVE,
                         JobStatus.NOT_STARTED,
                     ]:
-                        old_status = job_json.get("status", "")
                         del cached_jobs[job_id]
                         job = await Job.get(job_id)
                         job_json = await job.get_json_data(uncached=True)
-                        # Trigger rebuild cache if old status and new status are different
-                        if old_status != job_json.get("status", ""):
-                            workspace = await get_workspace_dir()
-                            self._trigger_cache_rebuild(workspace)
                         cached_jobs[job_id] = job_json
 
                 else:
                     # Job not in cache
                     job = await Job.get(job_id)
                     job_json = await job.get_json_data(uncached=True)
-                    # Check if job is COMPLETE, STOPPED or FAILED, then update cache
-                    if job_json.get("status", "") in [JobStatus.COMPLETE, JobStatus.STOPPED, JobStatus.FAILED]:
-                        workspace = await get_workspace_dir()
-                        self._trigger_cache_rebuild(workspace)
             except Exception:
                 logger.warning("ERROR getting job %s", job_id, exc_info=True)
                 continue
@@ -338,6 +329,39 @@ class Experiment(BaseLabResource):
 
         exp_dir = await self.get_dir()
         return storage.join(exp_dir, "jobs.json")
+
+    @contextlib.asynccontextmanager
+    async def _jobs_json_write_lock(self, jobs_json_path: str, timeout_seconds: float = 10.0):
+        """
+        Acquire a cross-caller filesystem lock for jobs.json mutations.
+
+        Uses an adjacent lock directory (`jobs.json.lock`) created with exist_ok=False.
+        Directory creation is atomic on local filesystems and works as a best-effort
+        lock primitive for shared storage backends.
+        """
+        lock_path = f"{jobs_json_path}.lock"
+        deadline = time.monotonic() + timeout_seconds
+        wait_seconds = 0.01
+        acquired = False
+        while time.monotonic() < deadline:
+            try:
+                await storage.makedirs(lock_path, exist_ok=False)
+                acquired = True
+                break
+            except Exception:
+                await asyncio.sleep(wait_seconds)
+                wait_seconds = min(wait_seconds * 2, 0.2)
+
+        if not acquired:
+            raise TimeoutError(f"Timed out acquiring jobs.json lock: {lock_path}")
+
+        try:
+            yield
+        finally:
+            try:
+                await storage.rm_tree(lock_path)
+            except Exception:
+                logger.warning("Failed to release jobs.json lock %s", lock_path, exc_info=True)
 
     async def rebuild_jobs_index(self, workspace_dir=None):
         results = {}
@@ -583,88 +607,134 @@ class Experiment(BaseLabResource):
                 return []
 
     async def _add_job(self, job_id, type):
-        try:
-            jobs_json_path = await self._jobs_json_file()
-            jobs_data = await self._read_jobs_json_file(jobs_json_path)
-        except Exception:
-            jobs_data = {"index": {}, "cached_jobs": {}}
-
-        # Handle both old and new format
-        if "index" in jobs_data:
-            jobs = jobs_data["index"]
-        else:
-            jobs = jobs_data
-            jobs_data = {"index": jobs, "cached_jobs": {}}
-
-        if type in jobs:
-            jobs[type].append(job_id)
-        else:
-            jobs[type] = [job_id]
-
-        # Update the file with new structure
         jobs_json_path = await self._jobs_json_file()
-        async with await storage.open(jobs_json_path, "w") as f:
-            await f.write(json.dumps(jobs_data, indent=4))
-
-        # Trigger background cache rebuild
-        workspace = await get_workspace_dir()
-        self._trigger_cache_rebuild(workspace)
-
-    @classmethod
-    def _start_background_cache_rebuild(cls):
-        """Start the background cache rebuild thread if not already running."""
-        with cls._cache_rebuild_lock:
-            if cls._cache_rebuild_thread is None or not cls._cache_rebuild_thread.is_alive():
-                cls._cache_rebuild_thread = threading.Thread(target=cls._background_cache_rebuild_worker, daemon=True)
-                cls._cache_rebuild_thread.start()
-
-    @classmethod
-    def _background_cache_rebuild_worker(cls):
-        """Background worker that rebuilds caches for pending experiments."""
-        import asyncio
-
-        logger.info("STARTING CACHE REBUILD WORKER")
-        while True:
+        for attempt in range(3):
             try:
-                # Get pending experiments with their workspace directories
-                with cls._cache_rebuild_lock:
-                    pending_experiments = set(cls._cache_rebuild_pending)
-                    cls._cache_rebuild_pending.clear()
-
-                # Rebuild caches for pending experiments
-                for experiment_id, workspace_dir in pending_experiments:
+                async with self._jobs_json_write_lock(jobs_json_path):
                     try:
-                        exp = cls(experiment_id)
-                        # Run async method in sync context using asyncio.run
-                        asyncio.run(exp.rebuild_jobs_index(workspace_dir=workspace_dir))
+                        jobs_data = await self._read_jobs_json_file(jobs_json_path)
                     except Exception:
-                        logger.error(
-                            "Error rebuilding cache for experiment %s in workspace %s:",
-                            experiment_id,
-                            workspace_dir,
-                            exc_info=True,
-                        )
+                        jobs_data = {"index": {}, "cached_jobs": {}}
 
-                # Sleep for a short time before checking again
-                time.sleep(1)
+                    # Handle both old and new format
+                    if "index" in jobs_data:
+                        jobs = jobs_data["index"]
+                    else:
+                        jobs = jobs_data
+                        jobs_data = {"index": jobs, "cached_jobs": {}}
+
+                    if type in jobs:
+                        jobs[type].append(job_id)
+                    else:
+                        jobs[type] = [job_id]
+
+                    # Update the file with new structure
+                    async with await storage.open(jobs_json_path, "w") as f:
+                        await f.write(json.dumps(jobs_data, indent=4))
+                return
+            except TimeoutError:
+                if attempt < 2:
+                    await asyncio.sleep(0.05 * (attempt + 1))
+                    continue
+                logger.warning("Timeout adding job %s to jobs.json index", job_id, exc_info=True)
+                return
+
+    async def _update_cached_job(self, job_id: str, job_data: dict):
+        """Update a single job's data in cached_jobs without a full filesystem scan."""
+        jobs_json_path = await self._jobs_json_file()
+        job_id_str = str(job_id)
+        for attempt in range(5):
+            try:
+                async with self._jobs_json_write_lock(jobs_json_path):
+                    try:
+                        jobs_data = await self._read_jobs_json_file(jobs_json_path)
+                    except FileNotFoundError:
+                        jobs_data = {"index": {}, "cached_jobs": {}}
+                    except Exception:
+                        if attempt < 4:
+                            await asyncio.sleep(0.05 * (attempt + 1))
+                            continue
+                        logger.warning("Error reading jobs.json while updating cached job %s", job_id, exc_info=True)
+                        return
+
+                    if "index" not in jobs_data:
+                        jobs_data = {"index": jobs_data, "cached_jobs": {}}
+                    if "cached_jobs" not in jobs_data:
+                        jobs_data["cached_jobs"] = {}
+
+                    jobs_data["cached_jobs"][job_id_str] = job_data
+
+                    async with await storage.open(jobs_json_path, "w") as f:
+                        await f.write(json.dumps(jobs_data, indent=4))
+
+                # Verify our write is visible before returning. This protects against
+                # stale-read windows on some storage backends.
+                try:
+                    verify_data = await self._read_jobs_json_file(jobs_json_path, max_retries=2)
+                except Exception:
+                    if attempt < 4:
+                        await asyncio.sleep(0.02 * (attempt + 1))
+                        continue
+                    logger.warning("Error verifying cached job write for %s", job_id, exc_info=True)
+                    return
+                verify_cached_jobs = verify_data.get("cached_jobs", {})
+                if job_id_str in verify_cached_jobs:
+                    return
+            except TimeoutError:
+                if attempt < 4:
+                    await asyncio.sleep(0.05 * (attempt + 1))
+                    continue
+                logger.warning("Timeout updating cached_jobs for job %s", job_id, exc_info=True)
+                return
             except Exception:
-                logger.error("Error in background cache rebuild worker", exc_info=True)
-                time.sleep(5)  # Wait longer on error
+                logger.warning("Error updating cached_jobs for job %s", job_id, exc_info=True)
+                return
 
-    def _trigger_cache_rebuild(self, workspace_dir, sync=False):
-        """Trigger a cache rebuild for this experiment."""
-        import asyncio
+            # Verification missed our key; retry mutation.
+            if attempt < 4:
+                await asyncio.sleep(0.02 * (attempt + 1))
+                continue
+            logger.warning("Write verification failed for cached job %s after retries", job_id)
+            return
 
-        if sync:
-            # Run synchronously (useful for tests) - run async method in sync context
-            asyncio.run(self.rebuild_jobs_index(workspace_dir=workspace_dir))
-        else:
-            # Start background thread if not running
-            self._start_background_cache_rebuild()
+    async def _remove_job_from_index(self, job_id: str):
+        """Remove a job from the index and cached_jobs without a full filesystem scan."""
+        jobs_json_path = await self._jobs_json_file()
+        for attempt in range(3):
+            try:
+                async with self._jobs_json_write_lock(jobs_json_path):
+                    try:
+                        jobs_data = await self._read_jobs_json_file(jobs_json_path)
+                    except FileNotFoundError:
+                        return
+                    except Exception:
+                        return
 
-            # Add to pending queue with jobs directory (non-blocking)
-            with self._cache_rebuild_lock:
-                self._cache_rebuild_pending.add((self.id, workspace_dir))
+                    if "index" not in jobs_data:
+                        jobs_data = {"index": jobs_data, "cached_jobs": {}}
+
+                    job_id_str = str(job_id)
+
+                    index = jobs_data.get("index", {})
+                    for job_type in list(index.keys()):
+                        if job_id_str in index[job_type]:
+                            index[job_type].remove(job_id_str)
+
+                    cached_jobs = jobs_data.get("cached_jobs", {})
+                    cached_jobs.pop(job_id_str, None)
+
+                    async with await storage.open(jobs_json_path, "w") as f:
+                        await f.write(json.dumps(jobs_data, indent=4))
+                return
+            except TimeoutError:
+                if attempt < 2:
+                    await asyncio.sleep(0.05 * (attempt + 1))
+                    continue
+                logger.warning("Timeout removing job %s from jobs.json index", job_id, exc_info=True)
+                return
+            except Exception:
+                logger.warning("Error removing job %s from jobs.json index", job_id, exc_info=True)
+                return
 
     # TODO: For experiments, delete the same way as jobs
     async def delete(self):
@@ -685,6 +755,3 @@ class Experiment(BaseLabResource):
                 await job.delete()
             except Exception:
                 pass  # Job might not exist
-
-        workspace = await get_workspace_dir()
-        self._trigger_cache_rebuild(workspace)
