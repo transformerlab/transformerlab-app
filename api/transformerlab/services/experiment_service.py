@@ -1,6 +1,5 @@
 import logging
 import json
-import os
 
 from lab import Experiment
 from lab import dirs as lab_dirs
@@ -9,11 +8,6 @@ from lab import storage
 from transformerlab.services.cache_service import cache, cached
 
 logger = logging.getLogger(__name__)
-_tlab_log_level = os.getenv("TLAB_LOG_LEVEL", "").upper()
-if _tlab_log_level:
-    _parsed_level = getattr(logging, _tlab_log_level, None)
-    if isinstance(_parsed_level, int):
-        logger.setLevel(_parsed_level)
 
 
 @cached(key="experiments:list", ttl="30s", tags=["experiments"])
