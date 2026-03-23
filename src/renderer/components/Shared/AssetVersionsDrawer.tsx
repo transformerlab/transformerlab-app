@@ -214,6 +214,19 @@ function VersionDetailPanel({
   );
   const [metadataError, setMetadataError] = useState<string | null>(null);
 
+  // Validate the cover image URL before using it in the DOM
+  let safeCoverImage: string | null = null;
+  if (coverImage) {
+    try {
+      const parsed = new URL(coverImage, window.location.origin);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        safeCoverImage = parsed.toString();
+      }
+    } catch {
+      // Invalid URL; leave safeCoverImage as null
+    }
+  }
+
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showProdWarning, setShowProdWarning] = useState(false);
@@ -574,7 +587,7 @@ function VersionDetailPanel({
               value={coverImage}
               onChange={(e) => setCoverImage(e.target.value)}
             />
-            {coverImage && (
+            {safeCoverImage && (
               <Box
                 sx={{
                   mt: 1,
@@ -586,7 +599,7 @@ function VersionDetailPanel({
                 }}
               >
                 <img
-                  src={coverImage}
+                  src={safeCoverImage}
                   alt="Cover preview"
                   style={{
                     width: '100%',
