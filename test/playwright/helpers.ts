@@ -7,67 +7,7 @@ import { expect, Page } from '@playwright/test';
  * instead of duplicating the logic.
  */
 
-export async function login(page: Page) {
-  await page.goto('/');
-
-  // Fresh installs show a first-user bootstrap form instead of seeded admin credentials.
-  const createFirstUserButton = page.getByRole('button', {
-    name: 'Create First User',
-  });
-  if ((await createFirstUserButton.count()) > 0) {
-    await page.getByPlaceholder('First Name').fill('Admin');
-    await page.getByPlaceholder('Last Name').fill('User');
-    await page.getByPlaceholder('Email Address').fill('admin@example.com');
-    await page
-      .getByRole('textbox', { name: 'Password', exact: true })
-      .fill('admin123');
-    await page.getByPlaceholder('Confirm Password').fill('admin123');
-    await createFirstUserButton.click();
-    await expect(page.locator('.Sidebar')).toBeVisible({
-      timeout: 15000,
-    });
-    return;
-  }
-
-  try {
-    const setupStatusRes = await page.request.get('/auth/setup/status');
-    if (setupStatusRes.ok()) {
-      const setupData = await setupStatusRes.json();
-      if (setupData && setupData.has_users === false) {
-        await page.getByPlaceholder('First Name').fill('Admin');
-        await page.getByPlaceholder('Last Name').fill('User');
-        await page.getByPlaceholder('Email Address').fill('admin@example.com');
-        await page
-          .getByRole('textbox', { name: 'Password', exact: true })
-          .fill('admin123');
-        await page.getByPlaceholder('Confirm Password').fill('admin123');
-        await page.getByRole('button', { name: 'Create First User' }).click();
-        await expect(page.locator('.Sidebar')).toBeVisible({
-          timeout: 15000,
-        });
-        return;
-      }
-    }
-  } catch {
-    // Fall back to the normal login flow below.
-  }
-
-  // If setup status check failed or returned stale data, trust the visible UI.
-  if ((await createFirstUserButton.count()) > 0) {
-    await page.getByPlaceholder('First Name').fill('Admin');
-    await page.getByPlaceholder('Last Name').fill('User');
-    await page.getByPlaceholder('Email Address').fill('admin@example.com');
-    await page
-      .getByRole('textbox', { name: 'Password', exact: true })
-      .fill('admin123');
-    await page.getByPlaceholder('Confirm Password').fill('admin123');
-    await createFirstUserButton.click();
-    await expect(page.locator('.Sidebar')).toBeVisible({
-      timeout: 15000,
-    });
-    return;
-  }
-
+async function signInWithAdmin(page: Page) {
   await page.getByPlaceholder('Email Address').fill('admin@example.com');
   await page
     .getByRole('textbox', { name: 'Password', exact: true })
@@ -76,6 +16,70 @@ export async function login(page: Page) {
   await expect(page.locator('.Sidebar')).toBeVisible({
     timeout: 15000,
   });
+}
+
+async function completeFirstUserSetupIfVisible(page: Page) {
+  const createFirstUserButton = page.getByRole('button', {
+    name: 'Create First User',
+  });
+  if ((await createFirstUserButton.count()) === 0) {
+    return false;
+  }
+
+  await page.getByPlaceholder('First Name').fill('Admin');
+  await page.getByPlaceholder('Last Name').fill('User');
+  await page.getByPlaceholder('Email Address').fill('admin@example.com');
+  await page
+    .getByRole('textbox', { name: 'Password', exact: true })
+    .fill('admin123');
+  await page.getByPlaceholder('Confirm Password').fill('admin123');
+  await createFirstUserButton.click();
+
+  try {
+    await expect(page.locator('.Sidebar')).toBeVisible({
+      timeout: 8000,
+    });
+    return true;
+  } catch {
+    // Parallel workers can race on bootstrap; if another worker created the user,
+    // the app switches to Sign In and we should continue with normal login.
+  }
+
+  if ((await page.getByRole('button', { name: 'Sign In' }).count()) > 0) {
+    await signInWithAdmin(page);
+    return true;
+  }
+
+  return false;
+}
+
+export async function login(page: Page) {
+  await page.goto('/');
+
+  // Prefer direct UI detection first for fresh installs.
+  if (await completeFirstUserSetupIfVisible(page)) {
+    return;
+  }
+
+  try {
+    const setupStatusRes = await page.request.get('/auth/setup/status');
+    if (setupStatusRes.ok()) {
+      const setupData = await setupStatusRes.json();
+      if (setupData && setupData.has_users === false) {
+        await completeFirstUserSetupIfVisible(page);
+        return;
+      }
+    }
+  } catch {
+    // Fall back to the normal login flow below.
+  }
+
+  // Setup status can be stale; re-check visible UI once more before sign in.
+  if (await completeFirstUserSetupIfVisible(page)) {
+    return;
+  }
+
+  await signInWithAdmin(page);
 }
 
 export async function selectFirstExperiment(page: Page) {
@@ -102,14 +106,10 @@ export async function selectFirstExperiment(page: Page) {
   } else {
     // Fresh installs can start with zero experiments; create one on demand.
     await dropdown.getByRole('menuitem', { name: 'New' }).click();
-    const newExperimentDialog = page.getByRole('dialog', {
-      name: 'New Experiment',
-    });
-    await expect(newExperimentDialog).toBeVisible({ timeout: 10000 });
-    await newExperimentDialog
-      .getByPlaceholder('Experiment Name')
-      .fill(`smoke-${Date.now()}`);
-    await newExperimentDialog.getByRole('button', { name: 'Create' }).click();
+    const experimentNameInput = page.getByPlaceholder('Experiment Name');
+    await expect(experimentNameInput).toBeVisible({ timeout: 10000 });
+    await experimentNameInput.fill(`smoke-${Date.now()}`);
+    await page.getByRole('button', { name: 'Create' }).click();
   }
 
   // Wait for dropdown to close and menu trigger to no longer say "Select"
