@@ -1,7 +1,6 @@
 import json
 from datetime import datetime, timezone
 import posixpath
-from werkzeug.utils import secure_filename
 
 from . import dirs
 from .labresource import BaseLabResource
@@ -68,9 +67,7 @@ class Job(BaseLabResource):
         newobj = cls(job_id, experiment_id)
         resource_dir = await newobj.get_dir()
         if not await storage.isdir(resource_dir):
-            raise FileNotFoundError(
-                f"Directory for Job with id '{job_id}' not found in experiment '{experiment_id}'"
-            )
+            raise FileNotFoundError(f"Directory for Job with id '{job_id}' not found in experiment '{experiment_id}'")
         json_file = await newobj._get_json_file()
         if not await storage.exists(json_file):
             async with await storage.open(json_file, "w", encoding="utf-8") as f:

@@ -238,7 +238,6 @@ async def test_delete_all_jobs(tmp_path, monkeypatch):
     monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
 
     from lab.experiment import Experiment
-    from lab.dirs import get_jobs_dir
 
     exp = Experiment("alpha")
     await exp.create_job("TRAIN")

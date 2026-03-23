@@ -50,4 +50,3 @@ async def test_get_job_checkpoints_dir(tmp_path, monkeypatch):
     result = await get_job_checkpoints_dir("abc-123", "my_exp")
     assert result.endswith("experiments/my_exp/jobs/abc-123/checkpoints")
     assert os.path.isdir(result)
-
