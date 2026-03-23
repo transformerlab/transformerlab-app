@@ -131,6 +131,8 @@ Endpoints.ComputeProvider = {
     }
     throw new Error('Either experimentId or jobId must be provided');
   },
+  CheckGroupStatusAll: (experimentId: string) =>
+    `${API_URL()}compute_provider/jobs/group-status?experiment_id=${experimentId}`,
   GetSweepResults: (jobId: string) =>
     `${API_URL()}compute_provider/jobs/${jobId}/sweep-results`,
   StopCluster: (providerId: string, clusterName: string) =>

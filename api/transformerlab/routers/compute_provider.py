@@ -10,7 +10,7 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request, Body
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional, Union, Tuple
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services.provider_service import (
@@ -77,7 +77,7 @@ from transformerlab.shared.interactive_gallery_utils import (
     find_interactive_gallery_entry,
 )
 from transformerlab.schemas.secrets import SPECIAL_SECRET_TYPES
-from typing import Any
+from transformerlab.schemas.task import GroupLaunchRequest
 
 logger = logging.getLogger(__name__)
 
@@ -1511,6 +1511,175 @@ async def _launch_sweep_jobs(
             print(f"Completed launching {len(child_job_ids)} child jobs for sweep {parent_job_id}")
     finally:
         # Clear org context after background task completes
+        if lab_set_org_id is not None:
+            lab_set_org_id(None)
+
+
+async def _create_group_parent_job(
+    provider_id: str,
+    request: GroupLaunchRequest,
+    user_and_team: dict,
+    session: AsyncSession,
+) -> str:
+    """Create the GROUP parent job immediately and return its ID."""
+    team_id = user_and_team["team_id"]
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    user_info: dict = {}
+    user = user_and_team.get("user")
+    if user and getattr(user, "email", None):
+        user_info["email"] = getattr(user, "email")
+
+    parent_job_id = await job_service.job_create(
+        type="GROUP",
+        status=JobStatus.RUNNING,
+        experiment_id=request.experiment_id,
+    )
+
+    parent_job_data = {
+        "group_parent": True,
+        "group_total": len(request.jobs),
+        "group_completed": 0,
+        "group_running": 0,
+        "group_failed": 0,
+        "group_queued": len(request.jobs),
+        "group_progress": 0,
+        "group_job_ids": [],
+        "failure_policy": request.failure_policy,
+        "failure_policy_applied": False,
+        "group_configs": [j.model_dump() for j in request.jobs],
+        "provider_id": str(provider.id),
+        "provider_name": provider.name,
+        "user_info": user_info or None,
+        "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+    }
+    updates = {k: v for k, v in parent_job_data.items() if v is not None}
+    await job_service.job_update_job_data_insert_key_values(parent_job_id, updates, request.experiment_id)
+    return parent_job_id
+
+
+async def _launch_group_jobs(
+    provider_id: str,
+    parent_job_id: str,
+    request: GroupLaunchRequest,
+    user_and_team: dict,
+) -> None:
+    """
+    Launch all child jobs for a group in the background.
+    All configs are always dispatched (no mid-loop policy checks).
+    group_job_ids is written atomically after all children are created.
+    """
+    from transformerlab.db.session import async_session
+    from lab.dirs import set_organization_id as lab_set_org_id
+
+    team_id = user_and_team["team_id"]
+    if lab_set_org_id is not None:
+        lab_set_org_id(team_id)
+
+    child_job_ids: List[str] = []
+
+    try:
+        async with async_session() as session:
+            provider = await get_team_provider(session, team_id, provider_id)
+            if not provider:
+                print(f"Provider {provider_id} not found for group job {parent_job_id}")
+                await job_service.job_update_status(
+                    parent_job_id,
+                    JobStatus.FAILED,
+                    experiment_id=request.experiment_id,
+                    error_msg="Provider not found",
+                )
+                return
+
+            provider_instance = await get_provider_instance(provider)
+
+            for i, child_config in enumerate(request.jobs):
+                child_job_id = await job_service.job_create(
+                    type="REMOTE",
+                    status=JobStatus.QUEUED,
+                    experiment_id=request.experiment_id,
+                )
+
+                cluster_name = f"group-{parent_job_id}-{i + 1}"
+                child_job_data = {
+                    "parent_group_job_id": str(parent_job_id),
+                    "group_run_index": i + 1,
+                    "task_name": child_config.name,
+                    "run": child_config.run,
+                    "setup": child_config.setup,
+                    "subtype": child_config.subtype,
+                    "interactive_type": child_config.interactive_type,
+                    "cpus": child_config.cpus,
+                    "memory": child_config.memory,
+                    "disk_space": child_config.disk_space,
+                    "accelerators": child_config.accelerators,
+                    "num_nodes": child_config.num_nodes,
+                    "env_vars": child_config.env_vars,
+                    "cluster_name": cluster_name,
+                    "provider_id": str(provider.id),
+                    "provider_name": provider.name,
+                    "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                }
+                child_updates = {k: v for k, v in child_job_data.items() if v is not None}
+                await job_service.job_update_job_data_insert_key_values(
+                    child_job_id, child_updates, request.experiment_id
+                )
+
+                disk_size = None
+                if child_config.disk_space:
+                    try:
+                        disk_size = int(child_config.disk_space)
+                    except (TypeError, ValueError):
+                        pass
+
+                cluster_config = ClusterConfig(
+                    cluster_name=cluster_name,
+                    provider_name=provider.name,
+                    provider_id=provider.id,
+                    run=child_config.run or "",
+                    setup=child_config.setup,
+                    env_vars=child_config.env_vars or {},
+                    cpus=child_config.cpus,
+                    memory=child_config.memory,
+                    accelerators=child_config.accelerators,
+                    num_nodes=child_config.num_nodes,
+                    disk_size=disk_size,
+                    file_mounts={},
+                    provider_config={},
+                )
+
+                try:
+                    launch_result = await asyncio.to_thread(
+                        provider_instance.launch_cluster, cluster_name, cluster_config
+                    )
+                    if isinstance(launch_result, dict):
+                        await job_service.job_update_job_data_insert_key_value(
+                            child_job_id, "provider_launch_result", launch_result, request.experiment_id
+                        )
+                    await job_service.job_update_status(child_job_id, JobStatus.LAUNCHING, request.experiment_id)
+                    print(f"Launched group child job {i + 1}/{len(request.jobs)}: {child_job_id}")
+                except Exception as exc:
+                    print(f"Failed to launch group child {i + 1}: {exc}")
+                    await job_service.job_update_status(
+                        child_job_id, JobStatus.FAILED, request.experiment_id, error_msg=str(exc)
+                    )
+
+                child_job_ids.append(str(child_job_id))
+
+        # Atomic write of all child IDs after loop — status worker guards on len == total
+        await job_service.job_update_job_data_insert_key_value(
+            parent_job_id, "group_job_ids", child_job_ids, request.experiment_id
+        )
+        print(f"Group {parent_job_id}: registered {len(child_job_ids)} child jobs")
+
+    except Exception as exc:
+        print(f"Error in _launch_group_jobs for {parent_job_id}: {exc}")
+        await job_service.job_update_status(
+            parent_job_id, JobStatus.FAILED, experiment_id=request.experiment_id, error_msg=str(exc)
+        )
+    finally:
         if lab_set_org_id is not None:
             lab_set_org_id(None)
 
@@ -3241,3 +3410,82 @@ async def cancel_job(
     except Exception as e:
         print(f"Failed to cancel job: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to cancel job")
+
+
+@router.post("/{provider_id}/launch_group")
+async def launch_group(
+    provider_id: str,
+    request: GroupLaunchRequest,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Create a GROUP parent job and launch multiple heterogeneous child jobs.
+    Returns immediately with the parent job ID; child dispatch runs in background.
+    """
+    if not request.jobs:
+        raise HTTPException(status_code=400, detail="At least one job config is required")
+
+    parent_job_id = await _create_group_parent_job(provider_id, request, user_and_team, session)
+
+    asyncio.create_task(_launch_group_jobs(provider_id, parent_job_id, request, user_and_team))
+
+    return {
+        "status": "success",
+        "job_id": parent_job_id,
+        "job_type": "GROUP",
+        "total_jobs": len(request.jobs),
+        "message": f"Group created with {len(request.jobs)} jobs. Child jobs are being launched in the background.",
+    }
+
+
+@router.get("/jobs/group-status")
+async def check_group_status_all(
+    experiment_id: str = Query(..., description="Experiment ID to fetch all GROUP jobs for"),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Fetch all GROUP jobs for an experiment."""
+    all_group_jobs = await job_service.jobs_get_all(experiment_id=experiment_id, type="GROUP", status="")
+    return {
+        "status": "success",
+        "experiment_id": experiment_id,
+        "jobs": all_group_jobs,
+        "total": len(all_group_jobs),
+    }
+
+
+@router.get("/jobs/{job_id}/group-status")
+async def check_group_status(
+    job_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Fetch current status of a GROUP parent job."""
+    job = await job_service.job_get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.get("type") != "GROUP":
+        raise HTTPException(status_code=400, detail="Job is not a GROUP job")
+
+    job_data = job.get("job_data", {}) or {}
+    if not job_data.get("group_parent"):
+        raise HTTPException(status_code=400, detail="Job is not a group parent")
+
+    group_total = int(job_data.get("group_total", 0) or 0)
+    group_completed = int(job_data.get("group_completed", 0) or 0)
+    group_failed = int(job_data.get("group_failed", 0) or 0)
+
+    return {
+        "status": "success",
+        "job_id": job_id,
+        "group_total": group_total,
+        "group_completed": group_completed,
+        "group_running": int(job_data.get("group_running", 0) or 0),
+        "group_failed": group_failed,
+        "group_queued": int(job_data.get("group_queued", 0) or 0),
+        "group_progress": int(job_data.get("group_progress", 0) or 0),
+        "failure_policy": job_data.get("failure_policy", "continue"),
+        "all_complete": (group_completed + group_failed) == group_total and group_total > 0,
+        "job": job,
+    }
