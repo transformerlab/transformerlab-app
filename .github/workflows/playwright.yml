@@ -15,6 +15,14 @@ on:
       - "playwright.config.ts"
   pull_request:
     branches: ["main"]
+    paths:
+      - "src/**"
+      - "api/**"
+      - "lab-sdk/**"
+      - "test/playwright/**"
+      - "test/docker/**"
+      - "docker-compose.test.yml"
+      - "playwright.config.ts"
 
 jobs:
   smoke:
