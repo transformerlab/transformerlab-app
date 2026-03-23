@@ -1,10 +1,7 @@
-import json
 from typing import Annotated
 from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
-from huggingface_hub import create_repo, upload_folder, HfApi
-from huggingface_hub import ModelCard, ModelCardData
-from huggingface_hub.utils import HfHubHTTPError
+from huggingface_hub import HfApi
 from transformers import AutoTokenizer
 
 
