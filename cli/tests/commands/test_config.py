@@ -20,14 +20,17 @@ def test_config_help():
     """Test the config command help."""
     result = runner.invoke(app, ["config", "--help"])
     assert result.exit_code == 0
-    assert "View or set configuration values" in result.output
+    assert "View, get, and set configuration values" in result.output
 
 
-def test_config_requires_both_key_and_value():
-    """Test that config errors when only key is provided."""
-    result = runner.invoke(app, ["config", "server"])
-    assert result.exit_code == 1
-    assert "Both key and value are required" in result.output
+def test_config_with_key_fetches_value(tmp_config_dir):
+    """Test that config with key fetches value."""
+    config_dir, config_file = tmp_config_dir
+    config_file.write_text(json.dumps({"server": "http://localhost:8338"}))
+    with _patch_config_paths(config_dir, config_file):
+        result = runner.invoke(app, ["config", "server"])
+        assert result.exit_code == 0
+        assert "http://localhost:8338" in result.output
 
 
 # --- URL validation ---
@@ -161,7 +164,7 @@ def test_config_set_json_format(tmp_config_dir):
     """Test that setting a config key with --format=json outputs JSON."""
     config_dir, config_file = tmp_config_dir
     with _patch_config_paths(config_dir, config_file):
-        result = runner.invoke(app, ["--format=json", "config", "server", "http://localhost:8338"])
+        result = runner.invoke(app, ["--format=json", "config", "set", "server", "http://localhost:8338"])
         assert result.exit_code == 0
         output = json.loads(result.output.strip())
         assert output["key"] == "server"
@@ -172,15 +175,41 @@ def test_config_set_invalid_key_json_format(tmp_config_dir):
     """Test that setting an invalid key with --format=json outputs JSON error."""
     config_dir, config_file = tmp_config_dir
     with _patch_config_paths(config_dir, config_file):
-        result = runner.invoke(app, ["--format=json", "config", "bad_key", "value"])
+        result = runner.invoke(app, ["--format=json", "config", "set", "bad_key", "value"])
         assert result.exit_code == 0
         output = json.loads(result.output.strip())
         assert "error" in output
 
 
-def test_config_key_without_value_json_format():
-    """Test that providing only a key with --format=json outputs JSON error."""
-    result = runner.invoke(app, ["--format=json", "config", "server"])
-    assert result.exit_code == 1
-    output = json.loads(result.output.strip())
-    assert "error" in output
+def test_config_get_json_format(tmp_config_dir):
+    """Test that config key lookup with --format=json returns key/value JSON."""
+    config_dir, config_file = tmp_config_dir
+    config_file.write_text(json.dumps({"server": "http://localhost:8338"}))
+    with _patch_config_paths(config_dir, config_file):
+        result = runner.invoke(app, ["--format=json", "config", "server"])
+        assert result.exit_code == 0
+        output = json.loads(result.output.strip())
+        assert output["key"] == "server"
+        assert output["value"] == "http://localhost:8338"
+
+
+def test_config_get_subcommand_json_format(tmp_config_dir):
+    """Test that config get with --format=json returns key/value JSON."""
+    config_dir, config_file = tmp_config_dir
+    config_file.write_text(json.dumps({"server": "http://localhost:8338"}))
+    with _patch_config_paths(config_dir, config_file):
+        result = runner.invoke(app, ["--format=json", "config", "get", "server"])
+        assert result.exit_code == 0
+        output = json.loads(result.output.strip())
+        assert output["key"] == "server"
+        assert output["value"] == "http://localhost:8338"
+
+
+def test_config_get_missing_key_json_format(tmp_config_dir):
+    """Test that config get for missing key returns JSON error."""
+    config_dir, config_file = tmp_config_dir
+    with _patch_config_paths(config_dir, config_file):
+        result = runner.invoke(app, ["--format=json", "config", "server"])
+        assert result.exit_code == 1
+        output = json.loads(result.output.strip())
+        assert "error" in output
