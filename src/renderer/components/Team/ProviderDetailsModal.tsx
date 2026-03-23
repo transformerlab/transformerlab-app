@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+/* eslint-disable react/prop-types */
+/* eslint-disable react/require-default-props */
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -20,6 +22,9 @@ import {
 } from '@mui/joy';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { getPath } from 'renderer/lib/api-client/urls';
+import { Endpoints } from 'renderer/lib/api-client/endpoints';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
 
 interface ProviderDetailsModalProps {
   open: boolean;
@@ -74,9 +79,17 @@ export default function ProviderDetailsModal({
   const [type, setType] = useState('');
   const [config, setConfig] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSetupInProgress, setIsSetupInProgress] = useState(false);
+  const [setupStatus, setSetupStatus] = useState<string | null>(null);
+  const { addNotification } = useNotification();
   const [supportedAccelerators, setSupportedAccelerators] = useState<string[]>(
     [],
   );
+  const [preTaskHook, setPreTaskHook] = useState<string>('');
+  const [postTaskHook, setPostTaskHook] = useState<string>('');
+  const [preSetupHook, setPreSetupHook] = useState<string>('');
+  const [postSetupHook, setPostSetupHook] = useState<string>('');
+  const [hooksExpanded, setHooksExpanded] = useState(false);
 
   // SLURM-specific form fields
   const [slurmMode, setSlurmMode] = useState<'ssh' | 'rest'>('ssh');
@@ -116,7 +129,7 @@ export default function ProviderDetailsModal({
   };
 
   // Helper to build SLURM config from form fields
-  const buildSlurmConfig = () => {
+  const buildSlurmConfig = useCallback(() => {
     const configObj: any = {
       mode: slurmMode,
     };
@@ -124,7 +137,7 @@ export default function ProviderDetailsModal({
     if (slurmMode === 'ssh') {
       configObj.ssh_host = slurmSshHost;
       configObj.ssh_user = slurmSshUser;
-      configObj.ssh_port = parseInt(slurmSshPort) || 22;
+      configObj.ssh_port = parseInt(slurmSshPort, 10) || 22;
       if (slurmSshKeyPath) {
         configObj.ssh_key_path = slurmSshKeyPath;
       }
@@ -144,7 +157,16 @@ export default function ProviderDetailsModal({
     }
 
     return configObj;
-  };
+  }, [
+    slurmMode,
+    slurmSshHost,
+    slurmSshUser,
+    slurmSshPort,
+    slurmSshKeyPath,
+    slurmRestUrl,
+    slurmApiToken,
+    supportedAccelerators,
+  ]);
 
   // if a providerId is passed then we are editing an existing provider
   // Otherwise we are creating a new provider
@@ -157,6 +179,22 @@ export default function ProviderDetailsModal({
         typeof providerData.config === 'string'
           ? JSON.parse(providerData.config || '{}')
           : providerData.config || {};
+
+      const extraConfig =
+        rawConfigObj && typeof rawConfigObj === 'object'
+          ? rawConfigObj.extra_config || {}
+          : {};
+      if (extraConfig && typeof extraConfig === 'object') {
+        setPreTaskHook(extraConfig.pre_task_hook || '');
+        setPostTaskHook(extraConfig.post_task_hook || '');
+        setPreSetupHook(extraConfig.pre_setup_hook || '');
+        setPostSetupHook(extraConfig.post_setup_hook || '');
+      } else {
+        setPreTaskHook('');
+        setPostTaskHook('');
+        setPreSetupHook('');
+        setPostSetupHook('');
+      }
 
       // Extract supported_accelerators into dedicated state, but do not show it in raw JSON.
       if (rawConfigObj.supported_accelerators) {
@@ -175,6 +213,10 @@ export default function ProviderDetailsModal({
       setType('');
       setConfig('');
       setSupportedAccelerators([]);
+      setPreTaskHook('');
+      setPostTaskHook('');
+      setPreSetupHook('');
+      setPostSetupHook('');
       setSlurmMode('ssh');
       setSlurmSshHost('');
       setSlurmSshUser('');
@@ -192,6 +234,10 @@ export default function ProviderDetailsModal({
       setType('');
       setConfig('');
       setSupportedAccelerators([]);
+      setPreTaskHook('');
+      setPostTaskHook('');
+      setPreSetupHook('');
+      setPostSetupHook('');
       setSlurmMode('ssh');
       setSlurmSshHost('');
       setSlurmSshUser('');
@@ -211,6 +257,36 @@ export default function ProviderDetailsModal({
 
       // Initialize default supported accelerators per provider type, but keep them
       // out of the raw JSON configuration.
+      if (type === 'local') {
+        // Optimistic defaults while we query the backend for real detection.
+        setSupportedAccelerators(DEFAULT_SUPPORTED_ACCELERATORS['local'] || []);
+
+        let cancelled = false;
+        const detectLocal = async () => {
+          try {
+            const response = await fetchWithAuth(
+              Endpoints.ComputeProvider.DetectLocalAccelerators(),
+              { method: 'GET' },
+            );
+            if (!response.ok) return;
+            const data = await response.json().catch(() => ({}));
+            const detected = data.supported_accelerators;
+            if (!cancelled && Array.isArray(detected)) {
+              setSupportedAccelerators(detected);
+            }
+          } catch (e) {
+            // Best-effort: keep the optimistic defaults if detection fails.
+            // eslint-disable-next-line no-console
+            console.error('Failed to detect local accelerators:', e);
+          }
+        };
+        detectLocal();
+
+        return () => {
+          cancelled = true;
+        };
+      }
+
       if (DEFAULT_SUPPORTED_ACCELERATORS[type]) {
         setSupportedAccelerators(DEFAULT_SUPPORTED_ACCELERATORS[type]);
       } else {
@@ -238,41 +314,103 @@ export default function ProviderDetailsModal({
         setConfig(JSON.stringify(configObj, null, 2));
       }
     }
-  }, [
-    slurmMode,
-    slurmSshHost,
-    slurmSshUser,
-    slurmSshPort,
-    slurmSshKeyPath,
-    slurmRestUrl,
-    slurmApiToken,
-    supportedAccelerators,
-    type,
-    providerId,
-  ]);
+  }, [buildSlurmConfig, type, providerId]);
 
-  async function createProvider(name: String, type: String, config: String) {
-    return await fetchWithAuth(
-      getPath('compute_provider', ['create'], { teamId }),
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, type, config }),
-      },
-    );
+  // Local provider setup: poll background setup status and keep modal open until done.
+  const pollLocalSetupStatus = (providerIdForSetup: string) => {
+    const poll = async () => {
+      try {
+        const response = await fetchWithAuth(
+          Endpoints.ComputeProvider.SetupStatus(providerIdForSetup),
+          { method: 'GET' },
+        );
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          const detail =
+            (error &&
+              (error.detail?.message || error.detail || error.message)) ||
+            'Unknown error';
+          setSetupStatus(`Failed to read setup status: ${detail}`);
+          setIsSetupInProgress(false);
+          addNotification({
+            type: 'danger',
+            message: 'Local provider setup failed to report status.',
+          });
+          return;
+        }
+
+        const data = await response.json().catch(() => ({}));
+
+        // If status is idle and done, treat as "already finished" and close quietly.
+        if (data.status === 'idle' && data.done) {
+          setIsSetupInProgress(false);
+          onClose();
+          return;
+        }
+
+        const message: string =
+          data.message ||
+          data.error ||
+          (data.done
+            ? 'Local provider setup finished.'
+            : 'Running local provider setup…');
+
+        setSetupStatus(message);
+
+        if (!data.done) {
+          window.setTimeout(poll, 2000);
+        } else {
+          setIsSetupInProgress(false);
+          addNotification({
+            type: data.error ? 'danger' : 'success',
+            message,
+          });
+          onClose();
+        }
+      } catch {
+        setSetupStatus('Failed to read setup status. Please try again.');
+        setIsSetupInProgress(false);
+        addNotification({
+          type: 'danger',
+          message: 'Local provider setup failed to report status.',
+        });
+      }
+    };
+
+    setIsSetupInProgress(true);
+    setSetupStatus('Starting local provider setup…');
+    poll();
+  };
+
+  function createProvider(
+    providerName: string,
+    providerType: string,
+    providerConfig: any,
+  ) {
+    return fetchWithAuth(getPath('compute_provider', ['create'], { teamId }), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: providerName,
+        type: providerType,
+        config: providerConfig,
+      }),
+    });
   }
 
-  async function updateProvider(id: String, name: String, config: String) {
-    return await fetchWithAuth(
+  function updateProvider(
+    id: string,
+    providerName: string,
+    providerConfig: any,
+  ) {
+    return fetchWithAuth(
       getPath('compute_provider', ['update'], { providerId: id, teamId }),
       {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, config }),
+        body: JSON.stringify({ name: providerName, config: providerConfig }),
       },
     );
   }
@@ -299,19 +437,61 @@ export default function ProviderDetailsModal({
         }
       }
 
+      if (
+        !parsedConfig.extra_config ||
+        typeof parsedConfig.extra_config !== 'object'
+      ) {
+        parsedConfig.extra_config = {};
+      }
+      if (preTaskHook.trim()) {
+        parsedConfig.extra_config.pre_task_hook = preTaskHook;
+      } else {
+        delete parsedConfig.extra_config.pre_task_hook;
+      }
+      if (postTaskHook.trim()) {
+        parsedConfig.extra_config.post_task_hook = postTaskHook;
+      } else {
+        delete parsedConfig.extra_config.post_task_hook;
+      }
+      if (preSetupHook.trim()) {
+        parsedConfig.extra_config.pre_setup_hook = preSetupHook;
+      } else {
+        delete parsedConfig.extra_config.pre_setup_hook;
+      }
+      if (postSetupHook.trim()) {
+        parsedConfig.extra_config.post_setup_hook = postSetupHook;
+      } else {
+        delete parsedConfig.extra_config.post_setup_hook;
+      }
+      if (Object.keys(parsedConfig.extra_config).length === 0) {
+        delete parsedConfig.extra_config;
+      }
+
       const response = providerId
         ? await updateProvider(providerId, name, parsedConfig)
         : await createProvider(name, type, parsedConfig);
 
       if (response.ok) {
+        // For newly created LOCAL providers, keep the modal open and show setup progress.
+        if (!providerId && type === 'local') {
+          const data = await response.json().catch(() => ({}));
+          const newId = String(data?.id || '');
+          if (newId) {
+            pollLocalSetupStatus(newId);
+            return;
+          }
+        }
+
         setName('');
         setConfig('');
         onClose();
       } else {
         const errorData = await response.json();
+        // eslint-disable-next-line no-console
         console.error('Error updating provider:', errorData);
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error updating provider:', error);
     } finally {
       setLoading(false);
@@ -358,7 +538,7 @@ export default function ProviderDetailsModal({
                 >
                   <Option value="skypilot">Skypilot</Option>
                   <Option value="slurm">SLURM</Option>
-                  <Option value="runpod">Runpod (beta)</Option>
+                  <Option value="runpod">Runpod</Option>
                   {!hasLocalProvider && !providerId && (
                     <Option value="local">Local (beta)</Option>
                   )}
@@ -425,9 +605,9 @@ export default function ProviderDetailsModal({
                     <Typography level="body-sm">
                       <strong>SLURM User ID:</strong> All jobs launched through
                       this provider will run as the specified SLURM user. Make
-                      sure your team's SSH key (from Team Settings → SSH Key) is
-                      added to that user's authorized_keys on the SLURM login
-                      node.
+                      sure your team&apos;s SSH key (from Team Settings → SSH
+                      Key) is added to that user&apos;s authorized_keys on the
+                      SLURM login node.
                     </Typography>
                   </Alert>
 
@@ -500,7 +680,7 @@ export default function ProviderDetailsModal({
                           sx={{ mt: 0.5, color: 'text.tertiary' }}
                         >
                           Path to private key on API server. If empty, will use
-                          your team's SSH key.
+                          your team&apos;s SSH key.
                         </Typography>
                       </FormControl>
                     </>
@@ -550,6 +730,102 @@ export default function ProviderDetailsModal({
                   )}
                 </>
               )}
+
+              <Box
+                sx={{
+                  mt: 2,
+                  border: '1px solid',
+                  borderColor: 'neutral.outlinedBorder',
+                  borderRadius: 'sm',
+                }}
+              >
+                <Button
+                  variant="plain"
+                  color="neutral"
+                  onClick={() => setHooksExpanded((v) => !v)}
+                  sx={{
+                    width: '100%',
+                    justifyContent: 'space-between',
+                    borderRadius: 'sm',
+                    p: 1,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <Typography level="title-sm">
+                      Advanced: Harness hooks (optional)
+                    </Typography>
+                    <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
+                      Add hooks to run before and after the provider setup and
+                      run scripts.
+                    </Typography>
+                  </Box>
+                  {hooksExpanded ? (
+                    <ChevronDownIcon size={18} />
+                  ) : (
+                    <ChevronRightIcon size={18} />
+                  )}
+                </Button>
+
+                {hooksExpanded && (
+                  <FormControl sx={{ px: 1, pb: 1 }}>
+                    <FormLabel sx={{ mt: 1 }}>
+                      Setup pre hook (optional)
+                    </FormLabel>
+                    <Textarea
+                      value={preSetupHook}
+                      onChange={(event) =>
+                        setPreSetupHook(event.currentTarget.value)
+                      }
+                      placeholder="Commands to run before the provider setup script"
+                      minRows={2}
+                      maxRows={6}
+                    />
+                    <FormLabel sx={{ mt: 1 }}>
+                      Setup post hook (optional)
+                    </FormLabel>
+                    <Textarea
+                      value={postSetupHook}
+                      onChange={(event) =>
+                        setPostSetupHook(event.currentTarget.value)
+                      }
+                      placeholder="Commands to run after the provider setup script"
+                      minRows={2}
+                      maxRows={6}
+                    />
+
+                    <FormLabel sx={{ mt: 2 }}>
+                      Run pre hook (optional)
+                    </FormLabel>
+                    <Textarea
+                      value={preTaskHook}
+                      onChange={(event) =>
+                        setPreTaskHook(event.currentTarget.value)
+                      }
+                      placeholder="Commands to run before the run script in every task"
+                      minRows={2}
+                      maxRows={6}
+                    />
+                    <FormLabel sx={{ mt: 1 }}>
+                      Run post hook (optional)
+                    </FormLabel>
+                    <Textarea
+                      value={postTaskHook}
+                      onChange={(event) =>
+                        setPostTaskHook(event.currentTarget.value)
+                      }
+                      placeholder="Commands to run after the run script in every task"
+                      minRows={2}
+                      maxRows={6}
+                    />
+                  </FormControl>
+                )}
+              </Box>
 
               {/* Generic JSON config for non-SLURM providers or advanced editing */}
               {type !== 'slurm' && type !== 'local' && (
@@ -606,13 +882,30 @@ export default function ProviderDetailsModal({
           )}
         </DialogContent>
         <DialogActions>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-            <Button variant="outlined" onClick={onClose} sx={{ mr: 1 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              width: '100%',
+              mt: 1,
+              gap: 1,
+            }}
+          >
+            {isSetupInProgress && setupStatus && (
+              <Typography
+                level="body-sm"
+                sx={{ color: 'text.tertiary', mr: 1 }}
+              >
+                {setupStatus}
+              </Typography>
+            )}
+            <Button variant="outlined" onClick={onClose}>
               Cancel
             </Button>
             <Button
               onClick={saveProvider}
-              loading={loading}
+              loading={loading || isSetupInProgress}
               disabled={!!providerId && providerDataLoading}
             >
               {providerId ? 'Save Compute Provider' : 'Add Compute Provider'}

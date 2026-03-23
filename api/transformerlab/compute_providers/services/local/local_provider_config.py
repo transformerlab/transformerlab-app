@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
-from lab.dirs import HOME_DIR
+from lab.dirs import get_local_provider_config_path
 
 try:
     import psutil  # type: ignore[import-not-found]
@@ -254,8 +254,7 @@ async def collect_server_info() -> Dict[str, Any]:
 def main() -> None:
     """Entry point: write server info snapshot to local_provider_config.json under HOME_DIR."""
     data = asyncio.run(collect_server_info())
-    output_path = Path(HOME_DIR) / "local_provider_config.json"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path = Path(get_local_provider_config_path())
     output_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 

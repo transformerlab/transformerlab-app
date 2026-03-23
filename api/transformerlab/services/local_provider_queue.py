@@ -28,8 +28,8 @@ class LocalLaunchWorkItem(BaseModel):
 
 
 _local_launch_queue: "asyncio.Queue[LocalLaunchWorkItem]" = asyncio.Queue()
-_worker_started = False
-_worker_started_lock = asyncio.Lock()
+_processing = False
+_dispatch_lock = asyncio.Lock()
 _worker_lock = asyncio.Lock()
 
 
@@ -43,7 +43,8 @@ async def enqueue_local_launch(
     quota_hold_id: Optional[str],
     initial_status: str,
 ) -> None:
-    """Enqueue a local provider launch work item and lazily start the worker."""
+    """Enqueue a local provider launch work item, starting immediately if idle."""
+    global _processing
     item = LocalLaunchWorkItem(
         job_id=str(job_id),
         experiment_id=str(experiment_id),
@@ -54,26 +55,35 @@ async def enqueue_local_launch(
         quota_hold_id=quota_hold_id,
         initial_status=initial_status,
     )
-    await _local_launch_queue.put(item)
     print(f"[local_provider_queue] Enqueued job {job_id} (cluster={cluster_name}, status={initial_status})")
 
-    global _worker_started
-    async with _worker_started_lock:
-        if not _worker_started:
-            asyncio.create_task(_local_launch_worker())
-            _worker_started = True
+    async with _dispatch_lock:
+        if _processing:
+            # A job is already running; buffer this one for later.
+            await _local_launch_queue.put(item)
+            return
+        # Fast path: no job running, process immediately.
+        _processing = True
+
+    asyncio.create_task(_run_and_drain(item))
 
 
-async def _local_launch_worker() -> None:
-    """Background worker that serializes local provider launches."""
+async def _run_and_drain(item: LocalLaunchWorkItem) -> None:
+    """Process an item immediately, then drain any queued items sequentially."""
+    global _processing
     while True:
-        item = await _local_launch_queue.get()
-        print(f"[local_provider_queue] Picked up job {item.job_id} from queue (cluster={item.cluster_name})")
+        print(f"[local_provider_queue] Picked up job {item.job_id} (cluster={item.cluster_name})")
         try:
-            # Delegate actual processing to helper to keep the worker loop simple.
             await _process_launch_item(item)
         except Exception as exc:  # noqa: BLE001
-            print(f"[local_provider_queue] Job {item.job_id}: worker encountered unexpected error: {exc}")
+            print(f"[local_provider_queue] Job {item.job_id}: unexpected error: {exc}")
+
+        # Check if more items accumulated while we were processing.
+        async with _dispatch_lock:
+            if _local_launch_queue.empty():
+                _processing = False
+                return
+            item = _local_launch_queue.get_nowait()
 
 
 async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
@@ -81,13 +91,13 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
     async with async_session() as session:
         lab_dirs.set_organization_id(item.team_id)
         try:
-            # Initial progress update
+            # Initial progress update – make it clear we're preparing the local environment.
             await job_service.job_update_launch_progress(
                 item.job_id,
                 item.experiment_id,
                 phase="starting",
                 percent=5,
-                message="Starting launch",
+                message="Preparing local environment (this may take a few minutes)...",
             )
             provider = await get_provider_by_id(session, item.provider_id)
             if not provider:
@@ -122,7 +132,7 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
                 item.experiment_id,
                 phase="launching_cluster",
                 percent=50,
-                message="Starting local cluster",
+                message="Setting up local provider and starting cluster...",
             )
 
             loop = asyncio.get_running_loop()

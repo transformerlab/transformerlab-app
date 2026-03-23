@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   prettier-check:
     runs-on: ubuntu-latest
@@ -18,9 +22,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
 
-      - name: Install Prettier
+      - name: Install prettier
         run: npm install -g prettier
 
       - name: Check Prettier formatting

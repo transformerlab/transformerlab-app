@@ -30,11 +30,12 @@ from typing import Optional
 import json
 import re
 
-from transformerlab.shared.api_key_auth import (
+from transformerlab.services.api_key_auth import (
     extract_api_key_from_request,
-    validate_api_key_and_get_user,
     get_user_personal_team_id,
+    validate_api_key_and_get_user,
 )
+from transformerlab.schemas.auth import CurrentUserResponse
 from transformerlab.utils.api_key_utils import mask_key
 from lab.dirs import get_workspace_dir
 from lab import storage
@@ -437,20 +438,39 @@ async def logout_cookie():
     return response
 
 
-@router.get("/users/me", response_model=UserRead)
-async def get_current_user(user: User = Depends(current_active_user)):
+@router.get("/users/me", response_model=CurrentUserResponse)
+async def get_current_user(
+    request: Request,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
     """
     Get current user information.
     Supports both JWT and API key authentication.
+
+    When authenticated via API key, api_key_team_id will be populated
+    with the team_id that the API key is scoped to (if any).
     """
-    return UserRead(
-        id=user.id,
+    api_key_team_id: Optional[str] = None
+
+    try:
+        auth_user, key_team_id, auth_method = await _get_user_from_jwt_or_api_key(request, session)
+        # Sanity check that the authenticated user matches the dependency user
+        if auth_user.id == user.id and auth_method == "api_key":
+            api_key_team_id = key_team_id
+    except HTTPException:
+        # Fallback: ignore API key-specific info if authentication helper fails
+        api_key_team_id = None
+
+    return CurrentUserResponse(
+        id=str(user.id),
         email=user.email,
         is_active=user.is_active,
         is_superuser=user.is_superuser,
         is_verified=user.is_verified,
         first_name=user.first_name,
         last_name=user.last_name,
+        api_key_team_id=api_key_team_id,
     )
 
 

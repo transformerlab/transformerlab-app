@@ -4,10 +4,13 @@ import asyncio
 import os
 import subprocess
 import sys
+import tempfile
+import time
 from typing import List
 
 from lab import Job, storage
 from lab.job_status import JobStatus
+from lab.profiling import copy_profiling_to_job, finalize_profiling, inject_torch_profiler, maybe_start_profiling
 
 
 async def _set_live_status_async(job_id: str, status: str) -> None:
@@ -162,7 +165,8 @@ def main(argv: List[str] | None = None) -> int:
         cmd_parts = args
 
     if not cmd_parts:
-        print("Usage: python -m lab.remote_trap -- <command...>", file=sys.stderr)
+        print("Error: No command provided to run. The task may be missing a 'run' or 'command' field.", file=sys.stderr)
+        _set_live_status("crashed")
         return 1
 
     command_str = " ".join(cmd_parts)
@@ -171,19 +175,39 @@ def main(argv: List[str] | None = None) -> int:
     _set_live_status("started")
     _set_status(JobStatus.RUNNING)
 
+    job_id = os.environ.get("_TFL_JOB_ID")
+    # Profiling writes to a temp dir; we copy it into job's "profiling" folder on exit
+    # (and lab.finish/error copy from _TFL_PROFILING_TEMP_DIR when the user calls them).
+    profiling_temp_dir: str = ""
+    if job_id and os.environ.get("_TFL_PROFILING") == "1":
+        try:
+            profiling_temp_dir = tempfile.mkdtemp(prefix="tfl_profiling_")
+        except OSError:
+            profiling_temp_dir = ""
+
+    proc_env = os.environ.copy()
+    if profiling_temp_dir:
+        proc_env["_TFL_PROFILING_TEMP_DIR"] = profiling_temp_dir
+    torch_tmp_dir = inject_torch_profiler(profiling_temp_dir, proc_env) if profiling_temp_dir else ""
+
     # Run the original command in the shell so it behaves exactly as submitted.
     # Stream output line-by-line to avoid buffering large logs in memory (training
     # jobs can produce GBs of output). stdout and stderr are merged into a single
     # stream (stderr redirected to stdout) so we can tee to both the console and
     # the provider_logs.txt file.
     log_lines: List[str] = []
+    start_time = time.monotonic()
     proc = subprocess.Popen(
         command_str,
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        env=proc_env if torch_tmp_dir else None,
     )
+
+    # Start profiling sidecar thread (no-op if _TFL_PROFILING is not set).
+    profiling_thread = maybe_start_profiling(proc.pid, profiling_temp_dir) if profiling_temp_dir else None
 
     assert proc.stdout is not None
     for line in proc.stdout:
@@ -195,9 +219,35 @@ def main(argv: List[str] | None = None) -> int:
         log_lines.append(line)
 
     exit_code = proc.wait()
+    wall_time = time.monotonic() - start_time
 
     combined_logs = "".join(log_lines)
     _write_provider_logs(combined_logs)
+
+    # Finalise profiling: stop sampler thread and write report to profiling temp dir.
+    finalize_profiling(profiling_thread, profiling_temp_dir, wall_time)
+
+    # Copy profiling output from temp dir into job's profiling folder (same as lab.finish/error).
+    if profiling_temp_dir and job_id:
+        try:
+            asyncio.run(copy_profiling_to_job(profiling_temp_dir, job_id))
+        except Exception:
+            pass
+        try:
+            import shutil
+
+            shutil.rmtree(profiling_temp_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+    # Clean up torch sitecustomize temp dir (best-effort).
+    if torch_tmp_dir:
+        try:
+            import shutil
+
+            shutil.rmtree(torch_tmp_dir, ignore_errors=True)
+        except Exception:
+            pass
 
     # Update live_status based on outcome (best-effort).
     if exit_code == 0:

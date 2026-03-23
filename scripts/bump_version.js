@@ -8,12 +8,7 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
-const files = [
-  'package.json',
-  'package-lock.json',
-  'release/app/package.json',
-  'release/app/package-lock.json',
-];
+const files = ['package.json', 'package-lock.json'];
 
 function getVersion() {
   const data = fs.readFileSync('package.json', 'utf-8');

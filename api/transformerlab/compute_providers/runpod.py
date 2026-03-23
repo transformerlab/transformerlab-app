@@ -325,6 +325,7 @@ class RunpodProvider(ComputeProvider):
             "RUNNING": ClusterState.UP,
             "STOPPED": ClusterState.STOPPED,
             "TERMINATED": ClusterState.DOWN,
+            "TERMINATING": ClusterState.STOPPED,  # Pod is shutting down; treat as STOPPED for status worker
             "CREATING": ClusterState.INIT,
             "FAILED": ClusterState.FAILED,
             "RESTARTING": ClusterState.INIT,
@@ -359,8 +360,8 @@ class RunpodProvider(ComputeProvider):
             compute_type = "CPU"
             gpu_type_id = None
             gpu_count = None
-            # Use basic CPU image
-            default_image = "ubuntu:22.04"
+            # Use the RunPod base CPU image for CPU-only launches
+            default_image = "runpod/base:1.0.2-ubuntu2204"
 
         # Get image name from config or use default
         image_name = config.provider_config.get("template_id") or self.default_template_id or default_image
@@ -379,24 +380,15 @@ class RunpodProvider(ComputeProvider):
 
         # Add CPU-specific fields if CPU pod
         elif compute_type == "CPU":
-            # Set default CPU resources if not specified
-            pod_data["vcpuCount"] = config.cpus or 2
-            if config.memory:
-                # Convert memory to GB if specified as string with units
+            # Set default CPU resources if not specified.
+            # RunPod expects an integer for vcpuCount.
+            vcpu_count = 2
+            if config.cpus is not None:
                 try:
-                    if isinstance(config.memory, str):
-                        # Parse memory string like "4GB" or "4096"
-                        if config.memory.upper().endswith("GB"):
-                            memory_gb = float(config.memory[:-2])
-                        elif config.memory.upper().endswith("MB"):
-                            memory_gb = float(config.memory[:-2]) / 1024
-                        else:
-                            memory_gb = float(config.memory)
-                    else:
-                        memory_gb = float(config.memory)
-                    pod_data["memoryInGb"] = memory_gb
-                except (ValueError, TypeError):
-                    pass  # Use default if parsing fails
+                    vcpu_count = int(config.cpus)
+                except (TypeError, ValueError):
+                    vcpu_count = 2
+            pod_data["vcpuCount"] = vcpu_count
         if config.disk_size:
             pod_data["volumeInGb"] = config.disk_size
         elif self.extra_config.get("default_volume_gb"):

@@ -20,6 +20,7 @@
 - **API start**: `cd api && ./run.sh` or `npm run api:start`
 - **API test**: `cd api && pytest`
 - **API single test**: `cd api && pytest test/<file>::<test>`
+- **CLI test**: `cd cli && python -m pytest tests/ -v`. **Always run CLI tests after modifying code under `cli/src/`.**
 - **Python lint**: `cd api && ruff check` and `cd api && ruff format api.py` (or whichever files changed). **Always run both `ruff check` and `ruff format` on changed Python files before committing.**
 - **DB migrations**: `cd api && alembic upgrade head`
 - **Dev (no Docker)**: `python scripts/dev.py` — runs both frontend and API side by side with hot reload. Requires the API conda env and Node v22. Checks ports 8338 (API) and 1212 (frontend) on startup and reports conflicts.
@@ -33,6 +34,15 @@
 - **SDK**: `lab-sdk/` - Python SDK published to PyPI as `transformerlab`
 - **Database**: SQLite with Alembic migrations in `api/alembic/`
 - **CLI**: Typer-based Python CLI in `cli/`
+
+## Documentation
+
+Detailed internal documentation lives in `docs/` — read these before working on related subsystems:
+
+- **[Task Execution](docs/task-execution/README.md)** — How tasks are created, queued, dispatched to compute providers, and monitored through their lifecycle (5-part guide).
+- **[Authentication](docs/Auth.md)** — JWT auth, sliding-window refresh, registration/invite model, route protection, team access, and OIDC configuration.
+
+Agent skills and browser automation references live in `.agents/skills/`.
 
 ## Code Style
 
@@ -65,6 +75,11 @@
   - **Unit Tests**: Write `pytest` tests in `api/test/`.
   - **Mocking**: Mock external interactions (S3, GPU providers, filesystem operations) using `unittest.mock` or `pytest-mock`. Tests should be fast and deterministic.
   - **Service Tests**: Prefer testing the Service layer directly over testing the full API stack when checking business logic constants.
+- **CLI**:
+  - **Tests**: `pytest` tests in `cli/tests/`.
+  - **Run all**: `cd cli && python -m pytest tests/ -v`
+  - **Run one**: `cd cli && python -m pytest tests/commands/test_status.py -v`
+  - **Always run CLI tests after modifying any code under `cli/src/`.**
 - **Playwright (E2E)**:
   - **Location**: Tests live in `test/playwright/`. Config is in `playwright.config.ts` (base URL `http://localhost:8338`).
   - **Run all**: `npx playwright test` (requires the Docker test container).
@@ -82,12 +97,14 @@
 
 ### Visual UI Verification
 
-When verifying UI changes in the browser, **always prefer the Vercel agent-browser** (the default browser tool). It is more efficient for navigating pages, taking snapshots, clicking elements, and filling forms. Only fall back to the **Chrome DevTools MCP** when you specifically need lower-level capabilities such as evaluating JavaScript, inspecting network requests, analyzing console messages, or running performance traces.
+**IMPORTANT: For visual UI verification, always use the `agent-browser` CLI skill** (see `.agents/skills/agent-browser/`). Do **NOT** run `npx playwright test` or write Playwright test scripts unless the user explicitly asks you to. Playwright tests are only for the automated E2E test suite in `test/playwright/`.
+
+The `agent-browser` CLI is more efficient for navigating pages, taking snapshots, clicking elements, and filling forms. Only fall back to the **Chrome DevTools MCP** when you specifically need lower-level capabilities such as evaluating JavaScript, inspecting network requests, analyzing console messages, or running performance traces.
 
 When requested, verify the result with the following steps:
 
 1. Run `npm run docker-test:up` to ensure the app is running (or use `python scripts/dev.py` for local dev).
-2. Use the browser tool to navigate to the page you just changed. Remember that the app usually serves on port 8338 (API) and port 1212 (frontend dev server).
+2. Use the `agent-browser` CLI to navigate to the page you just changed. Remember that the app usually serves on port 8338 (API) and port 1212 (frontend dev server).
 3. If the app requires login, use the default credentials: **email:** `admin@example.com` / **password:** `admin123`.
 4. Explore related pages (e.g., if you changed the Header, also check the Dashboard and Login pages).
 5. Take screenshots and verify that no layouts are broken.

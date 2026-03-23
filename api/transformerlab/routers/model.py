@@ -1,30 +1,21 @@
 import json
-import asyncio
-import datetime
-import dateutil.relativedelta
 from typing import Annotated
 from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
-from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi, list_repo_tree
+from huggingface_hub import create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
-from huggingface_hub.utils import HfHubHTTPError, GatedRepoError, EntryNotFoundError
+from huggingface_hub.utils import HfHubHTTPError
 from transformers import AutoTokenizer
 
 
 import os
-from datetime import date
-
-from transformerlab.shared import shared
-from transformerlab.shared import galleries
 
 from transformerlab.models import model_helper
 from transformerlab.models import basemodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
-import transformerlab.services.job_service as job_service
-from transformerlab.services.job_service import job_update_status
+from transformerlab.services.cache_service import cached
 from lab.dirs import get_workspace_dir
-from lab.job_status import JobStatus
 from lab.model import Model as ModelService
 from lab import storage
 
@@ -32,21 +23,6 @@ from werkzeug.utils import secure_filename
 
 
 router = APIRouter(tags=["model"])
-
-
-def _today() -> date:
-    return datetime.date.today()
-
-
-def _parse_gallery_added_date(value) -> date:
-    if isinstance(value, date):
-        return value
-    if not value:
-        return date(2024, 2, 1)
-    try:
-        return date.fromisoformat(str(value))
-    except Exception:
-        return date(2024, 2, 1)
 
 
 async def get_model_dir(model_id: str):
@@ -75,143 +51,6 @@ async def get_current_org_id() -> str | None:
     except Exception:
         pass
     return None
-
-
-async def get_model_details_from_gallery(model_id: str):
-    """
-    Given a model ID this returns the associated data from the model gallery file.
-    Returns None if no such value found.
-    """
-    gallery = await galleries.get_models_gallery()
-
-    result = None
-
-    for model in gallery:
-        if model["uniqueID"] == model_id or model["huggingface_repo"] == model_id:
-            result = model
-            break
-
-    return result
-
-
-@router.get("/model/gallery")
-async def model_gallery_list_all():
-    gallery = await galleries.get_models_gallery()
-
-    # Get a list of local models to determine what has been downloaded already
-    local_models = await model_helper.list_installed_models()
-    local_model_names = set(model["model_id"] for model in local_models)
-
-    # Set a date one month in the past to identify "new" models
-    one_month_ago = _today() + dateutil.relativedelta.relativedelta(months=-1)
-    new_model_cutoff_date = one_month_ago
-
-    # Iterate through models and add any values needed in result
-    for model in gallery:
-        # Mark which models have been downloaded already by checking for uniqueID
-        model["downloaded"] = True if model["uniqueID"] in local_model_names else False
-
-        # Application filters on archived flag. If none set then set to false
-        if "archived" not in model:
-            model["archived"] = False
-
-        # If no added date then set to a default
-        if "added" not in model:
-            model["added"] = "2024-02-01"
-
-        # Application uses the new flag to decide whether to display a badge
-        model_added_date = _parse_gallery_added_date(model.get("added"))
-        model["new"] = True if (model_added_date > new_model_cutoff_date) else False
-
-    return gallery
-
-
-@router.get("/model/model_groups_list", summary="Returns the grouped model gallery from model-group-gallery.json.")
-async def model_groups_list_all():
-    gallery = await galleries.get_model_groups_gallery()
-
-    # Get list of locally installed models
-    local_models = await model_helper.list_installed_models()
-    local_model_names = set(model["model_id"] for model in local_models)
-
-    # Define what counts as a “new” model
-    one_month_ago = _today() + dateutil.relativedelta.relativedelta(months=-1)
-    new_model_cutoff_date = one_month_ago
-
-    for group in gallery:
-        if "models" not in group:
-            continue
-
-        # Iterate through models and add any values needed in result
-        for model in group["models"]:
-            # Mark which models have been downloaded already by checking for uniqueID
-            model["downloaded"] = True if model["uniqueID"] in local_model_names else False
-
-            # Application filters on archived flag. If none set then set to false
-            if "archived" not in model:
-                model["archived"] = False
-
-            # If no added date then set to a default
-            if "added" not in model:
-                model["added"] = "2024-02-01"
-
-            # Application uses the new flag to decide whether to display a badge
-            model_added_date = _parse_gallery_added_date(model.get("added"))
-            model["new"] = True if (model_added_date > new_model_cutoff_date) else False
-
-    return gallery
-
-
-@router.get("/model/gallery/sizes")
-async def model_gallery_update_sizes():
-    """
-    TEMP INTERNAL TOOL
-    Calculates updated sizes for all models in the gallery and prints.
-    """
-
-    gallery = await model_gallery_list_all()
-
-    # Iterate through models and calculate updated model size
-    for model in gallery:
-        gallery_size = model.get("size_of_model_in_mb", "unknown")
-        try:
-            default_allow_patterns = [
-                "*.json",
-                "*.safetensors",
-                "*.py",
-                "tokenizer.model",
-                "*.tiktoken",
-                "*.npz",
-                "*.bin",
-            ]
-            download_size = huggingfacemodel.get_huggingface_download_size(
-                model["uniqueID"], model.get("allow_patterns", default_allow_patterns)
-            )
-        except Exception as e:
-            download_size = -1
-            print(e)
-        try:
-            total_size = huggingfacemodel.get_huggingface_download_size(model["uniqueID"], [])
-        except Exception:
-            total_size = -1
-        print(model["uniqueID"])
-        print("Gallery size:", gallery_size)
-        print("Calculated size:", download_size / (1024 * 1024))
-        print("Total size:", total_size / (1024 * 1024))
-        print("--")
-
-        if download_size > 0:
-            model["size_of_model_in_mb"] = download_size / (1024 * 1024)
-
-    return gallery
-
-
-@router.get("/model/gallery/{model_id}")
-async def model_gallery(model_id: str):
-    # convert "~~~"" in string to "/":
-    model_id = model_id.replace("~~~", "/")
-
-    return await get_model_details_from_gallery(model_id)
 
 
 @router.get("/model/upload_to_huggingface", summary="Given a model ID, upload it to Hugging Face.")
@@ -314,324 +153,6 @@ async def model_details_from_filesystem(model_id: str):
     return {}
 
 
-@router.get(path="/model/download_size")
-def get_model_download_size(model_id: str, allow_patterns: list = []):
-    try:
-        download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(model_id, allow_patterns)
-    except Exception as e:
-        print(f"Error in get_model_download_size: {type(e).__name__}: {e}")
-        return {"status": "error", "message": "An internal error has occurred."}
-
-    return {"status": "success", "data": download_size_in_bytes}
-
-
-async def download_huggingface_model(
-    hugging_face_id: str,
-    model_details: str = {},
-    job_id: int | None = None,
-    experiment_id: str = None,
-    organization_id: str | None = None,
-    user_id: str | None = None,
-):
-    """
-    Tries to download a model with the id hugging_face_id
-    model_details is the object created from the gallery json
-        or a similarly-formatted object containing the fields:
-        - name (display name)
-        - size_of_model_in_mb (for progress meter)
-        - huggingface_filename (for models with many files like GGUF)
-
-    Returns an object with the following fields:
-    - status: "success" or "error"
-    - message: error message if status is "error"
-    """
-    if job_id is None:
-        job_id = await job_service.job_create(
-            type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
-        )
-    else:
-        await job_service.job_update(
-            job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id
-        )
-
-    # try to figure out model details from model_details object
-    # default is empty object so can't assume any of this exists
-    name = model_details.get("name", hugging_face_id)
-    model_size = str(model_details.get("size_of_model_in_mb", -1))
-    hugging_face_filename = model_details.get("huggingface_filename", None)
-    allow_patterns = model_details.get("allow_patterns", None)
-
-    from transformerlab.shared import dirs as shared_dirs
-
-    args = [
-        f"{shared_dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
-        "--model_name",
-        hugging_face_id,
-        "--job_id",
-        str(job_id),
-        "--total_size_of_model_in_mb",
-        model_size,
-    ]
-
-    # Multitenant: pass workspace_dir explicitly so the script uses the correct org path
-    try:
-        if organization_id:
-            # Construct org-specific workspace path manually
-            from lab import HOME_DIR
-
-            workspace_dir = storage.join(HOME_DIR, "orgs", organization_id, "workspace")
-        else:
-            # Use default workspace path
-            workspace_dir = await get_workspace_dir()
-
-        args += ["--workspace_dir", workspace_dir]
-    except Exception as e:
-        print(f"Error constructing workspace directory: {e}")
-        pass
-
-    if hugging_face_filename is not None:
-        args += ["--model_filename", hugging_face_filename]
-
-    if isinstance(allow_patterns, list):
-        allow_patterns_json = json.dumps(allow_patterns)
-        args += ["--allow_patterns", allow_patterns_json]
-
-    try:
-        # Pass organization_id and user_id as environment variables to subprocess
-        # This allows the subprocess to set lab_set_org_id and use user-specific configs
-        subprocess_env = {}
-        if organization_id:
-            subprocess_env["_TFL_ORG_ID"] = organization_id
-        if user_id:
-            subprocess_env["_TFL_USER_ID"] = user_id
-
-        process = await shared.async_run_python_script_and_update_status(
-            python_script=args, job_id=job_id, begin_string="Fetching", env=subprocess_env
-        )
-        exitcode = process.returncode
-
-        if exitcode == 77:
-            # This means we got a GatedRepoError
-            # The user needs to agree to terms on HuggingFace to download
-            job = await job_service.job_get(job_id)
-            error_msg = None
-            if job and job.get("job_data"):
-                error_msg = job["job_data"].get("error_msg")
-            await job_update_status(job_id, JobStatus.UNAUTHORIZED, experiment_id=experiment_id, error_msg=error_msg)
-            return {"status": "unauthorized", "message": error_msg}
-
-        elif exitcode != 0:
-            job = await job_service.job_get(job_id)
-            error_msg = None
-            if job and job.get("job_data"):
-                error_msg = job["job_data"].get("error_msg")
-            if not error_msg:
-                error_msg = f"Exit code {exitcode}"
-                await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
-            return {"status": "error", "message": error_msg}
-
-    except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        # Log the detailed error message
-        print(error_msg)
-        await job_update_status(
-            job_id, "FAILED", experiment_id=experiment_id, error_msg="An internal error has occurred."
-        )
-        return {"status": "error", "message": "An internal error has occurred."}
-
-    except asyncio.CancelledError:
-        error_msg = "Download cancelled"
-        await job_update_status(job_id, "CANCELLED", experiment_id=experiment_id, error_msg=error_msg)
-        return {"status": "error", "message": error_msg}
-
-    if hugging_face_filename is None:
-        # only save to local filesystem if we are downloading the whole repo
-        try:
-            model_service = await ModelService.create(hugging_face_id)
-            await model_service.set_metadata(model_id=hugging_face_id, name=name, json_data=model_details)
-        except FileExistsError:
-            # Model already exists, update it
-            model_service = await ModelService.get(hugging_face_id)
-            await model_service.set_metadata(model_id=hugging_face_id, name=name, json_data=model_details)
-
-    return {"status": "success", "message": "success", "model": model_details, "job_id": job_id}
-
-
-@router.get(path="/model/download_from_huggingface")
-async def download_model_by_huggingface_id(model: str, job_id: int | None = None, experiment_id: str = None):
-    """Takes a specific model string that must match huggingface ID to download
-    This function will not be able to infer out description etc of the model
-    since it is not in the gallery"""
-
-    # Get model details from Hugging Face
-    # If None then that means either the model doesn't exist
-    # Or we don't have proper Hugging Face authentication setup
-    try:
-        model_details = await huggingfacemodel.get_model_details_from_huggingface(model)
-    except GatedRepoError:
-        error_msg = f"{model} is a gated model. \
-To continue downloading, you need to enter a valid \
-Hugging Face token on the settings page, \
-and you must agree to the terms \
-on the model's Huggingface page."
-        # Log the detailed error message
-        print(error_msg)
-        if job_id:
-            await job_update_status(job_id, JobStatus.UNAUTHORIZED, experiment_id=experiment_id, error_msg=error_msg)
-        return {"status": "unauthorized", "message": error_msg}
-    except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        print(error_msg)
-        if job_id:
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
-        return {"status": "error", "message": "An internal error has occurred."}
-
-    if model_details is None:
-        error_msg = f"Error reading config for model with ID {model}"
-        if job_id:
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
-        return {"status": "error", "message": error_msg}
-
-        # Check if this is a GGUF repository that requires file selection
-    if model_details.get("requires_file_selection", False):
-        available_files = model_details.get("available_gguf_files", [])
-        return {
-            "status": "requires_file_selection",
-            "message": "This is a GGUF repository with multiple files. Please specify which file to download.",
-            "model_id": model,
-            "available_files": available_files,
-            "model_details": model_details,
-        }
-
-    # --- Stable Diffusion detection and allow_patterns logic ---
-    # If the model is a Stable Diffusion model, set allow_patterns for SD files
-    sd_patterns = [
-        "*.ckpt",
-        "*.safetensors",
-        "*.pt",
-        "*.bin",
-        "config.json",
-        "model_index.json",
-        "vocab.json",
-        "merges.txt",
-        "tokenizer.json",
-        "*.yaml",
-        "*.yml",
-    ]
-    is_sd = False
-    # Heuristic: check tags or config for 'stable-diffusion' or 'diffusers' or common SD files
-    tags = model_details.get("tags", [])
-    if any("stable-diffusion" in t or "diffusers" in t for t in tags):
-        is_sd = True
-    # Or check for model_index.json or config.json with SD structure
-    files = model_details.get("siblings", [])
-    if any(f.get("rfilename", "").endswith("model_index.json") for f in files):
-        is_sd = True
-    # If detected, set allow_patterns
-    if is_sd:
-        model_details["allow_patterns"] = sd_patterns
-
-    org_id = await get_current_org_id()
-    print("🔵 CURRENT ORG ID: ", org_id)
-    return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id, user_id=None)
-
-
-@router.get(path="/model/download_gguf_file")
-async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | None = None, experiment_id: str = None):
-    """Download a specific GGUF file from a GGUF repository"""
-
-    # First get the model details to validate this is a GGUF repo
-    try:
-        model_details = await huggingfacemodel.get_model_details_from_huggingface(model)
-    except Exception as e:
-        error_msg = f"Error accessing model repository: {type(e).__name__}: {e}"
-        if job_id:
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
-        return {"status": "error", "message": error_msg}
-
-    if model_details is None:
-        error_msg = f"Error reading config for model with ID {model}"
-        if job_id:
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
-        return {"status": "error", "message": error_msg}
-
-    # Validate the requested filename exists in the repository
-    available_files = model_details.get("available_gguf_files", [])
-    if filename not in available_files:
-        error_msg = f"File '{filename}' not found in repository. Available files: {available_files}"
-        if job_id:
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
-        return {"status": "error", "message": error_msg}
-
-    # Update model details for specific file download
-    model_details["huggingface_filename"] = filename
-    model_details["name"] = f"{model_details['name']} ({filename})"
-
-    # Calculate size of specific file
-    try:
-        repo_tree = list_repo_tree(model, recursive=True)
-        for file in repo_tree:
-            if hasattr(file, "path") and file.path == filename:
-                model_details["size_of_model_in_mb"] = file.size / (1024 * 1024)
-                break
-    except Exception:
-        pass  # Use existing size if we can't get specific file size
-
-    org_id = await get_current_org_id()
-    return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id, user_id=None)
-
-
-@router.get(path="/model/download_model_from_gallery")
-async def download_model_from_gallery(gallery_id: str, job_id: int | None = None, experiment_id: str = None):
-    """Provide a reference to a model in the gallery, and we will download it
-    from huggingface
-
-    You can manually specify a pre-created job_id if you want to track the progress of the download with
-    a defined job_id provided by the API using /job/createId"""
-
-    # Get model details from the gallery
-    # If None then return an error
-    gallery_entry = await get_model_details_from_gallery(gallery_id)
-    if gallery_entry is None:
-        return {"status": "error", "message": "Model not found in gallery"}
-
-    # Need to use huggingface repo to download - not always the same as uniqueID
-    huggingface_id = gallery_entry.get("huggingface_repo", gallery_id)
-
-    # Fetch pipeline_tag if not present in gallery_entry
-    if "pipeline_tag" not in gallery_entry:
-        # First try to get from filesystem
-        try:
-            model_service = await ModelService.get(huggingface_id)
-            model_data = await model_service.get_metadata()
-            if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
-                gallery_entry["pipeline_tag"] = model_data["json_data"]["pipeline_tag"]
-            else:
-                # If not in database, fetch from Hugging Face Hub
-                try:
-                    api = HfApi()
-                    model_info = api.model_info(huggingface_id)
-                    gallery_entry["pipeline_tag"] = model_info.pipeline_tag
-                except Exception as e:
-                    # Assume text generation if we can't get the tag
-                    print(f"Error fetching pipeline tag for {huggingface_id}: {type(e).__name__}: {e}")
-                    gallery_entry["pipeline_tag"] = "text-generation"
-        except FileNotFoundError:
-            # Model not found in filesystem, fetch from Hugging Face Hub
-            try:
-                api = HfApi()
-                model_info = api.model_info(huggingface_id)
-                gallery_entry["pipeline_tag"] = model_info.pipeline_tag
-            except Exception as e:
-                # Assume text generation if we can't get the tag
-                print(f"Error fetching pipeline tag for {huggingface_id}: {type(e).__name__}: {e}")
-                gallery_entry["pipeline_tag"] = "text-generation"
-
-    org_id = await get_current_org_id()
-
-    return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id, org_id)
-
-
 @router.get("/model/get_conversation_template")
 async def get_model_prompt_template(model: str):
     # Below we grab the conversation template from FastChat's model adapter
@@ -640,9 +161,26 @@ async def get_model_prompt_template(model: str):
 
 
 @router.get("/model/list")
+@cached(key="models:list:{embedding}", ttl="7d", tags=["models", "models:list"])
 async def model_local_list(embedding=False):
     # the model list is a combination of downloaded hugging face models and locally generated models
-    return await model_helper.list_installed_models(embedding)
+    models = await model_helper.list_installed_models(embedding)
+
+    # Augment each model with version group info if any
+    try:
+        from transformerlab.services import asset_version_service
+
+        group_map = await asset_version_service.get_all_asset_group_map("model")
+        for model in models:
+            model_id = model.get("model_id", "")
+            if model_id in group_map:
+                model["version_groups"] = group_map[model_id]
+            else:
+                model["version_groups"] = []
+    except Exception as e:
+        print(f"Warning: could not fetch model version groups: {e}")
+
+    return models
 
 
 @router.get("/model/provenance/{model_id}")
@@ -776,158 +314,6 @@ async def model_delete_peft(model_id: str, peft: str):
     await storage.rm_tree(peft_path)
 
     return {"message": "success"}
-
-
-@router.post("/model/install_peft")
-async def install_peft(peft: str, model_id: str, job_id: int | None = None, experiment_id: str = None):
-    api = HfApi()
-
-    try:
-        local_file = snapshot_download(model_id, local_files_only=True)
-        base_config = {}
-        for config_name in ["config.json", "model_index.json"]:
-            config_path = os.path.join(local_file, config_name)
-            if os.path.exists(config_path):
-                with open(config_path, "r") as f:
-                    base_config = json.load(f)
-                break
-    except Exception as e:
-        print(f"Failed to load {model_id} config: {e}")
-        return {
-            "status": "error",
-            "message": "Failed to load local base model config",
-            "adapter_id": peft,
-            "check_status": {"error": "not found"},
-        }
-
-    try:
-        adapter_info = api.model_info(peft)
-        card_data = adapter_info.cardData or {}
-        adapter_config = adapter_info.config or {}
-        adapter_base_model = card_data.get("base_model") or adapter_config.get("base_model") or ""
-
-        model_name_part = model_id.split("/")[-1].lower()
-        adapter_base_model_lower = adapter_base_model.split("/")[-1].lower()
-
-        # Initialize status tracking
-        check_status = {}
-
-        # Base model name check
-        if model_name_part in adapter_base_model_lower:
-            check_status["base_model_name"] = "success"
-        else:
-            check_status["base_model_name"] = "fail"
-
-        # Field checks
-        def compare_field(a_cfg, b_cfg, key, fallback_keys=None):
-            if key in a_cfg and key in b_cfg:
-                return a_cfg[key] == b_cfg[key]
-            if fallback_keys:
-                for fk in fallback_keys:
-                    if fk in a_cfg and fk in b_cfg:
-                        return a_cfg[fk] == b_cfg[fk]
-            return None
-
-        for field in ["architectures", "model_type"]:
-            match = compare_field(adapter_config, base_config, field, fallback_keys=["_class_name"])
-            if match is True:
-                check_status[f"{field}_status"] = "success"
-            elif match is False:
-                check_status[f"{field}_status"] = "fail"
-            else:
-                check_status[f"{field}_status"] = "unknown"
-
-    except Exception as e:
-        print(f"[ERROR] Failed to fetch adapter info for '{peft}: {e}'")
-        return {
-            "status": "error",
-            "message": "adapter not found",
-            "adapter_id": peft,
-            "check_status": {"error": "not found"},
-        }
-
-    try:
-        model_details = await huggingfacemodel.get_model_details_from_huggingface(peft)
-    except EntryNotFoundError:
-        print(f"Adaptor {peft} does not have a config.json. Proceeding without details.")
-        model_details = {}
-    except GatedRepoError:
-        error_msg = f"{peft} is a gated adapter. Please log in and accept the terms on the adapter's Hugging Face page."
-        print(error_msg)
-        return {
-            "status": "unauthorized",
-            "message": "This is a gated adapter. Please log in and accept the terms on the adapter's Hugging Face page.",
-        }
-    except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        print(error_msg)
-        return {"status": "error", "message": "An error has occurred"}
-
-    print(f"Model Details: {model_details}")
-    # Create or update job
-    if job_id is None:
-        job_id = await job_service.job_create(
-            type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
-        )
-    else:
-        await job_service.job_update(
-            job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id
-        )
-
-    model_size = str(model_details.get("size_of_model_in_mb", -1))
-    # Prepare script args
-    from transformerlab.shared import dirs as shared_dirs
-
-    args = [
-        f"{shared_dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
-        "--mode",
-        "adaptor",
-        "--peft",
-        peft,
-        "--local_model_id",
-        model_id,
-        "--job_id",
-        str(job_id),
-        "--total_size_of_model_in_mb",
-        model_size,
-    ]
-
-    # Multitenant: pass workspace_dir explicitly so the script uses the correct org path
-    try:
-        from lab.dirs import get_workspace_dir
-
-        workspace_dir = await get_workspace_dir()
-        args += ["--workspace_dir", workspace_dir]
-    except Exception:
-        pass
-
-    # Start async subprocess without waiting for completion (like download_huggingface_model)
-    asyncio.create_task(
-        shared.async_run_python_script_and_update_status(
-            python_script=args, job_id=job_id, begin_string="Fetching Adapter"
-        )
-    )
-
-    return {"status": "started", "job_id": job_id, "check_status": check_status}
-
-
-@router.get(path="/model/get_local_hfconfig")
-async def get_local_hfconfig(model_id: str):
-    """
-    Returns the config.json file for a model stored in the local filesystem
-    """
-    try:
-        local_file = snapshot_download(model_id, local_files_only=True)
-        config_json = os.path.join(local_file, "config.json")
-        contents = "{}"
-        with open(config_json) as f:
-            contents = f.read()
-        d = json.loads(contents)
-    except Exception:
-        # failed to open config.json so create an empty config
-        d = {}
-
-    return d
 
 
 async def get_model_from_db(model_id: str):

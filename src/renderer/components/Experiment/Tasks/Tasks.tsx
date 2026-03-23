@@ -21,6 +21,7 @@ import DeleteTaskConfirmModal from './DeleteTaskConfirmModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from './ViewArtifactsModal';
+import ViewProfilingModal from './ViewProfilingModal';
 import ViewCheckpointsModal from './ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import CompareEvalResultsModal from './CompareEvalResultsModal';
@@ -52,6 +53,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     useState(-1);
   const [viewCheckpointsFromJob, setViewCheckpointsFromJob] = useState(-1);
   const [viewArtifactsFromJob, setViewArtifactsFromJob] = useState(-1);
+  const [viewProfilingFromJob, setViewProfilingFromJob] = useState(-1);
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const [viewSweepResultsFromJob, setViewSweepResultsFromJob] = useState(-1);
@@ -188,18 +190,23 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
   const isInteractivePage = subtype === 'interactive';
 
-  // Define the callback outside the IIFE to ensure it's always available
-  const handleOpenOutputFromInteractive = useCallback(
-    (outputJobId: number) => {
-      // Close the interactive modal first
-      setInteractiveJobForModal(-1);
-      // Wait for modal close animation, then open output modal
-      setTimeout(() => {
-        setViewOutputFromJob(outputJobId);
-      }, 300);
-    },
-    [interactiveJobForModal],
-  );
+  const isInteractiveTemplate = useCallback((task: any): boolean => {
+    const config =
+      typeof task?.config === 'string'
+        ? SafeJSONParse(task.config, {})
+        : (task?.config ?? {});
+    return (
+      (task as any)?.subtype === 'interactive' ||
+      config?.subtype === 'interactive' ||
+      Boolean((task as any)?.interactive_type) ||
+      Boolean(config?.interactive_type)
+    );
+  }, []);
+
+  const isInteractiveJob = useCallback((job: any): boolean => {
+    const jobData = job?.job_data || {};
+    return jobData?.subtype === 'interactive' || job?.status === 'INTERACTIVE';
+  }, []);
 
   const handleOpen = () => {
     if (isInteractivePage) {
@@ -291,6 +298,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         : chatAPI.Endpoints.Task.List(experimentInfo.id)
       : null,
     fetcher,
+    {
+      // Tasks (templates) change relatively infrequently; use a modest polling interval
+      // and rely on backend cache + explicit invalidation for freshness.
+      refreshInterval: 10000, // 10s
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      refreshWhenHidden: false,
+      refreshWhenOffline: false,
+    },
   );
 
   // Filter templates for this experiment only (if no subtype filter was applied)
@@ -301,6 +317,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         // Otherwise, filter by experiment only
         return template.experiment_id === experimentInfo?.id;
       }) || [];
+
+  const visibleTasks = useMemo(() => {
+    if (subtype) return tasks;
+    return tasks.filter((t: any) => !isInteractiveTemplate(t));
+  }, [isInteractiveTemplate, subtype, tasks]);
 
   // Poll LAUNCHING/WAITING REMOTE jobs for live launch_progress and status transitions.
   // Provider polling and status mutations are handled server-side by the
@@ -417,6 +438,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         const jobData = job.job_data || {};
         return jobData.subtype === subtype;
       });
+    } else {
+      filteredJobs = baseJobs.filter((job: any) => !isInteractiveJob(job));
     }
 
     // Read directly from localStorage to avoid state dependency issues
@@ -445,7 +468,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     // Show newest first consistent with existing ordering if any
     const combined = [...placeholders, ...filteredJobs];
     return combined;
-  }, [jobs, getPendingJobIds, subtype, pendingIdsTrigger]);
+  }, [getPendingJobIds, isInteractiveJob, jobs, pendingIdsTrigger, subtype]);
 
   const handleDeleteTask = (taskId: string, taskName?: string) => {
     setTaskToDelete({ id: taskId, name: taskName });
@@ -455,7 +478,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     async (taskId: string): Promise<boolean> => {
       if (!experimentInfo?.id) return false;
       try {
-        const response = await chatAPI.authenticatedFetch(
+        const response = await fetchWithAuth(
           chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo.id, taskId),
           { method: 'GET' },
         );
@@ -481,7 +504,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return false;
       }
     },
-    [experimentInfo?.id, addNotification, templatesMutate],
+    [experimentInfo?.id, addNotification, templatesMutate, fetchWithAuth],
   );
 
   const handleDeleteJob = async (jobId: string) => {
@@ -493,7 +516,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     }
 
     try {
-      const response = await chatAPI.authenticatedFetch(
+      const response = await fetchWithAuth(
         chatAPI.Endpoints.Jobs.Delete(experimentInfo.id, jobId),
         {
           method: 'GET',
@@ -524,7 +547,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
   const handleExportToTeamGallery = async (taskId: string) => {
     try {
-      const response = await chatAPI.authenticatedFetch(
+      const response = await fetchWithAuth(
         chatAPI.Endpoints.Task.ExportToTeamGallery(experimentInfo?.id || ''),
         {
           method: 'POST',
@@ -624,7 +647,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         templatePayload.subtype = subtype;
       }
 
-      const response = await chatAPI.authenticatedFetch(
+      const response = await fetchWithAuth(
         chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
         {
           method: 'POST',
@@ -683,8 +706,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
     setIsSubmitting(true);
     try {
-      const interactiveType = data.interactive_type || 'vscode';
-
       // Fetch interactive gallery to get setup and run templates
       let defaultSetup: string;
       let defaultRun: string;
@@ -692,7 +713,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       let template: any;
 
       try {
-        const galleryResponse = await chatAPI.authenticatedFetch(
+        const galleryResponse = await fetchWithAuth(
           chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id),
           {
             method: 'GET',
@@ -701,13 +722,19 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
         if (galleryResponse.ok) {
           const galleryData = await galleryResponse.json();
-          template = galleryData.data?.find(
-            (t: any) => t.interactive_type === interactiveType,
-          );
+          template = galleryData.data?.find((t: any) => {
+            if (data.template_id) {
+              return t.id === data.template_id;
+            }
+            return (
+              data.interactive_type &&
+              t.interactive_type === data.interactive_type
+            );
+          });
 
           if (!template) {
             throw new Error(
-              `Template not found for interactive type: ${interactiveType}`,
+              `Template not found for: ${data.template_id || data.interactive_type || 'unknown'}`,
             );
           }
 
@@ -723,10 +750,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
       let response: Response;
 
-      if (template.local_task_dir) {
+      if (template.local_task_dir || template.github_repo_url) {
         // Use the gallery import API which reads task.yaml and copies files,
-        // just like the "Upload from Local Directory" flow.
-        response = await chatAPI.authenticatedFetch(
+        // just like the "Upload from Local Directory" or GitHub import flow.
+        response = await fetchWithAuth(
           chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id),
           {
             method: 'POST',
@@ -744,11 +771,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         // Use env_parameters from the gallery-defined structure (including NGROK)
         const envVars: Record<string, string> = data.env_parameters || {};
 
-        const needsNgrok =
-          interactiveType === 'jupyter' ||
-          interactiveType === 'vllm' ||
-          interactiveType === 'ollama' ||
-          interactiveType === 'ssh';
+        // Check if the template defines NGROK_AUTH_TOKEN in its env_parameters
+        const needsNgrok = template?.env_parameters?.some(
+          (p: any) => p.env_var === 'NGROK_AUTH_TOKEN',
+        );
         if (
           needsNgrok &&
           providerMeta.type !== 'local' &&
@@ -769,14 +795,16 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           accelerators: data.accelerators || undefined,
           setup: defaultSetup,
           subtype: 'interactive',
-          interactive_type: interactiveType,
+          interactive_type: template?.interactive_type || undefined,
           interactive_gallery_id: templateId,
           provider_id: providerMeta.id,
           provider_name: providerMeta.name,
           env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
+          github_repo_url: template?.github_repo_url || undefined,
+          github_directory: template?.github_repo_dir || undefined,
         };
 
-        response = await chatAPI.authenticatedFetch(
+        response = await fetchWithAuth(
           chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
           {
             method: 'POST',
@@ -792,15 +820,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setInteractiveModalOpen(false);
         await templatesMutate();
         const interactiveTypeLabel =
-          (data.interactive_type || 'vscode') === 'jupyter'
-            ? 'Jupyter'
-            : (data.interactive_type || 'vscode') === 'vllm'
-              ? 'vLLM'
-              : (data.interactive_type || 'vscode') === 'ollama'
-                ? 'Ollama'
-                : (data.interactive_type || 'vscode') === 'ssh'
-                  ? 'SSH'
-                  : 'VS Code';
+          template?.name || data.interactive_type || 'interactive';
         addNotification({
           type: 'success',
           message: `Interactive template created. Use Queue to launch the ${interactiveTypeLabel} tunnel.`,
@@ -903,6 +923,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         provider_id: _pid,
         provider_name: _pname,
         enable_trackio,
+        enable_profiling,
+        enable_profiling_torch,
         cpus,
         memory,
         disk_space,
@@ -968,6 +990,16 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           undefined,
         enable_trackio:
           typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
+        enable_profiling:
+          typeof enable_profiling === 'boolean' ? enable_profiling : undefined,
+        enable_profiling_torch:
+          typeof enable_profiling_torch === 'boolean'
+            ? enable_profiling_torch
+            : undefined,
+        trackio_project_name:
+          config?.trackio_project_name != null
+            ? config.trackio_project_name
+            : undefined,
       };
 
       const response = await fetchWithAuth(
@@ -1036,7 +1068,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         ? SafeJSONParse(task.config, {})
         : (task?.config ?? {});
     const isInteractive =
-      (task as any)?.interactive_type || config?.interactive_type;
+      (task as any)?.subtype === 'interactive' ||
+      config?.subtype === 'interactive' ||
+      (task as any)?.interactive_type ||
+      config?.interactive_type;
     if (isInteractive) {
       setTaskBeingEdited(task);
       setEditModalOpen(true);
@@ -1108,7 +1143,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               }
 
               try {
-                const response = await chatAPI.authenticatedFetch(
+                const response = await fetchWithAuth(
                   chatAPI.Endpoints.Task.UpdateTemplate(
                     experimentInfo.id,
                     taskBeingEdited.id,
@@ -1157,6 +1192,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           task={taskBeingQueued}
           onSubmit={handleQueueSubmit}
           isSubmitting={isSubmitting}
+          experimentId={experimentInfo?.id ?? ''}
         />
       )}
       <Stack
@@ -1185,7 +1221,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         }}
       >
         <TaskTemplateList
-          tasksList={tasks}
+          tasksList={visibleTasks}
           onDeleteTask={handleDeleteTask}
           onQueueTask={handleQueue}
           onEditTask={handleEditTask}
@@ -1253,6 +1289,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             setViewCheckpointsFromJob(parseInt(jobId))
           }
           onViewArtifacts={(jobId) => setViewArtifactsFromJob(parseInt(jobId))}
+          onViewProfiling={(jobId) => setViewProfilingFromJob(parseInt(jobId))}
           onViewEvalImages={(jobId) =>
             setViewEvalImagesFromJob(parseInt(jobId))
           }
@@ -1315,6 +1352,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewArtifactsFromJob !== -1}
         onClose={() => setViewArtifactsFromJob(-1)}
         jobId={viewArtifactsFromJob}
+      />
+      <ViewProfilingModal
+        open={viewProfilingFromJob !== -1}
+        onClose={() => setViewProfilingFromJob(-1)}
+        jobId={viewProfilingFromJob}
       />
       <ViewCheckpointsModal
         open={viewCheckpointsFromJob !== -1}

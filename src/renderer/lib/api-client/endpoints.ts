@@ -78,6 +78,18 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task/gallery/team/add`,
   DeleteFromTeamGallery: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task/gallery/team/delete`,
+  TeamGalleryListFiles: (experimentId: string, galleryId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/${encodeURIComponent(
+      galleryId,
+    )}/files`,
+  TeamGalleryGetFile: (
+    experimentId: string,
+    galleryId: string,
+    filePath: string,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/task/gallery/team/${encodeURIComponent(
+      galleryId,
+    )}/file/${encodeURIComponent(filePath)}`,
   FetchTaskJson: (experimentId: string, url: string) =>
     `${API_URL()}experiment/${experimentId}/task/fetch_task_json?url=${encodeURIComponent(url)}`,
   FromDirectory: (experimentId: string) =>
@@ -129,6 +141,12 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`, // Deprecated: use UploadTemplateFile
   Check: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/check`,
+  Setup: (providerId: string) =>
+    `${API_URL()}compute_provider/${providerId}/setup`,
+  SetupStatus: (providerId: string) =>
+    `${API_URL()}compute_provider/${providerId}/setup/status`,
+  DetectLocalAccelerators: () =>
+    `${API_URL()}compute_provider/detect-accelerators`,
   EnsureQuotaRecorded: (experimentId?: string, jobId?: string) => {
     if (jobId) {
       return `${API_URL()}compute_provider/jobs/ensure-quota-recorded?job_id=${jobId}`;
@@ -273,44 +291,9 @@ Endpoints.Documents = {
     }`,
 };
 
-Endpoints.Rag = {
-  Query: (
-    experimentId: string,
-    model_name: string,
-    query: string,
-    settings: string,
-    ragFolder: string = 'rag',
-  ) =>
-    `${API_URL()}experiment/${experimentId}/rag/query?model=${model_name}&query=${query}&settings=${settings}&rag_folder=${ragFolder}`,
-  Embeddings: (experimentId: string) =>
-    `${API_URL()}experiment/${experimentId}/rag/embed`,
-};
-
-Endpoints.Prompts = {
-  List: () => `${API_URL()}prompts/list`,
-  New: () => `${API_URL()}prompts/new`,
-  Delete: (promptId: string) => `${API_URL()}prompts/delete/${promptId}`,
-};
-
-Endpoints.BatchedPrompts = {
-  List: () => `${API_URL()}batch/list`,
-  New: () => `${API_URL()}batch/new`,
-  Delete: (promptId: string) => `${API_URL()}batch/delete/${promptId}`,
-  InstallMcpPlugin: (serverName: string) =>
-    `${API_URL()}tools/install_mcp_server?server_name=${encodeURIComponent(serverName)}`,
-};
-
-Endpoints.Tools = {
-  Call: (function_name: string, function_arguments: string) =>
-    `${API_URL()}tools/call/${function_name}?params=${function_arguments}`,
-  List: () => `${API_URL()}tools/list`,
-  All: () => `${API_URL()}tools/all`,
-  InstallMcpPlugin: (serverName: string) =>
-    `${API_URL()}tools/install_mcp_server?server_name=${encodeURIComponent(serverName)}`,
-};
-
 Endpoints.ServerInfo = {
   StreamLog: () => `${API_URL()}server/stream_log`,
+  Version: () => `${API_URL()}server/version`,
 };
 
 Endpoints.Charts = {
@@ -463,6 +446,8 @@ Endpoints.Experiment = {
     tailLines: number = 1000,
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/tunnel_info?tail_lines=${tailLines}`,
+  GetProfilingReport: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/profiling_report`,
   GetAdditionalDetails: (
     experimentId: string,
     jobId: string,
@@ -522,10 +507,6 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
 };
 
-Endpoints.Global = {
-  PromptLog: () => `${API_URL()}prompt_log`,
-};
-
 Endpoints.Quota = {
   GetMyStatus: () => `${API_URL()}quota/me`,
   GetMyUsage: () => `${API_URL()}quota/me/usage`,
@@ -544,4 +525,40 @@ Endpoints.Teams = {
 Endpoints.Users = {
   GetSecrets: () => `${API_URL()}users/me/secrets`,
   SetSecrets: () => `${API_URL()}users/me/secrets`,
+};
+
+Endpoints.AssetVersions = {
+  ListGroups: (assetType: string) =>
+    `${API_URL()}asset_versions/groups?asset_type=${assetType}`,
+  DeleteGroup: (assetType: string, groupName: string) =>
+    `${API_URL()}asset_versions/groups/${assetType}/${groupName}`,
+  CreateVersion: () => `${API_URL()}asset_versions/versions`,
+  ListVersions: (assetType: string, groupName: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}`,
+  GetVersion: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
+  DeleteVersion: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
+  UpdateVersion: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
+  SetTag: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}/tag`,
+  ClearTag: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}/tag`,
+  Resolve: (
+    assetType: string,
+    groupName: string,
+    tag?: string,
+    versionLabel?: string,
+  ) => {
+    let url = `${API_URL()}asset_versions/resolve/${assetType}/${groupName}`;
+    const params: string[] = [];
+    if (tag) params.push(`tag=${tag}`);
+    if (versionLabel !== undefined)
+      params.push(`version_label=${versionLabel}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    return url;
+  },
+  GetAssetGroupMap: (assetType: string) =>
+    `${API_URL()}asset_versions/map/${assetType}`,
 };

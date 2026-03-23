@@ -267,6 +267,17 @@ async def get_job_artifacts_dir(job_id: str | int) -> str:
     return path
 
 
+async def get_job_profiling_dir(job_id: str | int) -> str:
+    """
+    Return the profiling directory for a specific job, creating it if needed.
+    Example: ~/.transformerlab/workspace/jobs/<job_id>/profiling
+    """
+    job_dir = await get_job_dir(job_id)
+    path = storage.join(job_dir, "profiling")
+    await storage.makedirs(path, exist_ok=True)
+    return path
+
+
 async def get_job_checkpoints_dir(job_id: str | int) -> str:
     """
     Return the checkpoints directory for a specific job, creating it if needed.
@@ -331,6 +342,35 @@ async def generation_output_file(experiment_name: str, generation_name: str) -> 
     return storage.join(p, "output.txt")
 
 
+def get_local_provider_root() -> str:
+    """
+    Return the root directory for all local-provider-only artifacts.
+
+    Layout:
+        ~/.transformerlab/local_provider/
+
+    This directory is intentionally local filesystem state (not remote storage) and is used for:
+      - base environment / venvs
+      - cached wheels / uv cache
+      - local provider config snapshots
+      - transient local-provider setup status files
+      - local provider runs (PIDs, logs, etc.)
+    """
+    root = os.path.join(HOME_DIR, "local_provider")
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
+def get_local_provider_config_path() -> str:
+    """
+    Return the path to the local provider config snapshot JSON file.
+
+    Layout:
+        ~/.transformerlab/local_provider/local_provider_config.json
+    """
+    return os.path.join(get_local_provider_root(), "local_provider_config.json")
+
+
 def _get_local_provider_runs_root() -> str:
     """
     Return the root directory for all local provider runs.
@@ -341,9 +381,9 @@ def _get_local_provider_runs_root() -> str:
     even when the main workspace is configured to use remote storage.
 
     Layout:
-        ~/.transformerlab/local_provider_runs/
+        ~/.transformerlab/local_provider/local_provider_runs/
     """
-    root = os.path.join(HOME_DIR, "local_provider_runs")
+    root = os.path.join(get_local_provider_root(), "local_provider_runs")
     os.makedirs(root, exist_ok=True)
     return root
 

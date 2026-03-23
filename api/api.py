@@ -25,35 +25,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Allow the log level for all transformerlab.* loggers to be controlled via
-# an env var.  Set TLAB_LOG_LEVEL=DEBUG to enable debug output across the
-# entire application (e.g. sweep-status cycle timings).  Defaults to WARNING
-# so debug/info messages are silent unless explicitly requested.
-logging.getLogger("transformerlab").setLevel(
-    getattr(logging, os.getenv("TLAB_LOG_LEVEL", "WARNING").upper(), logging.WARNING)
-)
-
-
-# Optional Datadog APM (does nothing unless enabled + installed)
-def _enable_datadog_if_setup():
-    if not os.getenv("DD_SERVICE"):
-        return
-
-    try:
-        from ddtrace import patch_all
-        from ddtrace.contrib.asgi import TraceMiddleware
-
-        print("Datadog trace middleware enabled")
-    except ImportError:
-        print("Datadog Init Error: Failed to import library")
-        return None
-
-    patch_all(fastapi=True, httpx=True)
-    return TraceMiddleware
-
-
-TRACE_MIDDLEWARE = _enable_datadog_if_setup()
-
 from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
@@ -74,13 +45,13 @@ from transformerlab.routers import (  # noqa: E402
     serverinfo,
     plugins,
     config,
-    tools,
     teams,
     compute_provider,
     auth,
     api_keys,
     quota,
     ssh_keys,
+    asset_versions,
     trackio,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
@@ -107,6 +78,18 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # used internally to set constants that are shared between separate processes. They are not meant to be
 # to be overriden by the user.
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
+
+
+# Set TLAB_LOG_LEVEL environment variable to DEBUG, INFO, WARNING or ERROR
+# to control the level of Transformer Lab logging output.
+# Defaults to WARNING.
+TLAB_LOG_LEVEL = os.getenv("TLAB_LOG_LEVEL", "WARNING").upper()
+_log_level = getattr(logging, TLAB_LOG_LEVEL, logging.WARNING)
+logging.getLogger("transformerlab").setLevel(_log_level)
+
+# Create a default root config handler
+# Set level=logging.DEBUG here to get full debug output from imported libraries
+logging.basicConfig()
 
 
 @asynccontextmanager
@@ -167,13 +150,19 @@ async def lifespan(app: FastAPI):
         start_remote_job_status_worker,
         stop_remote_job_status_worker,
     )
+    from transformerlab.services.notification_service import (
+        start_notification_worker,
+        stop_notification_worker,
+    )
 
     await start_remote_job_status_worker()
+    await start_notification_worker()
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
     await stop_sweep_status_worker()
     await stop_remote_job_status_worker()
+    await stop_notification_worker()
     await db.close()
     # Run the clean up function
     cleanup_at_exit()
@@ -234,10 +223,6 @@ app = fastapi.FastAPI(
     openapi_tags=tags_metadata,
 )
 
-# Add tracing middleware only if setup and enabled
-if TRACE_MIDDLEWARE is not None:
-    app.add_middleware(TRACE_MIDDLEWARE)
-
 # CORS configuration
 # When using cookies, allow_credentials must be True and allow_origins cannot be ["*"]
 # Use FRONTEND_URL env var to specify allowed origins (comma-separated), or default to "*" without credentials
@@ -288,7 +273,7 @@ async def set_org_context(request: Request, call_next):
 
         # If no X-Team-Id, try to determine from API key
         if not org_id:
-            from transformerlab.shared.api_key_auth import determine_team_id_from_request
+            from transformerlab.services.api_key_auth import determine_team_id_from_request
             from transformerlab.db.session import async_session
 
             # Create a session for the middleware check
@@ -325,7 +310,6 @@ app.include_router(experiment.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(plugins.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(jobs.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(config.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(tools.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(fastchat_openai_api.router)
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
@@ -333,6 +317,7 @@ app.include_router(auth.router)
 app.include_router(api_keys.router)
 app.include_router(quota.router)
 app.include_router(ssh_keys.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(asset_versions.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(trackio.router, dependencies=[Depends(get_user_and_team)])
 
 
@@ -354,15 +339,21 @@ async def install_all_plugins():
 async def healthz():
     """
     Health check endpoint to verify server status and mode.
+    Also includes version info so the frontend can detect updates without extra polling.
     """
+    from transformerlab.services.version_service import get_version_info
+
     # MULTIUSER flag: default to true unless explicitly set to 'false'
     IS_MULTIUSER = os.getenv("MULTIUSER", "true").lower() == "true"
     # Determine mode: multiuser or local
     mode = "multiuser" if IS_MULTIUSER else "local"
 
+    version_info = await get_version_info()
+
     return {
         "message": "OK",
         "mode": mode,
+        "version": version_info,
     }
 
 
@@ -427,15 +418,23 @@ def run():
         allow_headers=args.allowed_headers,
     )
 
+    # uvicorn needs a lowercase version of logging level
+    uvicorn_log_level = TLAB_LOG_LEVEL.lower()
+
     if args.https:
         import asyncio
 
         cert_path, key_path = asyncio.run(ensure_persistent_self_signed_cert())
         uvicorn.run(
-            "api:app", host=args.host, port=args.port, log_level="warning", ssl_certfile=cert_path, ssl_keyfile=key_path
+            "api:app",
+            host=args.host,
+            port=args.port,
+            log_level=uvicorn_log_level,
+            ssl_certfile=cert_path,
+            ssl_keyfile=key_path,
         )
     else:
-        uvicorn.run("api:app", host=args.host, port=args.port, log_level="warning")
+        uvicorn.run("api:app", host=args.host, port=args.port, log_level=uvicorn_log_level)
 
 
 if __name__ == "__main__":

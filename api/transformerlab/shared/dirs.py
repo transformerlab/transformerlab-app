@@ -76,5 +76,24 @@ PLUGIN_HARNESS = os.path.join(PLUGIN_SDK_DIR, "plugin_harness.py")
 GALLERIES_LOCAL_FALLBACK_DIR = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab/galleries/")
 
 
+async def get_asset_groups_dir() -> str:
+    """Return the root directory for filesystem-based asset groups.
+
+    Layout:
+        <workspace>/asset_groups/
+            models/<group_name>/index.json, model_list.json
+            datasets/<group_name>/index.json, dataset_list.json
+
+    The directory is created on first access.
+    """
+    from lab import storage
+    from lab.dirs import get_workspace_dir
+
+    workspace = await get_workspace_dir()
+    path = storage.join(workspace, "asset_groups")
+    await storage.makedirs(path, exist_ok=True)
+    return path
+
+
 # TEMPORARY: We want to move jobs back into the root directory instead of under experiment
 # But for now we need to leave this here.

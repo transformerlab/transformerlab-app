@@ -115,6 +115,9 @@ unset_conda_for_sure() {
   export PYTHONNOUSERSITE=1
   unset PYTHONPATH
   unset PYTHONHOME
+  # So uv/pip use the conda env we activate later, not any accidentally active uv venv
+  unset VIRTUAL_ENV
+  unset UV_PROJECT_ENVIRONMENT
 }
 
 # We've seen users who installed conda using root have problems if their
@@ -391,6 +394,9 @@ install_dependencies() {
   unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"
   conda activate "$ENV_DIR"
+  # Force uv/pip to use this conda env even if a uv venv was active before
+  unset VIRTUAL_ENV
+  unset UV_PROJECT_ENVIRONMENT
 
   check_python
 

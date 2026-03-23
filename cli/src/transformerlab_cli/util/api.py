@@ -1,12 +1,11 @@
 import json
 import httpx
 import typer
-from rich import print
-
 
 from transformerlab_cli.util.shared import BASE_URL
 from transformerlab_cli.util.auth import api_key
 from transformerlab_cli.util.config import get_config
+from transformerlab_cli.util.ui import console
 
 
 def _request_headers() -> dict:
@@ -86,14 +85,80 @@ def post_json(path: str, json_data: dict = None, timeout: float = 60.0) -> httpx
     return response
 
 
+def post_text(path: str, text: str, timeout: float = 60.0) -> httpx.Response:
+    """
+    Makes a POST HTTP request with a plain-text body.
+
+    Args:
+        path (str): The API path to send the request to.
+        text (str): The text content to include in the POST request body.
+        timeout (float): Request timeout in seconds. Default is 60.0.
+
+    Returns:
+        httpx.Response: The response object from the HTTP request.
+    """
+    headers = _request_headers()
+    headers["Content-Type"] = "text/plain"
+    with httpx.Client(timeout=timeout) as client:
+        response = client.request(
+            method="POST",
+            url=f"{BASE_URL()}{path}",
+            headers=headers,
+            content=text,
+        )
+    return response
+
+
+def patch(path: str, json_data: dict = None, timeout: float = 60.0) -> httpx.Response:
+    """
+    Makes a PATCH HTTP request with JSON body.
+
+    Args:
+        path (str): The API path to send the request to.
+        json_data (dict, optional): The JSON data to include in the PATCH request.
+        timeout (float): Request timeout in seconds. Default is 60.0.
+
+    Returns:
+        httpx.Response: The response object from the HTTP request.
+    """
+    with httpx.Client(timeout=timeout) as client:
+        response = client.request(
+            method="PATCH",
+            url=f"{BASE_URL()}{path}",
+            headers=_request_headers(),
+            json=json_data,
+        )
+    return response
+
+
+def delete(path: str, timeout: float = 10.0) -> httpx.Response:
+    """
+    Makes a DELETE HTTP request.
+
+    Args:
+        path (str): The API path to send the request to.
+        timeout (float): Request timeout in seconds. Default is 10.0.
+
+    Returns:
+        httpx.Response: The response object from the HTTP request.
+    """
+    with httpx.Client(timeout=timeout) as client:
+        response = client.request(
+            method="DELETE",
+            url=f"{BASE_URL()}{path}",
+            headers=_request_headers(),
+        )
+    return response
+
+
 def check_server_status():
     """Check the status of the server."""
     try:
-        response = get("/server/info")
+        response = get("/healthz")
         response.raise_for_status()
         status = response.json()
-        print(json.dumps(status, indent=2))
+        console.print(json.dumps(status, indent=2))
 
     except httpx.HTTPError as e:
-        print(f"[red]Error:[/red] Unable to connect to the server: {e}")
+        console.print(f"[error]Error:[/error] Unable to connect to the server: {e}")
         raise typer.Exit(1)

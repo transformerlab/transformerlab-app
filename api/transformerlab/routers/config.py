@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Header, Query, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from typing import Optional
+
 import transformerlab.db.db as db
 from transformerlab.models.users import current_active_user
+from transformerlab.services.notification_service import build_notification_request_body
 from transformerlab.shared.models.models import User
 
 
@@ -48,3 +50,45 @@ async def config_set(
     # Compute team_wide from user_id for response (backward compatibility)
     response_team_wide = user_id is None
     return {"key": k, "value": v, "team_wide": response_team_wide}
+
+
+@router.post("/test-notification-webhook", summary="Test notification webhook")
+async def test_notification_webhook(
+    x_team_id: Optional[str] = Header(None, alias="X-Team-Id"),
+    user: User = Depends(current_active_user),
+):
+    """Send a hardcoded sample payload to the user's configured webhook URL."""
+    import httpx
+
+    user_id = str(user.id) if user else None
+    webhook_url = await db.config_get("notification_webhook_url", user_id=user_id, team_id=x_team_id)
+
+    if not webhook_url:
+        raise HTTPException(status_code=400, detail="No webhook URL configured")
+
+    sample_payload = {
+        "job_id": "test",
+        "status": "COMPLETE",
+        "job_type": "TRAIN",
+        "experiment_name": "test-experiment",
+        "started_at": "2026-03-12 10:00:00",
+        "finished_at": "2026-03-12 10:30:00",
+        "duration_seconds": 1800,
+        "error_message": None,
+    }
+
+    body = build_notification_request_body(webhook_url, sample_payload)
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(webhook_url, json=body)
+            response.raise_for_status()
+        return {"ok": True}
+    except httpx.HTTPStatusError as exc:
+        return {
+            "ok": False,
+            "error": f"HTTP {exc.response.status_code}: {exc.response.text[:200]}",
+        }
+    except Exception as exc:
+        print(f"Error sending notification webhook: {exc}")
+        return {"ok": False, "error": "An error occurred while sending the notification webhook."}
