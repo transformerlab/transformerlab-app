@@ -260,6 +260,9 @@ class Experiment(BaseLabResource):
             if "job_data" in job_json:
                 results.append(job_json)
 
+        # Sort by job ID descending (newest first) using numeric comparison
+        results.sort(key=lambda j: int(j.get("id", 0)), reverse=True)
+
         return results
 
     ###############################
