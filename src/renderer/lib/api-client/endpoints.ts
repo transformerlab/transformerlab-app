@@ -224,10 +224,6 @@ Endpoints.Models = {
     `${API_URL()}model/install_peft?model_id=${modelId}&peft=${peft}`,
   ModelDetailsFromGallery: (modelId: string) =>
     `${API_URL()}model/gallery/${convertSlashInUrl(modelId)}`,
-  ModelDetailsFromFilesystem: (modelId: string) =>
-    `${API_URL()}model/details/${convertSlashInUrl(modelId)}`,
-  GetLocalHFConfig: (modelId: string) =>
-    `${API_URL()}model/get_local_hfconfig?model_id=${modelId}`,
   Delete: (modelId: string, deleteCache: boolean = false) =>
     `${API_URL()}model/delete?model_id=${modelId}&delete_from_cache=${
       deleteCache
