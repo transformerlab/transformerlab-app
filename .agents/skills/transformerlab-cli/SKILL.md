@@ -118,6 +118,14 @@ See `references/commands.md` for full details on every option.
 
 ## Tips
 
+- **`--format` must come before the subcommand.** It is a root-level Typer callback option, not a per-command option. Place it immediately after the script path:
+  ```bash
+  # Correct
+  uv run cli/src/transformerlab_cli/main.py --format json task add /path/to/dir
+
+  # Wrong — will be ignored or cause an error
+  uv run cli/src/transformerlab_cli/main.py task add /path/to/dir --format json
+  ```
 - Use `--format json` when you need to parse output (e.g., extracting a job ID from `job list`)
 - `job logs --follow` streams continuously until the job exits an active state (RUNNING, LAUNCHING, INTERACTIVE, WAITING)
 - `task queue --no-interactive` skips all prompts and uses defaults — ideal for automated workflows
