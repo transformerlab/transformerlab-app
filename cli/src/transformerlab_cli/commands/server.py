@@ -481,10 +481,53 @@ def server_install(
     console.print("     [warning]Change the default password immediately![/warning]")
 
 
+LATEST_VERSION_FILE = ENV_DIR / "src" / "LATEST_VERSION"
+GITHUB_LATEST_RELEASE_URL = "https://github.com/transformerlab/transformerlab-app/releases/latest"
+
+
+def _get_current_version() -> str | None:
+    """Read the currently installed version from ~/.transformerlab/src/LATEST_VERSION."""
+    try:
+        return LATEST_VERSION_FILE.read_text().strip()
+    except OSError:
+        return None
+
+
+def _get_latest_version() -> str | None:
+    """Resolve the latest release version from GitHub by following the redirect."""
+    try:
+        import httpx
+
+        response = httpx.head(GITHUB_LATEST_RELEASE_URL, follow_redirects=True, timeout=10)
+        # The final URL looks like .../releases/tag/v0.30.3
+        return response.url.path.rsplit("/", 1)[-1]
+    except Exception:
+        return None
+
+
 @app.command("update")
 def server_update() -> None:
     """Update Transformer Lab to the latest version."""
     console.print("\n[bold header]Transformer Lab Server Update[/bold header]")
+
+    current = _get_current_version()
+    if current:
+        console.print(f"\n[label]Installed version:[/label] [bold]{current}[/bold]")
+    else:
+        console.print("\n[warning]No existing installation detected.[/warning]")
+
+    with console.status("[dim]Checking latest version...[/dim]", spinner="dots"):
+        latest = _get_latest_version()
+
+    if latest:
+        console.print(f"[label]Latest version:[/label]    [bold]{latest}[/bold]")
+        if current and current == latest:
+            console.print("\n[success]Already up to date.[/success]")
+            if not typer.confirm("Re-run the install script anyway?", default=False):
+                raise typer.Exit(0)
+    else:
+        console.print("[dim]Could not check latest version. Proceeding with update.[/dim]")
+
     exit_code = _run_install_script()
     if exit_code != 0:
         raise typer.Exit(exit_code)
