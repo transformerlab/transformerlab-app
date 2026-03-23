@@ -525,8 +525,13 @@ def server_update() -> None:
             console.print("\n[success]Already up to date.[/success]")
             if not typer.confirm("Re-run the install script anyway?", default=False):
                 raise typer.Exit(0)
+        else:
+            if not typer.confirm(f"\nUpdate from {current or 'unknown'} to {latest}?", default=True):
+                raise typer.Exit(0)
     else:
-        console.print("[dim]Could not check latest version. Proceeding with update.[/dim]")
+        console.print("[dim]Could not check latest version.[/dim]")
+        if not typer.confirm("Proceed with update?", default=True):
+            raise typer.Exit(0)
 
     exit_code = _run_install_script()
     if exit_code != 0:
