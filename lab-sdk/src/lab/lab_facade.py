@@ -1486,7 +1486,9 @@ class Lab:
         _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
         _run_async(self._job.update_job_data_field("status", JobStatus.FAILED))  # type: ignore[union-attr]
-
+        # Job.get_status() reads the top-level status field, so make the job terminal/complete
+        # even though completion_status indicates failure.
+        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
 
     def _detect_and_capture_wandb_url(self) -> None:
         """
