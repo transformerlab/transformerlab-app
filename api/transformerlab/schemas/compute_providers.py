@@ -170,6 +170,18 @@ class ProviderTemplateLaunchRequest(BaseModel):
         default=False,
         description="When True, set TLAB_TRACKIO_AUTO_INIT=true in the job environment so lab SDK can auto-integrate with Trackio.",
     )
+    enable_profiling: Optional[bool] = Field(
+        default=False,
+        description="When True, set _TFL_PROFILING=1 to enable system-level CPU/GPU/memory sampling via tfl-remote-trap.",
+    )
+    enable_profiling_torch: Optional[bool] = Field(
+        default=False,
+        description="When True (requires enable_profiling), also set _TFL_PROFILING_TORCH=1 to inject torch.profiler and export a Chrome trace.",
+    )
+    trackio_project_name: Optional[str] = Field(
+        default=None,
+        description="TrackIO project name for shared project; used when enable_trackio=True. Omit or empty to use 'default'.",
+    )
 
 
 class ProviderTemplateFileUploadResponse(BaseModel):

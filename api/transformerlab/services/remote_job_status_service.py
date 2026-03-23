@@ -13,6 +13,7 @@ a cheap read-only operation unaffected by provider latency or downtime.
 
 import asyncio
 import os
+import logging
 import time
 from typing import Any, Dict, List, Optional
 
@@ -35,6 +36,8 @@ _provider_failures: Dict[str, Dict[str, int]] = {}
 
 _remote_job_status_worker_task: Optional[asyncio.Task] = None
 
+logger = logging.getLogger(__name__)
+
 
 # ---------------------------------------------------------------------------
 # Org-context helpers (same pattern as sweep_status_service.py)
@@ -54,7 +57,7 @@ async def _list_all_org_ids() -> List[str]:
     try:
         return await team_service.get_all_team_ids()
     except Exception as exc:
-        print(f"Remote job status worker: failed listing orgs from DB: {exc}")
+        logger.warning(f"Remote job status worker: failed listing orgs from DB: {exc}")
         return []
 
 
@@ -62,7 +65,7 @@ async def _list_experiment_ids_for_current_org() -> List[str]:
     try:
         experiments_data = await Experiment.get_all()
     except Exception as exc:
-        print(f"Remote job status worker: failed getting experiments: {exc}")
+        logger.warning(f"Remote job status worker: failed getting experiments: {exc}")
         return []
     return [str(exp.get("id")) for exp in experiments_data if exp.get("id")]
 
@@ -91,7 +94,7 @@ def _record_provider_failure(provider_id: str) -> None:
     if state["failures"] >= _PROVIDER_FAILURE_THRESHOLD:
         state["skip_cycles"] = _PROVIDER_BACKOFF_CYCLES
         state["failures"] = 0
-        print(
+        logger.warning(
             f"Remote job status worker: provider {provider_id} reached failure threshold; "
             f"backing off for {_PROVIDER_BACKOFF_CYCLES} cycles (~"
             f"{_PROVIDER_BACKOFF_CYCLES * REMOTE_JOB_STATUS_INTERVAL_SECONDS}s)"
@@ -133,7 +136,7 @@ async def _best_effort_stop_cluster_for_job(job: Dict[str, Any]) -> None:
 
         await asyncio.to_thread(provider_instance.stop_cluster, cluster_name)
     except Exception:
-        print(f"Remote job status worker: failed stopping cluster for job {job.get('id', '')}")
+        logger.error(f"Remote job status worker: failed stopping cluster for job {job.get('id', '')}")
         return
 
 
@@ -190,7 +193,7 @@ async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
         await job_service.job_update_job_data_insert_key_value(job_id, "end_time", end_time_str, experiment_id)
         await job_service.job_update_status(job_id, new_status, experiment_id=experiment_id)
     except Exception as exc:
-        print(f"Remote job status worker: failed updating job {job_id} from live_status={live_status}: {exc}")
+        logger.error(f"Remote job status worker: failed updating job {job_id} from live_status={live_status}: {exc}")
     return True
 
 
@@ -344,7 +347,9 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
                         experiment_id=experiment_id, type="REMOTE", status=""
                     )
                 except Exception as exc:
-                    print(f"Remote job status worker: failed listing jobs for experiment {experiment_id}: {exc}")
+                    logger.warning(
+                        f"Remote job status worker: failed listing jobs for experiment {experiment_id}: {exc}"
+                    )
                     cycle_stats["errors"] += 1
                     continue
 
@@ -376,7 +381,7 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
                             cycle_stats["jobs_updated"] += 1
                             continue
                     except Exception as exc:
-                        print(f"Remote job status worker: live_status check failed for job {job_id}: {exc}")
+                        logger.warning(f"Remote job status worker: live_status check failed for job {job_id}: {exc}")
                         cycle_stats["errors"] += 1
                         continue
 
@@ -391,7 +396,9 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
                                 record = await get_provider_by_id(session, provider_id)
                             provider_record_cache[provider_id] = record
                         except Exception as exc:
-                            print(f"Remote job status worker: failed to fetch provider record {provider_id}: {exc}")
+                            logger.warning(
+                                f"Remote job status worker: failed to fetch provider record {provider_id}: {exc}"
+                            )
                             cycle_stats["errors"] += 1
                             continue
 
@@ -404,7 +411,9 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
                         try:
                             provider_instance_cache[provider_id] = await get_provider_instance(provider_record)
                         except Exception as exc:
-                            print(f"Remote job status worker: failed to instantiate provider {provider_id}: {exc}")
+                            logger.warning(
+                                f"Remote job status worker: failed to instantiate provider {provider_id}: {exc}"
+                            )
                             cycle_stats["errors"] += 1
                             continue
 
@@ -419,11 +428,15 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
                         if updated:
                             cycle_stats["jobs_updated"] += 1
                     except ConnectionError as exc:
-                        print(f"Remote job status worker: provider {provider_id} unreachable for job {job_id}: {exc}")
+                        logger.warning(
+                            f"Remote job status worker: provider {provider_id} unreachable for job {job_id}: {exc}"
+                        )
                         _record_provider_failure(provider_id)
                         cycle_stats["errors"] += 1
                     except Exception as exc:
-                        print(f"Remote job status worker: error checking job {job_id} on provider {provider_id}: {exc}")
+                        logger.warning(
+                            f"Remote job status worker: error checking job {job_id} on provider {provider_id}: {exc}"
+                        )
                         _record_provider_failure(provider_id)
                         cycle_stats["errors"] += 1
 
@@ -439,7 +452,7 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
 
 
 async def _remote_job_status_worker_loop() -> None:
-    print("Remote job status worker: started")
+    logger.info("Remote job status worker: started")
     try:
         while True:
             try:
@@ -449,7 +462,7 @@ async def _remote_job_status_worker_loop() -> None:
 
                 # Only log if there was actual work or errors (avoid noise during quiet periods).
                 if cycle_stats["jobs_seen"] > 0 or cycle_stats["errors"] > 0:
-                    print(
+                    logger.debug(
                         f"Remote job status worker: cycle done in {_cycle_elapsed:.3f}s — "
                         f"orgs={cycle_stats['orgs']} experiments={cycle_stats['experiments']} "
                         f"jobs_seen={cycle_stats['jobs_seen']} "
@@ -459,10 +472,10 @@ async def _remote_job_status_worker_loop() -> None:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                print(f"Remote job status worker: unhandled error in cycle, continuing: {exc}")
+                logger.warning(f"Remote job status worker: unhandled error in cycle, continuing: {exc}")
             await asyncio.sleep(REMOTE_JOB_STATUS_INTERVAL_SECONDS)
     except asyncio.CancelledError:
-        print("Remote job status worker: stopping")
+        logger.info("Remote job status worker: stopping")
         raise
     finally:
         _clear_org_context()

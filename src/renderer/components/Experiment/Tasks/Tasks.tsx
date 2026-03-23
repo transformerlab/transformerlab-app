@@ -21,6 +21,7 @@ import DeleteTaskConfirmModal from './DeleteTaskConfirmModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from './ViewArtifactsModal';
+import ViewProfilingModal from './ViewProfilingModal';
 import ViewCheckpointsModal from './ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
 import CompareEvalResultsModal from './CompareEvalResultsModal';
@@ -52,6 +53,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     useState(-1);
   const [viewCheckpointsFromJob, setViewCheckpointsFromJob] = useState(-1);
   const [viewArtifactsFromJob, setViewArtifactsFromJob] = useState(-1);
+  const [viewProfilingFromJob, setViewProfilingFromJob] = useState(-1);
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const [viewSweepResultsFromJob, setViewSweepResultsFromJob] = useState(-1);
@@ -921,6 +923,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         provider_id: _pid,
         provider_name: _pname,
         enable_trackio,
+        enable_profiling,
+        enable_profiling_torch,
         cpus,
         memory,
         disk_space,
@@ -986,6 +990,16 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           undefined,
         enable_trackio:
           typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
+        enable_profiling:
+          typeof enable_profiling === 'boolean' ? enable_profiling : undefined,
+        enable_profiling_torch:
+          typeof enable_profiling_torch === 'boolean'
+            ? enable_profiling_torch
+            : undefined,
+        trackio_project_name:
+          config?.trackio_project_name != null
+            ? config.trackio_project_name
+            : undefined,
       };
 
       const response = await fetchWithAuth(
@@ -1178,6 +1192,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           task={taskBeingQueued}
           onSubmit={handleQueueSubmit}
           isSubmitting={isSubmitting}
+          experimentId={experimentInfo?.id ?? ''}
         />
       )}
       <Stack
@@ -1274,6 +1289,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             setViewCheckpointsFromJob(parseInt(jobId))
           }
           onViewArtifacts={(jobId) => setViewArtifactsFromJob(parseInt(jobId))}
+          onViewProfiling={(jobId) => setViewProfilingFromJob(parseInt(jobId))}
           onViewEvalImages={(jobId) =>
             setViewEvalImagesFromJob(parseInt(jobId))
           }
@@ -1336,6 +1352,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewArtifactsFromJob !== -1}
         onClose={() => setViewArtifactsFromJob(-1)}
         jobId={viewArtifactsFromJob}
+      />
+      <ViewProfilingModal
+        open={viewProfilingFromJob !== -1}
+        onClose={() => setViewProfilingFromJob(-1)}
+        jobId={viewProfilingFromJob}
       />
       <ViewCheckpointsModal
         open={viewCheckpointsFromJob !== -1}

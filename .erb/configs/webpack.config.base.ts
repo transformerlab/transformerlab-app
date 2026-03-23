@@ -5,11 +5,10 @@
 import webpack from 'webpack';
 import TsconfigPathsPlugins from 'tsconfig-paths-webpack-plugin';
 import webpackPaths from './webpack.paths';
-import { dependencies as externals } from '../../release/app/package.json';
 // import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 
 const configuration: webpack.Configuration = {
-  externals: [...Object.keys(externals || {})],
+  externals: [],
 
   stats: 'errors-only',
 
@@ -51,6 +50,7 @@ const configuration: webpack.Configuration = {
       VERSION: process.env.npm_package_version || '0.0.0',
       MULTIUSER: 'true',
       TL_API_URL: '',
+      TL_DISABLE_UPDATE_CHECK: '',
       EMAIL_AUTH_ENABLED: 'true',
     }),
     // new BundleAnalyzerPlugin(), // uncomment to enable bundle analysis

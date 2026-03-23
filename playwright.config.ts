@@ -14,7 +14,7 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter: process.env.CI ? [['html', { open: 'never' }], ['github']] : 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -22,12 +22,23 @@ export default defineConfig({
 
     /* Collect trace when retrying a failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+
+    /* Capture screenshot on failure for debugging */
+    screenshot: 'only-on-failure',
   },
 
-  /* Configure projects for major browsers */
+  /* Run fast smoke tests first, then full E2E tests */
   projects: [
     {
-      name: 'chromium',
+      name: 'smoke',
+      testMatch: ['homepage.spec.ts', 'smoke-screens.spec.ts'],
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'e2e',
+      testMatch: ['**/*.spec.ts'],
+      testIgnore: ['homepage.spec.ts', 'smoke-screens.spec.ts'],
+      dependencies: ['smoke'],
       use: { ...devices['Desktop Chrome'] },
     },
   ],

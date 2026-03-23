@@ -20,6 +20,7 @@ from transformerlab.routers.auth import get_user_and_team
 from transformerlab.routers.serverinfo import watch_file
 from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
 import transformerlab.services.job_service as job_service
+from transformerlab.services.cache_service import cache
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.shared import shared, zip_utils
 from transformerlab.shared.models.models import ProviderType
@@ -1527,6 +1528,8 @@ async def save_model_to_registry(
             except Exception as copy_err:
                 print(f"storage.copy_dir failed: {copy_err}")
 
+            await cache.invalidate("models", "models:list")
+
             return {"status": "success", "message": f"Model merged into existing registry entry '{target_name_secure}'"}
         else:
             # Save as a new model
@@ -1544,6 +1547,8 @@ async def save_model_to_registry(
                 await storage.copy_dir(source_path, dest_path)
             except Exception as copy_err:
                 print(f"storage.copy_dir failed: {copy_err}")
+
+            await cache.invalidate("models", "models:list")
 
             return {"status": "success", "message": f"Model saved to registry as '{final_name}'"}
 
@@ -1687,3 +1692,32 @@ async def get_job_file(job_id: str, file_path: str):
     return StreamingResponse(
         generate(), media_type=media_type, headers={"Content-Disposition": f'inline; filename="{filename}"'}
     )
+
+
+@router.get("/{job_id}/profiling_report")
+async def get_profiling_report(
+    job_id: str,
+    experimentId: str,
+    session: AsyncSession = Depends(get_async_session),
+    user_and_team: dict = Depends(get_user_and_team),
+):
+    """
+    Return the profiling_report.json from the job's profiling folder (written when
+    _TFL_PROFILING=1 and copied on lab.finish/error or when the remote trap exits).
+
+    Returns 404 if profiling was not enabled or the report is not yet available.
+    """
+    from lab.dirs import get_job_profiling_dir
+
+    profiling_dir = await get_job_profiling_dir(job_id)
+    report_path = storage.join(profiling_dir, "profiling_report.json")
+
+    if not await storage.exists(report_path):
+        raise HTTPException(status_code=404, detail="Profiling report not found for this job")
+
+    try:
+        async with await storage.open(report_path, "r", encoding="utf-8") as f:
+            content = await f.read()
+        return json.loads(content)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to read profiling report: {exc}") from exc

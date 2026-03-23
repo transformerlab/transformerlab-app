@@ -57,6 +57,7 @@ class JobDetails(Vertical):
         # 4. Buttons (Bottom)
         with Horizontal(id="job-buttons"):
             yield Button("View Job Details", id="btn-view-json", variant="primary")
+            yield Button("View Job Logs", id="btn-view-logs", variant="primary")
             yield Button("Download All Artifacts", id="btn-download", variant="primary")
 
     def set_job(self, job: dict) -> None:
@@ -166,6 +167,22 @@ class JobDetails(Vertical):
         if event.button.id == "btn-view-json":
             if self.current_job:
                 self.app.push_screen(JobJsonModal(self.current_job))
+        elif event.button.id == "btn-view-logs":
+            # Show the logs panel (hidden by default) and focus it.
+            try:
+                from transformerlab_cli.commands.job_monitor.JobLogs import JobLogs
+
+                logs_panel = self.app.query_one(JobLogs)
+                # Toggle visibility so the button can act as show/hide
+                if logs_panel.has_class("visible"):
+                    logs_panel.remove_class("visible")
+                    return
+                logs_panel.add_class("visible")
+                log_view = self.app.query_one("#job-log-view")
+                log_view.scroll_end(animate=False)
+                log_view.focus()
+            except Exception:
+                pass
         elif event.button.id == "btn-download":
             if self.current_job:
                 job_id = str(self.current_job.get("id", ""))
