@@ -441,7 +441,11 @@ export default function JobProgress({
             }}
           >
             {job.status}
-            {progress === -1 ? '' : ` - ${progress.toFixed(1)}%`}
+            {job.status === 'COMPLETE'
+              ? ' - 100%'
+              : progress === -1
+                ? ''
+                : ` - ${progress.toFixed(1)}%`}
           </Chip>
           <>
             {job?.job_data?.start_time && (
