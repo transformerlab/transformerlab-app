@@ -120,15 +120,6 @@ async def model_local_list(embedding=False):
     return await model_service.list_installed_models(embedding)
 
 
-@router.get("/model/count_downloaded")
-async def model_count_downloaded():
-    # Currently used to determine if user has any downloaded models
-    # Use filesystem instead of database
-    models = await ModelService.list_all()
-    count = len(models)
-    return {"status": "success", "data": count}
-
-
 @router.get("/model/create")
 async def model_local_create(id: str, name: str, json_data={}):
     # Use filesystem instead of database

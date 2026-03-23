@@ -203,7 +203,6 @@ Endpoints.Dataset = {
 
 Endpoints.Models = {
   LocalList: () => `${API_URL()}model/list`,
-  CountDownloaded: () => `${API_URL()}model/count_downloaded`,
   Gallery: () => `${API_URL()}model/gallery`,
   ModelGroups: () => `${API_URL()}model/model_groups_list`,
   GetPeftsForModel: () => `${API_URL()}model/pefts`,
