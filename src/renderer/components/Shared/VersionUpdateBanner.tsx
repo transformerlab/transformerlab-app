@@ -15,6 +15,22 @@ const UPDATE_DOCS_URL = 'https://lab.cloud/for-teams/update';
 
 const updateCheckDisabled = process.env.TL_DISABLE_UPDATE_CHECK === 'true';
 
+function stripV(version: string): string {
+  return version.startsWith('v') ? version.slice(1) : version;
+}
+
+function isNewerVersion(latest: string, current: string): boolean {
+  const latestParts = stripV(latest).split('.').map(Number);
+  const currentParts = stripV(current).split('.').map(Number);
+  for (let i = 0; i < Math.max(latestParts.length, currentParts.length); i++) {
+    const l = latestParts[i] ?? 0;
+    const c = currentParts[i] ?? 0;
+    if (l > c) return true;
+    if (l < c) return false;
+  }
+  return false;
+}
+
 export default function VersionUpdateBanner() {
   const [dismissed, setDismissed] = useState<string | null>(null);
 
@@ -29,7 +45,8 @@ export default function VersionUpdateBanner() {
   );
 
   if (updateCheckDisabled) return null;
-  if (!data?.update_available) return null;
+  if (!data?.update_available || !data.latest_version) return null;
+  if (!isNewerVersion(data.latest_version, data.current_version)) return null;
   if (dismissed === data.latest_version) return null;
 
   return (
@@ -49,7 +66,8 @@ export default function VersionUpdateBanner() {
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography level="body-sm">
           A new version of Transformer Lab is available (v
-          {data.latest_version}). You are running v{data.current_version}.{' '}
+          {stripV(data.latest_version)}). You are running v
+          {stripV(data.current_version)}.{' '}
           <Link
             href={UPDATE_DOCS_URL}
             target="_blank"
