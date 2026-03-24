@@ -3,9 +3,6 @@ import { CssVarsProvider } from '@mui/joy/styles';
 import CssBaseline from '@mui/joy/CssBaseline';
 import Box from '@mui/joy/Box';
 
-// import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext'; // REMOVE: No longer needed here
-import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
-import { IconButton } from '@mui/joy';
 import Sidebar from './components/Nav/Sidebar';
 import MainAppPanel from './components/MainAppPanel';
 
@@ -14,16 +11,11 @@ import secretPurpleTheme from './lib/secretPurpleTheme';
 
 import './styles.css';
 
-import OutputTerminal from './components/OutputTerminal';
-import DraggableElipsis from './components/Shared/DraggableEllipsis';
 import AnnouncementBanner from './components/Shared/AnnouncementBanner';
 import InsecurePasswordBanner from './components/Shared/InsecurePasswordBanner';
 import VersionUpdateBanner from './components/Shared/VersionUpdateBanner';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
-import {
-  ExperimentInfoProvider,
-  useExperimentInfo,
-} from './lib/ExperimentInfoContext';
+import { ExperimentInfoProvider } from './lib/ExperimentInfoContext';
 import * as chatAPI from './lib/transformerlab-api-sdk';
 import { AuthProvider, useAuth } from './lib/authContext';
 import LoginPage from './components/Login/LoginPage';
@@ -34,38 +26,20 @@ import ConnectionLostModal from './components/Shared/ConnectionLostModal';
 type AppContentProps = {
   connection: string;
   setConnection: (conn: string) => void;
-  logsDrawerOpen: boolean;
   setLogsDrawerOpen: (open: boolean) => void;
-  logsDrawerHeight: number;
-  setLogsDrawerHeight: (height: number) => void;
   themeSetter: (name: string) => void;
 };
 
 function AppContent({
   connection,
   setConnection,
-  logsDrawerOpen,
   setLogsDrawerOpen,
-  logsDrawerHeight,
-  setLogsDrawerHeight,
   themeSetter,
 }: AppContentProps) {
-  const onOutputDrawerDrag = useCallback(
-    (pos: { y: number }) => {
-      const ypos = pos.y;
-      let bottom = window.innerHeight - ypos;
-      if (bottom < 120) bottom = 120;
-      if (bottom > window.innerHeight / 2) bottom = window.innerHeight / 2;
-      setLogsDrawerHeight(bottom);
-    },
-    [setLogsDrawerHeight],
-  );
-
   const authContext = useAuth();
   const { isError: connectionHealthError, isLoading: connectionHealthLoading } =
     chatAPI.useConnectionHealth(connection);
 
-  const isLocalMode = window?.platform?.multiuser !== true;
   const showConnectionLostModal =
     connection !== '' && !connectionHealthLoading && !!connectionHealthError;
 
@@ -79,22 +53,8 @@ function AppContent({
     return <FullPageLoader />;
   }
 
-  // Show LoginPage when:
-  // 1. Multi-user mode is enabled AND user is not authenticated
-  // 2. OR user is not authenticated but has a connection (meaning auto-login failed)
-  // In cloud mode, connection should be set via environment variable or direct URL
   if (!authContext?.isAuthenticated) {
-    // In multi-user mode, always show LoginPage
-    if (process.env.MULTIUSER === 'true') {
-      return <LoginPage />;
-    }
-    // If we have a connection but aren't authenticated, show LoginPage
-    // (connection was established but auto-login failed)
-    if (connection && connection !== '') {
-      return <LoginPage />;
-    }
-    // If no connection, show nothing (connection should be set via env var in cloud mode)
-    return null;
+    return <LoginPage />;
   }
 
   return (
@@ -117,23 +77,13 @@ function AppContent({
           width: '100%',
           overflow: 'hidden',
           gridTemplateColumns: '180px 1fr',
-          gridTemplateRows: !isLocalMode
-            ? '1fr'
-            : logsDrawerOpen
-              ? `5fr ${logsDrawerHeight}px`
-              : '5fr 18px',
-          gridTemplateAreas: !isLocalMode
-            ? `
+          gridTemplateRows: '1fr',
+          gridTemplateAreas: `
           "sidebar main"
-        `
-            : `
-          "sidebar main"
-          "sidebar footer"
         `,
         })}
       >
         <Sidebar
-          logsDrawerOpen={logsDrawerOpen}
           setLogsDrawerOpen={setLogsDrawerOpen as any}
           themeSetter={themeSetter}
         />
@@ -164,69 +114,10 @@ function AppContent({
             setConnection={setConnection}
           />
         )}
-        {isLocalMode && (
-          <Box
-            sx={{
-              gridArea: 'footer',
-              display: 'flex',
-              flexDirection: 'column',
-              height: logsDrawerOpen ? '100%' : '18px',
-              width: '100%',
-              overflow: 'hidden',
-              alignItems: 'stretch',
-              backgroundColor: 'var(--joy-palette-background-level3)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                height: '18px',
-                lineHeight: '18px',
-              }}
-            >
-              <div>&nbsp;</div>
-              {logsDrawerOpen ? (
-                <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
-              ) : (
-                <>&nbsp;</>
-              )}
-              <IconButton
-                sx={{ padding: 0, margin: 0, minHeight: 0 }}
-                onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
-              >
-                {logsDrawerOpen ? (
-                  <ChevronDownIcon size="18px" />
-                ) : (
-                  <ChevronUpIcon size="18px" />
-                )}
-              </IconButton>
-            </div>
-            <Box
-              sx={{
-                height: logsDrawerOpen ? '100%' : '0px',
-                overflow: 'hidden',
-                border: logsDrawerOpen ? '10px solid #444' : '0',
-                padding: logsDrawerOpen ? '6px' : '0',
-                backgroundColor: '#000',
-                width: '100%',
-              }}
-            >
-              <OutputTerminal
-                key={connection}
-                logEndpoint={chatAPI.Endpoints.ServerInfo.StreamLog()}
-                initialMessage="** Running a Model will Display Output Here **"
-              />
-            </Box>
-          </Box>
-        )}
       </Box>
     </Box>
   );
 }
-
-const INITIAL_LOGS_DRAWER_HEIGHT = 200; // Default height for logs drawer when first opened
 
 export default function App() {
   // Normalize TL_API_URL - ensure it's either a valid URL or default sensibly based on environment
@@ -236,9 +127,7 @@ export default function App() {
     // - For localhost or frontend port 1212, assume API is on port 8338 (Electron dev)
     // - For non-localhost, assume API is served from the same origin as the frontend
     if (!envUrl || envUrl === 'default' || envUrl.trim() === '') {
-      const protocol = window.location.protocol;
-      const hostname = window.location.hostname;
-      const port = window.location.port;
+      const { protocol, hostname, port } = window.location;
 
       // Local dev: API runs on 8338 even if frontend uses another port
       if (hostname === 'localhost' || hostname === '127.0.0.1') {
@@ -266,27 +155,19 @@ export default function App() {
     // Ensure the URL has a trailing slash
     let url = envUrl.trim();
     if (!url.endsWith('/')) {
-      url = url + '/';
+      url += '/';
     }
     return url;
   })();
 
   const [connection, setConnection] = useState(initialApiUrl);
-  const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
-  const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
+  const [, setLogsDrawerOpen] = useState(false);
   const [theme, setTheme] = useState(customTheme);
 
   useEffect(() => {
     window.TransformerLab = {};
     window.TransformerLab.API_URL = initialApiUrl;
   }, [initialApiUrl]);
-
-  // if the logs drawer is open, set the initial height
-  useEffect(() => {
-    if (logsDrawerOpen) {
-      setLogsDrawerHeight(INITIAL_LOGS_DRAWER_HEIGHT);
-    }
-  }, [logsDrawerOpen]);
 
   const themeSetter = useCallback((name: string) => {
     if (name === 'purple') {
@@ -306,10 +187,7 @@ export default function App() {
               <AppContent
                 connection={connection}
                 setConnection={setConnection}
-                logsDrawerOpen={logsDrawerOpen}
                 setLogsDrawerOpen={setLogsDrawerOpen}
-                logsDrawerHeight={logsDrawerHeight}
-                setLogsDrawerHeight={setLogsDrawerHeight}
                 themeSetter={themeSetter}
               />
             </ExperimentInfoProvider>
