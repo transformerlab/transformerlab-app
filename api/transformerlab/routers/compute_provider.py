@@ -1450,6 +1450,26 @@ async def _launch_sweep_jobs(
 
                 # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
                 file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
+
+                # Resolve SkyPilot-specific settings from provider config for sweep child jobs
+                sweep_image_id: str | None = None
+                sweep_region: str | None = None
+                sweep_zone: str | None = None
+                sweep_use_spot: bool = False
+                if provider.type == ProviderType.SKYPILOT.value:
+                    prov_cfg = provider.config or {}
+                    sweep_image_id = prov_cfg.get("docker_image") or None
+                    sweep_region = prov_cfg.get("default_region") or None
+                    sweep_zone = prov_cfg.get("default_zone") or None
+                    sweep_use_spot = prov_cfg.get("use_spot", False) is True
+                    if request.config:
+                        if request.config.get("docker_image"):
+                            sweep_image_id = str(request.config["docker_image"]).strip()
+                        if request.config.get("region"):
+                            sweep_region = str(request.config["region"]).strip()
+                        if request.config.get("use_spot"):
+                            sweep_use_spot = True
+
                 cluster_config = ClusterConfig(
                     cluster_name=formatted_cluster_name,
                     provider_name=provider_display_name,
@@ -1464,6 +1484,10 @@ async def _launch_sweep_jobs(
                     disk_size=disk_size,
                     file_mounts=file_mounts_for_provider,
                     provider_config={"requested_disk_space": request.disk_space},
+                    image_id=sweep_image_id,
+                    region=sweep_region,
+                    zone=sweep_zone,
+                    use_spot=sweep_use_spot,
                 )
 
                 # Launch cluster for child job
@@ -1962,6 +1986,28 @@ async def launch_template_on_provider(
     else:
         parameters_with_secrets = merged_parameters if merged_parameters else None
 
+    # For SkyPilot providers, resolve docker_image / region / use_spot.
+    # Per-job overrides (from request.config) take precedence over provider-level defaults.
+    skypilot_image_id: str | None = None
+    skypilot_region: str | None = None
+    skypilot_zone: str | None = None
+    skypilot_use_spot: bool = False
+    if provider.type == ProviderType.SKYPILOT.value:
+        prov_cfg = provider.config or {}
+        # Provider-level defaults
+        skypilot_image_id = prov_cfg.get("docker_image") or None
+        skypilot_region = prov_cfg.get("default_region") or None
+        skypilot_zone = prov_cfg.get("default_zone") or None
+        skypilot_use_spot = prov_cfg.get("use_spot", False) is True
+        # Per-job overrides from the frontend config dict
+        if request.config:
+            if request.config.get("docker_image"):
+                skypilot_image_id = str(request.config["docker_image"]).strip()
+            if request.config.get("region"):
+                skypilot_region = str(request.config["region"]).strip()
+            if request.config.get("use_spot"):
+                skypilot_use_spot = True
+
     # Build provider_config for cluster_config (and job_data for local provider)
     provider_config_dict = {"requested_disk_space": request.disk_space}
     # For SLURM, pass through any per-run custom SBATCH flags so the provider
@@ -2098,6 +2144,10 @@ async def launch_template_on_provider(
         disk_size=disk_size,
         file_mounts=file_mounts_for_provider,
         provider_config=provider_config_dict,
+        image_id=skypilot_image_id,
+        region=skypilot_region,
+        zone=skypilot_zone,
+        use_spot=skypilot_use_spot,
     )
 
     await job_service.job_update_launch_progress(
