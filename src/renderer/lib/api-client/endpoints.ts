@@ -265,6 +265,7 @@ Endpoints.Documents = {
 
 Endpoints.ServerInfo = {
   StreamLog: () => `${API_URL()}server/stream_log`,
+  Version: () => `${API_URL()}server/version`,
 };
 
 Endpoints.Charts = {
@@ -417,6 +418,8 @@ Endpoints.Experiment = {
     tailLines: number = 1000,
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/tunnel_info?tail_lines=${tailLines}`,
+  GetProfilingReport: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/profiling_report`,
   GetAdditionalDetails: (
     experimentId: string,
     jobId: string,
@@ -494,4 +497,40 @@ Endpoints.Teams = {
 Endpoints.Users = {
   GetSecrets: () => `${API_URL()}users/me/secrets`,
   SetSecrets: () => `${API_URL()}users/me/secrets`,
+};
+
+Endpoints.AssetVersions = {
+  ListGroups: (assetType: string) =>
+    `${API_URL()}asset_versions/groups?asset_type=${assetType}`,
+  DeleteGroup: (assetType: string, groupName: string) =>
+    `${API_URL()}asset_versions/groups/${assetType}/${groupName}`,
+  CreateVersion: () => `${API_URL()}asset_versions/versions`,
+  ListVersions: (assetType: string, groupName: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}`,
+  GetVersion: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
+  DeleteVersion: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
+  UpdateVersion: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
+  SetTag: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}/tag`,
+  ClearTag: (assetType: string, groupName: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}/tag`,
+  Resolve: (
+    assetType: string,
+    groupName: string,
+    tag?: string,
+    versionLabel?: string,
+  ) => {
+    let url = `${API_URL()}asset_versions/resolve/${assetType}/${groupName}`;
+    const params: string[] = [];
+    if (tag) params.push(`tag=${tag}`);
+    if (versionLabel !== undefined)
+      params.push(`version_label=${versionLabel}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    return url;
+  },
+  GetAssetGroupMap: (assetType: string) =>
+    `${API_URL()}asset_versions/map/${assetType}`,
 };

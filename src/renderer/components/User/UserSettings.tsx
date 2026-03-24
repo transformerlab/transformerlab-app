@@ -84,6 +84,7 @@ function PasswordChangeForm({ open, onClose }) {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               fullWidth
+              slotProps={{ input: { autoComplete: 'new-password' } }}
             />
           </FormControl>
           <FormControl sx={{ mt: 1 }}>
@@ -93,6 +94,7 @@ function PasswordChangeForm({ open, onClose }) {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               fullWidth
+              slotProps={{ input: { autoComplete: 'new-password' } }}
             />
           </FormControl>
         </DialogContent>

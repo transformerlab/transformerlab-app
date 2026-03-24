@@ -51,6 +51,7 @@ from transformerlab.routers import (  # noqa: E402
     api_keys,
     quota,
     ssh_keys,
+    asset_versions,
     trackio,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
@@ -316,6 +317,7 @@ app.include_router(auth.router)
 app.include_router(api_keys.router)
 app.include_router(quota.router)
 app.include_router(ssh_keys.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(asset_versions.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(trackio.router, dependencies=[Depends(get_user_and_team)])
 
 
@@ -337,15 +339,21 @@ async def install_all_plugins():
 async def healthz():
     """
     Health check endpoint to verify server status and mode.
+    Also includes version info so the frontend can detect updates without extra polling.
     """
+    from transformerlab.services.version_service import get_version_info
+
     # MULTIUSER flag: default to true unless explicitly set to 'false'
     IS_MULTIUSER = os.getenv("MULTIUSER", "true").lower() == "true"
     # Determine mode: multiuser or local
     mode = "multiuser" if IS_MULTIUSER else "local"
 
+    version_info = await get_version_info()
+
     return {
         "message": "OK",
         "mode": mode,
+        "version": version_info,
     }
 
 

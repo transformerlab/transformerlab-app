@@ -22,10 +22,8 @@ class JobListItem(ListItem):
         task_name = job_data.get("task_name", "Unknown")
         status = self.job.get("status", "N/A")
 
-        # THEME: Use $secondary (Pink) for the ID/Header to match CLI 'header'
         yield Label(f"[bold $secondary]{task_name} [{self.job.get('id', '?')}][/]")
 
-        # THEME: Use Textual variables ($success, $error) which we mapped above
         if status == "COMPLETED":
             status_color = "$success"
         elif status == "FAILED":
@@ -132,7 +130,7 @@ class JobMonitorApp(App):
         try:
             job_list = self.query_one("#job-list", ListView)
             job_list.display = False
-        except Exception:
+        except LookupError:
             pass
 
     def populate_jobs(self, jobs: list[dict]) -> None:
@@ -146,8 +144,8 @@ class JobMonitorApp(App):
 
             for job in jobs:
                 job_list.append(JobListItem(job))
-        except Exception:
-            # Handle case where widget might be unmounted during refresh
+        except LookupError:
+            # Widget might be unmounted during refresh
             pass
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:

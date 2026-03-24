@@ -1,9 +1,7 @@
 import httpx
-from rich.console import Console
 
 from transformerlab_cli.util.shared import CREDENTIALS_DIR, CREDENTIALS_FILE, AUTH_URL
-
-console = Console()
+from transformerlab_cli.util.ui import console
 
 
 def set_api_key(api_key: str) -> bool:
@@ -14,10 +12,10 @@ def set_api_key(api_key: str) -> bool:
     try:
         CREDENTIALS_DIR.mkdir(parents=True, exist_ok=True)
     except PermissionError:
-        console.print(f"[red]Error:[/red] Cannot create directory {CREDENTIALS_DIR}")
+        console.print(f"[error]Error:[/error] Cannot create directory {CREDENTIALS_DIR}")
         return False
     except OSError as e:
-        console.print(f"[red]Error:[/red] Failed to create directory: {e}")
+        console.print(f"[error]Error:[/error] Failed to create directory: {e}")
         return False
 
     key_response = test_api_key_on_remote_server(api_key)
@@ -29,22 +27,22 @@ def set_api_key(api_key: str) -> bool:
     if key_response.status_code == 200:
         try:
             CREDENTIALS_FILE.write_text(api_key)
-            console.print("[green]✓[/green] API key validated and saved locally.")
+            console.print("[success]✓[/success] API key validated and saved locally.")
             return True
         except PermissionError:
-            console.print(f"[red]Error:[/red] Cannot write to {CREDENTIALS_FILE}")
+            console.print(f"[error]Error:[/error] Cannot write to {CREDENTIALS_FILE}")
             return False
         except OSError as e:
-            console.print(f"[red]Error:[/red] Failed to save credentials: {e}")
+            console.print(f"[error]Error:[/error] Failed to save credentials: {e}")
             return False
     elif key_response.status_code == 401:
-        console.print("[red]Error:[/red] Invalid API key")
+        console.print("[error]Error:[/error] Invalid API key")
         return False
     elif key_response.status_code == 403:
-        console.print("[red]Error:[/red] API key is not authorized")
+        console.print("[error]Error:[/error] API key is not authorized")
         return False
     else:
-        console.print(f"[red]Error:[/red] Server returned status {key_response.status_code}")
+        console.print(f"[error]Error:[/error] Server returned status {key_response.status_code}")
         return False
 
 
@@ -54,18 +52,18 @@ def delete_api_key() -> bool:
     Returns True if successful, False otherwise.
     """
     if not CREDENTIALS_FILE.exists():
-        console.print("[yellow]No credentials file found[/yellow]")
+        console.print("[warning]No credentials file found[/warning]")
         return True
 
     try:
         CREDENTIALS_FILE.unlink()
-        console.print("[green]✓[/green] Logged out successfully")
+        console.print("[success]✓[/success] Logged out successfully")
         return True
     except PermissionError:
-        console.print(f"[red]Error:[/red] Cannot delete {CREDENTIALS_FILE}")
+        console.print(f"[error]Error:[/error] Cannot delete {CREDENTIALS_FILE}")
         return False
     except OSError as e:
-        console.print(f"[red]Error:[/red] Failed to delete credentials: {e}")
+        console.print(f"[error]Error:[/error] Failed to delete credentials: {e}")
         return False
 
 
@@ -87,7 +85,7 @@ def test_api_key_on_remote_server(api_key: str) -> httpx.Response | None:
     Test the provided API key against the remote server.
     Returns response object or None on connection error.
     """
-    with console.status("[bold cyan]Testing API key...", spinner="dots"):
+    with console.status("[bold info]Testing API key...", spinner="dots"):
         try:
             response = httpx.get(
                 AUTH_URL(),
@@ -96,7 +94,7 @@ def test_api_key_on_remote_server(api_key: str) -> httpx.Response | None:
             )
             return response
         except httpx.RequestError as e:
-            console.print(f"[red]Error:[/red] Could not connect to server: {e}")
+            console.print(f"[error]Error:[/error] Could not connect to server: {e}")
             return None
 
 
@@ -116,10 +114,10 @@ def fetch_user_info(api_key: str) -> dict | None:
         response.raise_for_status()
         return response.json()
     except httpx.RequestError as e:
-        console.print(f"[red]Error:[/red] Could not fetch user info: {e}")
+        console.print(f"[error]Error:[/error] Could not fetch user info: {e}")
         return None
     except httpx.HTTPStatusError as e:
-        console.print(f"[red]Error:[/red] Server returned status {e.response.status_code}")
+        console.print(f"[error]Error:[/error] Server returned status {e.response.status_code}")
         return None
 
 
@@ -139,10 +137,10 @@ def fetch_user_teams(api_key: str) -> dict | None:
         response.raise_for_status()
         return response.json()
     except httpx.RequestError as e:
-        console.print(f"[red]Error:[/red] Could not fetch teams info: {e}")
+        console.print(f"[error]Error:[/error] Could not fetch teams info: {e}")
         return None
     except httpx.HTTPStatusError as e:
-        console.print(f"[red]Error:[/red] Server returned status {e.response.status_code}")
+        console.print(f"[error]Error:[/error] Server returned status {e.response.status_code}")
         return None
 
 

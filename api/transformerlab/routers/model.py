@@ -28,7 +28,23 @@ async def get_model_prompt_template(model: str):
 @cached(key="models:list:{embedding}", ttl="7d", tags=["models", "models:list"])
 async def model_local_list(embedding=False):
     # the model list is a combination of downloaded hugging face models and locally generated models
-    return await model_service.list_installed_models(embedding)
+    models = await model_service.list_installed_models(embedding)
+
+    # Augment each model with version group info if any
+    try:
+        from transformerlab.services import asset_version_service
+
+        group_map = await asset_version_service.get_all_asset_group_map("model")
+        for model in models:
+            model_id = model.get("model_id", "")
+            if model_id in group_map:
+                model["version_groups"] = group_map[model_id]
+            else:
+                model["version_groups"] = []
+    except Exception as e:
+        print(f"Warning: could not fetch model version groups: {e}")
+
+    return models
 
 
 @router.get("/model/create")
