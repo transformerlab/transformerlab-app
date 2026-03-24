@@ -147,12 +147,6 @@ async def model_delete_peft(model_id: str, peft: str):
     return {"message": "success"}
 
 
-async def get_model_from_db(model_id: str):
-    # Get model from filesystem
-    model_service = await ModelService.get(model_id)
-    return await model_service.get_metadata()
-
-
 @router.get("/model/chat_template")
 async def chat_template(model_name: str):
     try:
