@@ -14,6 +14,7 @@ description = "Transformer Lab API"
 requires-python = ">=3.11"
 dependencies = [
   # Minimal dependencies for general/multiuser API installs
+  "aiosqlite==0.20.0",
   "aiofiles==24.1.0",
   "alembic==1.17.2",
   "boto3==1.40.70",
