@@ -1,7 +1,6 @@
 import json
 from typing import Annotated
 from fastapi import APIRouter, Body
-from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError
@@ -150,13 +149,6 @@ async def model_details_from_filesystem(model_id: str):
             pass
 
     return {}
-
-
-@router.get("/model/get_conversation_template")
-async def get_model_prompt_template(model: str):
-    # Below we grab the conversation template from FastChat's model adapter
-    # solution by passing in the model name
-    return get_conversation_template(model)
 
 
 @router.get("/model/list")
