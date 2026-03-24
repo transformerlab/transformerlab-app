@@ -152,10 +152,6 @@
       "method": "POST",
       "path": "model/install_peft?peft={peft}&model_id={modelId}"
     },
-    "chatTemplate": {
-      "method": "GET",
-      "path": "model/chat_template?model_name={modelName}"
-    },
     "pipeline_tag": {
       "method": "GET",
       "path": "model/pipeline_tag?model_name={modelName}"
@@ -243,10 +239,6 @@
     "previewTemplate": {
       "method": "GET",
       "path": "data/preview_with_template?dataset_id={datasetId}&template={template}&offset={offset}&limit={limit}"
-    },
-    "previewChatTemplate": {
-      "method": "GET",
-      "path": "data/preview_with_chat_template?dataset_id={datasetId}&template={template}&offset={offset}&limit={limit}&model_name={modelName}&chat_column={chatColumn}"
     }
   },
   "recipes": {

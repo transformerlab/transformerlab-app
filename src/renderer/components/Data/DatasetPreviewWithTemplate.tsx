@@ -34,7 +34,6 @@ const DatasetTableWithTemplate = ({
     setNumOfPages(totalPages);
   };
 
-  const shouldUseChatTemplate = !!modelName && !!chatColumn;
   const { addNotification } = useNotification();
 
   const {
@@ -43,13 +42,12 @@ const DatasetTableWithTemplate = ({
     isLoading,
   } = useAPI(
     'datasets',
-    [shouldUseChatTemplate ? 'previewChatTemplate' : 'previewTemplate'],
+    ['previewTemplate'],
     {
       datasetId,
       template: encodeURIComponent(template),
       offset,
       limit: pageSize,
-      ...(shouldUseChatTemplate ? { modelName, chatColumn } : {}),
     },
   );
 

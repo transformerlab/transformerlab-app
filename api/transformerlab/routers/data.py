@@ -21,9 +21,6 @@ import wave
 from lab.dirs import get_global_log_path
 
 
-from transformers import AutoTokenizer
-
-
 from werkzeug.utils import secure_filename
 
 from jinja2 import Environment
@@ -384,63 +381,6 @@ async def dataset_preview_with_template(
         # Apply the template to a new key in row called __formatted__
         row["__formatted__"] = jinja_template.render(row)
         # row['__template__'] = template
-        rows.append(row)
-
-    return {
-        "status": "success",
-        "data": {"columns": column_names, "rows": rows, "len": dataset_len, "offset": offset, "limit": limit},
-    }
-
-
-@router.get(
-    "/preview_with_chat_template",
-    summary="Preview the contents of a dataset after applying a jinja chat template to it.",
-    responses={
-        200: {
-            "model": SuccessResponse,
-            "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype.",
-        },
-        400: {"model": ErrorResponse},
-    },
-)
-async def dataset_preview_with_chat_template(
-    model_name: str = Query(...),
-    chat_column: str = Query(...),
-    dataset_id: str = Query(
-        description="The ID of the dataset to preview. This can be a HuggingFace dataset ID or a local dataset ID."
-    ),
-    template: str = "",
-    offset: int = Query(0, description="The starting index from where to fetch the data.", ge=0),
-    limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000),
-) -> Any:
-    result, dataset_len = await load_and_slice_dataset(dataset_id, offset, limit)
-    column_names = list(result["columns"].keys())
-
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-
-    rows = []
-    # now iterate over all columns and rows, do not use offset or len because we've already
-    # sliced the dataset
-    for i in range(0, len(result["columns"][column_names[0]])):
-        row = {}
-        row["__index__"] = i + offset
-        for key in result["columns"].keys():
-            row[key] = serialize_row(result["columns"][key][i])
-
-        try:
-            row["__formatted__"] = tokenizer.apply_chat_template(
-                row[chat_column],
-                tokenize=False,
-            )
-        except Exception:
-            return {
-                "status": "error",
-                "message": (
-                    f"Chat template could not be applied.\nThe selected column '{chat_column}' "
-                    "must contain a list of dictionaries with 'role' and 'content' keys. \n"
-                    f"Example: [{{'role': 'user', 'content': 'Hi'}}]."
-                ),
-            }
         rows.append(row)
 
     return {
