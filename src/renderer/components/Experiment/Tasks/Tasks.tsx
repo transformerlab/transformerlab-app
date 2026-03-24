@@ -1242,7 +1242,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         gap={2}
         sx={{ mt: 1 }}
       >
-        <Typography level="title-md">Runs</Typography>
+        <Typography level="title-md">Jobs</Typography>
         <Stack direction="row" gap={1}>
           <Button
             size="sm"
