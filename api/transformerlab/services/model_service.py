@@ -17,7 +17,7 @@ from lab.dirs import get_models_dir
 logger = logging.getLogger(__name__)
 
 
-async def list_installed_models(embedding: bool = False) -> list:
+async def list_installed_models() -> list:
     """
     TODO: Clean this up to remove legacy code.
 
