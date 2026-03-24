@@ -34,6 +34,7 @@ import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import { generateFriendlyName } from 'renderer/lib/utils';
+import { isProviderCompatibleWithAccelerators } from './providerCompatibility';
 
 type ProviderOption = {
   id: string;
@@ -175,63 +176,9 @@ export default function NewInteractiveTaskModal({
     };
   }, [open, isSubmitting, loadingMessages]);
 
-  // Helper to check if a provider supports requested accelerators
   const isProviderCompatible = React.useCallback(
-    (provider: any, taskSupportedAccelerators: string | undefined) => {
-      // Only enforce accelerator compatibility heuristics for local providers.
-      // Remote providers (Runpod, Skypilot, SLURM, etc.) validate resources on their side.
-      if (provider?.type !== 'local') {
-        return true;
-      }
-
-      if (!taskSupportedAccelerators) return true;
-
-      const supported = provider.config?.supported_accelerators || [];
-      if (supported.length === 0) return true; // Default to compatible if not specified
-
-      const reqAcc = String(taskSupportedAccelerators).toLowerCase();
-
-      // Check for Apple Silicon
-      if (
-        (reqAcc.includes('apple') || reqAcc.includes('mps')) &&
-        supported.includes('AppleSilicon')
-      ) {
-        return true;
-      }
-
-      // Check for NVIDIA
-      if (
-        (reqAcc.includes('nvidia') ||
-          reqAcc.includes('cuda') ||
-          reqAcc.includes('rtx') ||
-          reqAcc.includes('a100') ||
-          reqAcc.includes('h100') ||
-          reqAcc.includes('v100')) &&
-        supported.includes('NVIDIA')
-      ) {
-        return true;
-      }
-
-      // Check for AMD
-      if (
-        (reqAcc.includes('amd') || reqAcc.includes('rocm')) &&
-        supported.includes('AMD')
-      ) {
-        return true;
-      }
-
-      // Check for CPU
-      if (reqAcc.includes('cpu') && supported.includes('cpu')) {
-        return true;
-      }
-
-      // If it's just a number, we assume it's NVIDIA/CUDA
-      if (/^\d+$/.test(reqAcc)) {
-        return supported.includes('NVIDIA');
-      }
-
-      return false;
-    },
+    (provider: any, taskSupportedAccelerators: string | string[] | undefined) =>
+      isProviderCompatibleWithAccelerators(provider, taskSupportedAccelerators),
     [],
   );
 

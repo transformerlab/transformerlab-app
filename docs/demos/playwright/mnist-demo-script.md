@@ -26,7 +26,7 @@ One of Transformer Lab's key features is compute provider flexibility. You can r
 
 ## Step 6 — Viewing Job Output [20s]
 
-Scrolling down to the Runs section, we can see all previous job executions. Let's look at Run #43, a completed training job. Clicking "Output" shows the full terminal output from the job — you can see training progress, loss values, and completion status in real time.
+Scrolling down to the Jobs section, we can see all previous job executions. Let's look at Run #43, a completed training job. Clicking "Output" shows the full terminal output from the job — you can see training progress, loss values, and completion status in real time.
 
 ## Step 7 — Reviewing Checkpoints [14s]
 
