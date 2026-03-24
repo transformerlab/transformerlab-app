@@ -110,8 +110,6 @@ function File({
   experimentInfo,
   currentFolder,
   mutate,
-  setPreviewFile,
-  isLocalMode = true,
 }) {
   return (
     <tr key={row?.name}>
@@ -173,13 +171,8 @@ function File({
             variant="plain"
             size="sm"
             style={{ fontSize: '11px' }}
-            disabled={!isLocalMode}
-            title={
-              !isLocalMode ? 'Preview not available in remote mode' : undefined
-            }
-            onClick={() => {
-              if (isLocalMode) setPreviewFile(row?.name);
-            }}
+            disabled
+            title="Preview not available in remote mode"
           >
             <EyeIcon size="16px" />
           </Button>
@@ -325,7 +318,6 @@ type Order = 'asc' | 'desc';
 
 export default function Documents({ fullPage = false, fixedFolder = '' }) {
   const { experimentInfo } = useExperimentInfo();
-  const isLocalMode = window?.platform?.multiuser !== true;
   const [doc, setDoc] = React.useState<Doc>('desc');
   const [open, setOpen] = React.useState(false);
   const [dropzoneActive, setDropzoneActive] = React.useState(false);
@@ -935,8 +927,6 @@ export default function Documents({ fullPage = false, fixedFolder = '' }) {
                         experimentInfo={experimentInfo}
                         currentFolder={currentFolder}
                         mutate={mutate}
-                        setPreviewFile={setPreviewFile}
-                        isLocalMode={isLocalMode}
                       />
                     ),
                   )}
