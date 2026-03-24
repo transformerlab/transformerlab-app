@@ -5,7 +5,7 @@ import ProfilingReport from './ProfilingReport';
 interface ViewProfilingModalProps {
   open: boolean;
   onClose: () => void;
-  jobId: number;
+  jobId: string | null;
 }
 
 export default function ViewProfilingModal({
@@ -30,7 +30,7 @@ export default function ViewProfilingModal({
           Profiling – Job {jobId}
         </Typography>
         <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-          {jobId !== -1 && <ProfilingReport jobId={jobId} />}
+          {jobId && <ProfilingReport jobId={jobId} />}
         </Box>
       </ModalDialog>
     </Modal>

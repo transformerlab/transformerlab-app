@@ -78,14 +78,14 @@ function StatCard({ label, peak, avg }: StatCardProps) {
 }
 
 interface ProfilingReportProps {
-  jobId: number;
+  jobId: string | null;
 }
 
 export default function ProfilingReport({ jobId }: ProfilingReportProps) {
   const { experimentInfo } = useExperimentInfo();
 
   const url =
-    jobId !== -1 && experimentInfo?.id
+    jobId && experimentInfo?.id
       ? chatAPI.Endpoints.Experiment.GetProfilingReport(
           experimentInfo.id,
           String(jobId),

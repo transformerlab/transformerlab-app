@@ -48,30 +48,52 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [queueModalOpen, setQueueModalOpen] = useState(false);
   const [taskBeingQueued, setTaskBeingQueued] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
+  const [viewOutputFromJob, setViewOutputFromJob] = useState<string | null>(
+    null,
+  );
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
     useState(-1);
-  const [viewCheckpointsFromJob, setViewCheckpointsFromJob] = useState(-1);
-  const [viewArtifactsFromJob, setViewArtifactsFromJob] = useState(-1);
-  const [viewProfilingFromJob, setViewProfilingFromJob] = useState(-1);
-  const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
+  const [viewCheckpointsFromJob, setViewCheckpointsFromJob] = useState<
+    string | null
+  >(null);
+  const [viewArtifactsFromJob, setViewArtifactsFromJob] = useState<
+    string | null
+  >(null);
+  const [viewProfilingFromJob, setViewProfilingFromJob] = useState<
+    string | null
+  >(null);
+  const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState<
+    string | null
+  >(null);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
-  const [viewSweepResultsFromJob, setViewSweepResultsFromJob] = useState(-1);
-  const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState(-1);
-  const [interactiveJobForModal, setInteractiveJobForModal] = useState(-1);
-  const [viewJobDatasetsFromJob, setViewJobDatasetsFromJob] = useState(-1);
-  const [viewJobModelsFromJob, setViewJobModelsFromJob] = useState(-1);
+  const [viewSweepResultsFromJob, setViewSweepResultsFromJob] = useState<
+    string | null
+  >(null);
+  const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState<
+    string | null
+  >(null);
+  const [interactiveJobForModal, setInteractiveJobForModal] = useState<
+    string | null
+  >(null);
+  const [viewJobDatasetsFromJob, setViewJobDatasetsFromJob] = useState<
+    string | null
+  >(null);
+  const [viewJobModelsFromJob, setViewJobModelsFromJob] = useState<
+    string | null
+  >(null);
   const [previewDatasetModal, setPreviewDatasetModal] = useState<{
     open: boolean;
     datasetId: string | null;
   }>({ open: false, datasetId: null });
   const [trackioJobIdForModal, setTrackioJobIdForModal] = useState<
-    number | null
+    string | null
   >(null);
-  const [compareEvalJobIds, setCompareEvalJobIds] = useState<number[]>([]);
+  const [compareEvalJobIds, setCompareEvalJobIds] = useState<string[]>([]);
   const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
-  const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState(-1);
+  const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState<
+    string | null
+  >(null);
   const [viewTaskFilesFromTask, setViewTaskFilesFromTask] = useState<{
     id: string | null;
     name?: string | null;
@@ -166,16 +188,18 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   // Listen for custom event to open job output modal from interactive modals
   useEffect(() => {
     const handleOpenJobOutput = (e: Event) => {
-      const customEvent = e as CustomEvent<{ jobId: number }>;
-      const jobId = customEvent.detail?.jobId;
-      if (jobId && jobId !== -1) {
+      const customEvent = e as CustomEvent<{ jobId?: unknown }>;
+      const rawJobId = customEvent.detail?.jobId;
+      const jobIdStr =
+        rawJobId === null || rawJobId === undefined ? '' : String(rawJobId);
+      if (jobIdStr && jobIdStr !== '-1' && jobIdStr !== 'NaN') {
         // Close the interactive modal first
-        setInteractiveJobForModal(-1);
+        setInteractiveJobForModal(null);
         // Wait for the modal to close (MUI modals have transition animations)
         // Use a longer delay to ensure the interactive modal fully closes
         // before opening the output modal to avoid z-index/stacking issues
         setTimeout(() => {
-          setViewOutputFromJob(jobId);
+          setViewOutputFromJob(jobIdStr);
         }, 300); // 300ms should be enough for modal close animation
       }
     };
@@ -1281,51 +1305,66 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           jobs={jobsWithPlaceholders as any}
           launchProgressByJobId={launchProgressByJobId}
           onDeleteJob={handleDeleteJob}
-          onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
+          onViewOutput={(jobId) => {
+            const jobIdStr =
+              jobId === null || jobId === undefined ? '' : String(jobId);
+            if (!jobIdStr || jobIdStr === '-1' || jobIdStr === 'NaN') return;
+            setViewOutputFromJob(jobIdStr);
+          }}
           onViewTensorboard={(jobId) =>
-            setCurrentTensorboardForModal(parseInt(jobId))
+            setCurrentTensorboardForModal(parseInt(jobId, 10))
           }
           onViewCheckpoints={(jobId) =>
-            setViewCheckpointsFromJob(parseInt(jobId))
+            setViewCheckpointsFromJob(jobId && jobId !== 'NaN' ? jobId : null)
           }
-          onViewArtifacts={(jobId) => setViewArtifactsFromJob(parseInt(jobId))}
-          onViewProfiling={(jobId) => setViewProfilingFromJob(parseInt(jobId))}
+          onViewArtifacts={(jobId) =>
+            setViewArtifactsFromJob(jobId && jobId !== 'NaN' ? jobId : null)
+          }
+          onViewProfiling={(jobId) =>
+            setViewProfilingFromJob(jobId && jobId !== 'NaN' ? jobId : null)
+          }
           onViewEvalImages={(jobId) =>
-            setViewEvalImagesFromJob(parseInt(jobId))
+            setViewEvalImagesFromJob(jobId && jobId !== 'NaN' ? jobId : null)
           }
           onViewEvalResults={(jobId) =>
-            setViewEvalResultsFromJob(parseInt(jobId))
+            setViewEvalResultsFromJob(jobId && jobId !== 'NaN' ? jobId : null)
           }
           onViewGeneratedDataset={(jobId, datasetId) => {
             setPreviewDatasetModal({ open: true, datasetId });
           }}
           onViewJobDatasets={(jobId) =>
-            setViewJobDatasetsFromJob(parseInt(jobId))
+            setViewJobDatasetsFromJob(jobId && jobId !== 'NaN' ? jobId : null)
           }
-          onViewJobModels={(jobId) => setViewJobModelsFromJob(parseInt(jobId))}
-          onViewFileBrowser={(jobId) =>
-            setViewFileBrowserFromJob(parseInt(jobId))
+          onViewJobModels={(jobId) =>
+            setViewJobModelsFromJob(jobId && jobId !== 'NaN' ? jobId : null)
           }
+          onViewFileBrowser={(jobId) => {
+            if (jobId == null || jobId === '') return;
+            setViewFileBrowserFromJob(String(jobId));
+          }}
           onViewSweepOutput={(jobId) => {
             setViewOutputFromSweepJob(true);
-            setViewOutputFromJob(parseInt(jobId));
+            const jobIdStr =
+              jobId === null || jobId === undefined ? '' : String(jobId);
+            if (!jobIdStr || jobIdStr === '-1' || jobIdStr === 'NaN') return;
+            setViewOutputFromJob(jobIdStr);
           }}
           onViewSweepResults={(jobId) => {
-            setViewSweepResultsFromJob(parseInt(jobId));
+            setViewSweepResultsFromJob(jobId && jobId !== 'NaN' ? jobId : null);
           }}
           onViewInteractive={(jobId) =>
-            setInteractiveJobForModal(parseInt(jobId))
+            setInteractiveJobForModal(jobId && jobId !== 'NaN' ? jobId : null)
           }
           onViewTrackio={(jobId) =>
-            setTrackioJobIdForModal(parseInt(jobId, 10))
+            setTrackioJobIdForModal(jobId && jobId !== 'NaN' ? jobId : null)
           }
           loading={jobsIsLoading}
           selectMode={isCompareSelectMode}
           selectedJobIds={compareEvalJobIds.map((id) => String(id))}
           onToggleJobSelected={(jobId) => {
             setCompareEvalJobIds((prev) => {
-              const id = parseInt(jobId, 10);
-              if (Number.isNaN(id)) return prev;
+              const id = jobId;
+              if (!id || id === 'NaN') return prev;
               if (prev.includes(id)) {
                 return prev.filter((existing) => existing !== id);
               }
@@ -1339,33 +1378,34 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       </Sheet>
       <ViewSweepResultsModal
         jobId={viewSweepResultsFromJob}
-        setJobId={(jobId: number) => setViewSweepResultsFromJob(jobId)}
+        setJobId={(jobId: string | null) => setViewSweepResultsFromJob(jobId)}
       />
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
-        setJobId={(jobId: number) => setViewOutputFromJob(jobId)}
+        setJobId={(jobId: string | null) => setViewOutputFromJob(jobId)}
         jobStatus={
-          jobs?.find((j: any) => j.id === viewOutputFromJob)?.status || ''
+          jobs?.find((j: any) => String(j.id) === viewOutputFromJob)?.status ||
+          ''
         }
       />
       <ViewArtifactsModal
-        open={viewArtifactsFromJob !== -1}
-        onClose={() => setViewArtifactsFromJob(-1)}
+        open={viewArtifactsFromJob !== null}
+        onClose={() => setViewArtifactsFromJob(null)}
         jobId={viewArtifactsFromJob}
       />
       <ViewProfilingModal
-        open={viewProfilingFromJob !== -1}
-        onClose={() => setViewProfilingFromJob(-1)}
+        open={viewProfilingFromJob !== null}
+        onClose={() => setViewProfilingFromJob(null)}
         jobId={viewProfilingFromJob}
       />
       <ViewCheckpointsModal
-        open={viewCheckpointsFromJob !== -1}
-        onClose={() => setViewCheckpointsFromJob(-1)}
+        open={viewCheckpointsFromJob !== null}
+        onClose={() => setViewCheckpointsFromJob(null)}
         jobId={viewCheckpointsFromJob}
       />
       <ViewEvalResultsModal
-        open={viewEvalResultsFromJob !== -1}
-        onClose={() => setViewEvalResultsFromJob(-1)}
+        open={viewEvalResultsFromJob !== null}
+        onClose={() => setViewEvalResultsFromJob(null)}
         jobId={viewEvalResultsFromJob}
       />
       <CompareEvalResultsModal
@@ -1375,7 +1415,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       />
       <InteractiveModal
         jobId={interactiveJobForModal}
-        setJobId={(jobId: number) => setInteractiveJobForModal(jobId)}
+        setJobId={(jobId: string | null) => setInteractiveJobForModal(jobId)}
       />
       <PreviewDatasetModal
         open={previewDatasetModal.open}
@@ -1385,21 +1425,25 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         dataset_id={previewDatasetModal.datasetId}
         viewType="preview"
       />
-      <ViewJobDatasetsModal
-        open={viewJobDatasetsFromJob !== -1}
-        onClose={() => setViewJobDatasetsFromJob(-1)}
-        jobId={viewJobDatasetsFromJob}
-      />
-      <ViewJobModelsModal
-        open={viewJobModelsFromJob !== -1}
-        onClose={() => setViewJobModelsFromJob(-1)}
-        jobId={viewJobModelsFromJob}
-      />
+      {viewJobDatasetsFromJob !== null && (
+        <ViewJobDatasetsModal
+          open
+          onClose={() => setViewJobDatasetsFromJob(null)}
+          jobId={viewJobDatasetsFromJob}
+        />
+      )}
+      {viewJobModelsFromJob !== null && (
+        <ViewJobModelsModal
+          open
+          onClose={() => setViewJobModelsFromJob(null)}
+          jobId={viewJobModelsFromJob}
+        />
+      )}
       <FileBrowserModal
         mode="job"
-        open={viewFileBrowserFromJob !== -1}
-        onClose={() => setViewFileBrowserFromJob(-1)}
-        jobId={viewFileBrowserFromJob}
+        open={viewFileBrowserFromJob !== null}
+        onClose={() => setViewFileBrowserFromJob(null)}
+        jobId={viewFileBrowserFromJob ?? ''}
       />
       <FileBrowserModal
         mode="task"
