@@ -1324,209 +1324,6 @@ export default function QueueTaskModal({
                 </FormControl>
               )}
 
-              {/* SkyPilot per-job overrides */}
-              {isSkypilotProvider && (
-                <Stack spacing={1}>
-                  <Typography level="title-sm">
-                    SkyPilot Job Overrides
-                  </Typography>
-                  <FormControl>
-                    <FormLabel>Docker Image (optional)</FormLabel>
-                    <Input
-                      value={jobDockerImage}
-                      onChange={(e) => setJobDockerImage(e.target.value)}
-                      placeholder="docker:nvcr.io/nvidia/pytorch:23.10-py3"
-                      sx={{ fontFamily: 'monospace', fontSize: 'sm' }}
-                      disabled={isSubmitting}
-                    />
-                    <FormHelperText>
-                      Prefix with &quot;docker:&quot; to run inside a container.
-                      Defaults to the provider&apos;s global setting.
-                    </FormHelperText>
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel>Region (optional)</FormLabel>
-                    <Input
-                      value={jobRegion}
-                      onChange={(e) => setJobRegion(e.target.value)}
-                      placeholder="e.g. us-east-1"
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                  <FormControl
-                    sx={{ flexDirection: 'row', alignItems: 'center' }}
-                  >
-                    <Switch
-                      checked={jobUseSpot}
-                      onChange={(e) => setJobUseSpot(e.target.checked)}
-                      disabled={isSubmitting}
-                      sx={{ mr: 1 }}
-                    />
-                    <FormLabel sx={{ m: 0 }}>
-                      Use Spot / Preemptible Instances
-                    </FormLabel>
-                  </FormControl>
-                </Stack>
-              )}
-
-              {/* Resource Requirements Section */}
-              <Divider />
-              <Stack spacing={2}>
-                <Typography level="title-sm">Resource Requirements</Typography>
-                <Stack direction="row" spacing={2}>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>CPUs</FormLabel>
-                    <Input
-                      placeholder="e.g. 4"
-                      value={cpusInput}
-                      onChange={(e) => setCpusInput(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Memory</FormLabel>
-                    <Input
-                      placeholder="e.g. 16GB"
-                      value={memoryInput}
-                      onChange={(e) => setMemoryInput(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                </Stack>
-                <Stack direction="row" spacing={2}>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Disk space</FormLabel>
-                    <Input
-                      placeholder="e.g. 100GB"
-                      value={diskSpaceInput}
-                      onChange={(e) => setDiskSpaceInput(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Accelerators</FormLabel>
-                    <Input
-                      placeholder="e.g. A100:1, RTX3090:2, 1"
-                      value={acceleratorsInput}
-                      onChange={(e) => setAcceleratorsInput(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                </Stack>
-                <Stack direction="row" spacing={2}>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Num nodes</FormLabel>
-                    <Input
-                      placeholder="e.g. 1"
-                      value={numNodesInput}
-                      onChange={(e) => setNumNodesInput(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Minutes requested</FormLabel>
-                    <Input
-                      type="number"
-                      placeholder="e.g. 60"
-                      value={minutesRequestedInput}
-                      onChange={(e) => setMinutesRequestedInput(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                </Stack>
-                <FormHelperText>
-                  These values override the template&apos;s resource
-                  requirements for this run only. Leave a field empty to use the
-                  template default.
-                </FormHelperText>
-              </Stack>
-
-              {/* Incompatibility Warning */}
-              {selectedProvider &&
-                effectiveResources?.accelerators &&
-                !isProviderCompatible(selectedProvider) && (
-                  <Alert
-                    variant="soft"
-                    color="warning"
-                    startDecorator={<AlertTriangleIcon size={18} />}
-                    sx={{ mt: 1 }}
-                  >
-                    <Typography level="body-sm">
-                      This provider may not support the requested accelerators (
-                      <strong>{effectiveResources.accelerators}</strong>).
-                    </Typography>
-                  </Alert>
-                )}
-
-              {/* Local Provider Resource Validation */}
-              {isLocalProvider &&
-                resourceValidation &&
-                !resourceValidation.isCompatible && (
-                  <Alert
-                    variant="soft"
-                    color={resourceValidation.hasErrors ? 'danger' : 'warning'}
-                    startDecorator={<AlertTriangleIcon size={18} />}
-                    sx={{ mt: 1 }}
-                  >
-                    <Stack spacing={1}>
-                      <Typography
-                        level="title-sm"
-                        color={
-                          resourceValidation.hasErrors ? 'danger' : 'warning'
-                        }
-                      >
-                        {resourceValidation.hasErrors
-                          ? 'Local provider cannot meet task requirements'
-                          : 'Local provider may not meet task requirements'}
-                      </Typography>
-                      <Stack spacing={0.5}>
-                        {resourceValidation.issues.map((issue, idx) => (
-                          <Stack
-                            key={idx}
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                          >
-                            <Chip
-                              size="sm"
-                              variant="solid"
-                              color={
-                                issue.type === 'error' ? 'danger' : 'warning'
-                              }
-                            >
-                              {issue.label}
-                            </Chip>
-                            <Typography level="body-xs">
-                              Required: <strong>{issue.required}</strong> —
-                              Available: <strong>{issue.available}</strong>
-                            </Typography>
-                          </Stack>
-                        ))}
-                      </Stack>
-                      {resourceValidation.hasErrors && (
-                        <Typography level="body-xs" color="danger">
-                          Consider selecting a different provider with the
-                          required resources.
-                        </Typography>
-                      )}
-                    </Stack>
-                  </Alert>
-                )}
-
-              {isLocalProvider &&
-                resourceValidation?.isCompatible &&
-                effectiveResources && (
-                  <Alert
-                    variant="soft"
-                    color="success"
-                    startDecorator={<CheckCircleIcon size={18} />}
-                    sx={{ mt: 1 }}
-                  >
-                    <Typography level="body-sm" color="success">
-                      Local provider meets the task resource requirements.
-                    </Typography>
-                  </Alert>
-                )}
             </Stack>
 
             <Divider />
@@ -1755,6 +1552,53 @@ export default function QueueTaskModal({
                     requirements for this run only. Leave a field empty to use
                     the template default.
                   </FormHelperText>
+
+                  {/* SkyPilot per-job overrides */}
+                  {isSkypilotProvider && (
+                    <>
+                      <Divider />
+                      <Typography level="title-sm">
+                        SkyPilot Job Overrides
+                      </Typography>
+                      <FormControl>
+                        <FormLabel>Docker Image (optional)</FormLabel>
+                        <Input
+                          value={jobDockerImage}
+                          onChange={(e) => setJobDockerImage(e.target.value)}
+                          placeholder="docker:nvcr.io/nvidia/pytorch:23.10-py3"
+                          sx={{ fontFamily: 'monospace', fontSize: 'sm' }}
+                          disabled={isSubmitting}
+                        />
+                        <FormHelperText>
+                          Prefix with &quot;docker:&quot; to run inside a
+                          container. Defaults to the provider&apos;s global
+                          setting.
+                        </FormHelperText>
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel>Region (optional)</FormLabel>
+                        <Input
+                          value={jobRegion}
+                          onChange={(e) => setJobRegion(e.target.value)}
+                          placeholder="e.g. us-east-1"
+                          disabled={isSubmitting}
+                        />
+                      </FormControl>
+                      <FormControl
+                        sx={{ flexDirection: 'row', alignItems: 'center' }}
+                      >
+                        <Switch
+                          checked={jobUseSpot}
+                          onChange={(e) => setJobUseSpot(e.target.checked)}
+                          disabled={isSubmitting}
+                          sx={{ mr: 1 }}
+                        />
+                        <FormLabel sx={{ m: 0 }}>
+                          Use Spot / Preemptible Instances
+                        </FormLabel>
+                      </FormControl>
+                    </>
+                  )}
 
                   {/* Incompatibility Warning */}
                   {selectedProvider &&
