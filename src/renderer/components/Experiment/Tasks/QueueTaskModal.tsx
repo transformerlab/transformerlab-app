@@ -1334,7 +1334,6 @@ export default function QueueTaskModal({
                   </FormHelperText>
                 </FormControl>
               )}
-
             </Stack>
 
             <Divider />
