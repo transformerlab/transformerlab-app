@@ -19,6 +19,7 @@ import {
   Textarea,
   Alert,
   Chip,
+  Switch,
 } from '@mui/joy';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { getPath } from 'renderer/lib/api-client/urls';
@@ -100,6 +101,15 @@ export default function ProviderDetailsModal({
   const [slurmRestUrl, setSlurmRestUrl] = useState('');
   const [slurmApiToken, setSlurmApiToken] = useState('');
 
+  // SkyPilot-specific form fields
+  const [skypilotServerUrl, setSkypilotServerUrl] = useState('');
+  const [skypilotUserId, setSkypilotUserId] = useState('');
+  const [skypilotUserName, setSkypilotUserName] = useState('');
+  const [skypilotDockerImage, setSkypilotDockerImage] = useState('');
+  const [skypilotDefaultRegion, setSkypilotDefaultRegion] = useState('');
+  const [skypilotDefaultZone, setSkypilotDefaultZone] = useState('');
+  const [skypilotUseSpot, setSkypilotUseSpot] = useState(false);
+
   const { fetchWithAuth } = useAuth();
   const { data: providerData, isLoading: providerDataLoading } = useAPI(
     'compute_provider',
@@ -111,6 +121,62 @@ export default function ProviderDetailsModal({
       skip: !providerId,
     },
   );
+
+  // Helper to parse config and extract SkyPilot fields
+  const parseSkypilotConfig = (configObj: any) => {
+    if (configObj && typeof configObj === 'object') {
+      setSkypilotServerUrl(configObj.server_url || '');
+      const envVars = configObj.default_env_vars || {};
+      setSkypilotUserId(envVars.SKYPILOT_USER_ID || '');
+      setSkypilotUserName(envVars.SKYPILOT_USER || '');
+      setSkypilotDockerImage(configObj.docker_image || '');
+      setSkypilotDefaultRegion(configObj.default_region || '');
+      setSkypilotDefaultZone(configObj.default_zone || '');
+      setSkypilotUseSpot(configObj.use_spot === true);
+      if (configObj.supported_accelerators) {
+        setSupportedAccelerators(configObj.supported_accelerators);
+      }
+    }
+  };
+
+  // Helper to build SkyPilot config from form fields
+  const buildSkypilotConfig = useCallback(() => {
+    const configObj: any = {
+      server_url: skypilotServerUrl,
+      default_env_vars: {} as Record<string, string>,
+    };
+    if (skypilotUserId) {
+      configObj.default_env_vars.SKYPILOT_USER_ID = skypilotUserId;
+    }
+    if (skypilotUserName) {
+      configObj.default_env_vars.SKYPILOT_USER = skypilotUserName;
+    }
+    if (skypilotDockerImage) {
+      configObj.docker_image = skypilotDockerImage;
+    }
+    if (skypilotDefaultRegion) {
+      configObj.default_region = skypilotDefaultRegion;
+    }
+    if (skypilotDefaultZone) {
+      configObj.default_zone = skypilotDefaultZone;
+    }
+    if (skypilotUseSpot) {
+      configObj.use_spot = true;
+    }
+    if (supportedAccelerators && supportedAccelerators.length > 0) {
+      configObj.supported_accelerators = supportedAccelerators;
+    }
+    return configObj;
+  }, [
+    skypilotServerUrl,
+    skypilotUserId,
+    skypilotUserName,
+    skypilotDockerImage,
+    skypilotDefaultRegion,
+    skypilotDefaultZone,
+    skypilotUseSpot,
+    supportedAccelerators,
+  ]);
 
   // Helper to parse config and extract SLURM fields
   const parseSlurmConfig = (configObj: any) => {
@@ -206,6 +272,10 @@ export default function ProviderDetailsModal({
       if (providerData.type === 'slurm') {
         parseSlurmConfig(rawConfigObj);
       }
+      // Parse SkyPilot-specific fields if this is a SkyPilot provider
+      if (providerData.type === 'skypilot') {
+        parseSkypilotConfig(rawConfigObj);
+      }
       setConfig(JSON.stringify(rawConfigObj, null, 2));
     } else if (!providerId) {
       // Reset form when in "add" mode (no providerId)
@@ -224,6 +294,13 @@ export default function ProviderDetailsModal({
       setSlurmSshKeyPath('');
       setSlurmRestUrl('');
       setSlurmApiToken('');
+      setSkypilotServerUrl('');
+      setSkypilotUserId('');
+      setSkypilotUserName('');
+      setSkypilotDockerImage('');
+      setSkypilotDefaultRegion('');
+      setSkypilotDefaultZone('');
+      setSkypilotUseSpot(false);
     }
   }, [providerId, providerData]);
 
@@ -245,6 +322,13 @@ export default function ProviderDetailsModal({
       setSlurmSshKeyPath('');
       setSlurmRestUrl('');
       setSlurmApiToken('');
+      setSkypilotServerUrl('');
+      setSkypilotUserId('');
+      setSkypilotUserName('');
+      setSkypilotDockerImage('');
+      setSkypilotDefaultRegion('');
+      setSkypilotDefaultZone('');
+      setSkypilotUseSpot(false);
     }
   }, [open]);
 
@@ -302,6 +386,16 @@ export default function ProviderDetailsModal({
           // Ignore parse errors
         }
       }
+
+      // Parse SkyPilot defaults from the JSON template
+      if (type === 'skypilot') {
+        try {
+          const configObj = JSON.parse(defaultConfig);
+          parseSkypilotConfig(configObj);
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
     }
   }, [type, providerId]);
 
@@ -313,8 +407,12 @@ export default function ProviderDetailsModal({
         const configObj = buildSlurmConfig();
         setConfig(JSON.stringify(configObj, null, 2));
       }
+      if (type === 'skypilot') {
+        const configObj = buildSkypilotConfig();
+        setConfig(JSON.stringify(configObj, null, 2));
+      }
     }
-  }, [buildSlurmConfig, type, providerId]);
+  }, [buildSlurmConfig, buildSkypilotConfig, type, providerId]);
 
   // Local provider setup: poll background setup status and keep modal open until done.
   const pollLocalSetupStatus = (providerIdForSetup: string) => {
@@ -418,10 +516,12 @@ export default function ProviderDetailsModal({
   const saveProvider = async () => {
     setLoading(true);
     try {
-      // For SLURM providers, build config from form fields
+      // For SLURM and SkyPilot providers, build config from form fields
       let parsedConfig: any;
       if (type === 'slurm') {
         parsedConfig = buildSlurmConfig();
+      } else if (type === 'skypilot') {
+        parsedConfig = buildSkypilotConfig();
       } else if (type === 'local') {
         // Local providers are configured via supported accelerators only
         parsedConfig = {};
@@ -731,104 +831,103 @@ export default function ProviderDetailsModal({
                 </>
               )}
 
-              <Box
-                sx={{
-                  mt: 2,
-                  border: '1px solid',
-                  borderColor: 'neutral.outlinedBorder',
-                  borderRadius: 'sm',
-                }}
-              >
-                <Button
-                  variant="plain"
-                  color="neutral"
-                  onClick={() => setHooksExpanded((v) => !v)}
-                  sx={{
-                    width: '100%',
-                    justifyContent: 'space-between',
-                    borderRadius: 'sm',
-                    p: 1,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                    }}
-                  >
-                    <Typography level="title-sm">
-                      Advanced: Harness hooks (optional)
-                    </Typography>
-                    <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
-                      Add hooks to run before and after the provider setup and
-                      run scripts.
-                    </Typography>
-                  </Box>
-                  {hooksExpanded ? (
-                    <ChevronDownIcon size={18} />
-                  ) : (
-                    <ChevronRightIcon size={18} />
-                  )}
-                </Button>
-
-                {hooksExpanded && (
-                  <FormControl sx={{ px: 1, pb: 1 }}>
-                    <FormLabel sx={{ mt: 1 }}>
-                      Setup pre hook (optional)
-                    </FormLabel>
-                    <Textarea
-                      value={preSetupHook}
+              {/* SkyPilot-specific form fields */}
+              {type === 'skypilot' && (
+                <>
+                  <FormControl sx={{ mt: 2 }}>
+                    <FormLabel>SkyPilot Server URL *</FormLabel>
+                    <Input
+                      value={skypilotServerUrl}
                       onChange={(event) =>
-                        setPreSetupHook(event.currentTarget.value)
+                        setSkypilotServerUrl(event.currentTarget.value)
                       }
-                      placeholder="Commands to run before the provider setup script"
-                      minRows={2}
-                      maxRows={6}
-                    />
-                    <FormLabel sx={{ mt: 1 }}>
-                      Setup post hook (optional)
-                    </FormLabel>
-                    <Textarea
-                      value={postSetupHook}
-                      onChange={(event) =>
-                        setPostSetupHook(event.currentTarget.value)
-                      }
-                      placeholder="Commands to run after the provider setup script"
-                      minRows={2}
-                      maxRows={6}
-                    />
-
-                    <FormLabel sx={{ mt: 2 }}>
-                      Run pre hook (optional)
-                    </FormLabel>
-                    <Textarea
-                      value={preTaskHook}
-                      onChange={(event) =>
-                        setPreTaskHook(event.currentTarget.value)
-                      }
-                      placeholder="Commands to run before the run script in every task"
-                      minRows={2}
-                      maxRows={6}
-                    />
-                    <FormLabel sx={{ mt: 1 }}>
-                      Run post hook (optional)
-                    </FormLabel>
-                    <Textarea
-                      value={postTaskHook}
-                      onChange={(event) =>
-                        setPostTaskHook(event.currentTarget.value)
-                      }
-                      placeholder="Commands to run after the run script in every task"
-                      minRows={2}
-                      maxRows={6}
+                      placeholder="http://localhost:46580"
+                      fullWidth
                     />
                   </FormControl>
-                )}
-              </Box>
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>SkyPilot User ID</FormLabel>
+                    <Input
+                      value={skypilotUserId}
+                      onChange={(event) =>
+                        setSkypilotUserId(event.currentTarget.value)
+                      }
+                      placeholder="Your SkyPilot user ID"
+                      fullWidth
+                    />
+                  </FormControl>
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>SkyPilot User Name</FormLabel>
+                    <Input
+                      value={skypilotUserName}
+                      onChange={(event) =>
+                        setSkypilotUserName(event.currentTarget.value)
+                      }
+                      placeholder="Your SkyPilot user name"
+                      fullWidth
+                    />
+                  </FormControl>
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>Docker Image (optional)</FormLabel>
+                    <Input
+                      value={skypilotDockerImage}
+                      onChange={(event) =>
+                        setSkypilotDockerImage(event.currentTarget.value)
+                      }
+                      placeholder="docker:nvcr.io/nvidia/pytorch:23.10-py3"
+                      fullWidth
+                      sx={{ fontFamily: 'monospace', fontSize: 'sm' }}
+                    />
+                    <Typography
+                      level="body-sm"
+                      sx={{ mt: 0.5, color: 'text.tertiary' }}
+                    >
+                      Prefix with &quot;docker:&quot; to run inside a container
+                      on the provisioned VM. Must be Debian/Ubuntu-based. Leave
+                      empty to run directly on the VM.
+                    </Typography>
+                  </FormControl>
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>Default Region (optional)</FormLabel>
+                    <Input
+                      value={skypilotDefaultRegion}
+                      onChange={(event) =>
+                        setSkypilotDefaultRegion(event.currentTarget.value)
+                      }
+                      placeholder="e.g. us-east-1"
+                      fullWidth
+                    />
+                  </FormControl>
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>Default Zone (optional)</FormLabel>
+                    <Input
+                      value={skypilotDefaultZone}
+                      onChange={(event) =>
+                        setSkypilotDefaultZone(event.currentTarget.value)
+                      }
+                      placeholder="e.g. us-east-1a"
+                      fullWidth
+                    />
+                  </FormControl>
+                  <FormControl
+                    sx={{ mt: 1, flexDirection: 'row', alignItems: 'center' }}
+                  >
+                    <Switch
+                      checked={skypilotUseSpot}
+                      onChange={(event) =>
+                        setSkypilotUseSpot(event.target.checked)
+                      }
+                      sx={{ mr: 1 }}
+                    />
+                    <FormLabel sx={{ m: 0 }}>
+                      Use Spot / Preemptible Instances
+                    </FormLabel>
+                  </FormControl>
+                </>
+              )}
 
-              {/* Generic JSON config for non-SLURM providers or advanced editing */}
-              {type !== 'slurm' && type !== 'local' && (
+              {/* Generic JSON config for non-structured providers or advanced editing */}
+              {type !== 'slurm' && type !== 'skypilot' && type !== 'local' && (
                 <FormControl sx={{ mt: 1 }}>
                   <FormLabel>Configuration</FormLabel>
                   <Textarea
@@ -845,8 +944,8 @@ export default function ProviderDetailsModal({
                 </FormControl>
               )}
 
-              {/* Show JSON for SLURM providers in edit mode for advanced users */}
-              {type === 'slurm' && providerId && (
+              {/* Show JSON for SLURM or SkyPilot providers in edit mode for advanced users */}
+              {(type === 'slurm' || type === 'skypilot') && providerId && (
                 <FormControl sx={{ mt: 1 }}>
                   <FormLabel>Advanced: Raw Configuration (JSON)</FormLabel>
                   <Textarea
@@ -860,7 +959,11 @@ export default function ProviderDetailsModal({
                       // Try to parse and update form fields
                       try {
                         const configObj = JSON.parse(event.currentTarget.value);
-                        parseSlurmConfig(configObj);
+                        if (type === 'slurm') {
+                          parseSlurmConfig(configObj);
+                        } else if (type === 'skypilot') {
+                          parseSkypilotConfig(configObj);
+                        }
                       } catch (e) {
                         // Ignore parse errors
                       }

@@ -112,6 +112,9 @@ export default function QueueTaskModal({
   const [sweepMetric, setSweepMetric] = React.useState('eval/loss');
   const [lowerIsBetter, setLowerIsBetter] = React.useState(true);
   const [jobSlurmFlags, setJobSlurmFlags] = React.useState<string[]>(['']);
+  const [jobDockerImage, setJobDockerImage] = React.useState('');
+  const [jobRegion, setJobRegion] = React.useState('');
+  const [jobUseSpot, setJobUseSpot] = React.useState(false);
   const [useTrackio, setUseTrackio] = React.useState(false);
   const [useProfiling, setUseProfiling] = React.useState(false);
   const [useProfilingTorch, setUseProfilingTorch] = React.useState(false);
@@ -215,6 +218,7 @@ export default function QueueTaskModal({
   );
   const isLocalProvider = selectedProvider?.type === 'local';
   const isSlurmProvider = selectedProvider?.type === 'slurm';
+  const isSkypilotProvider = selectedProvider?.type === 'skypilot';
 
   // Fetch user-specific provider settings (including default custom SBATCH flags)
   const slurmUserSettingsKey =
@@ -632,6 +636,15 @@ export default function QueueTaskModal({
     setJobSlurmFlags(lines.length > 0 ? lines : ['']);
   }, [open, isSlurmProvider, selectedProviderId, slurmUserSettings]);
 
+  // Initialize SkyPilot per-job defaults from provider config when a SkyPilot provider is selected.
+  React.useEffect(() => {
+    if (!open || !isSkypilotProvider || !selectedProvider) return;
+    const cfg = selectedProvider.config || {};
+    setJobDockerImage(cfg.docker_image || '');
+    setJobRegion(cfg.default_region || '');
+    setJobUseSpot(cfg.use_spot === true);
+  }, [open, isSkypilotProvider, selectedProviderId, selectedProvider]);
+
   // Helper function to validate constraints
   const validateParameter = (param: ProcessedParameter): string | null => {
     const { schema, value } = param;
@@ -741,6 +754,19 @@ export default function QueueTaskModal({
         .filter((line) => line.length > 0);
       if (lines.length > 0) {
         config.custom_sbatch_flags = lines.join('\n');
+      }
+    }
+
+    // For SkyPilot providers, add optional per-job overrides
+    if (provider?.type === 'skypilot') {
+      if (jobDockerImage.trim()) {
+        config.docker_image = jobDockerImage.trim();
+      }
+      if (jobRegion.trim()) {
+        config.region = jobRegion.trim();
+      }
+      if (jobUseSpot) {
+        config.use_spot = true;
       }
     }
 
@@ -1579,6 +1605,53 @@ export default function QueueTaskModal({
                     requirements for this run only. Leave a field empty to use
                     the template default.
                   </FormHelperText>
+
+                  {/* SkyPilot per-job overrides */}
+                  {isSkypilotProvider && (
+                    <>
+                      <Divider />
+                      <Typography level="title-sm">
+                        SkyPilot Job Overrides
+                      </Typography>
+                      <FormControl>
+                        <FormLabel>Docker Image (optional)</FormLabel>
+                        <Input
+                          value={jobDockerImage}
+                          onChange={(e) => setJobDockerImage(e.target.value)}
+                          placeholder="docker:nvcr.io/nvidia/pytorch:23.10-py3"
+                          sx={{ fontFamily: 'monospace', fontSize: 'sm' }}
+                          disabled={isSubmitting}
+                        />
+                        <FormHelperText>
+                          Prefix with &quot;docker:&quot; to run inside a
+                          container. Defaults to the provider&apos;s global
+                          setting.
+                        </FormHelperText>
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel>Region (optional)</FormLabel>
+                        <Input
+                          value={jobRegion}
+                          onChange={(e) => setJobRegion(e.target.value)}
+                          placeholder="e.g. us-east-1"
+                          disabled={isSubmitting}
+                        />
+                      </FormControl>
+                      <FormControl
+                        sx={{ flexDirection: 'row', alignItems: 'center' }}
+                      >
+                        <Switch
+                          checked={jobUseSpot}
+                          onChange={(e) => setJobUseSpot(e.target.checked)}
+                          disabled={isSubmitting}
+                          sx={{ mr: 1 }}
+                        />
+                        <FormLabel sx={{ m: 0 }}>
+                          Use Spot / Preemptible Instances
+                        </FormLabel>
+                      </FormControl>
+                    </>
+                  )}
 
                   {/* Incompatibility Warning */}
                   {selectedProvider &&

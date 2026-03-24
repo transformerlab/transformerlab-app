@@ -47,6 +47,10 @@ class ClusterConfig(BaseModel):
     zone: Optional[str] = None
     use_spot: bool = False
 
+    # Container / VM image override (SkyPilot only).
+    # Use "docker:<image>" for Docker containers, e.g. "docker:nvcr.io/nvidia/pytorch:23.10-py3".
+    image_id: Optional[str] = None
+
     # Cluster settings
     idle_minutes_to_autostop: Optional[int] = None
     run: Optional[str] = None  # Initial run command
