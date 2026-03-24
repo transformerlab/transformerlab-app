@@ -112,6 +112,11 @@ async def task_get_all():
 
 
 @router.get("/{task_id}/get", summary="Gets all the data for a single task")
+@cached(
+    key="tasks:get:{task_id}",
+    ttl="300s",
+    tags=["tasks", "task:{task_id}"],
+)
 async def task_get_by_id(task_id: str):
     task = await task_service.task_get_by_id(task_id)
     if task is None:
@@ -120,6 +125,11 @@ async def task_get_by_id(task_id: str):
 
 
 @router.get("/list_by_type", summary="Returns all the tasks of a certain type, e.g TRAIN")
+@cached(
+    key="tasks:list_by_type:{type}",
+    ttl="300s",
+    tags=["tasks", "tasks:list_by_type:{type}"],
+)
 async def task_get_by_type(type: str):
     tasks = await task_service.task_get_by_type(type)
     return tasks
@@ -128,6 +138,11 @@ async def task_get_by_type(type: str):
 @router.get(
     "/list_by_type_in_experiment",
     summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN",
+)
+@cached(
+    key="tasks:list_by_type_in_experiment:{experimentId}:{type}",
+    ttl="300s",
+    tags=["tasks", "tasks:list:{experimentId}", "tasks:list_by_type:{experimentId}:{type}"],
 )
 async def task_get_by_type_in_experiment(experimentId: str, type: str):
     tasks = await task_service.task_get_by_type_in_experiment(type, experimentId)
@@ -899,6 +914,11 @@ async def task_delete_all():
 
 
 @router.get("/gallery", summary="List all tasks from the tasks gallery")
+@cached(
+    key="tasks:gallery",
+    ttl="120s",
+    tags=["tasks", "tasks:gallery"],
+)
 async def task_gallery():
     """Get the tasks gallery from the JSON file (same as tasks gallery)"""
     gallery = await galleries.get_tasks_gallery()
@@ -906,6 +926,11 @@ async def task_gallery():
 
 
 @router.get("/gallery/interactive", summary="List all interactive task templates")
+@cached(
+    key="tasks:gallery:interactive",
+    ttl="120s",
+    tags=["tasks", "tasks:gallery", "tasks:gallery:interactive"],
+)
 async def interactive_gallery():
     """Get the interactive tasks gallery (vscode, jupyter, vllm, ssh templates)"""
     gallery = await galleries.get_interactive_gallery()
@@ -1156,6 +1181,11 @@ async def import_task_from_gallery(
 
 
 @router.get("/gallery/team", summary="List team-specific tasks from the team gallery")
+@cached(
+    key="tasks:gallery:team",
+    ttl="60s",
+    tags=["tasks", "tasks:gallery", "tasks:gallery:team"],
+)
 async def team_task_gallery():
     """Get the team-specific tasks gallery stored in workspace_dir (same as tasks gallery)"""
     gallery = await galleries.get_team_tasks_gallery()
@@ -1737,6 +1767,7 @@ async def export_task_to_team_gallery(
         )
 
     await galleries.add_team_task_to_gallery(gallery_entry)
+    await cache.invalidate("tasks", "tasks:gallery", "tasks:gallery:team")
 
     return {
         "status": "success",
@@ -1823,6 +1854,7 @@ async def add_task_to_team_gallery(
     }
 
     await galleries.add_team_task_to_gallery(gallery_entry)
+    await cache.invalidate("tasks", "tasks:gallery", "tasks:gallery:team")
     return {
         "status": "success",
         "message": f"Task '{request.title}' added to team gallery",
@@ -1840,6 +1872,7 @@ async def delete_team_task_from_gallery(
     """
     success = await galleries.delete_team_task_from_gallery(request.task_id)
     if success:
+        await cache.invalidate("tasks", "tasks:gallery", "tasks:gallery:team")
         return {
             "status": "success",
             "message": "Task deleted from team gallery",

@@ -81,9 +81,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     id: string;
     name?: string;
   } | null>(null);
-  const [launchProgressByJobId, setLaunchProgressByJobId] = useState<
-    Record<string, { phase?: string; percent?: number; message?: string }>
-  >({});
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
@@ -323,62 +320,22 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     return tasks.filter((t: any) => !isInteractiveTemplate(t));
   }, [isInteractiveTemplate, subtype, tasks]);
 
-  // Poll LAUNCHING/WAITING REMOTE jobs for live launch_progress and status transitions.
-  // Provider polling and status mutations are handled server-side by the
-  // remote_job_status_service background worker. This effect only reads current
-  // state, so each poll is a fast filesystem read with no provider latency risk.
-  useEffect(() => {
-    if (!jobs || !Array.isArray(jobs)) return;
-
-    // Only poll jobs that are actively in-flight (LAUNCHING or WAITING).
-    // Quota recording and terminal-state transitions are handled by the background worker.
-    const jobsToCheck = jobs.filter(
-      (job: any) =>
-        job.type === 'REMOTE' &&
-        job.job_data?.provider_id &&
-        (job.status === 'LAUNCHING' || job.status === 'WAITING'),
-    );
-
-    if (jobsToCheck.length === 0) return;
-
-    const checkJobs = async () => {
-      for (const job of jobsToCheck) {
-        try {
-          const response = await fetchWithAuth(
-            chatAPI.Endpoints.ComputeProvider.CheckJobStatus(String(job.id)),
-            { method: 'GET' },
-          );
-          if (response.ok) {
-            const result = await response.json();
-            // If the background worker has transitioned the job to a terminal state,
-            // refresh the jobs list so the UI reflects the new status.
-            if (
-              result.current_status === 'COMPLETE' ||
-              result.current_status === 'FAILED' ||
-              result.current_status === 'STOPPED'
-            ) {
-              setTimeout(() => jobsMutate(), 0);
-            }
-            if (result.launch_progress) {
-              setLaunchProgressByJobId((prev) => ({
-                ...prev,
-                [String(job.id)]: result.launch_progress,
-              }));
-            }
-          }
-        } catch (error) {
-          // Silently ignore errors for individual job checks
-          console.error(`Failed to check job ${job.id}:`, error);
-        }
+  // Build launch progress map directly from polled jobs payload to avoid
+  // N+1 per-job status calls from the tasks page.
+  const launchProgressByJobId = useMemo(() => {
+    if (!Array.isArray(jobs)) return {};
+    const out: Record<
+      string,
+      { phase?: string; percent?: number; message?: string }
+    > = {};
+    for (const job of jobs as any[]) {
+      const launchProgress = job?.job_data?.launch_progress;
+      if (launchProgress) {
+        out[String(job.id)] = launchProgress;
       }
-    };
-
-    // Poll every 3s while jobs are in-flight.
-    checkJobs();
-    const interval = setInterval(checkJobs, 3000);
-
-    return () => clearInterval(interval);
-  }, [jobs, fetchWithAuth, jobsMutate]);
+    }
+    return out;
+  }, [jobs]);
 
   // // Periodically ensure quota is recorded for all completed REMOTE jobs
   // useEffect(() => {
