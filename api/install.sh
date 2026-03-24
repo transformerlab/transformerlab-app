@@ -454,13 +454,14 @@ install_dependencies() {
     echo "DGX Spark detected (/etc/dgx-release); using PyTorch index $TLAB_CUDA_INDEX"
   fi
 
-  # Same layout as install_general_dependencies_uv: full stack lives in pyproject.toml (+ optional extras).
+  # Determine the directory containing pyproject.toml
   if [ -e "$RUN_DIR/pyproject.toml" ]; then
     PROJECT_DIR="$RUN_DIR"
   elif [ -e "$TLAB_CODE_DIR/pyproject.toml" ]; then
     PROJECT_DIR="$TLAB_CODE_DIR"
   else
-    abort "❌ pyproject.toml not found in run directory or src location."
+    echo "Error: pyproject.toml not found in run directory or src location."
+    exit 1
   fi
 
   if [ "$HAS_NVIDIA" = true ]; then
@@ -508,6 +509,18 @@ install_dependencies() {
       echo "Installing with CPU support"
       uv pip install ${PIP_WHEEL_FLAGS} .[cpu]
   fi
+
+  # Check if the uvicorn command works:
+  if ! command -v uvicorn &> /dev/null; then
+    abort "❌ Uvicorn is not installed. This usually means that the installation of dependencies failed."
+  else
+    ohai "✅ Uvicorn is installed."
+  fi
+
+  # Record the status after this install for debugging and to check if an install has been attmeped
+  PIP_LIST=$(pip list --format json)
+  echo "${PIP_LIST}" > "${TLAB_CODE_DIR}/INSTALLED_DEPENDENCIES"
+  echo "🌕 Step 4: COMPLETE"
 }
 
 install_general_dependencies_uv() {
@@ -555,7 +568,7 @@ install_general_dependencies_uv() {
 ##############################
 
 multiuser_setup() {
-  title "Install Compute Providers (multiuser, latest release)"
+  title "Install Teams Version of Transformer Lab (multiuser, latest release)"
 
   # Ensure we are on the latest Transformer Lab release and use lightweight uv setup
   TLAB_INSTALL_CHANNEL=latest download_transformer_lab
@@ -591,7 +604,8 @@ multiuser_setup() {
     echo "Warning: Could not download multiuser web build from ${TLAB_MULTI_URL}. Webapp unchanged."
   fi
 
-  echo "🌕 Step 5: COMPLETE"
+  echo "Multiuser setup complete."
+
 }
 
 list_installed_packages() {
