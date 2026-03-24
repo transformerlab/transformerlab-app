@@ -543,7 +543,7 @@ install_general_dependencies_uv() {
   fi
 
   # Record the status after this install for debugging and to check if an install has been attempted
-  PIP_LIST=$("${GENERAL_UV_ENV_DIR}/bin/python" -m pip list --format json)
+  PIP_LIST=$(uv pip list --python "${GENERAL_UV_ENV_DIR}/bin/python" --format json)
   echo "${PIP_LIST}" > "${TLAB_CODE_DIR}/INSTALLED_DEPENDENCIES"
 
   echo "🌕 Step 4: COMPLETE"
