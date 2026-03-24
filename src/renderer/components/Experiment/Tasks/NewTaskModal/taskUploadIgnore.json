@@ -1,0 +1,14 @@
+[
+  ".DS_Store",
+  ".ruff_cache",
+  "__pycache__",
+  ".git",
+  ".gitignore",
+  "node_modules",
+  ".mypy_cache",
+  ".pytest_cache",
+  ".tox",
+  ".venv",
+  "venv",
+  ".env"
+]
