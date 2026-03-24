@@ -4,7 +4,6 @@ window.platform = {
   appmode: 'cloud',
   environment: process.env.NODE_ENV,
   version: process.env.VERSION,
-  multiuser: process.env.MULTIUSER === 'true',
 };
 
 window.storage = {
