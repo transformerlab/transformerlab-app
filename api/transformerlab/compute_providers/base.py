@@ -164,6 +164,7 @@ class ComputeProvider(ABC):
     def setup(
         self,
         progress_callback: Optional[Callable[[str, int, str], None]] = None,
+        force_refresh: bool = False,
     ) -> None:
         """
         Optional provider-level setup hook.
@@ -175,6 +176,8 @@ class ComputeProvider(ABC):
         Args:
             progress_callback: Optional callback accepting (phase, percent, message)
                 for reporting coarse-grained progress to callers.
+            force_refresh: Whether to force setup even if provider-level setup
+                artifacts already exist.
         """
         # Default implementation intentionally does nothing.
         return None

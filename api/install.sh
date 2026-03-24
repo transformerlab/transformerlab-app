@@ -5,6 +5,8 @@ ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
 TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
+GENERAL_UV_ENV_DIR="${TLAB_DIR}/envs/general-uv"
+LOCAL_PROVIDER_PYPROJECT="localprovider_pyproject.toml"
 
 OLD_MINICONDA_ROOT=${TLAB_DIR}/miniconda3 # old place -- used to detect if an old install exists
 MINIFORGE_ROOT=${TLAB_DIR}/miniforge3
@@ -443,15 +445,20 @@ install_dependencies() {
     echo "DGX Spark detected (/etc/dgx-release); using PyTorch index $TLAB_CUDA_INDEX"
   fi
 
-  # Determine the directory containing pyproject.toml
-  if [ -e "$RUN_DIR/pyproject.toml" ]; then
+  # Determine the directory containing the local-provider dependency manifest
+  if [ -e "$RUN_DIR/${LOCAL_PROVIDER_PYPROJECT}" ]; then
     PROJECT_DIR="$RUN_DIR"
-  elif [ -e "$TLAB_CODE_DIR/pyproject.toml" ]; then
+  elif [ -e "$TLAB_CODE_DIR/${LOCAL_PROVIDER_PYPROJECT}" ]; then
     PROJECT_DIR="$TLAB_CODE_DIR"
   else
-    echo "Error: pyproject.toml not found in run directory or src location."
+    echo "Error: ${LOCAL_PROVIDER_PYPROJECT} not found in run directory or src location."
     exit 1
   fi
+
+  # Build in a temporary directory where localprovider manifest is mapped to pyproject.toml
+  TMP_PROJECT_DIR=$(mktemp -d "${TLAB_DIR}/localprovider-project.XXXXXX")
+  cp "${PROJECT_DIR}/${LOCAL_PROVIDER_PYPROJECT}" "${TMP_PROJECT_DIR}/pyproject.toml"
+  cp -R "${PROJECT_DIR}/tlab_package_init" "${TMP_PROJECT_DIR}/tlab_package_init"
 
   if [ "$HAS_NVIDIA" = true ]; then
       echo "Your computer has a GPU; installing cuda:"
@@ -462,7 +469,7 @@ install_dependencies() {
       fi
 
       echo "Installing requirements with NVIDIA support (PyTorch index: $TLAB_CUDA_INDEX):"
-      cd "$PROJECT_DIR"
+      cd "$TMP_PROJECT_DIR"
       if [ "$TLAB_CUDA_INDEX" = "cu130" ]; then
         PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/${TLAB_CUDA_INDEX} --index-strategy unsafe-best-match"
       fi
@@ -471,7 +478,7 @@ install_dependencies() {
 
   elif [ "$HAS_AMD" = true ]; then
       echo "Installing requirements for ROCm:"
-      cd "$PROJECT_DIR"
+      cd "$TMP_PROJECT_DIR"
       PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
       uv pip install ${PIP_WHEEL_FLAGS} .[rocm]
 
@@ -489,7 +496,7 @@ install_dependencies() {
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Transformer Lab requirements without GPU support"
 
-      cd "$PROJECT_DIR"
+      cd "$TMP_PROJECT_DIR"
       if [[ -z "${TLAB_ON_MACOS}" ]]; then
           # Add the CPU-specific PyTorch index for non-macOS systems
           PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
@@ -499,16 +506,46 @@ install_dependencies() {
       uv pip install ${PIP_WHEEL_FLAGS} .[cpu]
   fi
 
-  # Check if the uvicorn command works:
-  if ! command -v uvicorn &> /dev/null; then
-    abort "❌ Uvicorn is not installed. This usually means that the installation of dependencies failed."
-  else
-    ohai "✅ Uvicorn is installed."
+  rm -rf "${TMP_PROJECT_DIR}"
+}
+
+install_general_dependencies_uv() {
+  title "Step 4: Install General Dependencies (uv)"
+  echo "Installing minimal API dependencies in a uv venv (no global conda env)."
+  echo "🌘 Step 4: START"
+
+  # Ensure uv is available
+  if ! command -v uv &> /dev/null; then
+    if command -v pip &> /dev/null; then
+      pip install uv
+    else
+      abort "❌ uv is not installed and pip is unavailable to install it."
+    fi
   fi
 
-  # Record the status after this install for debugging and to check if an install has been attmeped
-  PIP_LIST=$(pip list --format json)
+  # Determine the directory containing pyproject.toml
+  if [ -e "$RUN_DIR/pyproject.toml" ]; then
+    PROJECT_DIR="$RUN_DIR"
+  elif [ -e "$TLAB_CODE_DIR/pyproject.toml" ]; then
+    PROJECT_DIR="$TLAB_CODE_DIR"
+  else
+    abort "❌ pyproject.toml not found in run directory or src location."
+  fi
+
+  mkdir -p "${TLAB_DIR}/envs"
+  uv venv "${GENERAL_UV_ENV_DIR}" --python 3.11 --clear
+
+  # Install only base project dependencies (no [cpu]/[nvidia]/[rocm] extras).
+  uv pip install --python "${GENERAL_UV_ENV_DIR}/bin/python" "${PROJECT_DIR}"
+
+  if ! "${GENERAL_UV_ENV_DIR}/bin/python" -c "import uvicorn" &> /dev/null; then
+    abort "❌ Uvicorn is not installed in the general uv environment."
+  fi
+
+  # Record the status after this install for debugging and to check if an install has been attempted
+  PIP_LIST=$("${GENERAL_UV_ENV_DIR}/bin/python" -m pip list --format json)
   echo "${PIP_LIST}" > "${TLAB_CODE_DIR}/INSTALLED_DEPENDENCIES"
+
   echo "🌕 Step 4: COMPLETE"
 }
 
@@ -520,17 +557,9 @@ multiuser_setup() {
   title "Step 5: Install Compute Providers (multiuser, latest release)"
   echo "🌘 Step 5: START"
 
-  # Ensure we are on the latest Transformer Lab release and environment
+  # Ensure we are on the latest Transformer Lab release and use lightweight uv setup
   TLAB_INSTALL_CHANNEL=latest download_transformer_lab
-  install_conda
-  create_conda_environment
-  install_dependencies
-
-  unset_conda_for_sure
-  eval "$(${CONDA_BIN} shell.bash hook)"
-  conda activate "$ENV_DIR"
-
-  check_python
+  install_general_dependencies_uv
 
   # Install uv if not already installed
   if ! command -v uv &> /dev/null; then
@@ -538,13 +567,13 @@ multiuser_setup() {
   fi
 
   echo "Installing SkyPilot with Kubernetes support..."
-  uv pip install "skypilot[kubernetes]==0.10.5"
+  uv pip install --python "${GENERAL_UV_ENV_DIR}/bin/python" "skypilot[kubernetes]==0.10.5"
 
   echo "Installing paramiko for SLURM provider support..."
-  uv pip install paramiko
+  uv pip install --python "${GENERAL_UV_ENV_DIR}/bin/python" paramiko
 
   echo "Installing Sentry SDK..."
-  uv pip install sentry-sdk
+  uv pip install --python "${GENERAL_UV_ENV_DIR}/bin/python" sentry-sdk
 
   # Replace webapp with multiuser web build (login, teams, etc.)
   ohai "Downloading multiuser web build and replacing webapp..."
@@ -609,8 +638,10 @@ print_success_message() {
   echo "  ${TLAB_DIR}"
   echo "Your workspace is located at:"
   echo "  ${TLAB_DIR}/workspace"
-  echo "Your conda environment is at:"
-  echo "  ${ENV_DIR}"
+  echo "Your default conda environment is at:"
+  echo "  ${ENV_DIR} (used for full/local-provider installs)"
+  echo "Your general uv environment is at:"
+  echo "  ${GENERAL_UV_ENV_DIR} (used for multiuser/general installs)"
   echo "You can run Transformer Lab with:"
   echo "  conda activate ${ENV_DIR}"
   echo "  cd ${TLAB_CODE_DIR}"

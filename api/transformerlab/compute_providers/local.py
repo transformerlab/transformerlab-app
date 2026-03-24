@@ -7,6 +7,10 @@ import signal
 import shlex
 import subprocess
 import sys
+import threading
+import time
+import tempfile
+import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Callable
 
@@ -108,6 +112,33 @@ def _get_uv_pip_install_flags() -> str:
 
 
 _PYTHON_VERSION = "3.11"
+_BASE_SETUP_LOCK = threading.Lock()
+_BASE_STATE_FILE = "local_provider_base_state.json"
+_LOCAL_PROVIDER_PYPROJECT = "localprovider_pyproject.toml"
+
+
+def _get_base_state_path() -> Path:
+    return Path(get_local_provider_root()) / _BASE_STATE_FILE
+
+
+def _read_base_state() -> Optional[Dict[str, Any]]:
+    state_path = _get_base_state_path()
+    if not state_path.exists():
+        return None
+    try:
+        return json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _write_base_state(*, ready: bool, message: str) -> None:
+    payload = {
+        "ready": ready,
+        "message": message,
+        "updated_at": time.time(),
+        "python_version": _PYTHON_VERSION,
+    }
+    _get_base_state_path().write_text(json.dumps(payload), encoding="utf-8")
 
 
 def _terminate_process_tree(pid: int, sig: int = signal.SIGTERM) -> None:
@@ -195,13 +226,13 @@ class LocalProvider(ComputeProvider):
     def setup(
         self,
         progress_callback: Optional["Callable[[str, int, str], None]"] = None,
+        force_refresh: bool = False,
     ) -> None:
         """
         Perform provider-level setup for local runs.
 
         This currently ensures the shared base uv virtual environment under
-        HOME_DIR is created and up to date, along with its frozen
-        requirements. This can be slow on first run, so callers may choose
+        HOME_DIR is created and up to date. This can be slow on first run, so callers may choose
         to invoke it ahead of time and surface progress in the UI.
 
         Args:
@@ -213,34 +244,34 @@ class LocalProvider(ComputeProvider):
             progress_callback(
                 "provider_setup_start",
                 0,
-                "Preparing local provider base environment (this may take a few minutes)...",
+                "Refreshing local provider base environment..."
+                if force_refresh
+                else "Preparing local provider base environment (this may take a few minutes)...",
             )
 
-        ensure_base_venv_and_requirements(progress_callback=progress_callback)
+        ensure_base_venv_and_requirements(progress_callback=progress_callback, force_refresh=force_refresh)
 
         if progress_callback is not None:
             progress_callback(
                 "provider_setup_complete",
                 100,
-                "Local provider base environment is ready.",
+                "Local provider base environment refreshed."
+                if force_refresh
+                else "Local provider base environment is ready.",
             )
 
     def _get_source_code_and_pyproject(self) -> Path:
-        """Return path to pyproject.toml in the transformerlab API source tree."""
+        """Return path to local-provider pyproject in the transformerlab API source tree."""
         source_code_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
         if not source_code_dir or not os.path.isdir(source_code_dir):
             raise FileNotFoundError("_TFL_SOURCE_CODE_DIR is not set or not a directory; cannot sync base environment")
-        pyproject_path = Path(source_code_dir) / "pyproject.toml"
+        pyproject_path = Path(source_code_dir) / _LOCAL_PROVIDER_PYPROJECT
         if not pyproject_path.exists():
-            raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
+            raise FileNotFoundError(f"{_LOCAL_PROVIDER_PYPROJECT} not found at {pyproject_path}")
         return pyproject_path
 
-    def _ensure_job_venv_from_base(self, venv_path: Path, team_requirements: Path) -> None:
-        """Create or refresh a per-job venv by installing from the shared team requirements."""
-        team_requirements = Path(team_requirements)
-        if not team_requirements.exists():
-            raise FileNotFoundError(f"team requirements file not found at {team_requirements}")
-
+    def _ensure_job_venv_from_base(self, venv_path: Path, localprovider_pyproject: Path) -> None:
+        """Create or refresh a per-job venv using the local-provider pinned manifest."""
         venv_path = Path(venv_path)
         venv_path.mkdir(parents=True, exist_ok=True)
 
@@ -254,24 +285,34 @@ class LocalProvider(ComputeProvider):
         )
 
         additional_flags = _get_uv_pip_install_flags()
+        extra = _get_pyproject_extra()
 
         # Use uv pip with an explicit --python target so installs go into this venv.
         python_bin = venv_path / "bin" / "python"
         env = os.environ.copy()
 
+        tmp_project_dir = Path(tempfile.mkdtemp(prefix="tfl-local-provider-job-"))
+        try:
+            shutil.copy2(localprovider_pyproject, tmp_project_dir / "pyproject.toml")
+            shutil.copytree(localprovider_pyproject.parent / "tlab_package_init", tmp_project_dir / "tlab_package_init")
+        except Exception:
+            shutil.rmtree(tmp_project_dir, ignore_errors=True)
+            raise
+
         install_cmd = ["uv", "pip", "install"]
         if additional_flags:
             install_cmd.extend(shlex.split(additional_flags))
-        install_cmd.extend(["--python", str(python_bin), "-r", str(team_requirements)])
+        install_cmd.extend(["--python", str(python_bin), f".{extra}"])
 
         result = subprocess.run(
             install_cmd,
-            cwd=venv_path.parent,
+            cwd=str(tmp_project_dir),
             env=env,
             capture_output=True,
             text=True,
             timeout=900,
         )
+        shutil.rmtree(tmp_project_dir, ignore_errors=True)
         if result.returncode != 0:
             raise RuntimeError(
                 f"uv pip install failed for job venv: {result.stderr or result.stdout or 'unknown error'}"
@@ -299,10 +340,11 @@ class LocalProvider(ComputeProvider):
         # environment state (including Python packages) lives under HOME.
         venv_path = workspace_home / "venv"
 
-        # Ensure the shared base venv (common across all teams) exists and is up to date,
-        # then create a per-job venv from its frozen requirements.
-        base_requirements = ensure_base_venv_and_requirements()
-        self._ensure_job_venv_from_base(venv_path, base_requirements)
+        # Ensure shared local-provider base environment exists (one-time for all orgs),
+        # then create a per-job venv from the pinned local-provider manifest.
+        ensure_base_venv_and_requirements()
+        localprovider_pyproject = self._get_source_code_and_pyproject()
+        self._ensure_job_venv_from_base(venv_path, localprovider_pyproject)
 
         venv_bin = venv_path / "bin"
         env = os.environ.copy()
@@ -582,14 +624,15 @@ class LocalProvider(ComputeProvider):
 
 def ensure_base_venv_and_requirements(
     progress_callback: Optional[Callable[[str, int, str], None]] = None,
+    force_refresh: bool = False,
 ) -> Path:
     """
-    Ensure the shared base venv under HOME_DIR and its frozen requirements exist and are up to date.
+    Ensure the shared base venv under HOME_DIR exists and is up to date.
 
     This base venv is common across all teams and is created at:
         HOME_DIR / "local_provider" / "local_provider_base_venv"
 
-    Returns the path to the base requirements file.
+    Returns the path to the base virtual environment.
     """
     if progress_callback is not None:
         progress_callback(
@@ -603,119 +646,121 @@ def ensure_base_venv_and_requirements(
     local_provider_root.mkdir(parents=True, exist_ok=True)
 
     base_venv_path = local_provider_root / "local_provider_base_venv"
-    base_requirements = local_provider_root / "local_provider_base_requirements.txt"
 
     source_code_dir = str(pyproject_path.parent)
 
     base_venv_path.mkdir(parents=True, exist_ok=True)
 
-    if progress_callback is not None:
-        progress_callback(
-            "provider_setup_create_venv",
-            25,
-            "Creating local provider base Python environment...",
-        )
+    with _BASE_SETUP_LOCK:
+        base_state = _read_base_state()
+        if not force_refresh and base_state and base_state.get("ready"):
+            if progress_callback is not None:
+                progress_callback(
+                    "provider_setup_reused",
+                    100,
+                    "Reusing existing shared local provider base environment.",
+                )
+            return base_venv_path
 
-    # uv venv --python (match plugin install default)
-    subprocess.run(
-        ["uv", "venv", str(base_venv_path), "--python", _PYTHON_VERSION, "--clear"],
-        cwd=base_venv_path.parent,
-        check=True,
-        capture_output=True,
-        timeout=120,
-    )
-
-    extra = _get_pyproject_extra()
-    additional_flags = _get_uv_pip_install_flags()
-
-    # Use uv pip with an explicit --python target so installs go into the base venv.
-    python_bin = base_venv_path / "bin" / "python"
-    env = os.environ.copy()
-
-    if progress_callback is not None:
-        progress_callback(
-            "provider_setup_install_deps",
-            60,
-            "Installing Transformer Lab and dependencies into the local provider base environment...",
-        )
-
-    install_cmd = ["uv", "pip", "install"]
-    if additional_flags:
-        install_cmd.extend(shlex.split(additional_flags))
-    install_cmd.extend(["--python", str(python_bin), f".{extra}"])
-
-    result = subprocess.run(
-        install_cmd,
-        cwd=source_code_dir,
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=900,
-    )
-
-    if result.returncode != 0:
-        raise RuntimeError(f"uv pip install failed for base venv: {result.stderr or result.stdout or 'unknown error'}")
-
-    freeze_cmd = ["uv", "pip", "freeze", "--python", str(python_bin)]
-    try:
-        with base_requirements.open("w", encoding="utf-8") as req_file:
-            result = subprocess.run(
-                freeze_cmd,
-                cwd=source_code_dir,
-                env=env,
-                stdout=req_file,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=300,
+        if progress_callback is not None:
+            progress_callback(
+                "provider_setup_create_venv",
+                25,
+                "Creating local provider base Python environment...",
             )
-    except OSError as exc:
-        raise RuntimeError(f"Failed to write base requirements file: {exc}") from exc
 
-    if result.returncode != 0:
-        raise RuntimeError(f"uv pip freeze failed for base venv: {result.stderr or 'unknown error'}")
-
-    if progress_callback is not None:
-        progress_callback(
-            "provider_setup_freeze_requirements",
-            80,
-            "Freezing local provider base environment requirements...",
+        # uv venv --python (match plugin install default)
+        subprocess.run(
+            ["uv", "venv", str(base_venv_path), "--python", _PYTHON_VERSION, "--clear"],
+            cwd=base_venv_path.parent,
+            check=True,
+            capture_output=True,
+            timeout=120,
         )
 
-    # Always ensure the local provider config snapshot is generated via the base venv.
-    # This uses the same logic as /server/info but runs inside the shared base venv and
-    # writes the result to HOME_DIR/local_provider/local_provider_config.json.
-    python_bin = base_venv_path / "bin" / "python"
-    script_path = (
-        Path(source_code_dir)
-        / "transformerlab"
-        / "compute_providers"
-        / "services"
-        / "local"
-        / "local_provider_config.py"
-    )
-    env = os.environ.copy()
-    venv_bin = base_venv_path / "bin"
-    env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+        extra = _get_pyproject_extra()
+        additional_flags = _get_uv_pip_install_flags()
 
-    if progress_callback is not None:
-        progress_callback(
-            "provider_setup_collect_metrics",
-            90,
-            "Collecting local machine metrics for the provider...",
+        # Build a temporary project layout where localprovider_pyproject.toml
+        # is surfaced as pyproject.toml for uv package installation.
+        tmp_project_dir = Path(tempfile.mkdtemp(prefix="tfl-local-provider-"))
+        try:
+            shutil.copy2(pyproject_path, tmp_project_dir / "pyproject.toml")
+            shutil.copytree(Path(source_code_dir) / "tlab_package_init", tmp_project_dir / "tlab_package_init")
+        except Exception:
+            shutil.rmtree(tmp_project_dir, ignore_errors=True)
+            raise
+
+        # Use uv pip with an explicit --python target so installs go into the base venv.
+        python_bin = base_venv_path / "bin" / "python"
+        env = os.environ.copy()
+
+        if progress_callback is not None:
+            progress_callback(
+                "provider_setup_install_deps",
+                60,
+                "Installing Transformer Lab and dependencies into the local provider base environment...",
+            )
+
+        install_cmd = ["uv", "pip", "install"]
+        if additional_flags:
+            install_cmd.extend(shlex.split(additional_flags))
+        install_cmd.extend(["--python", str(python_bin), f".{extra}"])
+
+        result = subprocess.run(
+            install_cmd,
+            cwd=str(tmp_project_dir),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=900,
         )
 
-    result = subprocess.run(
-        [str(python_bin), str(script_path)],
-        cwd=source_code_dir,
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=300,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            "Failed to generate local provider config "
-            f"(exit {result.returncode}): {result.stderr or result.stdout or 'unknown error'}"
+        if result.returncode != 0:
+            raise RuntimeError(f"uv pip install failed for base venv: {result.stderr or result.stdout or 'unknown error'}")
+
+        shutil.rmtree(tmp_project_dir, ignore_errors=True)
+
+        # Always ensure the local provider config snapshot is generated via the base venv.
+        # This uses the same logic as /server/info but runs inside the shared base venv and
+        # writes the result to HOME_DIR/local_provider/local_provider_config.json.
+        python_bin = base_venv_path / "bin" / "python"
+        script_path = (
+            Path(source_code_dir)
+            / "transformerlab"
+            / "compute_providers"
+            / "services"
+            / "local"
+            / "local_provider_config.py"
+        )
+        env = os.environ.copy()
+        venv_bin = base_venv_path / "bin"
+        env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+
+        if progress_callback is not None:
+            progress_callback(
+                "provider_setup_collect_metrics",
+                90,
+                "Collecting local machine metrics for the provider...",
+            )
+
+        result = subprocess.run(
+            [str(python_bin), str(script_path)],
+            cwd=source_code_dir,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                "Failed to generate local provider config "
+                f"(exit {result.returncode}): {result.stderr or result.stdout or 'unknown error'}"
+            )
+
+        _write_base_state(
+            ready=True,
+            message="Base environment prepared and local provider config generated.",
         )
 
     if progress_callback is not None:
@@ -725,4 +770,4 @@ def ensure_base_venv_and_requirements(
             "Local provider base environment and metrics are ready.",
         )
 
-    return base_requirements
+    return base_venv_path
