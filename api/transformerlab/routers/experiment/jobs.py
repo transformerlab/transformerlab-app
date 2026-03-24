@@ -1138,12 +1138,12 @@ async def get_artifacts(job_id: str, experimentId: str, request: Request):
 
 
 @router.get("/{job_id}/artifacts/download_all")
-async def download_all_artifacts(job_id: str):
+async def download_all_artifacts(job_id: str, experimentId: str):
     """
     Download a zip file containing all artifacts for a job.
     """
     # 1. Gather all artifact file paths using service
-    all_file_paths = await job_service.get_all_artifact_paths(job_id, storage)
+    all_file_paths = await job_service.get_all_artifact_paths(job_id, experimentId, storage)
 
     if not all_file_paths:
         return Response("No artifacts found for this job", status_code=404)

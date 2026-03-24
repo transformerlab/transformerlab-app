@@ -2209,7 +2209,9 @@ async def ensure_quota_recorded_for_completed_jobs(
     if job_id:
         # Check specific job
         # Pass team_id from user_and_team context
-        quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(session, job_id, team_id=team_id)
+        quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(
+            session, job_id, experiment_id=experiment_id, team_id=team_id
+        )
         return {
             "status": "success",
             "job_id": job_id,
@@ -2239,7 +2241,7 @@ async def ensure_quota_recorded_for_completed_jobs(
             if job_id_str:
                 # Pass team_id from user_and_team context
                 quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(
-                    session, job_id_str, team_id=team_id
+                    session, job_id_str, experiment_id=experiment_id, team_id=team_id
                 )
                 if quota_recorded:
                     jobs_recorded += 1

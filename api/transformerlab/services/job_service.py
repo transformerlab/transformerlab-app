@@ -665,7 +665,7 @@ async def format_artifact(file_path: str) -> Optional[Dict[str, any]]:
         return None
 
 
-async def get_artifacts_from_sdk(job_id: str) -> Optional[List[Dict]]:
+async def get_artifacts_from_sdk(job_id: str, experiment_id: str) -> Optional[List[Dict]]:
     """
     Get artifacts using the SDK method.
     Returns list of artifacts or None if SDK method fails.
@@ -673,8 +673,6 @@ async def get_artifacts_from_sdk(job_id: str) -> Optional[List[Dict]]:
     try:
         from lab.job import Job
 
-        job = await job_get(job_id)
-        experiment_id = job.get("experiment_id") if job else None
         if not experiment_id:
             return None
 
@@ -736,30 +734,30 @@ async def get_artifacts_from_directory(artifacts_dir: str) -> List[Dict]:
     return artifacts
 
 
-async def get_all_artifact_paths(job_id: str) -> List[str]:
+async def get_all_artifact_paths(job_id: str, experiment_id: str, _storage: Any = None) -> List[str]:
     """
     Get all artifact file paths for a job.
     Uses get_artifacts_from_sdk and get_artifacts_from_directory to retrieve paths.
     """
     # 1. Try SDK method
-    sdk_artifacts = await get_artifacts_from_sdk(job_id)
+    sdk_artifacts = await get_artifacts_from_sdk(job_id, experiment_id)
     if sdk_artifacts:
         return [a.get("full_path") for a in sdk_artifacts if a.get("full_path")]
 
     # 2. Fallback to artifacts directory
-    job = await job_get(job_id)
+    job = await job_get(job_id, experiment_id=experiment_id)
     if job:
         job_data = job.get("job_data", {})
-        experiment_id = job.get("experiment_id")
+        job_experiment_id = job.get("experiment_id")
         artifacts_dir = job_data.get("artifacts_dir")
 
         if not artifacts_dir:
             try:
                 from lab.dirs import get_job_artifacts_dir
 
-                if not experiment_id:
+                if not job_experiment_id:
                     return []
-                artifacts_dir = await get_job_artifacts_dir(job_id, experiment_id)
+                artifacts_dir = await get_job_artifacts_dir(job_id, job_experiment_id)
             except Exception:
                 pass
 

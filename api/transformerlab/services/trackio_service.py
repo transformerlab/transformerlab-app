@@ -33,16 +33,15 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
     safe_org_id = secure_filename(org_id) if org_id else ""
     safe_experiment_id = secure_filename(experiment_id) if experiment_id else ""
 
-    try:
-        resolved_experiment_id = experiment_id
-        if not resolved_experiment_id:
-            job_dict = await job_get_cached(job_id)
-            resolved_experiment_id = job_dict.get("experiment_id") if job_dict else None
+    if not experiment_id:
+        raise HTTPException(status_code=400, detail="Missing experiment_id in request context")
 
-        if resolved_experiment_id:
-            job = await Job.get(job_id, resolved_experiment_id)
-        else:
+    try:
+        job_dict = await job_get_cached(job_id, experiment_id=experiment_id)
+        if not job_dict:
             job = None
+        else:
+            job = await Job.get(job_id, experiment_id)
     except Exception:
         job = None
 
