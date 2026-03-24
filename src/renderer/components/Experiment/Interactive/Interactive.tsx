@@ -177,13 +177,16 @@ export default function Interactive() {
   const jobsWithPlaceholders = useMemo(() => {
     const baseJobs = Array.isArray(jobs) ? jobs : [];
 
-    // Show active interactive jobs (INTERACTIVE, RUNNING, LAUNCHING, STOPPING)
+    // Show active interactive jobs AND recently failed/waiting jobs so they
+    // don't silently vanish from the "Running Services" panel.
     const filteredJobs = baseJobs.filter((job: any) => {
       return (
         job.status === 'INTERACTIVE' ||
         job.status === 'RUNNING' ||
         job.status === 'LAUNCHING' ||
-        job.status === 'STOPPING'
+        job.status === 'STOPPING' ||
+        job.status === 'WAITING' ||
+        job.status === 'FAILED'
       );
     });
 
