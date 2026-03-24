@@ -17,7 +17,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 from typing import Any, Optional
 
 from lab.dirs import get_workspace_dir, set_organization_id as lab_set_org_id
