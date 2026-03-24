@@ -39,20 +39,6 @@ def _clear_org_context() -> None:
     _set_org_context(None)
 
 
-def _migration_disabled() -> bool:
-    """
-    Disable auto-migration when `TFL_DISABLE_MIGRATE_JOBS=1` (or true-ish).
-
-    Also supports a legacy/alternative value:
-      - `TFL_DISABLE_MIGRATE=jobs`
-    """
-
-    v = (os.getenv("TFL_DISABLE_MIGRATE_JOBS") or os.getenv("TFL_DISABLE_MIGRATE") or "").strip().lower()
-    if not v:
-        return False
-    return v in ("1", "true", "yes", "jobs", "jobs=1")
-
-
 def _basename(path: str) -> str:
     return str(path).rstrip("/").split("/")[-1]
 
@@ -247,10 +233,6 @@ async def _migrate_org_jobs(org_id: str) -> dict[str, Any]:
 
 
 async def _jobs_migration_worker() -> None:
-    if _migration_disabled():
-        logger.info("Jobs migration worker: disabled via env var")
-        return
-
     try:
         org_ids = await team_service.get_all_team_ids()
     except Exception as exc:  # noqa: BLE001
