@@ -989,7 +989,7 @@ export default function ModelRegistry() {
             </Typography>
             {!searchText && (
               <Typography level="body-sm" color="neutral" sx={{ mt: 1 }}>
-                Publish a model from the Jobs page to create your first group.
+                Publish a model from a completed Job to create your first model.
               </Typography>
             )}
           </Box>

@@ -569,15 +569,14 @@ class Lab:
             pass
         _run_async(self._job.update_progress(100))  # type: ignore[union-attr]
         _run_async(
-            self._job.update_job_data_field(
+            self._job.update_job_data_fields(  # type: ignore[union-attr]
                 {
                     "completion_status": "success",
                     "completion_details": message,
                     "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                },
-                multiple=True,
+                }
             )
-        )  # type: ignore[union-attr]
+        )
         # Best-effort Trackio integration: finish our own run if we created one,
         # then capture the active Trackio DB (managed or user-created) into job artifacts.
         try:
@@ -1482,13 +1481,17 @@ class Lab:
                 _run_async(copy_profiling_to_job(profiling_temp, str(self._job.id)))  # type: ignore[union-attr]
         except Exception:
             pass
-        _run_async(self._job.update_job_data_field("completion_status", "failed"))  # type: ignore[union-attr]
-        _run_async(self._job.update_job_data_field("completion_details", message))  # type: ignore[union-attr]
-        _run_async(self._job.update_job_data_field("end_time", time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())))  # type: ignore[union-attr]
-        _run_async(self._job.update_job_data_field("status", JobStatus.FAILED))  # type: ignore[union-attr]
-        # Job.get_status() reads the top-level status field, so make the job terminal/complete
-        # even though completion_status indicates failure.
-        _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
+        _run_async(
+            self._job.update_job_data_fields(  # type: ignore[union-attr]
+                {
+                    "completion_status": "failed",
+                    "completion_details": message,
+                    "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                    "status": JobStatus.FAILED,
+                }
+            )
+        )
+        _run_async(self._job.update_status(JobStatus.FAILED))  # type: ignore[union-attr]
 
     def _detect_and_capture_wandb_url(self) -> None:
         """

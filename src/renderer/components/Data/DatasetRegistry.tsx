@@ -821,7 +821,8 @@ export default function DatasetRegistry() {
             </Typography>
             {!searchText && (
               <Typography level="body-sm" color="neutral" sx={{ mt: 1 }}>
-                Publish a dataset from the Jobs page to create your first group.
+                Publish a dataset from a completed Job to create your first
+                model.
               </Typography>
             )}
           </Box>
