@@ -4,9 +4,10 @@ set -e
 ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
+# lab-sdk lives next to src (same layout as the git repo: repo/api, repo/lab-sdk)
+TLAB_LAB_SDK_DIR="${TLAB_DIR}/lab-sdk"
 TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
 GENERAL_UV_ENV_DIR="${TLAB_DIR}/envs/general-uv"
-LOCAL_PROVIDER_PYPROJECT="localprovider_pyproject.toml"
 
 OLD_MINICONDA_ROOT=${TLAB_DIR}/miniconda3 # old place -- used to detect if an old install exists
 MINIFORGE_ROOT=${TLAB_DIR}/miniforge3
@@ -209,6 +210,14 @@ download_transformer_lab() {
     rm "${TLAB_DIR}/transformerlab.tar.gz"
     abort "❌ Expected 'api' directory not found in downloaded release at ${NEW_DIRECTORY_PATH}/api. The release archive may be malformed or the repository structure has changed."
   fi
+  if [ -d "${NEW_DIRECTORY_PATH}/lab-sdk" ]; then
+    rm -rf "${TLAB_LAB_SDK_DIR}"
+    mv "${NEW_DIRECTORY_PATH}/lab-sdk" "${TLAB_LAB_SDK_DIR}"
+    ohai "✅ Installed lab-sdk to ${TLAB_LAB_SDK_DIR}"
+  else
+    warn "No lab-sdk directory in release at ${NEW_DIRECTORY_PATH}/lab-sdk; local-provider installs will use PyPI transformerlab unless you add lab-sdk alongside api."
+  fi
+  rm -rf "${NEW_DIRECTORY_PATH}"
   rm "${TLAB_DIR}/transformerlab.tar.gz"
   # Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
   echo "${LATEST_RELEASE_VERSION}" > "${TLAB_CODE_DIR}/LATEST_VERSION"
@@ -445,20 +454,14 @@ install_dependencies() {
     echo "DGX Spark detected (/etc/dgx-release); using PyTorch index $TLAB_CUDA_INDEX"
   fi
 
-  # Determine the directory containing the local-provider dependency manifest
-  if [ -e "$RUN_DIR/${LOCAL_PROVIDER_PYPROJECT}" ]; then
+  # Same layout as install_general_dependencies_uv: full stack lives in pyproject.toml (+ optional extras).
+  if [ -e "$RUN_DIR/pyproject.toml" ]; then
     PROJECT_DIR="$RUN_DIR"
-  elif [ -e "$TLAB_CODE_DIR/${LOCAL_PROVIDER_PYPROJECT}" ]; then
+  elif [ -e "$TLAB_CODE_DIR/pyproject.toml" ]; then
     PROJECT_DIR="$TLAB_CODE_DIR"
   else
-    echo "Error: ${LOCAL_PROVIDER_PYPROJECT} not found in run directory or src location."
-    exit 1
+    abort "❌ pyproject.toml not found in run directory or src location."
   fi
-
-  # Build in a temporary directory where localprovider manifest is mapped to pyproject.toml
-  TMP_PROJECT_DIR=$(mktemp -d "${TLAB_DIR}/localprovider-project.XXXXXX")
-  cp "${PROJECT_DIR}/${LOCAL_PROVIDER_PYPROJECT}" "${TMP_PROJECT_DIR}/pyproject.toml"
-  cp -R "${PROJECT_DIR}/tlab_package_init" "${TMP_PROJECT_DIR}/tlab_package_init"
 
   if [ "$HAS_NVIDIA" = true ]; then
       echo "Your computer has a GPU; installing cuda:"
@@ -469,7 +472,7 @@ install_dependencies() {
       fi
 
       echo "Installing requirements with NVIDIA support (PyTorch index: $TLAB_CUDA_INDEX):"
-      cd "$TMP_PROJECT_DIR"
+      cd "$PROJECT_DIR"
       if [ "$TLAB_CUDA_INDEX" = "cu130" ]; then
         PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/${TLAB_CUDA_INDEX} --index-strategy unsafe-best-match"
       fi
@@ -478,7 +481,7 @@ install_dependencies() {
 
   elif [ "$HAS_AMD" = true ]; then
       echo "Installing requirements for ROCm:"
-      cd "$TMP_PROJECT_DIR"
+      cd "$PROJECT_DIR"
       PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
       uv pip install ${PIP_WHEEL_FLAGS} .[rocm]
 
@@ -496,7 +499,7 @@ install_dependencies() {
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Transformer Lab requirements without GPU support"
 
-      cd "$TMP_PROJECT_DIR"
+      cd "$PROJECT_DIR"
       if [[ -z "${TLAB_ON_MACOS}" ]]; then
           # Add the CPU-specific PyTorch index for non-macOS systems
           PIP_WHEEL_FLAGS+="--index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
@@ -505,8 +508,6 @@ install_dependencies() {
       echo "Installing with CPU support"
       uv pip install ${PIP_WHEEL_FLAGS} .[cpu]
   fi
-
-  rm -rf "${TMP_PROJECT_DIR}"
 }
 
 install_general_dependencies_uv() {
@@ -554,8 +555,7 @@ install_general_dependencies_uv() {
 ##############################
 
 multiuser_setup() {
-  title "Step 5: Install Compute Providers (multiuser, latest release)"
-  echo "🌘 Step 5: START"
+  title "Install Compute Providers (multiuser, latest release)"
 
   # Ensure we are on the latest Transformer Lab release and use lightweight uv setup
   TLAB_INSTALL_CHANNEL=latest download_transformer_lab

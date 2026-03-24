@@ -69,7 +69,25 @@ install_local_provider_dependencies() {
   TMP_PROJECT_DIR="$(mktemp -d "${TLAB_DIR}/localprovider-project.XXXXXX")"
   cp "${SCRIPT_DIR}/${LOCAL_PROVIDER_PYPROJECT}" "${TMP_PROJECT_DIR}/pyproject.toml"
   cp -R "${SCRIPT_DIR}/tlab_package_init" "${TMP_PROJECT_DIR}/tlab_package_init"
+
+  LAB_SDK_DIR="$(cd "$(dirname "${SCRIPT_DIR}")" && pwd)/lab-sdk"
+  INSTALL_EDITABLE_LAB_SDK=false
+  if [ -f "${LAB_SDK_DIR}/pyproject.toml" ]; then
+    sed -i.bak '/^  "transformerlab==/d' "${TMP_PROJECT_DIR}/pyproject.toml"
+    INSTALL_EDITABLE_LAB_SDK=true
+    echo "Using local lab-sdk at ${LAB_SDK_DIR} (PyPI transformerlab pin removed)."
+  else
+    echo "Warning: No lab-sdk at ${LAB_SDK_DIR}; transformerlab will be installed from PyPI."
+  fi
+
   cd "${TMP_PROJECT_DIR}"
+
+  # Satisfy the `transformerlab` distribution from disk before resolving .[cpu]/etc.
+  # Otherwise the first install can pull PyPI transformerlab or fail resolution when the pin is stripped.
+  if [ "${INSTALL_EDITABLE_LAB_SDK}" = true ]; then
+    "${CONDA_BIN}" run --prefix "${ENV_DIR}" uv pip install --python "${ENV_DIR}/bin/python" -e "${LAB_SDK_DIR}"
+    echo "Installed transformerlab (lab-sdk) in editable mode from ${LAB_SDK_DIR}"
+  fi
 
   PIP_WHEEL_FLAGS=""
   if [ "${HAS_NVIDIA}" = true ]; then
