@@ -9,7 +9,7 @@ import {
   ModalDialog,
   Typography,
 } from '@mui/joy';
-import { getPath, API_URL } from 'renderer/lib/api-client/urls';
+import { getPath } from 'renderer/lib/api-client/urls';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/authContext';
 import HexLogo from '../Shared/HexLogo';
@@ -78,33 +78,6 @@ export default function LoginPage() {
   const authContext = useAuth();
 
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const autoLogin = async () => {
-      // Only attempt auto-login if we have a valid API URL (connection is established)
-      const apiUrl = API_URL();
-      if (!apiUrl) {
-        console.log(
-          'Skipping auto-login: no API URL available. Connection modal should show first.',
-        );
-        return;
-      }
-
-      try {
-        console.log('Attempting auto-login for single user mode');
-        const result = await authContext.login('admin@example.com', 'admin123');
-        if (!(result instanceof Error)) {
-          authContext.setIsDefaultPassword(true);
-        }
-      } catch (error) {
-        console.error('Auto-login failed:', error);
-      }
-    };
-
-    if (process.env.MULTIUSER !== 'true') {
-      autoLogin();
-    }
-  }, [authContext]); // Include authContext in dependencies
 
   useEffect(() => {
     const handleHashChange = () => {

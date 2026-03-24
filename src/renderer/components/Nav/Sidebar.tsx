@@ -88,7 +88,6 @@ interface GlobalMenuItemsProps {
 }
 
 function GlobalMenuItems({ experimentInfo }: GlobalMenuItemsProps) {
-  const isLocalMode = window?.platform?.multiuser !== true;
   return (
     <List
       sx={{
@@ -102,16 +101,12 @@ function GlobalMenuItems({ experimentInfo }: GlobalMenuItemsProps) {
 
       <SubNavItem title="Model Registry" path="/zoo" icon={<BoxesIcon />} />
       <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
-      {!isLocalMode && (
-        <SubNavItem
-          title="Tasks Gallery"
-          path="/tasks-gallery"
-          icon={<StretchHorizontalIcon />}
-        />
-      )}
-      {!isLocalMode && (
-        <SubNavItem title="Compute" path="/compute" icon={<MonitorIcon />} />
-      )}
+      <SubNavItem
+        title="Tasks Gallery"
+        path="/tasks-gallery"
+        icon={<StretchHorizontalIcon />}
+      />
+      <SubNavItem title="Compute" path="/compute" icon={<MonitorIcon />} />
     </List>
   );
 }
@@ -214,9 +209,7 @@ export default function Sidebar({
       <SelectExperimentMenu models={models} />
       <ExperimentMenuItems experimentInfo={experimentInfo} />
       <GlobalMenuItems experimentInfo={experimentInfo} />
-      {window?.platform?.multiuser === true && (
-        <LoginChip notificationsSummary={notificationsSummary} />
-      )}
+      <LoginChip notificationsSummary={notificationsSummary} />
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );

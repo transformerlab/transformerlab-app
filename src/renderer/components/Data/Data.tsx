@@ -1,19 +1,15 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import Sheet from '@mui/joy/Sheet';
 import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
-import { StoreIcon } from 'lucide-react';
+import { LayersIcon } from 'lucide-react';
+import DatasetRegistry from './DatasetRegistry';
 
-import DataStore from './DataStore';
-import LocalDatasets from './LocalDatasets';
-import GeneratedDatasets from './GeneratedDatasets';
-
-export default function Data() {
-  const isLocalMode = window?.platform?.multiuser !== true;
+export default function Data({ tab = 'local' }) {
   return (
     <Sheet sx={{ display: 'flex', height: '100%' }}>
       <Tabs
-        aria-label="Dataset Tabs"
-        defaultValue={0}
+        aria-label="Dataset Registry tabs"
+        value="registry"
         size="sm"
         sx={{
           borderRadius: 'lg',
@@ -23,26 +19,22 @@ export default function Data() {
         }}
       >
         <TabList>
-          <Tab>Local Datasets</Tab>
-          <Tab>Generated Datasets</Tab>
-          {isLocalMode && (
-            <Tab>
-              <StoreIcon color="grey" />
-              &nbsp; Dataset Store
-            </Tab>
-          )}
+          <Tab value="registry">
+            <LayersIcon size={16} color="grey" />
+            &nbsp; Dataset Registry
+          </Tab>
         </TabList>
-        <TabPanel value={0} sx={{ overflow: 'hidden' }}>
-          <LocalDatasets />
+        <TabPanel
+          value="registry"
+          sx={{
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+          }}
+        >
+          <DatasetRegistry />
         </TabPanel>
-        <TabPanel value={1} sx={{ overflow: 'hidden' }}>
-          <GeneratedDatasets />
-        </TabPanel>
-        {isLocalMode && (
-          <TabPanel value={2} sx={{ overflow: 'hidden' }}>
-            <DataStore />
-          </TabPanel>
-        )}
       </Tabs>
     </Sheet>
   );
