@@ -158,6 +158,11 @@ def _prompt_storage(existing: dict[str, str]) -> dict[str, str]:
                 env["AZURE_STORAGE_ACCOUNT"] = account
                 env["AZURE_STORAGE_KEY"] = key
 
+    console.print(
+        "\n[dim]For more details on configuring storage, see:[/dim]"
+        "\n  [bold]https://lab.cloud/for-teams/advanced-install/cloud-storage[/bold]"
+    )
+
     return env
 
 
