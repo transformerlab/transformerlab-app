@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import time
 import uuid
+from datetime import datetime, timezone
 from werkzeug.utils import secure_filename
 
 from .dirs import get_experiments_dir, get_jobs_dir
@@ -14,6 +15,56 @@ import logging
 
 
 logger = logging.getLogger(__name__)
+
+
+def _timestamp_sort_value(ts):
+    """
+    Comparable value for sorting (higher = newer when using reverse=True).
+
+    Parses common string shapes (ISO / space-separated naive datetimes) so order
+    matches real time; falls back to string compare only if parsing fails.
+    Missing/invalid sorts last when using reverse=True (via float('-inf')).
+    """
+    if ts is None or ts == "":
+        return float("-inf")
+    if isinstance(ts, datetime):
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return ts.timestamp()
+    if isinstance(ts, (int, float)):
+        return float(ts)
+    if isinstance(ts, str):
+        raw = ts.strip()
+        if not raw:
+            return float("-inf")
+        # fromisoformat accepts "2026-03-24T17:04:14+00:00" and "2026-03-24 17:04:14"
+        try:
+            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except ValueError:
+            return float("-inf")
+    return float("-inf")
+
+
+def _sort_key_job_recency(job: dict):
+    """
+    Newest-first sort key. Prefer job_data.start_time (matches UI "Started") over
+    top-level created_at so order aligns with when the run actually started.
+    """
+    jd = job.get("job_data")
+    if isinstance(jd, str):
+        try:
+            jd = json.loads(jd)
+        except Exception:
+            jd = {}
+    if not isinstance(jd, dict):
+        jd = {}
+    start_time = jd.get("start_time")
+    if start_time:
+        return _timestamp_sort_value(start_time)
+    return _timestamp_sort_value(job.get("created_at"))
 
 
 class Experiment(BaseLabResource):
@@ -214,6 +265,7 @@ class Experiment(BaseLabResource):
             if "job_data" in job_data:
                 results.append(job_data)
 
+        results.sort(key=_sort_key_job_recency, reverse=True)
         return results
 
     ###############################

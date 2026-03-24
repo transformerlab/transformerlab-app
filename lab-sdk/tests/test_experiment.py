@@ -228,6 +228,81 @@ async def test_get_jobs_lists_from_directory(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_get_jobs_sorted_newest_created_first_when_no_start_time(tmp_path, monkeypatch):
+    for mod in list(importlib.sys.modules.keys()):
+        if mod.startswith("lab."):
+            importlib.sys.modules.pop(mod)
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+
+    exp = Experiment("alpha")
+    j_old = await exp.create_job("TRAIN")
+    await j_old._update_json_data_field("created_at", "2020-01-01T00:00:00+00:00")
+    j_new = await exp.create_job("TRAIN")
+    await j_new._update_json_data_field("created_at", "2025-01-01T00:00:00+00:00")
+
+    jobs = await exp.get_jobs()
+    assert len(jobs) == 2
+    assert [j.get("id") for j in jobs] == [str(j_new.id), str(j_old.id)]
+
+
+@pytest.mark.asyncio
+async def test_get_jobs_sorted_by_start_time_over_created_at(tmp_path, monkeypatch):
+    for mod in list(importlib.sys.modules.keys()):
+        if mod.startswith("lab."):
+            importlib.sys.modules.pop(mod)
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+
+    exp = Experiment("alpha")
+    j_earlier_start = await exp.create_job("TRAIN")
+    await j_earlier_start._update_json_data_field("created_at", "2025-06-01T00:00:00+00:00")
+    await j_earlier_start.update_job_data_field("start_time", "2025-01-01T10:00:00+00:00")
+
+    j_later_start = await exp.create_job("TRAIN")
+    await j_later_start._update_json_data_field("created_at", "2020-01-01T00:00:00+00:00")
+    await j_later_start.update_job_data_field("start_time", "2025-03-01T10:00:00+00:00")
+
+    jobs = await exp.get_jobs()
+    assert len(jobs) == 2
+    assert [j.get("id") for j in jobs] == [str(j_later_start.id), str(j_earlier_start.id)]
+
+
+@pytest.mark.asyncio
+async def test_get_jobs_sorted_by_space_separated_start_time(tmp_path, monkeypatch):
+    """start_time often stored as 'YYYY-MM-DD HH:MM:SS' from providers (not strictly ISO-T)."""
+    for mod in list(importlib.sys.modules.keys()):
+        if mod.startswith("lab."):
+            importlib.sys.modules.pop(mod)
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+
+    exp = Experiment("alpha")
+    j_first = await exp.create_job("TRAIN")
+    await j_first.update_job_data_field("start_time", "2026-03-24 17:04:14")
+    j_mid = await exp.create_job("TRAIN")
+    await j_mid.update_job_data_field("start_time", "2026-03-24 18:32:25")
+    j_last = await exp.create_job("TRAIN")
+    await j_last.update_job_data_field("start_time", "2026-03-24 19:57:26")
+
+    jobs = await exp.get_jobs()
+    assert len(jobs) == 3
+    assert [j.get("id") for j in jobs] == [str(j_last.id), str(j_mid.id), str(j_first.id)]
+
+
+@pytest.mark.asyncio
 async def test_delete_all_jobs(tmp_path, monkeypatch):
     for mod in list(importlib.sys.modules.keys()):
         if mod.startswith("lab."):
