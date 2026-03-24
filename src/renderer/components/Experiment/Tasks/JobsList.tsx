@@ -34,7 +34,6 @@ interface JobsListProps {
   launchProgressByJobId?: Record<string, LaunchProgressInfo>;
   onDeleteJob?: (jobId: string) => void;
   onViewOutput?: (jobId: string) => void;
-  onViewTensorboard?: (jobId: string) => void;
   onViewCheckpoints?: (jobId: string) => void;
   onViewArtifacts?: (jobId: string) => void;
   onViewEvalImages?: (jobId: string) => void;
@@ -59,7 +58,6 @@ const JobsList: React.FC<JobsListProps> = ({
   launchProgressByJobId,
   onDeleteJob,
   onViewOutput,
-  onViewTensorboard,
   onViewCheckpoints,
   onViewArtifacts,
   onViewEvalImages,
@@ -247,17 +245,6 @@ const JobsList: React.FC<JobsListProps> = ({
                     {job?.placeholder && (
                       <Skeleton variant="rectangular" width={100} height={28} />
                     )}
-                    {job?.job_data?.tensorboard_output_dir && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewTensorboard?.(job?.id)}
-                        startDecorator={<LineChartIcon />}
-                      >
-                        Tensorboard
-                      </Button>
-                    )}
-
                     {job?.job_data?.wandb_run_url && (
                       <Button
                         size="sm"

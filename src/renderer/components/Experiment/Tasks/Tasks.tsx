@@ -51,8 +51,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [viewOutputFromJob, setViewOutputFromJob] = useState<string | null>(
     null,
   );
-  const [currentTensorboardForModal, setCurrentTensorboardForModal] =
-    useState(-1);
   const [viewCheckpointsFromJob, setViewCheckpointsFromJob] = useState<
     string | null
   >(null);
@@ -1311,9 +1309,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             if (!jobIdStr || jobIdStr === '-1' || jobIdStr === 'NaN') return;
             setViewOutputFromJob(jobIdStr);
           }}
-          onViewTensorboard={(jobId) =>
-            setCurrentTensorboardForModal(parseInt(jobId, 10))
-          }
           onViewCheckpoints={(jobId) =>
             setViewCheckpointsFromJob(jobId && jobId !== 'NaN' ? jobId : null)
           }
