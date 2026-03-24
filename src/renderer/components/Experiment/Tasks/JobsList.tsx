@@ -299,24 +299,26 @@ const JobsList: React.FC<JobsListProps> = ({
                     </Button>
                   )}
 
-                  <Button
-                    size="sm"
-                    variant="plain"
-                    onClick={() => onViewOutput?.(job?.id)}
-                    startDecorator={<LogsIcon />}
-                  >
-                    <Box
-                      sx={{
-                        display: {
-                          xs: 'none',
-                          sm: 'none',
-                          md: 'inline-flex',
-                        },
-                      }}
+                  {job?.job_data?.subtype !== 'interactive' && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onViewOutput?.(job?.id)}
+                      startDecorator={<LogsIcon />}
                     >
-                      Output
-                    </Box>
-                  </Button>
+                      <Box
+                        sx={{
+                          display: {
+                            xs: 'none',
+                            sm: 'none',
+                            md: 'inline-flex',
+                          },
+                        }}
+                      >
+                        Output
+                      </Box>
+                    </Button>
+                  )}
                   {job?.job_data?.eval_images_dir && (
                     <Button
                       size="sm"
@@ -481,26 +483,27 @@ const JobsList: React.FC<JobsListProps> = ({
                       </Box>
                     </Button>
                   )}
-                  {!job?.placeholder && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewFileBrowser?.(job?.id)}
-                      startDecorator={<FolderOpenIcon />}
-                    >
-                      <Box
-                        sx={{
-                          display: {
-                            xs: 'none',
-                            sm: 'none',
-                            md: 'inline-flex',
-                          },
-                        }}
+                  {!job?.placeholder &&
+                    job?.job_data?.subtype !== 'interactive' && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewFileBrowser?.(job?.id)}
+                        startDecorator={<FolderOpenIcon />}
                       >
-                        Files
-                      </Box>
-                    </Button>
-                  )}
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
+                        >
+                          Files
+                        </Box>
+                      </Button>
+                    )}
                   {!job?.placeholder && (
                     <IconButton variant="plain">
                       <Trash2Icon

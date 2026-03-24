@@ -484,7 +484,17 @@ export default function JobProgress({
                 <Typography level="body-sm" color="neutral" />
               ))}
             {job?.status === 'FAILED' && job?.job_data?.error_msg && (
-              <Typography level="body-sm" color="danger">
+              <Typography
+                level="body-sm"
+                color="danger"
+                sx={{
+                  maxWidth: 400,
+                  maxHeight: 80,
+                  overflow: 'auto',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              >
                 Error: {job.job_data.error_msg}
               </Typography>
             )}
