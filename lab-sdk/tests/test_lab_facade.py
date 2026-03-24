@@ -247,7 +247,7 @@ def test_lab_error(tmp_path, monkeypatch):
 
     lab.error(message="Job failed")
 
-    assert asyncio.run(lab._job.get_status()) == "COMPLETE"
+    assert asyncio.run(lab._job.get_status()) == "FAILED"
     job_data = lab.get_job_data()
     assert job_data["completion_status"] == "failed"
     assert job_data["completion_details"] == "Job failed"
