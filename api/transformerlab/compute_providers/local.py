@@ -1,5 +1,6 @@
 """Local compute provider: runs tasks in a uv venv synced with the base environment."""
 
+import asyncio
 import contextlib
 import json
 import os
@@ -22,6 +23,17 @@ from .models import (
     ClusterState,
     JobState,
 )
+
+
+def _set_live_status(job_id: str, experiment_id: str, status: str) -> None:
+    """Best-effort helper to update live_status on a job from a sync (threaded) context."""
+    try:
+        from transformerlab.services import job_service
+
+        asyncio.run(job_service.job_update_job_data_insert_key_value(job_id, "live_status", status, experiment_id))
+    except Exception:
+        # Never let status updates break the launch flow.
+        pass
 
 
 def _read_local_provider_config() -> Optional[Dict[str, Any]]:
@@ -288,6 +300,14 @@ class LocalProvider(ComputeProvider):
         if not job_dir or not os.path.isdir(job_dir):
             raise ValueError("Local provider requires workspace_dir (job directory) in provider_config")
         job_dir = Path(job_dir)
+
+        # Extract job/experiment IDs for live_status updates
+        env_vars = config.env_vars or {}
+        job_id = env_vars.get("_TFL_JOB_ID", "")
+        experiment_id = env_vars.get("_TFL_EXPERIMENT_ID", "")
+
+        _set_live_status(job_id, experiment_id, "Preparing environment")
+
         # Use a per-job workspace directory as HOME for local runs so tools that
         # rely on ~ and $HOME resolve inside the job workspace instead of the
         # user's real home directory. This makes it easier to clone and run
@@ -323,6 +343,7 @@ class LocalProvider(ComputeProvider):
         stderr_log = open(job_dir / "stderr.log", "w")
 
         if config.setup:
+            _set_live_status(job_id, experiment_id, "Running setup")
             print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
             setup_result = subprocess.run(
                 ["/bin/bash", "-c", config.setup],
@@ -350,6 +371,7 @@ class LocalProvider(ComputeProvider):
                 raise RuntimeError(f"Setup failed (exit {setup_result.returncode}). Last lines:\n{tail}")
 
         # Start main run command in background (detached subprocess)
+        _set_live_status(job_id, experiment_id, "Starting service")
         print(f"[LocalProvider] Launching run in {job_dir}: {config.run!r}")
         proc = subprocess.Popen(
             ["/bin/bash", "-c", config.run or "true"],
