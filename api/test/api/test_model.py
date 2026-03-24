@@ -19,7 +19,6 @@ def make_mock_adapter_info(overrides={}):
 
 @pytest.mark.skip(reason="")
 @pytest.mark.asyncio
-@patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", new_callable=AsyncMock)
 @patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock)
 async def test_install_peft_mock(mock_run_script, mock_get_details, client):
     mock_get_details.return_value = {"name": "dummy_adapter"}
