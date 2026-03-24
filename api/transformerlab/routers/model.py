@@ -6,7 +6,6 @@ from transformers import AutoTokenizer
 
 
 from transformerlab.services import model_service
-from transformerlab.models import huggingfacemodel
 from transformerlab.services.cache_service import cached
 from lab.dirs import get_workspace_dir
 from lab.model import Model as ModelService
@@ -89,7 +88,7 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
         if delete_from_cache:
             # Delete from the huggingface cache
             try:
-                huggingfacemodel.delete_model_from_hf_cache(model_id)
+                model_service.delete_model_from_hf_cache(model_id)
             except Exception as e:
                 print(f"Error deleting model from HuggingFace cache: {e}")
                 # return {"message": "Error deleting model from HuggingFace cache"}
