@@ -59,6 +59,24 @@ jobs:
         run: |
           cd ../lab-sdk
           uv pip install --system -e .
+      # StaticFiles mounts ~/.transformerlab/webapp at import time (before lifespan creates it).
+      # Mirror install.sh: fetch published web build so the directory exists and matches production.
+      - name: Install webapp static files
+        run: |
+          set -e
+          TLAB_DIR="${HOME}/.transformerlab"
+          TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
+          TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
+          mkdir -p "${TLAB_DIR}"
+          rm -rf "${TLAB_STATIC_WEB_DIR}"
+          mkdir -p "${TLAB_STATIC_WEB_DIR}"
+          curl -L --fail "${TLAB_APP_URL}" -o /tmp/transformerlab_web.tar.gz
+          tar -xzf /tmp/transformerlab_web.tar.gz -C "${TLAB_STATIC_WEB_DIR}"
+          if [ -d "${TLAB_STATIC_WEB_DIR}/transformerlab_web" ]; then
+            mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
+            rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
+          fi
+          rm -f /tmp/transformerlab_web.tar.gz
       - name: Now run the server by calling ./run.sh and wait for it to be ready
         run: |
           # -c: use runner Python (no conda / general-uv); matches minimal CI install
