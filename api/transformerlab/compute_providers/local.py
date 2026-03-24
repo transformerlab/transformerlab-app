@@ -115,6 +115,10 @@ _PYTHON_VERSION = "3.11"
 _BASE_SETUP_LOCK = threading.Lock()
 _BASE_STATE_FILE = "local_provider_base_state.json"
 _LOCAL_PROVIDER_PYPROJECT = "localprovider_pyproject.toml"
+_TLAB_DIR = Path.home() / ".transformerlab"
+_MINIFORGE_ROOT = _TLAB_DIR / "miniforge3"
+_CONDA_BIN = _MINIFORGE_ROOT / "bin" / "conda"
+_CONDA_ENV_DIR = _TLAB_DIR / "envs" / "transformerlab"
 
 
 def _get_base_state_path() -> Path:
@@ -139,6 +143,26 @@ def _write_base_state(*, ready: bool, message: str) -> None:
         "python_version": _PYTHON_VERSION,
     }
     _get_base_state_path().write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _run_local_provider_conda_install(source_code_dir: str) -> None:
+    installer_script = Path(source_code_dir) / "local_provider_conda_install.sh"
+    if not installer_script.exists():
+        raise FileNotFoundError(f"local_provider_conda_install.sh not found at {installer_script}")
+
+    cmd = ["/bin/bash", str(installer_script)]
+    result = subprocess.run(
+        cmd,
+        cwd=source_code_dir,
+        capture_output=True,
+        text=True,
+        timeout=3600,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "local_provider_conda_install.sh failed: "
+            f"{result.stderr or result.stdout or 'unknown error'}"
+        )
 
 
 def _terminate_process_tree(pid: int, sig: int = signal.SIGTERM) -> None:
@@ -275,13 +299,27 @@ class LocalProvider(ComputeProvider):
         venv_path = Path(venv_path)
         venv_path.mkdir(parents=True, exist_ok=True)
 
-        # uv venv --python (match plugin install default)
+        if not _CONDA_BIN.exists():
+            raise FileNotFoundError(f"Conda executable not found at {_CONDA_BIN}")
+
+        # Create per-job uv venv while running under the local-provider conda env.
         subprocess.run(
-            ["uv", "venv", str(venv_path), "--python", _PYTHON_VERSION, "--clear"],
+            [
+                str(_CONDA_BIN),
+                "run",
+                "--prefix",
+                str(_CONDA_ENV_DIR),
+                "uv",
+                "venv",
+                str(venv_path),
+                "--python",
+                _PYTHON_VERSION,
+                "--clear",
+            ],
             cwd=venv_path.parent,
             check=True,
             capture_output=True,
-            timeout=120,
+            timeout=300,
         )
 
         additional_flags = _get_uv_pip_install_flags()
@@ -299,7 +337,7 @@ class LocalProvider(ComputeProvider):
             shutil.rmtree(tmp_project_dir, ignore_errors=True)
             raise
 
-        install_cmd = ["uv", "pip", "install"]
+        install_cmd = [str(_CONDA_BIN), "run", "--prefix", str(_CONDA_ENV_DIR), "uv", "pip", "install"]
         if additional_flags:
             install_cmd.extend(shlex.split(additional_flags))
         install_cmd.extend(["--python", str(python_bin), f".{extra}"])
@@ -627,12 +665,12 @@ def ensure_base_venv_and_requirements(
     force_refresh: bool = False,
 ) -> Path:
     """
-    Ensure the shared base venv under HOME_DIR exists and is up to date.
+    Ensure the shared conda base environment for local provider exists and is up to date.
 
-    This base venv is common across all teams and is created at:
-        HOME_DIR / "local_provider" / "local_provider_base_venv"
+    This setup is common across all teams and is provisioned at:
+        ~/.transformerlab/envs/transformerlab
 
-    Returns the path to the base virtual environment.
+    Returns the path to the conda environment directory.
     """
     if progress_callback is not None:
         progress_callback(
@@ -645,11 +683,7 @@ def ensure_base_venv_and_requirements(
     local_provider_root = Path(get_local_provider_root())
     local_provider_root.mkdir(parents=True, exist_ok=True)
 
-    base_venv_path = local_provider_root / "local_provider_base_venv"
-
     source_code_dir = str(pyproject_path.parent)
-
-    base_venv_path.mkdir(parents=True, exist_ok=True)
 
     with _BASE_SETUP_LOCK:
         base_state = _read_base_state()
@@ -660,71 +694,27 @@ def ensure_base_venv_and_requirements(
                     100,
                     "Reusing existing shared local provider base environment.",
                 )
-            return base_venv_path
+            return _CONDA_ENV_DIR
 
         if progress_callback is not None:
             progress_callback(
-                "provider_setup_create_venv",
+                "provider_setup_conda_install",
                 25,
-                "Creating local provider base Python environment...",
+                "Installing/updating local provider conda base environment...",
             )
-
-        # uv venv --python (match plugin install default)
-        subprocess.run(
-            ["uv", "venv", str(base_venv_path), "--python", _PYTHON_VERSION, "--clear"],
-            cwd=base_venv_path.parent,
-            check=True,
-            capture_output=True,
-            timeout=120,
-        )
-
-        extra = _get_pyproject_extra()
-        additional_flags = _get_uv_pip_install_flags()
-
-        # Build a temporary project layout where localprovider_pyproject.toml
-        # is surfaced as pyproject.toml for uv package installation.
-        tmp_project_dir = Path(tempfile.mkdtemp(prefix="tfl-local-provider-"))
-        try:
-            shutil.copy2(pyproject_path, tmp_project_dir / "pyproject.toml")
-            shutil.copytree(Path(source_code_dir) / "tlab_package_init", tmp_project_dir / "tlab_package_init")
-        except Exception:
-            shutil.rmtree(tmp_project_dir, ignore_errors=True)
-            raise
-
-        # Use uv pip with an explicit --python target so installs go into the base venv.
-        python_bin = base_venv_path / "bin" / "python"
-        env = os.environ.copy()
 
         if progress_callback is not None:
             progress_callback(
                 "provider_setup_install_deps",
                 60,
-                "Installing Transformer Lab and dependencies into the local provider base environment...",
+                "Installing conda environment, local provider dependencies, and CUDA (if applicable)...",
             )
+        _run_local_provider_conda_install(source_code_dir)
 
-        install_cmd = ["uv", "pip", "install"]
-        if additional_flags:
-            install_cmd.extend(shlex.split(additional_flags))
-        install_cmd.extend(["--python", str(python_bin), f".{extra}"])
-
-        result = subprocess.run(
-            install_cmd,
-            cwd=str(tmp_project_dir),
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=900,
-        )
-
-        if result.returncode != 0:
-            raise RuntimeError(f"uv pip install failed for base venv: {result.stderr or result.stdout or 'unknown error'}")
-
-        shutil.rmtree(tmp_project_dir, ignore_errors=True)
-
-        # Always ensure the local provider config snapshot is generated via the base venv.
-        # This uses the same logic as /server/info but runs inside the shared base venv and
+        # Always ensure the local provider config snapshot is generated via the base conda env.
+        # This uses the same logic as /server/info but runs inside the shared env and
         # writes the result to HOME_DIR/local_provider/local_provider_config.json.
-        python_bin = base_venv_path / "bin" / "python"
+        python_bin = _CONDA_ENV_DIR / "bin" / "python"
         script_path = (
             Path(source_code_dir)
             / "transformerlab"
@@ -734,7 +724,7 @@ def ensure_base_venv_and_requirements(
             / "local_provider_config.py"
         )
         env = os.environ.copy()
-        venv_bin = base_venv_path / "bin"
+        venv_bin = _CONDA_ENV_DIR / "bin"
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
 
         if progress_callback is not None:
@@ -770,4 +760,4 @@ def ensure_base_venv_and_requirements(
             "Local provider base environment and metrics are ready.",
         )
 
-    return base_venv_path
+    return _CONDA_ENV_DIR
