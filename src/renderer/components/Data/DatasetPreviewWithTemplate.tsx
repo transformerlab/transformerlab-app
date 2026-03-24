@@ -40,16 +40,12 @@ const DatasetTableWithTemplate = ({
     data: result,
     error,
     isLoading,
-  } = useAPI(
-    'datasets',
-    ['previewTemplate'],
-    {
-      datasetId,
-      template: encodeURIComponent(template),
-      offset,
-      limit: pageSize,
-    },
-  );
+  } = useAPI('datasets', ['previewTemplate'], {
+    datasetId,
+    template: encodeURIComponent(template),
+    offset,
+    limit: pageSize,
+  });
 
   useEffect(() => {
     setDatasetLen(null);

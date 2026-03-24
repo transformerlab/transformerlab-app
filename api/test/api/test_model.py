@@ -41,5 +41,3 @@ async def test_install_peft_mock(mock_run_script, mock_get_details, client):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "error"  # As install_peft now returns 'started' after starting the async task
-
-

@@ -174,9 +174,7 @@ def _run_local_provider_conda_install(source_code_dir: str) -> None:
         log_file.write(f"=== Local provider install end (exit={result.returncode}) ===\n")
         log_file.flush()
     if result.returncode != 0:
-        raise RuntimeError(
-            f"local_provider_conda_install.sh failed with exit code {result.returncode}"
-        )
+        raise RuntimeError(f"local_provider_conda_install.sh failed with exit code {result.returncode}")
 
 
 def _terminate_process_tree(pid: int, sig: int = signal.SIGTERM) -> None:
