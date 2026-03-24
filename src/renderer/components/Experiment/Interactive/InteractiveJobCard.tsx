@@ -20,9 +20,17 @@ import InteractiveModal from '../Tasks/InteractiveModal';
 import InteractIframeModal from './InteractIframeModal';
 import EmbeddableStreamingOutput from '../Tasks/EmbeddableStreamingOutput';
 
+interface LaunchProgressInfo {
+  phase?: string;
+  percent?: number;
+  message?: string;
+}
+
 interface InteractiveJobCardProps {
   job: any;
   onDeleteJob: (jobId: string) => void;
+  /** Live launch progress from check-status polling; falls back to job.job_data.launch_progress in JobProgress */
+  launchProgress?: LaunchProgressInfo | null;
 }
 
 function VscodeIcon() {
@@ -113,6 +121,7 @@ function getTypeConfig(interactiveType: string) {
 export default function InteractiveJobCard({
   job,
   onDeleteJob,
+  launchProgress,
 }: InteractiveJobCardProps) {
   type InteractiveGalleryEntry = {
     id?: string;
@@ -262,7 +271,11 @@ export default function InteractiveJobCard({
         </Stack>
 
         <Box>
-          <JobProgress job={job} />
+          <JobProgress
+            job={job}
+            showLaunchResultInfo
+            launchProgress={launchProgress}
+          />
         </Box>
 
         {showActions && (

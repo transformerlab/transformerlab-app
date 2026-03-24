@@ -36,6 +36,9 @@ export default function Interactive() {
     id: string;
     name?: string;
   } | null>(null);
+  const [launchProgressByJobId, setLaunchProgressByJobId] = useState<
+    Record<string, { phase?: string; percent?: number; message?: string }>
+  >({});
 
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
@@ -135,6 +138,58 @@ export default function Interactive() {
   const jobs = useMemo(() => {
     return Array.isArray(jobsRemote) ? jobsRemote : [];
   }, [jobsRemote]);
+
+  // Poll REMOTE jobs in LAUNCHING/WAITING for live launch_progress (same pattern as Tasks).
+  useEffect(() => {
+    if (!jobs || !Array.isArray(jobs)) return;
+
+    const jobsToCheck = jobs.filter(
+      (job: {
+        type?: string;
+        status?: string;
+        job_data?: { provider_id?: string };
+      }) =>
+        job.type === 'REMOTE' &&
+        job.job_data?.provider_id &&
+        (job.status === 'LAUNCHING' || job.status === 'WAITING'),
+    );
+
+    if (jobsToCheck.length === 0) return;
+
+    const checkJobs = async () => {
+      for (const job of jobsToCheck) {
+        try {
+          const response = await fetchWithAuth(
+            chatAPI.Endpoints.ComputeProvider.CheckJobStatus(String(job.id)),
+            { method: 'GET' },
+          );
+          if (response.ok) {
+            const result = await response.json();
+            if (
+              result.current_status === 'COMPLETE' ||
+              result.current_status === 'FAILED' ||
+              result.current_status === 'STOPPED'
+            ) {
+              setTimeout(() => jobsMutate(), 0);
+            }
+            if (result.launch_progress) {
+              setLaunchProgressByJobId((prev) => ({
+                ...prev,
+                [String(job.id)]: result.launch_progress,
+              }));
+            }
+          }
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error(`Failed to check job ${job.id}:`, error);
+        }
+      }
+    };
+
+    checkJobs();
+    const interval = setInterval(checkJobs, 3000);
+    return () => clearInterval(interval);
+  }, [jobs, fetchWithAuth, jobsMutate]);
 
   // Fetch templates with interactive subtype
   const {
@@ -993,6 +1048,7 @@ export default function Interactive() {
                 key={job.id}
                 job={job}
                 onDeleteJob={handleDeleteJob}
+                launchProgress={launchProgressByJobId[String(job.id)]}
               />
             ))}
           </Box>
