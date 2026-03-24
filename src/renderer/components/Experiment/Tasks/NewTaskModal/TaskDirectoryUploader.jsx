@@ -8,7 +8,9 @@ const IGNORED_NAMES = new Set(ignoredNames.map((n) => n.toLowerCase()));
 
 const isIgnoredFile = (file) => {
   const path = file.webkitRelativePath || file.name;
-  return path.split('/').some((segment) => IGNORED_NAMES.has(segment.toLowerCase()));
+  return path
+    .split('/')
+    .some((segment) => IGNORED_NAMES.has(segment.toLowerCase()));
 };
 
 const TaskDirectoryUploader = ({ onUpload }) => {
