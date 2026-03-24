@@ -43,9 +43,12 @@ create_conda_env_if_needed() {
 install_local_provider_dependencies() {
   eval "$("${CONDA_BIN}" shell.bash hook)"
   conda activate "${ENV_DIR}"
+  # Ensure we do not accidentally install into an already-active uv venv.
+  unset VIRTUAL_ENV
+  unset UV_PROJECT_ENVIRONMENT
 
-  if ! command -v uv >/dev/null 2>&1; then
-    pip install uv
+  if ! "${CONDA_BIN}" run --prefix "${ENV_DIR}" uv --version >/dev/null 2>&1; then
+    "${CONDA_BIN}" run --prefix "${ENV_DIR}" python -m pip install uv
   fi
 
   HAS_NVIDIA=false
@@ -83,7 +86,7 @@ install_local_provider_dependencies() {
     else
       conda install -y cuda==12.8.1 --force-reinstall -c nvidia/label/cuda-12.8.1
     fi
-    install_cmd=(uv pip install)
+    install_cmd=("${CONDA_BIN}" run --prefix "${ENV_DIR}" uv pip install --python "${ENV_DIR}/bin/python")
     if [ -n "${PIP_WHEEL_FLAGS}" ]; then
       # shellcheck disable=SC2206
       extra_flags=( ${PIP_WHEEL_FLAGS} )
@@ -93,7 +96,7 @@ install_local_provider_dependencies() {
     "${install_cmd[@]}"
   elif [ "${HAS_AMD}" = true ]; then
     PIP_WHEEL_FLAGS="--index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
-    install_cmd=(uv pip install)
+    install_cmd=("${CONDA_BIN}" run --prefix "${ENV_DIR}" uv pip install --python "${ENV_DIR}/bin/python")
     if [ -n "${PIP_WHEEL_FLAGS}" ]; then
       # shellcheck disable=SC2206
       extra_flags=( ${PIP_WHEEL_FLAGS} )
@@ -105,7 +108,7 @@ install_local_provider_dependencies() {
     if [ "$(uname -s)" != "Darwin" ]; then
       PIP_WHEEL_FLAGS="--index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
     fi
-    install_cmd=(uv pip install)
+    install_cmd=("${CONDA_BIN}" run --prefix "${ENV_DIR}" uv pip install --python "${ENV_DIR}/bin/python")
     if [ -n "${PIP_WHEEL_FLAGS}" ]; then
       # shellcheck disable=SC2206
       extra_flags=( ${PIP_WHEEL_FLAGS} )
