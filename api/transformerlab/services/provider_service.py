@@ -395,10 +395,10 @@ async def initialize_team_local_provider(
     if _local_providers_disabled():
         return None
 
-    # Check for existing local provider with the same name
+    # Check for any existing local provider (name does not matter)
     existing_providers = await list_team_providers(session, team_id)
     for provider in existing_providers:
-        if provider.type == ProviderType.LOCAL.value and provider.name == provider_name:
+        if provider.type == ProviderType.LOCAL.value:
             return None
 
     # Detect accelerators for this machine without blocking the event loop
@@ -415,6 +415,19 @@ async def initialize_team_local_provider(
         # Validation ensures the creating user is a member of the team
         validate=True,
     )
+
+    # Run setup in the background so bootstrap-created local providers are
+    # actually usable without requiring a manual setup click in the UI.
+    async def _run_local_setup_background() -> None:
+        try:
+            provider_instance = await get_provider_instance(provider, user_id=created_by_user_id, team_id=team_id)
+            await asyncio.to_thread(provider_instance.setup)
+        except Exception:
+            # Best-effort bootstrap: do not fail startup if setup fails.
+            pass
+
+    asyncio.create_task(_run_local_setup_background())
+
     return provider
 
 

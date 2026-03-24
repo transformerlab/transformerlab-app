@@ -48,6 +48,7 @@ from transformerlab.services import quota_service
 from transformerlab.services.task_service import task_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from transformerlab.services.remote_provider_queue import enqueue_remote_launch
+from transformerlab.compute_providers.local import _get_install_log_path
 
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
@@ -2819,6 +2820,20 @@ def _get_provider_setup_status_path(team_id: str, provider_id: str) -> Path:
     )
 
 
+def _read_install_log_tail(max_lines: int = 60) -> Optional[str]:
+    try:
+        log_path = _get_install_log_path()
+        if not log_path.exists():
+            return None
+        with log_path.open("r", encoding="utf-8") as f:
+            lines = f.readlines()
+        tail = "".join(lines[-max_lines:]).strip()
+        return tail or None
+    except Exception:
+        logger.exception("Failed to read local provider install log")
+        return None
+
+
 async def _run_local_provider_setup_background(
     provider_instance: Any,
     status_path: Path,
@@ -2991,6 +3006,9 @@ async def get_setup_status(
 
     data.setdefault("status", "running" if not data.get("done") else "completed")
     data.setdefault("provider_id", provider_id)
+    log_tail = _read_install_log_tail()
+    if log_tail:
+        data["log_tail"] = log_tail
     return data
 
 

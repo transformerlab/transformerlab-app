@@ -81,6 +81,7 @@ export default function ProviderDetailsModal({
   const [loading, setLoading] = useState(false);
   const [isSetupInProgress, setIsSetupInProgress] = useState(false);
   const [setupStatus, setSetupStatus] = useState<string | null>(null);
+  const [setupLogTail, setSetupLogTail] = useState<string>('');
   const { addNotification } = useNotification();
   const [supportedAccelerators, setSupportedAccelerators] = useState<string[]>(
     [],
@@ -356,6 +357,7 @@ export default function ProviderDetailsModal({
             : 'Running local provider setup…');
 
         setSetupStatus(message);
+        setSetupLogTail(typeof data.log_tail === 'string' ? data.log_tail : '');
 
         if (!data.done) {
           window.setTimeout(poll, 2000);
@@ -379,6 +381,7 @@ export default function ProviderDetailsModal({
 
     setIsSetupInProgress(true);
     setSetupStatus('Starting local provider setup…');
+    setSetupLogTail('');
     poll();
   };
 
@@ -885,31 +888,59 @@ export default function ProviderDetailsModal({
           <Box
             sx={{
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
+              flexDirection: 'column',
+              alignItems: 'stretch',
               width: '100%',
               mt: 1,
               gap: 1,
             }}
           >
-            {isSetupInProgress && setupStatus && (
-              <Typography
-                level="body-sm"
-                sx={{ color: 'text.tertiary', mr: 1 }}
+            {isSetupInProgress && setupLogTail && (
+              <Box
+                sx={{
+                  maxHeight: 220,
+                  overflow: 'auto',
+                  borderRadius: 'sm',
+                  border: '1px solid',
+                  borderColor: 'neutral.outlinedBorder',
+                  bgcolor: 'neutral.softBg',
+                  p: 1,
+                  fontFamily: 'monospace',
+                  fontSize: '12px',
+                  whiteSpace: 'pre-wrap',
+                }}
               >
-                {setupStatus}
-              </Typography>
+                {setupLogTail}
+              </Box>
             )}
-            <Button variant="outlined" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              onClick={saveProvider}
-              loading={loading || isSetupInProgress}
-              disabled={!!providerId && providerDataLoading}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                width: '100%',
+                gap: 1,
+              }}
             >
-              {providerId ? 'Save Compute Provider' : 'Add Compute Provider'}
-            </Button>
+              {isSetupInProgress && setupStatus && (
+                <Typography
+                  level="body-sm"
+                  sx={{ color: 'text.tertiary', mr: 1 }}
+                >
+                  {setupStatus}
+                </Typography>
+              )}
+              <Button variant="outlined" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                onClick={saveProvider}
+                loading={loading || isSetupInProgress}
+                disabled={!!providerId && providerDataLoading}
+              >
+                {providerId ? 'Save Compute Provider' : 'Add Compute Provider'}
+              </Button>
+            </Box>
           </Box>
         </DialogActions>
       </ModalDialog>

@@ -119,6 +119,7 @@ _TLAB_DIR = Path.home() / ".transformerlab"
 _MINIFORGE_ROOT = _TLAB_DIR / "miniforge3"
 _CONDA_BIN = _MINIFORGE_ROOT / "bin" / "conda"
 _CONDA_ENV_DIR = _TLAB_DIR / "envs" / "transformerlab"
+_INSTALL_LOG_FILE = "local_provider_install.log"
 
 
 def _get_base_state_path() -> Path:
@@ -145,23 +146,36 @@ def _write_base_state(*, ready: bool, message: str) -> None:
     _get_base_state_path().write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _get_install_log_path() -> Path:
+    root = Path(get_local_provider_root())
+    root.mkdir(parents=True, exist_ok=True)
+    return root / _INSTALL_LOG_FILE
+
+
 def _run_local_provider_conda_install(source_code_dir: str) -> None:
     installer_script = Path(source_code_dir) / "local_provider_conda_install.sh"
     if not installer_script.exists():
         raise FileNotFoundError(f"local_provider_conda_install.sh not found at {installer_script}")
 
     cmd = ["/bin/bash", str(installer_script)]
-    result = subprocess.run(
-        cmd,
-        cwd=source_code_dir,
-        capture_output=True,
-        text=True,
-        timeout=3600,
-    )
+    log_path = _get_install_log_path()
+    with log_path.open("a", encoding="utf-8") as log_file:
+        log_file.write(f"\n=== Local provider install start ({time.strftime('%Y-%m-%d %H:%M:%S')}) ===\n")
+        log_file.write(f"Command: {' '.join(cmd)}\n")
+        log_file.flush()
+        result = subprocess.run(
+            cmd,
+            cwd=source_code_dir,
+            stdout=log_file,
+            stderr=log_file,
+            text=True,
+            timeout=3600,
+        )
+        log_file.write(f"=== Local provider install end (exit={result.returncode}) ===\n")
+        log_file.flush()
     if result.returncode != 0:
         raise RuntimeError(
-            "local_provider_conda_install.sh failed: "
-            f"{result.stderr or result.stdout or 'unknown error'}"
+            f"local_provider_conda_install.sh failed with exit code {result.returncode}"
         )
 
 
