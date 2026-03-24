@@ -50,29 +50,19 @@ jobs:
       - name: Install dependencies
         run: |
           pip install uv
-          ENV_NAME="transformerlab"
-          TLAB_DIR="$HOME/.transformerlab"
-          TLAB_CODE_DIR="${TLAB_DIR}/src"
-          TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
-          mkdir -p "${TLAB_DIR}"
-          mkdir -p "${TLAB_CODE_DIR}"
-          mkdir -p "${TLAB_STATIC_WEB_DIR}"
-          # Temporarily remove transformerlab from pyproject.toml to avoid installing unreleased version
-          sed -i.bak '/^  "transformerlab==/d' pyproject.toml
-          ./install.sh install_conda
-          ./install.sh create_conda_environment
-          ./install.sh install_dependencies
-          mv pyproject.toml.bak pyproject.toml || true
           uv pip install --system pytest pytest-asyncio jsonschema requests
+          # Minimal api/pyproject.toml only; drop SDK pin so ../lab-sdk editable install wins
+          sed -i.bak '/^  "transformerlab==/d' pyproject.toml
+          uv pip install --system .
+          mv pyproject.toml.bak pyproject.toml || true
       - name: Install lab-sdk in editable mode
         run: |
           cd ../lab-sdk
-          eval "$($HOME/.transformerlab/miniforge3/bin/conda shell.bash hook)"
-          conda activate $HOME/.transformerlab/envs/transformerlab
-          uv pip install -e .
+          uv pip install --system -e .
       - name: Now run the server by calling ./run.sh and wait for it to be ready
         run: |
-          ./run.sh &
+          # -c: use runner Python (no conda / general-uv); matches minimal CI install
+          ./run.sh -c &
           python scripts/wait_for_server.py --timeout 120 --interval 2
       - name: Test the API Server and DB Setup
         run: |
