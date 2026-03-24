@@ -70,12 +70,9 @@ def format_value(value: str) -> str:
 def render_table(data, format_type: str, table_columns: list, title: str | None) -> None:
     """Render data in specified format (table, json, or csv)."""
     if format_type == "pretty":
-        # THEME: Use 'header' style for the table headers
         table = Table(title=title, title_justify="left", show_header=True, header_style="header")
 
         for col in table_columns:
-            # THEME: Use 'value' style for the column content
-            # This ensures all data rows appear in the standard data color
             table.add_column(
                 col,
                 style="value",
@@ -89,7 +86,7 @@ def render_table(data, format_type: str, table_columns: list, title: str | None)
         console.print(table)
 
     elif format_type == "json":
-        console.print_json(json.dumps(data))
+        print(json.dumps(data))
 
     elif format_type == "csv":
         writer = csv.writer(sys.stdout)
@@ -98,7 +95,6 @@ def render_table(data, format_type: str, table_columns: list, title: str | None)
             writer.writerow([row.get(col.lower().replace(" ", "_"), "N/A") for col in table_columns])
 
     else:
-        # THEME: Use 'error' style
         console.print(
             f"[error]Error:[/error] Unsupported format type '{format_type}'. Supported types are: table, json, csv."
         )
@@ -107,15 +103,13 @@ def render_table(data, format_type: str, table_columns: list, title: str | None)
 def render_object(data: dict, format_type: str = "pretty") -> None:
     """Render a dictionary object in a readable format."""
     if format_type == "json":
-        console.print_json(json.dumps(data))
+        print(json.dumps(data))
     else:
         content = Text()
         for key, value in data.items():
-            # THEME: Use 'label' for the keys
             content.append(f"{key}: ", style="label")
             content.append(f"{str(value)}\n")
 
-        # THEME: Use 'label' (or 'info') for the border to match the key aesthetic
         panel = Panel(
             content,
             title="Object Details",
@@ -124,3 +118,13 @@ def render_object(data: dict, format_type: str = "pretty") -> None:
             expand=True,
         )
         console.print(panel)
+
+
+def exit_with_no_results(format_type: str = "pretty", message: str = "No results found") -> None:
+    """Exit with code 2, emitting an appropriate message for the output format."""
+    if format_type == "json":
+        print(json.dumps({"error": message}))
+    else:
+        # Use [yellow] directly — the theme's 'warning' key maps to magenta, not yellow
+        console.print(f"[yellow]{message}[/yellow]")
+    raise SystemExit(2)

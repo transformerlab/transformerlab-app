@@ -10,16 +10,7 @@ import { Button, Sheet, Stack, Typography } from '@mui/joy';
 
 import labImage from './img/lab.jpg';
 
-import {
-  ArrowRightCircleIcon,
-  BoxesIcon,
-  GraduationCapIcon,
-  LayersIcon,
-  MessageCircleIcon,
-  PlayCircle,
-  PlayCircleIcon,
-  StretchHorizontalIcon,
-} from 'lucide-react';
+import { StretchHorizontalIcon } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
@@ -51,8 +42,6 @@ export default function Welcome() {
   );
 
   const hasProviders = providers.length > 0;
-  const isLocalMode = window?.platform?.multiuser !== true;
-  const shouldShowTasksText = !isLocalMode;
   const server = undefined as any;
 
   // Create experiment creation callback
@@ -131,78 +120,38 @@ export default function Welcome() {
             Let's start your next Experiment! 🤓
           </Typography>
           <div>
-            {shouldShowTasksText ? (
-              <>
-                <Typography level="body-lg" sx={{ fontSize: '24px' }} mb={2}>
-                  Get started by creating a new experiment and launching tasks
-                  from the <StretchHorizontalIcon /> <b>Tasks</b> menu tab.
-                </Typography>
-                <Stack
-                  direction="column"
-                  justifyContent="flex-start"
-                  alignItems="flex-start"
-                  spacing={2}
-                >
-                  <ul>
-                    <li>
-                      <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                        <b>Create an experiment</b> by clicking on the
-                        experiment dropdown and selecting <b>New</b>
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                        Navigate to the <StretchHorizontalIcon /> <b>Tasks</b>{' '}
-                        tab to launch training, evaluation, or other tasks on
-                        your configured compute providers
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                        Tasks will run on your available compute providers,
-                        allowing you to leverage cloud resources or remote
-                        servers
-                      </Typography>
-                    </li>
-                  </ul>
-                </Stack>
-              </>
-            ) : (
-              <>
-                <Typography level="body-lg" sx={{ fontSize: '24px' }} mb={2}>
-                  Get started by downloading a small model from the{' '}
-                  <BoxesIcon /> <b>Model Registry</b>. After downloading a
-                  model, you can:
-                </Typography>
-                <Stack
-                  direction="column"
-                  justifyContent="flex-start"
-                  alignItems="flex-start"
-                  spacing={2}
-                >
-                  <ul>
-                    <li>
-                      <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                        <b>Run it</b> by clicking on <LayersIcon /> Foundation
-                        then press <PlayCircleIcon /> Run{' '}
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                        Once a model is running, you can <b>Chat</b> with it by
-                        clicking on <MessageCircleIcon /> Interact
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                        <b>Fine tune</b> a model by clicking on{' '}
-                        <GraduationCapIcon /> Train
-                      </Typography>
-                    </li>
-                  </ul>
-                </Stack>
-              </>
-            )}
+            <Typography level="body-lg" sx={{ fontSize: '24px' }} mb={2}>
+              Get started by creating a new experiment and launching tasks from
+              the <StretchHorizontalIcon /> <b>Tasks</b> menu tab.
+            </Typography>
+            <Stack
+              direction="column"
+              justifyContent="flex-start"
+              alignItems="flex-start"
+              spacing={2}
+            >
+              <ul>
+                <li>
+                  <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+                    <b>Create an experiment</b> by clicking on the experiment
+                    dropdown and selecting <b>New</b>
+                  </Typography>
+                </li>
+                <li>
+                  <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+                    Navigate to the <StretchHorizontalIcon /> <b>Tasks</b> tab
+                    to launch training, evaluation, or other tasks on your
+                    configured compute providers
+                  </Typography>
+                </li>
+                <li>
+                  <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+                    Tasks will run on your available compute providers, allowing
+                    you to leverage cloud resources or remote servers
+                  </Typography>
+                </li>
+              </ul>
+            </Stack>
 
             {/* <Button
               endDecorator={<ArrowRightCircleIcon />}

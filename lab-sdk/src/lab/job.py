@@ -3,7 +3,6 @@ from werkzeug.utils import secure_filename
 
 from . import dirs
 from .labresource import BaseLabResource
-from .dirs import get_workspace_dir
 from . import storage
 from .job_status import JobStatus
 import logging
@@ -69,22 +68,6 @@ class Job(BaseLabResource):
             "progress": 0,
         }
 
-    async def set_experiment(self, experiment_id: str, sync_rebuild: bool = False):
-        await self._update_json_data_field("experiment_id", experiment_id)
-        await self.update_job_data_field("experiment_name", experiment_id)
-
-        # Trigger cache rebuild for the experiment to discover this job
-        try:
-            from .experiment import Experiment
-            from .dirs import get_workspace_dir
-
-            exp = Experiment(experiment_id)
-            workspace = await get_workspace_dir()
-            exp._trigger_cache_rebuild(workspace_dir=workspace, sync=sync_rebuild)
-        except Exception:
-            # Don't fail if cache rebuild trigger fails
-            pass
-
     async def update_progress(self, progress: int):
         """
         Update the percent complete for this job.
@@ -101,17 +84,24 @@ class Job(BaseLabResource):
         """
         await self._update_json_data_field("status", status)
 
-        # Trigger rebuild on every status update
+        # Update jobs.json incrementally — no full filesystem scan
         try:
             from .experiment import Experiment
 
             experiment_id = await self.get_experiment_id()
             if experiment_id:
                 exp = Experiment(experiment_id)
-                workspace = await get_workspace_dir()
-                exp._trigger_cache_rebuild(workspace_dir=workspace)
+                if status in (JobStatus.COMPLETE, JobStatus.STOPPED, JobStatus.FAILED):
+                    # Write current snapshot to cached_jobs so get_jobs() skips the live read
+                    job_data = await self.get_json_data(uncached=True)
+                    await exp._update_cached_job(str(self.id), job_data)
+                elif status == JobStatus.DELETED:
+                    # Remove from index and cached_jobs
+                    await exp._remove_job_from_index(str(self.id))
+                # For non-terminal statuses (RUNNING, LAUNCHING, etc.) nothing to do:
+                # get_jobs() always does a live read for those.
         except Exception:
-            # Don't fail if cache rebuild trigger fails
+            # Never let index updates break status writes
             pass
 
     async def get_status(self):
@@ -323,6 +313,12 @@ class Job(BaseLabResource):
         """
         return await dirs.get_job_artifacts_dir(self.id)
 
+    async def get_profiling_dir(self):
+        """
+        Get the profiling directory path for this job.
+        """
+        return await dirs.get_job_profiling_dir(self.id)
+
     async def get_checkpoint_paths(self):
         """
         Get list of checkpoint paths for this job.
@@ -372,17 +368,3 @@ class Job(BaseLabResource):
         Mark this job as deleted.
         """
         await self.update_status(JobStatus.DELETED)
-
-        # Trigger cache rebuild since deleted jobs are removed from cache
-        # This is non-blocking - just adds to pending queue
-        try:
-            from .experiment import Experiment
-
-            experiment_id = await self.get_experiment_id()
-            if experiment_id:
-                exp = Experiment(experiment_id)
-                workspace = await get_workspace_dir()
-                exp._trigger_cache_rebuild(workspace_dir=workspace)
-        except Exception:
-            # Don't fail if cache rebuild trigger fails
-            pass

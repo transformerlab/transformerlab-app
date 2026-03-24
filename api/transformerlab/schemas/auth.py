@@ -16,3 +16,19 @@ class UserResponse(BaseModel):
     authenticated: bool = False
     source: Literal["session", "api_key", "anonymous"] = "anonymous"
     api_key: Optional[str] = None
+
+
+class CurrentUserResponse(BaseModel):
+    """
+    Response model for /users/me that is compatible with UserRead
+    but also includes api_key_team_id when authenticated via API key.
+    """
+
+    id: str
+    email: str
+    is_active: bool
+    is_superuser: bool
+    is_verified: bool
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    api_key_team_id: Optional[str] = None

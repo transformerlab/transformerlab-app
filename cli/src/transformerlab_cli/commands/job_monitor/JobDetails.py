@@ -1,5 +1,7 @@
 import json
 import os
+
+import httpx
 from textual.app import ComposeResult
 from textual.widgets import Button, TextArea, ProgressBar, Static
 from textual.containers import Vertical, VerticalScroll, Horizontal
@@ -7,11 +9,6 @@ from textual.screen import ModalScreen
 from textual import work
 from transformerlab_cli.util import api
 from transformerlab_cli.util.config import check_configs, get_current_experiment
-
-
-def log_to_file(message: str) -> None:
-    with open("job_details_log.txt", "a") as log_file:
-        log_file.write(message + "\n")
 
 
 class JobJsonModal(ModalScreen):
@@ -60,6 +57,7 @@ class JobDetails(Vertical):
         # 4. Buttons (Bottom)
         with Horizontal(id="job-buttons"):
             yield Button("View Job Details", id="btn-view-json", variant="primary")
+            yield Button("View Job Logs", id="btn-view-logs", variant="primary")
             yield Button("Download All Artifacts", id="btn-download", variant="primary")
 
     def set_job(self, job: dict) -> None:
@@ -136,7 +134,7 @@ class JobDetails(Vertical):
                     if data.get("is_ready"):
                         self.app.call_from_thread(self._display_connection_info, data)
                         return
-            except Exception:
+            except httpx.HTTPError:
                 pass
             time.sleep(3)
 
@@ -169,6 +167,22 @@ class JobDetails(Vertical):
         if event.button.id == "btn-view-json":
             if self.current_job:
                 self.app.push_screen(JobJsonModal(self.current_job))
+        elif event.button.id == "btn-view-logs":
+            # Show the logs panel (hidden by default) and focus it.
+            try:
+                from transformerlab_cli.commands.job_monitor.JobLogs import JobLogs
+
+                logs_panel = self.app.query_one(JobLogs)
+                # Toggle visibility so the button can act as show/hide
+                if logs_panel.has_class("visible"):
+                    logs_panel.remove_class("visible")
+                    return
+                logs_panel.add_class("visible")
+                log_view = self.app.query_one("#job-log-view")
+                log_view.scroll_end(animate=False)
+                log_view.focus()
+            except Exception:
+                pass
         elif event.button.id == "btn-download":
             if self.current_job:
                 job_id = str(self.current_job.get("id", ""))
@@ -186,8 +200,8 @@ class JobDetails(Vertical):
             # Check configs first
             try:
                 check_configs()
-            except Exception as e:
-                self.notify(f"Configuration error: {str(e)}", severity="error")
+            except SystemExit:
+                self.notify("Configuration error: missing required config keys", severity="error")
                 return
 
             # Determine output directory (current working directory)
@@ -198,7 +212,7 @@ class JobDetails(Vertical):
             # Make the API request
             try:
                 response = api.get(f"/jobs/{job_id}/artifacts/download_all", timeout=300.0)
-            except Exception as e:
+            except httpx.HTTPError as e:
                 self.notify(f"Failed to connect to server: {str(e)}", severity="error")
                 return
 
@@ -220,17 +234,14 @@ class JobDetails(Vertical):
                         severity="success",
                         timeout=5.0,
                     )
-                except Exception as e:
+                except OSError as e:
                     self.notify(f"Failed to write file: {str(e)}", severity="error")
             elif response.status_code == 404:
                 self.notify(f"No artifacts found for job {job_id}", severity="warning")
             else:
                 error_msg = f"Failed to download artifacts (status: {response.status_code})"
-                try:
-                    if response.text:
-                        error_msg += f": {response.text[:100]}"
-                except Exception:
-                    pass
+                if response.text:
+                    error_msg += f": {response.text[:100]}"
                 self.notify(error_msg, severity="error")
-        except Exception as e:
+        except (httpx.HTTPError, OSError) as e:
             self.notify(f"Download failed: {str(e)}", severity="error")

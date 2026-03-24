@@ -1,7 +1,11 @@
 from pathlib import Path
 
 DEFAULT_BASE_URL = "http://alpha.lab.cloud:8338"
-_BASE_URL = "http://alpha.lab.cloud:8338"
+_BASE_URL = DEFAULT_BASE_URL
+
+# Timeout defaults (seconds)
+DEFAULT_TIMEOUT = 10.0
+DEFAULT_UPLOAD_TIMEOUT = 60.0
 
 CREDENTIALS_DIR = Path.home() / ".lab"
 CREDENTIALS_FILE = CREDENTIALS_DIR / "credentials"

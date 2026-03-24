@@ -1,17 +1,15 @@
-from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, ListView, LoadingIndicator, ListItem, Label
-from textual.containers import Horizontal, Vertical, Container
 from textual import work
+from textual.app import App, ComposeResult
+from textual.containers import Container, Horizontal, Vertical
+from textual.widgets import Footer, Header, Label, ListItem, ListView, LoadingIndicator
 
-from transformerlab_cli.util.config import get_current_experiment
-
-from transformerlab_cli.commands.job_monitor.JobDetails import JobDetails
 from transformerlab_cli.commands.job_monitor.ExperimentSelectModal import ExperimentSelectModal
+from transformerlab_cli.commands.job_monitor.InteractiveTaskModal import InteractiveTaskModal
+from transformerlab_cli.commands.job_monitor.JobDetails import JobDetails
 from transformerlab_cli.commands.job_monitor.TaskAddModal import TaskAddModal
 from transformerlab_cli.commands.job_monitor.TaskListModal import TaskListModal
-from transformerlab_cli.commands.job_monitor.InteractiveTaskModal import InteractiveTaskModal
-
 from transformerlab_cli.commands.job_monitor.util import fetch_jobs
+from transformerlab_cli.util.config import get_current_experiment
 
 
 class JobListItem(ListItem):
@@ -24,10 +22,8 @@ class JobListItem(ListItem):
         task_name = job_data.get("task_name", "Unknown")
         status = self.job.get("status", "N/A")
 
-        # THEME: Use $secondary (Pink) for the ID/Header to match CLI 'header'
         yield Label(f"[bold $secondary]{task_name} [{self.job.get('id', '?')}][/]")
 
-        # THEME: Use Textual variables ($success, $error) which we mapped above
         if status == "COMPLETED":
             status_color = "$success"
         elif status == "FAILED":
@@ -49,8 +45,10 @@ class JobMonitorApp(App):
         ("r", "refresh", "Refresh"),
         ("e", "set_experiment", "Set Experiment"),
         ("a", "add_task", "Add Task"),
-        ("l", "list_tasks", "List Tasks"),
+        ("t", "list_tasks", "Tasks"),
         ("i", "interactive_task", "Interactive Task"),
+        ("g", "gallery", "Gallery"),
+        ("p", "toggle_refresh", "Pause/Resume"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -64,16 +62,26 @@ class JobMonitorApp(App):
                 with joblistcontainer:
                     yield ListView(id="job-list")
 
-            # Right panel
-            yield JobDetails()
+            # Right panel: always show details on top and logs below
+            from transformerlab_cli.commands.job_monitor.JobLogs import JobLogs
+
+            with Vertical(id="right-panel"):
+                yield JobDetails()
+                yield JobLogs()
         yield Footer()
 
     def on_mount(self) -> None:
-        # 2. Register and Apply the Theme
         self.theme = "tokyo-night"
 
+        self._refresh_paused: bool = False
         self.update_current_experiment()
         self.load_jobs()
+        self._refresh_timer = self.set_interval(10, self._auto_refresh)
+
+    def _auto_refresh(self) -> None:
+        """Auto-refresh job list if not paused."""
+        if not self._refresh_paused:
+            self.load_jobs()
 
     def action_set_experiment(self) -> None:
         self.push_screen(ExperimentSelectModal())
@@ -91,6 +99,12 @@ class JobMonitorApp(App):
     def action_refresh(self) -> None:
         """Refresh the job list."""
         self.load_jobs()
+
+    def action_toggle_refresh(self) -> None:
+        """Toggle auto-refresh on/off."""
+        self._refresh_paused = not self._refresh_paused
+        state = "PAUSED" if self._refresh_paused else "ON"
+        self.notify(f"Auto-refresh: {state}")
 
     def update_current_experiment(self) -> None:
         """Update the title and subtitle with the current experiment."""
@@ -116,7 +130,7 @@ class JobMonitorApp(App):
         try:
             job_list = self.query_one("#job-list", ListView)
             job_list.display = False
-        except Exception:
+        except LookupError:
             pass
 
     def populate_jobs(self, jobs: list[dict]) -> None:
@@ -130,11 +144,42 @@ class JobMonitorApp(App):
 
             for job in jobs:
                 job_list.append(JobListItem(job))
-        except Exception:
-            # Handle case where widget might be unmounted during refresh
+        except LookupError:
+            # Widget might be unmounted during refresh
             pass
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         if isinstance(event.item, JobListItem):
+            from transformerlab_cli.commands.job_monitor.JobLogs import JobLogs
+
             details = self.query_one(JobDetails)
             details.set_job(event.item.job)
+            try:
+                logs_panel = self.query_one(JobLogs)
+                logs_panel._polling = False  # type: ignore[attr-defined]
+                logs_panel.set_job(event.item.job)  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
+    def action_toggle_logs(self) -> None:
+        """Toggle between job details view and log view."""
+        from transformerlab_cli.commands.job_monitor.JobLogs import JobLogs
+
+        details = self.query_one(JobDetails)
+        logs_panel = self.query_one(JobLogs)
+        if details.display:
+            details.display = False
+            logs_panel.display = True
+        else:
+            details.display = True
+            logs_panel.display = False
+
+    def action_gallery(self) -> None:
+        """Open the gallery modal."""
+        from transformerlab_cli.commands.job_monitor.GalleryModal import GalleryModal
+
+        def on_gallery_dismissed(task_id: str | None) -> None:
+            if task_id:
+                self.notify(f"Task imported: ID {task_id}")
+
+        self.push_screen(GalleryModal(), on_gallery_dismissed)

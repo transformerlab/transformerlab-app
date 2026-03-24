@@ -1,3 +1,4 @@
+import httpx
 from textual.app import ComposeResult
 from textual.widgets import (
     Static,
@@ -129,7 +130,7 @@ class InteractiveTaskConfigModal(ModalScreen):
                 widget = self.query_one(f"#{widget_id}", Input)
                 if widget.value:
                     env_vars[env_var] = widget.value
-            except Exception:
+            except LookupError:
                 pass
         return env_vars
 
@@ -190,7 +191,7 @@ class InteractiveTaskConfigModal(ModalScreen):
                 self.notify, f"Interactive task launched. Job ID: {job_id}", severity="information"
             )
             self.app.call_from_thread(self._dismiss_all)
-        except Exception as e:
+        except (RuntimeError, httpx.HTTPError) as e:
             self.app.call_from_thread(self._show_spinner, False)
             self.app.call_from_thread(self.notify, str(e), severity="error")
 
@@ -276,7 +277,7 @@ class InteractiveTaskModal(ModalScreen):
         try:
             resp = api.get(f"/experiment/{experiment_id}/task/gallery/interactive")
             gallery = resp.json().get("data", []) if resp.status_code == 200 else []
-        except Exception:
+        except httpx.HTTPError:
             gallery = []
         self.app.call_from_thread(self._populate, providers, gallery)
 

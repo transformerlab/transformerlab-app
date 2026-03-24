@@ -1,20 +1,33 @@
-import typer
+import io
+import json
 import os
+import zipfile
+from fnmatch import fnmatch
 from pathlib import Path
-from rich.console import Console
-from rich.table import Table
-from rich import print
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, DownloadColumn, TransferSpeedColumn
-from rich.panel import Panel
-from rich.text import Text
 from urllib.parse import urlparse
 
-from transformerlab_cli.util.config import check_configs, require_current_experiment
+import httpx
+import typer
+from rich.panel import Panel
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TransferSpeedColumn,
+)
+from rich.table import Table
+from rich.text import Text
+
+from transformerlab_cli.state import cli_state
 from transformerlab_cli.util import api
+from transformerlab_cli.util.config import check_configs, require_current_experiment
+from transformerlab_cli.util.ui import console, exit_with_no_results
 
 app = typer.Typer()
 
-console = Console()
+ACTIVE_JOB_STATUSES = {"RUNNING", "LAUNCHING", "INTERACTIVE", "WAITING"}
 
 
 def _fetch_all_jobs(experiment_id: str) -> list[dict]:
@@ -23,7 +36,7 @@ def _fetch_all_jobs(experiment_id: str) -> list[dict]:
     if response.status_code == 200:
         return response.json()
     else:
-        console.print(f"[red]Error:[/red] Failed to fetch jobs. Status code: {response.status_code}")
+        console.print(f"[error]Error:[/error] Failed to fetch jobs. Status code: {response.status_code}")
         return []
 
 
@@ -120,51 +133,76 @@ def _render_job(job) -> None:
 
 def list_jobs(experiment_id: str, running_only: bool = False):
     """List all jobs for a specific experiment."""
+    output_format = cli_state.output_format
     jobs = []
-    with console.status("[bold green]Fetching jobs[/bold green]", spinner="dots"):
+    if output_format != "json":
+        with console.status("[bold success]Fetching jobs[/bold success]", spinner="dots"):
+            jobs = _fetch_all_jobs(experiment_id)
+    else:
         jobs = _fetch_all_jobs(experiment_id)
+
     if running_only:
-        jobs = [j for j in jobs if j.get("status") in ("RUNNING", "LAUNCHING", "INTERACTIVE")]
-    table = _render_jobs(jobs)
-    print(table)
+        jobs = [j for j in jobs if j.get("status") in ACTIVE_JOB_STATUSES]
+
+    if output_format == "json":
+        print(json.dumps(jobs))
+    else:
+        table = _render_jobs(jobs)
+        console.print(table)
 
 
 def info_job(job_id: str, experiment_id: str):
     """Get details of a specific job."""
     jobs = []
-    with console.status("[bold green]Fetching jobs[/bold green]", spinner="dots"):
+    with console.status("[bold success]Fetching jobs[/bold success]", spinner="dots"):
         jobs = _fetch_all_jobs(experiment_id)
 
     # filter the job with the given job_id
     job = next((job for job in jobs if str(job.get("id")) == job_id), None)
     if job:
-        print(f"[bold green]Job Details for ID {job_id}:[/bold green]")
+        console.print(f"[bold success]Job Details for ID {job_id}:[/bold success]")
         _render_job(job)
     else:
-        console.print(f"[red]Error:[/red] Job with ID {job_id} not found.")
+        console.print(f"[error]Error:[/error] Job with ID {job_id} not found.")
 
 
-def list_artifacts(job_id: str, output_format: str = "pretty") -> None:
-    """List artifacts for a task by ID."""
-    with console.status(f"[bold green]Fetching artifacts for task {job_id}...[/bold green]", spinner="dots"):
+def list_artifacts(job_id: str, output_format: str = "pretty") -> list[dict]:
+    """List artifacts for a job by ID. Returns list of artifact dicts."""
+    if output_format != "json":
+        with console.status(f"[bold success]Fetching artifacts for job {job_id}...[/bold success]", spinner="dots"):
+            response = api.get(f"/jobs/{job_id}/artifacts")
+    else:
         response = api.get(f"/jobs/{job_id}/artifacts")
 
-    if response.status_code == 200:
-        artifacts = response.json().get("artifacts", [])
-        if not artifacts:
-            console.print(f"[yellow]No artifacts found for job {job_id}.[/yellow]")
-            return
+    if response.status_code != 200:
+        if output_format == "json":
+            print(json.dumps({"error": f"Failed to fetch artifacts. Status code: {response.status_code}"}))
+            raise typer.Exit(1)
+        console.print(f"[error]Error:[/error] Failed to fetch artifacts. Status code: {response.status_code}")
+        raise typer.Exit(1)
 
-        # Print artifacts in a nice list
+    artifacts = response.json().get("artifacts", [])
+
+    if not artifacts:
+        exit_with_no_results(output_format, f"No artifacts found for job {job_id}")
+
+    if output_format == "json":
+        print(json.dumps(artifacts))
+    else:
         table = Table(title=f"Artifacts for Job {job_id}")
         table.add_column("Filename", style="cyan", no_wrap=True)
-
+        table.add_column("Path", style="dim")
+        table.add_column("Size", justify="right")
         for artifact in artifacts:
-            table.add_row(artifact.get("filename", "N/A"))
-
+            size = str(artifact.get("size", "—"))
+            table.add_row(
+                artifact.get("filename", "N/A"),
+                artifact.get("path", "N/A"),
+                size,
+            )
         console.print(table)
-    else:
-        console.print(f"[red]Error:[/red] Failed to fetch artifacts. Status code: {response.status_code}")
+
+    return artifacts
 
 
 def download_artifacts(job_id: str, output_dir: str = None) -> None:
@@ -181,10 +219,10 @@ def download_artifacts(job_id: str, output_dir: str = None) -> None:
 
     # Check if file already exists
     if os.path.exists(output_path):
-        console.print(f"[yellow]Warning:[/yellow] File {output_path} already exists. It will be overwritten.")
+        console.print(f"[warning]Warning:[/warning] File {output_path} already exists. It will be overwritten.")
 
     try:
-        with console.status(f"[bold green]Downloading artifacts for job {job_id}...[/bold green]", spinner="dots"):
+        with console.status(f"[bold success]Downloading artifacts for job {job_id}...[/bold success]", spinner="dots"):
             response = api.get(f"/jobs/{job_id}/artifacts/download_all", timeout=300.0)
 
         if response.status_code == 200:
@@ -224,16 +262,16 @@ def download_artifacts(job_id: str, output_dir: str = None) -> None:
                         f.write(response.content)
                         progress.update(task, completed=1, total=1)
 
-            console.print(f"[green]✓[/green] Successfully downloaded artifacts to: {output_path}")
+            console.print(f"[success]✓[/success] Successfully downloaded artifacts to: {output_path}")
         elif response.status_code == 404:
-            console.print(f"[red]Error:[/red] No artifacts found for job {job_id}.")
+            console.print(f"[error]Error:[/error] No artifacts found for job {job_id}.")
         else:
-            console.print(f"[red]Error:[/red] Failed to download artifacts. Status code: {response.status_code}")
+            console.print(f"[error]Error:[/error] Failed to download artifacts. Status code: {response.status_code}")
             if response.text:
-                console.print(f"[red]Response:[/red] {response.text[:200]}")
+                console.print(f"[error]Response:[/error] {response.text[:200]}")
 
-    except Exception as e:
-        console.print(f"[red]Error:[/red] Failed to download artifacts: {e}")
+    except (httpx.HTTPError, OSError) as e:
+        console.print(f"[error]Error:[/error] Failed to download artifacts: {e}")
 
 
 @app.command("artifacts")
@@ -242,7 +280,7 @@ def command_job_artifacts(
 ):
     """List artifacts for a job."""
     check_configs()
-    list_artifacts(job_id)
+    list_artifacts(job_id, output_format=cli_state.output_format)
 
 
 @app.command("download")
@@ -251,15 +289,191 @@ def command_job_download(
     output_dir: str = typer.Option(
         None, "--output", "-o", help="Output directory for the zip file (default: current directory)"
     ),
+    file: list[str] = typer.Option(
+        None,
+        "--file",
+        help="Filename or glob pattern to download (can be repeated). Omit to download all as zip.",
+    ),
 ):
-    """Download all artifacts for a job as a zip file."""
+    """Download artifacts for a job. Use --file to download specific files."""
     check_configs()
-    download_artifacts(job_id, output_dir)
+    out = os.path.abspath(output_dir) if output_dir else os.getcwd()
+    output_format = cli_state.output_format
+
+    if not file:
+        download_artifacts(job_id, output_dir)
+        return
+
+    raw_resp = api.get(f"/jobs/{job_id}/artifacts")
+    if raw_resp.status_code != 200:
+        if output_format == "json":
+            print(json.dumps({"error": f"Failed to fetch artifacts. Status code: {raw_resp.status_code}"}))
+        else:
+            console.print(f"[red]Error:[/red] Failed to fetch artifacts. Status code: {raw_resp.status_code}")
+        raise typer.Exit(1)
+
+    artifacts = raw_resp.json().get("artifacts", [])
+    all_filenames = [a.get("filename", "") for a in artifacts]
+
+    matched = [fn for fn in all_filenames if any(fnmatch(fn, pat) for pat in file)]
+    if not matched:
+        if output_format == "json":
+            print(json.dumps({"error": f"No artifacts matched the pattern(s): {', '.join(file)}"}))
+        else:
+            console.print(f"[yellow]No artifacts matched the pattern(s): {', '.join(file)}[/yellow]")
+        raise typer.Exit(2)
+
+    downloaded: list[dict] = []
+    for filename in matched:
+        if output_format != "json":
+            console.print(f"Downloading [cyan]{filename}[/cyan]...")
+        path = download_single_artifact(job_id, filename, out)
+        if path:
+            downloaded.append({"filename": filename, "path": path})
+        elif output_format != "json":
+            console.print(f"[red]Failed to download {filename}[/red]")
+
+    if output_format == "json":
+        print(json.dumps(downloaded))
+    else:
+        console.print(f"[green]✓[/green] Downloaded {len(downloaded)}/{len(matched)} file(s) to {out}")
+
+
+def download_single_artifact(job_id: str, filename: str, output_dir: str) -> str | None:
+    """Download a single artifact by filename. Returns local path or None on failure."""
+    output_path = os.path.join(output_dir, filename)
+    try:
+        response = api.get(f"/jobs/{job_id}/artifact/{filename}?task=download", timeout=300.0)
+        if response.status_code == 200:
+            with open(output_path, "wb") as f:
+                f.write(response.content)
+            return output_path
+        if response.status_code in (404, 405):
+            zip_response = api.get(f"/jobs/{job_id}/artifacts/download_all", timeout=300.0)
+            if zip_response.status_code == 200:
+                with zipfile.ZipFile(io.BytesIO(zip_response.content)) as zf:
+                    names = zf.namelist()
+                    match = next(
+                        (n for n in names if n.endswith(filename) or os.path.basename(n) == filename),
+                        None,
+                    )
+                    if match:
+                        with zf.open(match) as src, open(output_path, "wb") as dst:
+                            dst.write(src.read())
+                        return output_path
+    except Exception as e:  # pragma: no cover - best-effort logging
+        console.print(f"[red]Error downloading {filename}:[/red] {e}")
+    return None
+
+
+def fetch_logs(experiment_id: str, job_id: str):
+    """Fetch current provider logs for a job."""
+    return api.get(f"/experiment/{experiment_id}/jobs/{job_id}/provider_logs", timeout=15.0)
+
+
+def stream_logs(experiment_id: str, job_id: str, output_format: str) -> None:
+    """Poll and stream new log lines until job ends or Ctrl-C."""
+    import time
+
+    seen_lines = 0
+    start = time.time()
+
+    try:
+        while True:
+            elapsed = int(time.time() - start)
+            try:
+                response = fetch_logs(experiment_id, job_id)
+                if response.status_code == 200:
+                    data = response.json()
+                    logs_text = data.get("logs", "") if isinstance(data, dict) else ""
+                    lines = logs_text.splitlines() if logs_text else []
+
+                    if len(lines) < seen_lines:
+                        seen_lines = 0
+
+                    new_lines = lines[seen_lines:]
+                    if new_lines:
+                        if output_format == "json":
+                            print(
+                                json.dumps(
+                                    {
+                                        "job_id": int(job_id),
+                                        "new_lines": "\n".join(new_lines),
+                                        "elapsed_seconds": elapsed,
+                                    }
+                                )
+                            )
+                        else:
+                            for line in new_lines:
+                                console.print(line)
+                        seen_lines = len(lines)
+            except Exception:
+                pass
+
+            try:
+                jobs_response = api.get(
+                    f"/experiment/{experiment_id}/jobs/list?type=REMOTE",
+                    timeout=10.0,
+                )
+                if jobs_response.status_code == 200:
+                    job = next(
+                        (j for j in jobs_response.json() if str(j.get("id")) == str(job_id)),
+                        None,
+                    )
+                    if job and job.get("status") not in ACTIVE_JOB_STATUSES:
+                        break
+            except Exception:
+                pass
+
+            time.sleep(2)
+    except KeyboardInterrupt:
+        pass
+
+
+@app.command("logs")
+def command_job_logs(
+    job_id: str = typer.Argument(..., help="Job ID to fetch logs for"),
+    follow: bool = typer.Option(False, "--follow", "-f", help="Stream new lines continuously"),
+):
+    """Fetch logs for a job. Use --follow to stream continuously."""
+    experiment_id = require_current_experiment()
+    output_format = cli_state.output_format
+
+    if follow:
+        stream_logs(experiment_id, job_id, output_format)
+        return
+
+    if output_format != "json":
+        with console.status("[bold green]Fetching logs...[/bold green]", spinner="dots"):
+            response = fetch_logs(experiment_id, job_id)
+    else:
+        response = fetch_logs(experiment_id, job_id)
+
+    if response.status_code != 200:
+        if output_format == "json":
+            print(json.dumps({"error": f"Failed to fetch logs. Status code: {response.status_code}"}))
+        else:
+            console.print(f"[red]Error:[/red] Failed to fetch logs. Status code: {response.status_code}")
+        raise typer.Exit(1)
+
+    data = response.json()
+    logs_text = data.get("logs", "") if isinstance(data, dict) else ""
+
+    if not logs_text or "No log files found" in logs_text:
+        exit_with_no_results(output_format, "No logs found for this job")
+
+    if output_format == "json":
+        lines = [line for line in logs_text.splitlines() if line]
+        print(json.dumps({"job_id": int(job_id), "logs": logs_text, "line_count": len(lines)}))
+    else:
+        console.print(logs_text)
 
 
 @app.command("list")
 def command_job_list(
-    running: bool = typer.Option(False, "--running", help="Show only currently running jobs"),
+    running: bool = typer.Option(
+        False, "--running", help="Show only active jobs (WAITING, LAUNCHING, RUNNING, INTERACTIVE)"
+    ),
 ):
     """List all jobs."""
     check_configs()
@@ -283,18 +497,18 @@ def command_job_stop(
     """Stop a running job."""
     current_experiment = require_current_experiment()
 
-    with console.status(f"[bold green]Stopping job {job_id}...[/bold green]", spinner="dots"):
+    with console.status(f"[bold success]Stopping job {job_id}...[/bold success]", spinner="dots"):
         response = api.get(f"/experiment/{current_experiment}/jobs/{job_id}/stop")
 
     if response.status_code == 200:
-        console.print(f"[green]✓[/green] Job [bold]{job_id}[/bold] stopped.")
+        console.print(f"[success]✓[/success] Job [bold]{job_id}[/bold] stopped.")
     else:
-        console.print(f"[red]Error:[/red] Failed to stop job. Status code: {response.status_code}")
+        console.print(f"[error]Error:[/error] Failed to stop job. Status code: {response.status_code}")
         try:
             detail = response.json().get("detail", response.text)
-            console.print(f"[red]Detail:[/red] {detail}")
-        except Exception:
-            console.print(f"[red]Response:[/red] {response.text}")
+            console.print(f"[error]Detail:[/error] {detail}")
+        except (ValueError, KeyError):
+            console.print(f"[error]Response:[/error] {response.text}")
         raise typer.Exit(1)
 
 

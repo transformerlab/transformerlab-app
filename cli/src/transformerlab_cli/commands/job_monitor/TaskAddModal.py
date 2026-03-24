@@ -52,12 +52,10 @@ class TaskAddModal(ModalScreen):
         task_path = task_input.value.strip()
 
         if not task_path:
-            self.app.console.print("[red]Error:[/red] Task path cannot be empty.")
+            self.notify("Task path cannot be empty.", severity="error")
             return
 
         response = None
-
-        ## TODO Add task here
 
         if response and response.get("status_code") != 200:
             self.notify("Task submission failed!", severity="warning")
