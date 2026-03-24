@@ -341,6 +341,8 @@ class SkyPilotProvider(ComputeProvider):
             resources_kwargs["zone"] = config.zone
         if config.use_spot:
             resources_kwargs["use_spot"] = True
+        if config.image_id:
+            resources_kwargs["image_id"] = config.image_id
 
         if resources_kwargs:
             task.set_resources(sky_resources.Resources(**resources_kwargs))
