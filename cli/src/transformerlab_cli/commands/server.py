@@ -403,10 +403,24 @@ def _build_env_content(env_vars: dict[str, str]) -> str:
 
 
 def _write_env_file(path: Path, env_vars: dict[str, str]) -> None:
-    """Write the env vars to a .env file, creating directories as needed."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    content = _build_env_content(env_vars)
-    path.write_text(content)
+    """Write the env vars to a .env file, creating directories as needed.
+
+    Raises typer.Exit(1) on permission or OS errors so the installer does not
+    continue with a missing or partial configuration.
+    """
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        content = _build_env_content(env_vars)
+        path.write_text(content)
+    except PermissionError:
+        console.print(
+            f"\n[error]Permission denied: cannot write to {path}[/error]"
+            "\n[dim]Check directory permissions or run with appropriate privileges.[/dim]"
+        )
+        raise typer.Exit(1)
+    except OSError as e:
+        console.print(f"\n[error]Failed to write configuration: {e}[/error]")
+        raise typer.Exit(1)
 
 
 # ---------------------------------------------------------------------------
