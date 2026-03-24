@@ -174,6 +174,7 @@ export default function InteractiveJobCard({
     job.status === 'RUNNING' ||
     job.status === 'STOPPING';
   const isLaunching = job.status === 'LAUNCHING' || job.status === 'WAITING';
+  const isFailed = job.status === 'FAILED';
   const showActions = isInteractive || isLaunching;
   const title =
     jobData.cluster_name ||
@@ -204,6 +205,10 @@ export default function InteractiveJobCard({
         '&:hover': {
           boxShadow: 'sm',
         },
+        ...(isFailed && {
+          borderColor: 'var(--joy-palette-danger-300)',
+          bgcolor: 'var(--joy-palette-danger-softBg)',
+        }),
       }}
     >
       <CardContent sx={{ gap: 1.5 }}>
@@ -264,6 +269,27 @@ export default function InteractiveJobCard({
         <Box>
           <JobProgress job={job} />
         </Box>
+
+        {isFailed && (
+          <>
+            <Divider />
+            {jobData.error_msg && (
+              <Typography level="body-xs" color="danger" sx={{ wordBreak: 'break-word' }}>
+                Error: {jobData.error_msg}
+              </Typography>
+            )}
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Button
+                variant="soft"
+                color="neutral"
+                size="sm"
+                onClick={() => setConnectOpen(true)}
+              >
+                Logs
+              </Button>
+            </Stack>
+          </>
+        )}
 
         {showActions && (
           <>
