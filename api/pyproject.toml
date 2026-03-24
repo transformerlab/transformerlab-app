@@ -17,6 +17,7 @@ dependencies = [
   "aiofiles==24.1.0",
   "alembic==1.17.2",
   "boto3==1.40.70",
+  "datasets==3.6.0",
   "fastapi==0.115.12",
   "fastapi-users[sqlalchemy,oauth]==15.0.1",
   "httpx-oauth==0.16.1",
