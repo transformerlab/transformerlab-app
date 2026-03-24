@@ -1112,7 +1112,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       {isInteractivePage && (
         <NewInteractiveTaskModal
           open={interactiveModalOpen}
-          onClose={() => setInteractiveModalOpen(false)}
+          onClose={() => {
+            setInteractiveModalOpen(false);
+            setIsSubmitting(false);
+          }}
           onSubmit={handleSubmitInteractive}
           isSubmitting={isSubmitting}
           providers={providers}
@@ -1186,6 +1189,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         <QueueTaskModal
           open={queueModalOpen}
           onClose={() => {
+            setIsSubmitting(false);
             setQueueModalOpen(false);
             setTaskBeingQueued(null);
           }}

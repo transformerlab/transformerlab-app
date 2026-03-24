@@ -835,6 +835,7 @@ export default function Interactive() {
         onClose={() => {
           setInteractiveModalOpen(false);
           setInteractiveModalError(null);
+          setIsSubmitting(false);
         }}
         submitError={interactiveModalError}
         onClearSubmitError={() => setInteractiveModalError(null)}
