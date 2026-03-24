@@ -129,40 +129,13 @@ export default function JobProgress({
     const liveStatus = job?.job_data?.live_status;
     if (!liveStatus) return null;
 
-    if (liveStatus === 'lab_init') {
-      return (
-        <Typography level="body-xs" color="neutral">
-          Lab instance initialized inside remote job.
-        </Typography>
-      );
-    }
+    const isCrashed = liveStatus.toLowerCase().includes('crashed');
 
-    if (liveStatus === 'started') {
-      return (
-        <Typography level="body-xs" color="neutral">
-          Remote command started on compute provider&hellip;
-        </Typography>
-      );
-    }
-
-    if (liveStatus === 'crashed') {
-      return (
-        <Typography level="body-xs" color="danger">
-          Remote command crashed. Check provider logs for details.
-        </Typography>
-      );
-    }
-
-    if (liveStatus === 'finished') {
-      return (
-        <Typography level="body-xs" color="neutral">
-          Remote command finished. Waiting for provider to finalize job
-          status&hellip;
-        </Typography>
-      );
-    }
-
-    return null;
+    return (
+      <Typography level="body-xs" color={isCrashed ? 'danger' : 'neutral'}>
+        {liveStatus}
+      </Typography>
+    );
   };
 
   // Format provider launch result for display
