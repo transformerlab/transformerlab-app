@@ -3,6 +3,7 @@
 import contextlib
 import json
 import os
+import re
 import signal
 import shlex
 import subprocess
@@ -150,6 +151,33 @@ def _get_install_log_path() -> Path:
     root = Path(get_local_provider_root())
     root.mkdir(parents=True, exist_ok=True)
     return root / _INSTALL_LOG_FILE
+
+
+def _resolve_lab_sdk_dir(localprovider_pyproject: Path) -> Optional[Path]:
+    """Return sibling ``lab-sdk`` next to the api directory (monorepo or ~/.transformerlab/src layout)."""
+    lab_sdk = (localprovider_pyproject.parent.parent / "lab-sdk").resolve()
+    if (lab_sdk / "pyproject.toml").is_file():
+        return lab_sdk
+    return None
+
+
+def _strip_transformerlab_version_pin(pyproject_path: Path) -> bool:
+    """
+    Remove the ``transformerlab==...`` dependency line so ``uv pip install .[extra]`` does not
+    pull PyPI after we install from a local tree. Returns True if a line was removed.
+    """
+    text = pyproject_path.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
+    out: List[str] = []
+    removed = False
+    for line in lines:
+        if re.match(r'^\s*"transformerlab==', line):
+            removed = True
+            continue
+        out.append(line)
+    if removed:
+        pyproject_path.write_text("".join(out), encoding="utf-8")
+    return removed
 
 
 def _run_local_provider_conda_install(source_code_dir: str) -> None:
@@ -348,6 +376,38 @@ class LocalProvider(ComputeProvider):
         except Exception:
             shutil.rmtree(tmp_project_dir, ignore_errors=True)
             raise
+
+        tmp_pyproject = tmp_project_dir / "pyproject.toml"
+        lab_sdk_dir = _resolve_lab_sdk_dir(localprovider_pyproject)
+        if lab_sdk_dir is not None:
+            _strip_transformerlab_version_pin(tmp_pyproject)
+            ed_cmd = [
+                str(_CONDA_BIN),
+                "run",
+                "--prefix",
+                str(_CONDA_ENV_DIR),
+                "uv",
+                "pip",
+                "install",
+                "--python",
+                str(python_bin),
+                "-e",
+                str(lab_sdk_dir),
+            ]
+            ed_result = subprocess.run(
+                ed_cmd,
+                cwd=str(tmp_project_dir),
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=900,
+            )
+            if ed_result.returncode != 0:
+                shutil.rmtree(tmp_project_dir, ignore_errors=True)
+                raise RuntimeError(
+                    "uv pip install -e lab-sdk failed for job venv: "
+                    f"{ed_result.stderr or ed_result.stdout or 'unknown error'}"
+                )
 
         install_cmd = [str(_CONDA_BIN), "run", "--prefix", str(_CONDA_ENV_DIR), "uv", "pip", "install"]
         if additional_flags:
