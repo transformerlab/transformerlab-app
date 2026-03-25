@@ -170,9 +170,13 @@ export default function Interactive() {
               result.current_status === 'FAILED' ||
               result.current_status === 'STOPPED'
             ) {
+              setLaunchProgressByJobId((prev) => {
+                const next = { ...prev };
+                delete next[String(job.id)];
+                return next;
+              });
               setTimeout(() => jobsMutate(), 0);
-            }
-            if (result.launch_progress) {
+            } else if (result.launch_progress) {
               setLaunchProgressByJobId((prev) => ({
                 ...prev,
                 [String(job.id)]: result.launch_progress,
