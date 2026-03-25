@@ -2,11 +2,13 @@
 The Entrypoint File for Transformer Lab's API Server.
 """
 
+import asyncio
 import os
 import argparse
 import re
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 import sys
 
@@ -95,6 +97,13 @@ logging.basicConfig()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Docs on lifespan events: https://fastapi.tiangolo.com/advanced/events/"""
+    # Configure the default asyncio thread pool used by asyncio.to_thread() and run_in_executor(None, ...).
+    # Python's default is min(32, os.cpu_count() + 4) which can be very low on small machines.
+    _thread_pool_size = int(os.getenv("TFL_ASYNC_THREAD_POOL_SIZE", "256"))
+    loop = asyncio.get_running_loop()
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=_thread_pool_size))
+    print(f"✅ Async thread pool: {_thread_pool_size} workers")
+
     # Do the following at API Startup:
     print_launch_message()
     # Initialize directories early
