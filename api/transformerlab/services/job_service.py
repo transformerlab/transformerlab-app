@@ -213,6 +213,11 @@ async def _list_experiment_job_ids(experiment_id: str) -> list[str]:
     try:
         entries = await storage.ls(jobs_dir, detail=False)
     except Exception:
+        logger.exception(
+            "Failed to list jobs directory for experiment=%s (jobs_dir=%s)",
+            experiment_id,
+            jobs_dir,
+        )
         return []
 
     job_ids: list[str] = []
@@ -238,6 +243,11 @@ async def _job_for_list(
     if not status_filter and job_data.get("status") == JobStatus.DELETED:
         return None
     if "job_data" not in job_data:
+        logger.warning(
+            "Dropping job from listing due to missing job_data key (experiment=%s, job_id=%s)",
+            experiment_id,
+            job_id,
+        )
         return None
     return _add_short_id(job_data)
 
