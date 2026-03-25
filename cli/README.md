@@ -1,16 +1,18 @@
 # Transformer Lab CLI
 
+A command-line interface for [Transformer Lab](https://lab.cloud/for-teams/cli) — manage models, tasks, and jobs from your terminal.
+
 ![Main Screenshot](./screenshots/screenshot001.png)
 
 ![Job Monitor Screenshot](./screenshots/screenshot002.png)
 
-# Usage
-
 ## Install
 
-(install instructions coming soon, for now follow Build Locally instructions below)
+```bash
+uv tool install transformerlab-cli
+```
 
-## Usage:
+## Usage
 
 ```
  Usage: lab [OPTIONS] COMMAND [ARGS]...
@@ -36,42 +38,43 @@
 
 For a full list of all commands with detailed options and example usage, see [COMMANDS.md](COMMANDS.md).
 
-# Development
+## Development
 
-## Run (DEV):
+### Run (DEV)
 
-```
+```bash
 uv run src/transformerlab_cli/main.py
 ```
 
-## Build Locally:
-```
+### Build Locally
+
+```bash
 uv tool install .
 ```
 
 or rebuild with:
-```
+
+```bash
 uv tool install . --force --reinstall
 ```
 
-Adds a `lab` command to your terminal
+Adds a `lab` command to your terminal.
 
-## Debug the Job Monitor:
+### Debug the Job Monitor
 
-```
+```bash
 pip install -e .
 uv run textual run --dev src/transformerlab_cli/commands/job_monitor/job_monitor.py
 ```
 
-and then in another window do:
+and then in another window:
 
-```
+```bash
 textual console -x SYSTEM -x EVENT -x INFO
 ```
 
-## Run Textual in Browser
+### Run Textual in Browser
 
-Run in browser (for fun?)
-```
+```bash
 uv run textual serve src/transformerlab_cli/commands/job_monitor/job_monitor.py
 ```
