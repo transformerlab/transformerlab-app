@@ -262,7 +262,6 @@ export default function QueueTaskModal({
 
     return null;
   }, [isGalleryImported, selectedProvider, task]);
-  
 
   // Fetch user-specific provider settings (including default custom SBATCH flags)
   const slurmUserSettingsKey =
