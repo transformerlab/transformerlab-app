@@ -64,6 +64,22 @@ def get_organization_id() -> str | None:
     return _current_org_id.get()
 
 
+def require_organization_id() -> str:
+    """Return the current organization id, or raise if not set.
+
+    Use this at the top of any code path that must run within an
+    org context (background tasks, executor threads, etc.).
+    """
+    org_id = _current_org_id.get()
+    if org_id is None:
+        raise RuntimeError(
+            "Organization context is required but not set. "
+            "Ensure set_organization_id() is called before this code path "
+            "(e.g. in request middleware or at the start of a background task)."
+        )
+    return org_id
+
+
 async def get_workspace_dir() -> str:
     # Remote SkyPilot workspace override (highest precedence)
     # Only return container workspace path when value is exactly "true"
