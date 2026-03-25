@@ -6,6 +6,7 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 from transformerlab_cli.main import app
 from transformerlab_cli.commands.server import _load_existing_env, _build_env_content, _generate_secret
+from tests.helpers import strip_ansi
 
 runner = CliRunner()
 
@@ -21,7 +22,7 @@ def test_server_install_help():
     """Test the server install --help output."""
     result = runner.invoke(app, ["server", "install", "--help"])
     assert result.exit_code == 0
-    assert "--dry-run" in result.output
+    assert "--dry-run" in strip_ansi(result.output)
 
 
 def test_load_existing_env(tmp_path: Path):
