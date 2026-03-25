@@ -28,6 +28,7 @@ async def get_current_version() -> str:
     """Read the installed Transformer Lab version from ~/.transformerlab/src/LATEST_VERSION."""
     latest_version_file = os.path.join(HOME_DIR, "src", "LATEST_VERSION")
     try:
+
         def _read_latest_version() -> str:
             with open(latest_version_file, "r", encoding="utf-8") as f:
                 return f.read()
