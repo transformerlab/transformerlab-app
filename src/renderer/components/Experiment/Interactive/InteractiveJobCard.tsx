@@ -7,10 +7,8 @@ import {
   CardContent,
   Chip,
   Box,
-  IconButton,
   Divider,
 } from '@mui/joy';
-import { Trash2Icon } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
@@ -28,7 +26,6 @@ interface LaunchProgressInfo {
 
 interface InteractiveJobCardProps {
   job: any;
-  onDeleteJob: (jobId: string) => void;
   /** Live launch progress from check-status polling; falls back to job.job_data.launch_progress in JobProgress */
   launchProgress?: LaunchProgressInfo | null;
 }
@@ -118,11 +115,15 @@ function getTypeConfig(interactiveType: string) {
   return INTERACTIVE_TYPE_CONFIG[interactiveType] || DEFAULT_TYPE_CONFIG;
 }
 
+<<<<<<< HEAD
 export default function InteractiveJobCard({
   job,
   onDeleteJob,
   launchProgress,
 }: InteractiveJobCardProps) {
+=======
+export default function InteractiveJobCard({ job }: InteractiveJobCardProps) {
+>>>>>>> 5bee2820b6d0970ed0834a1337051f072682abb0
   type InteractiveGalleryEntry = {
     id?: string;
     name?: string;
@@ -188,15 +189,15 @@ export default function InteractiveJobCard({
     jobData.cluster_name ||
     jobData.template_name ||
     (isPlaceholder ? '' : `Job ${job.id}`);
-  const jobIdNum = parseInt(job.id, 10);
+  const jobIdValue = job?.id == null ? null : String(job.id);
 
   const tunnelInfoUrl = React.useMemo(() => {
     if (!isInteractive || !experimentInfo?.id) return null;
     return chatAPI.Endpoints.Experiment.GetTunnelInfo(
       experimentInfo.id,
-      String(jobIdNum),
+      String(jobIdValue),
     );
-  }, [isInteractive, experimentInfo?.id, jobIdNum]);
+  }, [isInteractive, experimentInfo?.id, jobIdValue]);
 
   const { data: tunnelData } = useSWR(tunnelInfoUrl, fetcher, {
     refreshInterval: 3000,
@@ -259,15 +260,6 @@ export default function InteractiveJobCard({
                 '\u00A0'}
             </Chip>
           </Stack>
-          <IconButton
-            variant="plain"
-            color="danger"
-            size="sm"
-            onClick={() => onDeleteJob(String(job.id))}
-            sx={{ mt: -0.5, mr: -0.5 }}
-          >
-            <Trash2Icon size={16} />
-          </IconButton>
         </Stack>
 
         <Box>
@@ -304,18 +296,18 @@ export default function InteractiveJobCard({
         )}
       </CardContent>
       <InteractiveModal
-        jobId={connectOpen ? jobIdNum : -1}
+        jobId={connectOpen ? jobIdValue : null}
         setJobId={() => setConnectOpen(false)}
         embeddedOutput={
           <EmbeddableStreamingOutput
-            jobId={jobIdNum}
+            jobId={jobIdValue}
             tabs={['provider']}
             jobStatus={job?.status || ''}
           />
         }
       />
       <InteractIframeModal
-        jobId={jobIdNum}
+        jobId={jobIdValue}
         open={interactOpen}
         onClose={() => setInteractOpen(false)}
       />

@@ -14,7 +14,7 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
 };
 
 interface PollingOutputTerminalProps {
-  jobId: number;
+  jobId: string | number;
   experimentId: string;
   lineAnimationDelay?: number;
   initialMessage?: string;
@@ -49,7 +49,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
   // Fetch the output file content directly using the Tasks-specific endpoint
   const outputEndpoint = chatAPI.Endpoints.Experiment.GetTasksOutputFromJob(
     experimentId,
-    jobId.toString(),
+    String(jobId),
   );
 
   const {
