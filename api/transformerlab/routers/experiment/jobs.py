@@ -46,7 +46,6 @@ async def jobs_get_all(
     type: str = "",
     status: str = "",
     subtype: str = "",
-    user_and_team=Depends(get_user_and_team),
 ):
     """
     Return the list of jobs for an experiment, optionally filtered by type/status/subtype.
