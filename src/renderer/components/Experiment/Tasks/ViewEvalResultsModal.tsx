@@ -51,7 +51,7 @@ const ViewEvalResultsModal = ({
 }: {
   open: boolean;
   onClose: () => void;
-  jobId: number | string;
+  jobId: number | string | null;
 }) => {
   const { experimentInfo } = useExperimentInfo();
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);

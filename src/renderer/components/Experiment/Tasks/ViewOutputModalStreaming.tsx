@@ -8,8 +8,8 @@ const TAB_LABELS: Record<string, string> = {
 };
 
 interface ViewOutputModalStreamingProps {
-  jobId: number;
-  setJobId: (jobId: number) => void;
+  jobId: string | null;
+  setJobId: (jobId: string | null) => void;
   /** Which tabs to show, in order. e.g. ['output', 'provider'] or ['provider'] for interactive tasks. */
   tabs?: ('output' | 'provider')[];
   /** Current job status string (e.g. 'RUNNING', 'COMPLETE'). */
@@ -22,9 +22,7 @@ function ViewOutputModalStreaming({
   tabs = ['output', 'provider'],
   jobStatus = '',
 }: ViewOutputModalStreamingProps) {
-  if (jobId === -1) {
-    return null;
-  }
+  if (!jobId) return null;
 
   const showTabList = tabs.length > 1;
   const title = showTabList
@@ -33,9 +31,9 @@ function ViewOutputModalStreaming({
 
   return (
     <Modal
-      open={jobId !== -1}
+      open={jobId !== null}
       onClose={() => {
-        setJobId(-1);
+        setJobId(null);
       }}
     >
       <ModalDialog

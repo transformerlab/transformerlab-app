@@ -16,7 +16,17 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import { formatBytes } from 'renderer/lib/utils';
 
-export default function ViewCheckpointsModal({ open, onClose, jobId }) {
+interface ViewCheckpointsModalProps {
+  open: boolean;
+  onClose: () => void;
+  jobId: string | null;
+}
+
+export default function ViewCheckpointsModal({
+  open,
+  onClose,
+  jobId,
+}: ViewCheckpointsModalProps) {
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const [resumingCheckpoint, setResumingCheckpoint] = useState<string | null>(
@@ -36,6 +46,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
       });
       return;
     }
+    if (!jobId) return;
 
     setResumingCheckpoint(checkpoint.filename);
     try {

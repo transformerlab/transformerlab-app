@@ -31,9 +31,11 @@ interface FileEntry {
 
 type JobModeProps = {
   mode: 'job';
-  jobId: number;
+  jobId: string;
   taskId?: never;
   taskName?: never;
+  galleryId?: never;
+  galleryTitle?: never;
 };
 
 type TaskModeProps = {
@@ -41,6 +43,8 @@ type TaskModeProps = {
   taskId: string;
   taskName?: string | null;
   jobId?: never;
+  galleryId?: never;
+  galleryTitle?: never;
 };
 
 type TeamGalleryModeProps = {
@@ -87,7 +91,7 @@ export default function FileBrowserModal({
       setLoading(true);
       try {
         if (mode === 'job') {
-          if (jobId === -1) {
+          if (!jobId) {
             setFiles([]);
             return;
           }
