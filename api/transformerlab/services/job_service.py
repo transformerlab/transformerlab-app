@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import json
+import logging
 import time
 from typing import List, Dict, Optional, Any
 
@@ -9,6 +10,8 @@ from lab import storage
 
 from lab.job_status import JobStatus, TERMINAL_STATUSES
 from transformerlab.services.cache_service import cache
+
+logger = logging.getLogger(__name__)
 
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
@@ -112,18 +115,36 @@ async def jobs_get_all(experiment_id, type="", status=""):
 
     semaphore = asyncio.Semaphore(JOBS_LIST_HYDRATION_CONCURRENCY)
 
+    failed_job_ids: list[str] = []
+
     async def _hydrate(job_id: str) -> Optional[Dict[str, Any]]:
         async with semaphore:
-            return await _job_for_list(experiment_id, job_id, type, status)
+            try:
+                return await _job_for_list(experiment_id, job_id, type, status)
+            except Exception:
+                failed_job_ids.append(job_id)
+                logger.exception("jobs_get_all hydration failed for experiment=%s job_id=%s", experiment_id, job_id)
+                return None
 
     hydrated = await asyncio.gather(*(_hydrate(job_id) for job_id in job_ids), return_exceptions=True)
 
     jobs: list[dict[str, Any]] = []
     for item in hydrated:
         if isinstance(item, Exception):
+            logger.exception("jobs_get_all gather-level exception for experiment=%s", experiment_id, exc_info=item)
             continue
         if isinstance(item, dict):
             jobs.append(item)
+
+    if failed_job_ids:
+        logger.debug(
+            "jobs_get_all encountered %d hydration failure(s) for experiment=%s; returned_jobs=%d scanned_jobs=%d",
+            len(failed_job_ids),
+            experiment_id,
+            len(jobs),
+            len(job_ids),
+        )
+        logger.debug("jobs_get_all failed job ids for experiment=%s: %s", experiment_id, failed_job_ids)
 
     jobs.sort(key=_sort_key_job_recency, reverse=True)
     return jobs
