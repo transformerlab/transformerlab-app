@@ -8,6 +8,18 @@
       "category": "finetuning",
       "modality": "text",
       "framework": ["huggingface"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -19,6 +31,18 @@
       "category": "rlhf",
       "modality": "text",
       "framework": ["huggingface"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -30,6 +54,18 @@
       "category": "finetuning",
       "modality": "text",
       "framework": ["huggingface"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -41,6 +77,18 @@
       "category": "finetuning",
       "modality": "text",
       "framework": ["unsloth"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -52,6 +100,18 @@
       "category": "training",
       "modality": "text",
       "framework": ["unsloth"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -63,6 +123,18 @@
       "category": "training",
       "modality": "audio",
       "framework": ["unsloth"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -74,6 +146,18 @@
       "category": "training",
       "modality": "image",
       "framework": ["diffusers"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -85,6 +169,18 @@
       "category": "training",
       "modality": "embedding",
       "framework": ["sentence-transformers"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -96,6 +192,18 @@
       "category": "finetuning",
       "modality": "text",
       "framework": ["huggingface"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -107,6 +215,18 @@
       "category": "finetuning",
       "modality": "text",
       "framework": ["nanochat"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -118,6 +238,18 @@
       "category": "finetuning",
       "modality": "text",
       "framework": ["lora"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -129,6 +261,18 @@
       "category": "finetuning",
       "modality": "text",
       "framework": ["trl"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -140,6 +284,14 @@
       "category": "finetuning",
       "modality": "text",
       "framework": ["mlx"]
+    },
+    "supportedAccelerators": {
+      "AppleSilicon": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      }
     }
   },
   {
@@ -151,6 +303,18 @@
       "category": "training",
       "modality": "other",
       "framework": ["jax", "flax"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -162,6 +326,18 @@
       "category": "training",
       "modality": "other",
       "framework": []
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -173,6 +349,18 @@
       "category": "training",
       "modality": "vision",
       "framework": ["yolo"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -184,6 +372,32 @@
       "category": "eval",
       "modality": "text",
       "framework": ["huggingface"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      },
+      "AppleSilicon": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      },
+      "cpu": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      }
     }
   },
   {
@@ -195,6 +409,18 @@
       "category": "eval",
       "modality": "text",
       "framework": [""]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -206,6 +432,18 @@
       "category": "eval",
       "modality": "text",
       "framework": ["eleutherai"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -217,6 +455,18 @@
       "category": "eval",
       "modality": "text",
       "framework": ["deepeval"]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -228,6 +478,18 @@
       "category": "generation",
       "modality": "vision",
       "framework": [""]
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "accelerators": "RTX3090:1"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "accelerators": "7900XTX:1"
+        }
+      }
     }
   },
   {
@@ -239,6 +501,32 @@
       "category": "other",
       "modality": "other",
       "framework": []
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      },
+      "AppleSilicon": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      },
+      "cpu": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      }
     }
   },
   {
@@ -250,6 +538,32 @@
       "category": "dataset-generation",
       "modality": "other",
       "framework": []
+    },
+    "supportedAccelerators": {
+      "NVIDIA": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      },
+      "AMD": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      },
+      "AppleSilicon": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      },
+      "cpu": {
+        "resources": {
+          "cpus": "2",
+          "memory": "4"
+        }
+      }
     }
   }
 ]
