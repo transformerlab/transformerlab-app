@@ -1,10 +1,8 @@
 # Transformer Lab CLI
 
-A command-line interface for [Transformer Lab](https://lab.cloud/for-teams/cli) — manage models, tasks, and jobs from your terminal.
+![Main Screenshot](https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/cli/screenshots/screenshot001.png)
 
-![Main Screenshot](./screenshots/screenshot001.png)
-
-![Job Monitor Screenshot](./screenshots/screenshot002.png)
+![Job Monitor Screenshot](https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/cli/screenshots/screenshot002.png)
 
 ## Install
 
@@ -36,7 +34,7 @@ uv tool install transformerlab-cli
 
 ## Command Reference
 
-For a full list of all commands with detailed options and example usage, see [COMMANDS.md](COMMANDS.md).
+For a full list of all commands with detailed options and example usage, see [COMMANDS.md](https://github.com/transformerlab/transformerlab-app/blob/main/cli/COMMANDS.md).
 
 ## Development
 
