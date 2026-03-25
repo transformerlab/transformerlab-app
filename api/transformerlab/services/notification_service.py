@@ -293,7 +293,7 @@ async def process_pending_notifications_once() -> Dict[str, int]:
                         # IMPORTANT: jobs_get_all reads from a cached jobs.json that
                         # does NOT reflect freshly-written job_data fields.
                         # Always re-read uncached so we see the current notification_sent.
-                        job = await job_service.job_get(job_id)
+                        job = await job_service.job_get(job_id, experiment_id=experiment_id)
                         if not job:
                             continue
 

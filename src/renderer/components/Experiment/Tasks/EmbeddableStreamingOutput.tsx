@@ -206,7 +206,7 @@ const TAB_OPTIONS: { value: TabValue; label: string }[] = [
 ];
 
 export interface EmbeddableStreamingOutputProps {
-  jobId: number;
+  jobId: string | number | null;
   /** Which tabs to show, in order. e.g. ['output', 'provider'] or ['provider'] for interactive tasks. */
   tabs?: TabValue[];
   /** Current job status string (e.g. 'RUNNING', 'COMPLETE'). Passed from the parent to avoid extra polling. */
@@ -237,7 +237,15 @@ export default function EmbeddableStreamingOutput({
   }, [jobId, tabsKey]);
 
   const providerLogsUrl = useMemo(() => {
-    if (jobId === -1 || !experimentInfo?.id) {
+    if (
+      !experimentInfo?.id ||
+      jobId === null ||
+      jobId === '' ||
+      jobId === -1 ||
+      jobId === '-1' ||
+      jobId === 'NaN' ||
+      (typeof jobId === 'number' && Number.isNaN(jobId))
+    ) {
       return null;
     }
     return chatAPI.Endpoints.Experiment.GetProviderLogs(
@@ -309,7 +317,7 @@ export default function EmbeddableStreamingOutput({
     resetProviderCountdown,
   ]);
 
-  if (jobId === -1 || !experimentInfo) {
+  if (!jobId || !experimentInfo) {
     return null;
   }
 

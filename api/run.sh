@@ -123,6 +123,8 @@ fi
 # Temporary: Turn off python buffering or debug output made by print() may not show up in logs
 export PYTHONUNBUFFERED=1
 
+UVICORN_WORKERS=${TFL_UVICORN_WORKERS:-1}
+
 echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
@@ -132,9 +134,13 @@ if [ "$RELOAD" = true ]; then
         uvicorn api:app --reload --port ${PORT} --host ${TLABHOST} --timeout-graceful-shutdown 1
     fi
 else
+    WORKER_ARGS=""
+    if [ "$UVICORN_WORKERS" -gt 1 ]; then
+        WORKER_ARGS="--workers ${UVICORN_WORKERS}"
+    fi
     if [ "$HTTPS" = true ]; then
-        python api.py --https --port ${PORT} --host ${TLABHOST}
+        python api.py --https --port ${PORT} --host ${TLABHOST} ${WORKER_ARGS}
     else
-        uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
+        uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log ${WORKER_ARGS}
     fi
 fi
