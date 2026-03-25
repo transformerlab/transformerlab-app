@@ -2067,9 +2067,9 @@ async def launch_template_on_provider(
     if trackio_run_name_for_job is not None:
         job_data["trackio_run_name"] = trackio_run_name_for_job
 
-    for key, value in job_data.items():
-        if value is not None:
-            await job_service.job_update_job_data_insert_key_value(job_id, key, value, request.experiment_id)
+    await job_service.job_update_job_data_insert_key_values(
+        job_id, {k: v for k, v in job_data.items() if v is not None}, request.experiment_id
+    )
 
     disk_size = None
     if request.disk_space:
@@ -2572,10 +2572,9 @@ async def resume_from_checkpoint(
         "team_id",
     ]
 
-    for field in config_fields:
-        value = job_data.get(field)
-        if value is not None:
-            await job_service.job_update_job_data_insert_key_value(new_job_id, field, value, experimentId)
+    await job_service.job_update_job_data_insert_key_values(
+        new_job_id, {f: job_data[f] for f in config_fields if job_data.get(f) is not None}, experimentId
+    )
 
     # Relaunch via provider (uses current user's slurm_user for SLURM)
     user_id_str = str(user_and_team["user"].id)
@@ -2690,9 +2689,9 @@ async def resume_from_checkpoint(
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
 
-    for key, value in launch_job_data.items():
-        if value is not None:
-            await job_service.job_update_job_data_insert_key_value(new_job_id, key, value, experimentId)
+    await job_service.job_update_job_data_insert_key_values(
+        new_job_id, {k: v for k, v in launch_job_data.items() if v is not None}, experimentId
+    )
 
     # Build ClusterConfig
     disk_size = None
