@@ -251,7 +251,7 @@ def main(argv: List[str] | None = None) -> int:
 
     # Update live_status based on outcome (best-effort).
     if exit_code == 0:
-        _set_live_status("Ready")
+        _set_live_status("Remote command finished")
     else:
         _set_live_status("Remote command crashed")
 

@@ -96,8 +96,8 @@ def test_circuit_breaker_success_resets():
 
 @pytest.mark.asyncio
 async def test_handle_live_status_finished(monkeypatch):
-    """live_status='Ready' should transition job to COMPLETE and return True."""
-    job = _make_job(live_status="Ready")
+    """live_status='Remote command finished' should transition job to COMPLETE and return True."""
+    job = _make_job(live_status="Remote command finished")
 
     calls = []
 
@@ -128,7 +128,7 @@ async def test_handle_live_status_finished(monkeypatch):
 @pytest.mark.asyncio
 async def test_handle_live_status_finished_interactive_subtype_does_not_transition(monkeypatch):
     """Interactive subtype jobs should never be auto-marked COMPLETE."""
-    job = _make_job(status="INTERACTIVE", live_status="Ready")
+    job = _make_job(status="INTERACTIVE", live_status="Remote command finished")
     job["job_data"]["subtype"] = "interactive"
 
     monkeypatch.setattr(
