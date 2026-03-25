@@ -27,24 +27,18 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Ensure version strings are in sync
+      - name: Ensure version is set in pyproject.toml
         run: |
           set -euo pipefail
 
           PYPROJECT_VERSION=$(awk -F '"' '/^\s*version\s*=\s*"/ {print $2; exit}' pyproject.toml)
-          INIT_VERSION=$(awk -F '"' '/^\s*__version__\s*=\s*"/ {print $2; exit}' src/transformerlab_cli/__init__.py)
 
-          if [ -z "${PYPROJECT_VERSION:-}" ] || [ -z "${INIT_VERSION:-}" ]; then
-            echo "ERROR: Unable to read versions from cli/pyproject.toml or cli/src/transformerlab_cli/__init__.py"
+          if [ -z "${PYPROJECT_VERSION:-}" ]; then
+            echo "ERROR: Unable to read cli [project].version from cli/pyproject.toml"
             exit 1
           fi
 
-          if [ "$PYPROJECT_VERSION" != "$INIT_VERSION" ]; then
-            echo "ERROR: CLI version mismatch:"
-            echo "  cli/pyproject.toml [project].version: $PYPROJECT_VERSION"
-            echo "  cli/src/transformerlab_cli/__init__.py __version__: $INIT_VERSION"
-            exit 1
-          fi
+          echo "CLI version in pyproject.toml: $PYPROJECT_VERSION"
 
       - name: Check if version already exists on PyPI
         run: |
