@@ -18,6 +18,7 @@ import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { formatBytes } from 'renderer/lib/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetchWithAuth } from 'renderer/lib/authContext';
+import Model3DViewer from 'renderer/components/Shared/Model3DViewer';
 
 interface ViewArtifactsModalProps {
   open: boolean;
@@ -101,6 +102,9 @@ export default function ViewArtifactsModal({
       'ogg',
       'm4a',
       'flac',
+      // 3D Models
+      'glb',
+      'gltf',
     ];
     return previewableExtensions.includes(ext);
   };
@@ -166,6 +170,18 @@ export default function ViewArtifactsModal({
           filename: artifact.filename,
         });
         setPreviewData({ type: 'audio', url: `${audioUrl}?task=view` });
+      } else if (['glb', 'gltf'].includes(ext)) {
+        // 3D model preview - use direct URL; cookies handle auth
+        const modelUrl = getAPIFullPath('jobs', ['getArtifact'], {
+          experimentId: experimentInfo?.id,
+          jobId: jobId.toString(),
+          filename: artifact.filename,
+        });
+        setPreviewData({
+          type: 'model3d',
+          url: `${modelUrl}?task=view`,
+          filename: artifact.filename,
+        });
       }
     } catch (error) {
       setPreviewError('Failed to load artifact preview');
@@ -391,6 +407,20 @@ export default function ViewArtifactsModal({
               <source src={previewData.url} />
               Your browser does not support the audio element.
             </audio>
+          </Box>
+        );
+      case 'model3d':
+        return (
+          <Box
+            sx={{
+              height: 'calc(80vh - 200px)',
+              overflow: 'hidden',
+            }}
+          >
+            <Model3DViewer
+              modelUrl={previewData.url}
+              filename={previewData.filename}
+            />
           </Box>
         );
       default:
