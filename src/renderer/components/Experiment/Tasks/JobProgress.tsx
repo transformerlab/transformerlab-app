@@ -58,6 +58,8 @@ export default function JobProgress({
   const { experimentInfo } = useExperimentInfo();
   const { fetchWithAuth } = useAuth();
   const stopping = job?.status === 'STOPPING';
+  const effectiveLaunchProgress =
+    launchProgress ?? job?.job_data?.launch_progress ?? null;
 
   // Shared stop handler for both LAUNCHING and RUNNING states
   const handleStopJob = useCallback(async () => {
@@ -222,6 +224,30 @@ export default function JobProgress({
             >
               {job.status}
             </Chip>
+            {effectiveLaunchProgress?.percent != null && (
+              <Stack
+                direction="row"
+                alignItems="center"
+                gap={0.5}
+                sx={{ flexShrink: 0 }}
+              >
+                <CircularProgress
+                  determinate
+                  value={Math.min(
+                    100,
+                    Math.max(0, effectiveLaunchProgress.percent),
+                  )}
+                  size="sm"
+                  thickness={3}
+                />
+                <Typography level="body-xs" fontWeight="md">
+                  {Math.round(
+                    Math.min(100, Math.max(0, effectiveLaunchProgress.percent)),
+                  )}
+                  %
+                </Typography>
+              </Stack>
+            )}
             {showLaunchResultInfo &&
               job?.status === 'LAUNCHING' &&
               job?.job_data?.provider_launch_result && (
@@ -272,22 +298,26 @@ export default function JobProgress({
               </Typography>
             )}
           </Stack>
-          {(launchProgress?.message || launchProgress?.percent != null) && (
+          {(effectiveLaunchProgress?.message ||
+            effectiveLaunchProgress?.percent != null) && (
             <Stack
               direction="column"
               sx={{ width: '100%', mt: 0.5 }}
               spacing={0.5}
             >
-              {launchProgress?.message && (
+              {effectiveLaunchProgress?.message && (
                 <Typography level="body-sm" textColor="neutral.600">
-                  {launchProgress.message}
+                  {effectiveLaunchProgress.message}
                 </Typography>
               )}
-              {launchProgress?.percent != null && (
+              {effectiveLaunchProgress?.percent != null && (
                 <LinearProgress
                   determinate
-                  value={Math.min(100, Math.max(0, launchProgress.percent))}
-                  sx={{ maxWidth: 200, height: 6 }}
+                  value={Math.min(
+                    100,
+                    Math.max(0, effectiveLaunchProgress.percent),
+                  )}
+                  sx={{ maxWidth: 240, height: 6, borderRadius: 'sm' }}
                 />
               )}
             </Stack>
