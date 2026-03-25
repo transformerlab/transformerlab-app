@@ -25,7 +25,7 @@ from transformerlab.services import job_service, team_service
 
 
 REMOTE_JOB_STATUS_INTERVAL_SECONDS = int(os.getenv("REMOTE_JOB_STATUS_INTERVAL_SECONDS", "15"))
-EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD = int(os.getenv("EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD", "2"))
+EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD = int(os.getenv("EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD", "5"))
 
 # Circuit breaker: after this many consecutive provider failures, back off.
 _PROVIDER_FAILURE_THRESHOLD = 3
