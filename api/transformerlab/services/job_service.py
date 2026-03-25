@@ -27,6 +27,7 @@ ALLOWED_JOB_TYPES = [
 ]
 
 SHORT_JOB_ID_LEN = 8
+JOBS_LIST_HYDRATION_CONCURRENCY = 20
 
 
 def get_short_job_id(job_id: str | int, length: int = SHORT_JOB_ID_LEN) -> str:
@@ -105,9 +106,27 @@ async def job_create(type, status, experiment_id, job_data="{}"):
 
 
 async def jobs_get_all(experiment_id, type="", status=""):
-    exp_obj = Experiment(experiment_id)
-    jobs = await exp_obj.get_jobs(type, status)
-    return [_add_short_id(job) for job in jobs]
+    job_ids = await _list_experiment_job_ids(experiment_id)
+    if not job_ids:
+        return []
+
+    semaphore = asyncio.Semaphore(JOBS_LIST_HYDRATION_CONCURRENCY)
+
+    async def _hydrate(job_id: str) -> Optional[Dict[str, Any]]:
+        async with semaphore:
+            return await _job_for_list(experiment_id, job_id, type, status)
+
+    hydrated = await asyncio.gather(*(_hydrate(job_id) for job_id in job_ids), return_exceptions=True)
+
+    jobs: list[dict[str, Any]] = []
+    for item in hydrated:
+        if isinstance(item, Exception):
+            continue
+        if isinstance(item, dict):
+            jobs.append(item)
+
+    jobs.sort(key=_sort_key_job_recency, reverse=True)
+    return jobs
 
 
 async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
@@ -128,6 +147,80 @@ def is_terminal_state(status: Optional[str]) -> bool:
     return status in TERMINAL_STATUSES
 
 
+def _timestamp_sort_value(ts: Any) -> float:
+    if ts is None or ts == "":
+        return float("-inf")
+    if isinstance(ts, datetime.datetime):
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=datetime.timezone.utc)
+        return ts.timestamp()
+    if isinstance(ts, (int, float)):
+        return float(ts)
+    if isinstance(ts, str):
+        raw = ts.strip()
+        if not raw:
+            return float("-inf")
+        try:
+            dt = datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            return dt.timestamp()
+        except ValueError:
+            return float("-inf")
+    return float("-inf")
+
+
+def _sort_key_job_recency(job: Dict[str, Any]) -> float:
+    job_data = job.get("job_data")
+    if isinstance(job_data, str):
+        try:
+            job_data = json.loads(job_data)
+        except Exception:
+            job_data = {}
+    if not isinstance(job_data, dict):
+        job_data = {}
+    start_time = job_data.get("start_time")
+    if start_time:
+        return _timestamp_sort_value(start_time)
+    return _timestamp_sort_value(job.get("created_at"))
+
+
+async def _list_experiment_job_ids(experiment_id: str) -> list[str]:
+    from lab.dirs import get_jobs_dir
+
+    jobs_dir = await get_jobs_dir(experiment_id)
+    try:
+        entries = await storage.ls(jobs_dir, detail=False)
+    except Exception:
+        return []
+
+    job_ids: list[str] = []
+    for entry in entries:
+        entry_path = entry if isinstance(entry, str) else str(entry)
+        entry_id = entry_path.rstrip("/").split("/")[-1]
+        if not entry_id or entry_id.startswith("._"):
+            continue
+        job_ids.append(entry_id)
+    return job_ids
+
+
+async def _job_for_list(
+    experiment_id: str, job_id: str, type_filter: str, status_filter: str
+) -> Optional[Dict[str, Any]]:
+    job_data = await job_get_cached(job_id=job_id, experiment_id=experiment_id, resolve_full_id=False)
+    if not job_data:
+        return None
+    if type_filter and job_data.get("type") != type_filter:
+        return None
+    if status_filter and job_data.get("status") != status_filter:
+        return None
+    if not status_filter and job_data.get("status") == JobStatus.DELETED:
+        return None
+    if "job_data" not in job_data:
+        return None
+    return _add_short_id(job_data)
+
+
 def _job_cache_key(job_id: str) -> str:
     """
     Build the logical job cache key.
@@ -140,11 +233,15 @@ def _job_cache_key(job_id: str) -> str:
     return f"jobs:{job_id}"
 
 
-async def _job_get_live(job_id: str, experiment_id: Optional[str]) -> Optional[Dict[str, Any]]:
+async def _job_get_live(
+    job_id: str, experiment_id: Optional[str], resolve_full_id: bool = True
+) -> Optional[Dict[str, Any]]:
     if not experiment_id:
         raise ValueError(f"experiment_id is required for job lookup (job_id={job_id})")
     try:
-        resolved_job_id = await _resolve_full_job_id(str(job_id), str(experiment_id))
+        resolved_job_id = str(job_id)
+        if resolve_full_id:
+            resolved_job_id = await _resolve_full_job_id(str(job_id), str(experiment_id))
         if not resolved_job_id:
             return None
         job = await Job.get(resolved_job_id, experiment_id)
@@ -161,7 +258,11 @@ async def job_get(job_id: str, experiment_id: Optional[str] = None) -> Optional[
     return await _job_get_live(job_id, experiment_id)
 
 
-async def job_get_cached(job_id: str, experiment_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+async def job_get_cached(
+    job_id: str,
+    experiment_id: Optional[str] = None,
+    resolve_full_id: bool = True,
+) -> Optional[Dict[str, Any]]:
     """
     Per-node cached getter for job JSON backed by cashews.
 
@@ -173,7 +274,9 @@ async def job_get_cached(job_id: str, experiment_id: Optional[str] = None) -> Op
     if not experiment_id:
         raise ValueError(f"experiment_id is required for job lookup (job_id={job_id})")
 
-    resolved_job_id = await _resolve_full_job_id(str(job_id), str(experiment_id))
+    resolved_job_id = str(job_id)
+    if resolve_full_id:
+        resolved_job_id = await _resolve_full_job_id(str(job_id), str(experiment_id))
     if not resolved_job_id:
         return None
 
@@ -185,7 +288,7 @@ async def job_get_cached(job_id: str, experiment_id: Optional[str] = None) -> Op
         return cached
 
     # 2) Fallback to live
-    job_dict = await _job_get_live(resolved_job_id, experiment_id)
+    job_dict = await _job_get_live(resolved_job_id, experiment_id, resolve_full_id=False)
     if not job_dict:
         return None
 

@@ -41,7 +41,13 @@ router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
-async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subtype: str = ""):
+async def jobs_get_all(
+    experimentId: str,
+    type: str = "",
+    status: str = "",
+    subtype: str = "",
+    user_and_team=Depends(get_user_and_team),
+):
     """
     Return the list of jobs for an experiment, optionally filtered by type/status/subtype.
     """
