@@ -224,3 +224,5 @@ test-results/
 
 # Secrets
 **/.secrets
+
+docs/superpowers/*

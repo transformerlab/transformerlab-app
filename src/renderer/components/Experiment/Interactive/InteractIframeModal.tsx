@@ -23,7 +23,7 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 interface InteractModalProps {
-  jobId: number;
+  jobId: string | number | null;
   open: boolean;
   onClose: () => void;
 }
@@ -38,7 +38,7 @@ export default function InteractIframeModal({
   const { experimentInfo } = useExperimentInfo();
 
   const url = React.useMemo(() => {
-    if (!open || !experimentInfo?.id) return null;
+    if (!open || !experimentInfo?.id || jobId === null) return null;
     return chatAPI.Endpoints.Experiment.GetTunnelInfo(
       experimentInfo.id,
       String(jobId),

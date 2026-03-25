@@ -101,7 +101,7 @@ class Lab:
             # Use existing job from environment variable
             # This will raise an error if the job doesn't exist
             self._experiment = _run_async(Experiment.create_or_get(experiment_id, create_new=False))
-            self._job = _run_async(Job.get(existing_job_id))
+            self._job = _run_async(Job.get(existing_job_id, self._experiment.id))
             if self._job is None:
                 raise RuntimeError(f"Job with ID {existing_job_id} not found. Check _TFL_JOB_ID environment variable.")
             logger.info(f"Using existing job ID: {existing_job_id}")
@@ -337,7 +337,7 @@ class Lab:
 
     async def _copy_file_mounts_async(self, job_id: str) -> None:
         """Async implementation of copy_file_mounts."""
-        job = await Job.get(job_id)
+        job = await Job.get(job_id, self._experiment.id)
         if job is None:
             return
         job_data = await job.get_job_data()
@@ -515,7 +515,7 @@ class Lab:
             Optional[str]: The full path to the checkpoint, or None if it doesn't exist
         """
         try:
-            checkpoints_dir = await dirs.get_job_checkpoints_dir(parent_job_id)
+            checkpoints_dir = await dirs.get_job_checkpoints_dir(parent_job_id, self._experiment.id)
             checkpoint_path = storage.join(checkpoints_dir, checkpoint_name)
 
             # Security check: ensure the checkpoint path is within the checkpoints directory
@@ -564,7 +564,13 @@ class Lab:
             if profiling_temp and self._job:
                 from lab.profiling import copy_profiling_to_job
 
-                _run_async(copy_profiling_to_job(profiling_temp, str(self._job.id)))  # type: ignore[union-attr]
+                _run_async(
+                    copy_profiling_to_job(
+                        profiling_temp,
+                        str(self._job.id),
+                        experiment_id=str(self._experiment.id),
+                    ),  # type: ignore[union-attr]
+                )
         except Exception:
             pass
         _run_async(self._job.update_progress(100))  # type: ignore[union-attr]
@@ -765,7 +771,7 @@ class Lab:
                 base_name = f"{job_id}_{base_name_original}"
 
                 # Save to job-specific datasets directory (not a subdirectory per dataset)
-                datasets_dir = await dirs.get_job_datasets_dir(job_id)
+                datasets_dir = await dirs.get_job_datasets_dir(job_id, self._experiment.id)
                 dest = storage.join(datasets_dir, base_name)
 
                 # Create parent directories
@@ -856,7 +862,7 @@ class Lab:
                 raise ValueError(f"Missing required columns in DataFrame: {missing_columns}")
 
             # Determine destination directory and filename
-            dest_dir = await dirs.get_job_eval_results_dir(job_id)
+            dest_dir = await dirs.get_job_eval_results_dir(job_id, self._experiment.id)
 
             if name is None or (isinstance(name, str) and name.strip() == ""):
                 import time
@@ -963,7 +969,7 @@ class Lab:
             base_name = f"{job_id}_{base_name_without_ext}"
 
             # Save to job-specific models directory
-            models_dir = await dirs.get_job_models_dir(job_id)
+            models_dir = await dirs.get_job_models_dir(job_id, self._experiment.id)
             dest = storage.join(models_dir, base_name)
 
             # Create model directory
@@ -1101,9 +1107,9 @@ class Lab:
 
         # Determine destination directory based on type
         if type == "evals":
-            dest_dir = await dirs.get_job_eval_results_dir(job_id)
+            dest_dir = await dirs.get_job_eval_results_dir(job_id, self._experiment.id)
         else:
-            dest_dir = await dirs.get_job_artifacts_dir(job_id)
+            dest_dir = await dirs.get_job_artifacts_dir(job_id, self._experiment.id)
 
         base_name = name if (isinstance(name, str) and name.strip() != "") else posixpath.basename(src)
         dest = storage.join(dest_dir, base_name)
@@ -1215,7 +1221,7 @@ class Lab:
         # Add job_id prefix to dataset_id to avoid conflicts between jobs
         dataset_id_with_prefix = f"{job_id}_{dataset_id_safe}"
 
-        dataset_dir = await dirs.get_job_datasets_dir(job_id)
+        dataset_dir = await dirs.get_job_datasets_dir(job_id, self._experiment.id)
         await storage.makedirs(dataset_dir, exist_ok=True)
 
         # Determine output location and filename
@@ -1367,7 +1373,7 @@ class Lab:
                 raise FileNotFoundError(f"Checkpoint source does not exist: {src}")
 
         job_id = self._job.id  # type: ignore[union-attr]
-        ckpts_dir = await dirs.get_job_checkpoints_dir(job_id)
+        ckpts_dir = await dirs.get_job_checkpoints_dir(job_id, self._experiment.id)
         base_name = name if (isinstance(name, str) and name.strip() != "") else posixpath.basename(src)
         dest = storage.join(ckpts_dir, base_name)
 
@@ -1478,7 +1484,13 @@ class Lab:
             if profiling_temp and self._job:
                 from lab.profiling import copy_profiling_to_job
 
-                _run_async(copy_profiling_to_job(profiling_temp, str(self._job.id)))  # type: ignore[union-attr]
+                _run_async(
+                    copy_profiling_to_job(
+                        profiling_temp,
+                        str(self._job.id),
+                        experiment_id=str(self._experiment.id),
+                    ),  # type: ignore[union-attr]
+                )
         except Exception:
             pass
         _run_async(
@@ -1507,6 +1519,21 @@ class Lab:
             if wandb_url:
                 _run_async(self._job.update_job_data_field("wandb_run_url", wandb_url))
                 logger.info(f"📊 Detected wandb run URL: {wandb_url}")
+                return
+
+            # Avoid importing wandb unless we have strong signals it is configured.
+            # Some native dependencies of wandb can hard-crash in constrained environments.
+            if not any(
+                os.environ.get(k)
+                for k in (
+                    "WANDB_API_KEY",
+                    "WANDB_PROJECT",
+                    "WANDB_RUN_ID",
+                    "WANDB_ENTITY",
+                    "WANDB_USER",
+                    "WANDB_MODE",
+                )
+            ):
                 return
 
             # Method 2: Check for active wandb run in current process
@@ -1564,6 +1591,19 @@ class Lab:
 
             # Method 2: Check active wandb run
             try:
+                if not any(
+                    os.environ.get(k)
+                    for k in (
+                        "WANDB_API_KEY",
+                        "WANDB_PROJECT",
+                        "WANDB_RUN_ID",
+                        "WANDB_ENTITY",
+                        "WANDB_USER",
+                        "WANDB_MODE",
+                    )
+                ):
+                    return
+
                 import wandb
 
                 if wandb.run is not None and hasattr(wandb.run, "url"):

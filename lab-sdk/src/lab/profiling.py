@@ -323,7 +323,11 @@ def finalize_profiling(
         pass
 
 
-async def copy_profiling_to_job(profiling_temp_dir: str, job_id: str) -> None:
+async def copy_profiling_to_job(
+    profiling_temp_dir: str,
+    job_id: str,
+    experiment_id: str | None = None,
+) -> None:
     """
     Copy profiling output from a temp directory into the job's profiling folder.
 
@@ -334,15 +338,21 @@ async def copy_profiling_to_job(profiling_temp_dir: str, job_id: str) -> None:
     if not profiling_temp_dir or not os.path.isdir(profiling_temp_dir):
         return
     try:
+        if experiment_id is None:
+            experiment_id = os.environ.get("_TFL_EXPERIMENT_ID")
+
         from lab.dirs import get_job_profiling_dir
         from lab import storage
 
-        dest_dir = await get_job_profiling_dir(job_id)
+        dest_dir = await get_job_profiling_dir(job_id, experiment_id)
         await storage.copy_dir(profiling_temp_dir, dest_dir)
         try:
             from lab.job import Job
 
-            job = await Job.get(job_id)
+            if experiment_id:
+                job = await Job.get(job_id, experiment_id)
+            else:
+                job = None
             if job is not None:
                 await job.update_job_data_field("has_profiling", True)
         except Exception:

@@ -1,6 +1,8 @@
 import asyncio
 import contextlib
 import time
+import uuid
+from datetime import datetime, timezone
 from werkzeug.utils import secure_filename
 
 from .dirs import get_experiments_dir, get_jobs_dir
@@ -13,6 +15,56 @@ import logging
 
 
 logger = logging.getLogger(__name__)
+
+
+def _timestamp_sort_value(ts):
+    """
+    Comparable value for sorting (higher = newer when using reverse=True).
+
+    Parses common string shapes (ISO / space-separated naive datetimes) so order
+    matches real time; falls back to string compare only if parsing fails.
+    Missing/invalid sorts last when using reverse=True (via float('-inf')).
+    """
+    if ts is None or ts == "":
+        return float("-inf")
+    if isinstance(ts, datetime):
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return ts.timestamp()
+    if isinstance(ts, (int, float)):
+        return float(ts)
+    if isinstance(ts, str):
+        raw = ts.strip()
+        if not raw:
+            return float("-inf")
+        # fromisoformat accepts "2026-03-24T17:04:14+00:00" and "2026-03-24 17:04:14"
+        try:
+            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except ValueError:
+            return float("-inf")
+    return float("-inf")
+
+
+def _sort_key_job_recency(job: dict):
+    """
+    Newest-first sort key. Prefer job_data.start_time (matches UI "Started") over
+    top-level created_at so order aligns with when the run actually started.
+    """
+    jd = job.get("job_data")
+    if isinstance(jd, str):
+        try:
+            jd = json.loads(jd)
+        except Exception:
+            jd = {}
+    if not isinstance(jd, dict):
+        jd = {}
+    start_time = jd.get("start_time")
+    if start_time:
+        return _timestamp_sort_value(start_time)
+    return _timestamp_sort_value(job.get("created_at"))
 
 
 class Experiment(BaseLabResource):
@@ -63,11 +115,7 @@ class Experiment(BaseLabResource):
     async def _initialize(self):
         await super()._initialize()
 
-        # Create a empty jobs index and write
-        jobs_json_path = await self._jobs_json_file()
-        empty_jobs_data = {"index": self.DEFAULT_JOBS_INDEX, "cached_jobs": {}}
-        async with await storage.open(jobs_json_path, "w") as f:
-            await f.write(json.dumps(empty_jobs_data, indent=4))
+        # jobs.json was eliminated in favor of direct filesystem indexing.
 
     async def update_config_field(self, key, value):
         """Update a single key in config."""
@@ -172,94 +220,52 @@ class Experiment(BaseLabResource):
         """
         Creates a new job with a blank template and returns a Job object.
         """
+        # New job IDs are UUIDs so they are globally unique across experiments.
+        new_job_id = str(uuid.uuid4())
 
-        # Choose an ID for the new job
-        # Scan the jobs directory for subdirectories with numberic names
-        # Find the largest number and increment to get the new job ID
-        largest_numeric_subdir = 0
-        jobs_dir = await get_jobs_dir()
+        new_job = await Job.create(new_job_id, self.id)
+        await new_job._update_json_data_field("type", type)
+        await new_job.update_job_data_field("experiment_name", self.id)
+        return new_job
+
+    async def get_jobs(self, type: str = "", status: str = "") -> list[dict]:
+        """
+        Get all jobs for this experiment by scanning the filesystem directory:
+            experiments/{experiment_id}/jobs/{job_id}/index.json
+
+        If `type` is provided, filter by `job_data["type"]`.
+        If `status` is provided, filter by `job_data["status"]`.
+        By default, DELETED jobs are excluded.
+        """
+        jobs_dir = await get_jobs_dir(self.id)
         try:
             entries = await storage.ls(jobs_dir, detail=False)
         except Exception:
-            entries = []
-        for full_path in entries:
-            entry = full_path.rstrip("/").split("/")[-1]
-            if entry.isdigit() and await storage.isdir(full_path):
-                job_id = int(entry)
-                if job_id > largest_numeric_subdir:
-                    largest_numeric_subdir = job_id
+            return []
 
-        new_job_id = largest_numeric_subdir + 1
-
-        # Create job and set its experiment fields directly (no rebuild needed)
-        new_job = await Job.create(new_job_id)
-        await new_job._update_json_data_field("experiment_id", self.id)
-        await new_job.update_job_data_field("experiment_name", self.id)
-
-        # Add to index incrementally — no filesystem scan
-        await self._add_job(str(new_job.id), type)
-
-        return new_job
-
-    async def get_jobs(self, type: str = "", status: str = ""):
-        """
-        Get a list of jobs stored in this experiment.
-        Uses cached data from jobs.json for completed jobs, only reads individual files for RUNNING jobs.
-        type: If not blank, filter by jobs with this type.
-        status: If not blank, filter by jobs with this status.
-        """
-
-        # First get jobs of the passed type
-        job_list = []
-        if type:
-            job_list = await self._get_jobs_of_type(type)
-        else:
-            job_list = await self._get_all_jobs()
-
-        # Get cached job data from jobs.json
-        cached_jobs = await self._get_cached_jobs_data()
-
-        # Iterate through the job list to return Job objects for valid jobs.
-        # Also filter for status if that parameter was passed.
-        results = []
-        for job_id in job_list:
+        results: list[dict] = []
+        for job_path in entries:
+            if not await storage.isdir(job_path):
+                continue
+            job_id = job_path.rstrip("/").split("/")[-1]
             try:
-                # Check if job is in cache (non-RUNNING jobs are cached)
-                if job_id in cached_jobs:
-                    # Use cached data for completed jobs
-                    job_json = cached_jobs[job_id]
-                    # Check status of job if not RUNNING, LAUNCHING, INTERACTIVE or NOT_STARTED, then remove from cache
-                    if job_json.get("status", "") in [
-                        JobStatus.RUNNING,
-                        JobStatus.LAUNCHING,
-                        JobStatus.INTERACTIVE,
-                        JobStatus.NOT_STARTED,
-                    ]:
-                        del cached_jobs[job_id]
-                        job = await Job.get(job_id)
-                        job_json = await job.get_json_data(uncached=True)
-                        cached_jobs[job_id] = job_json
-
-                else:
-                    # Job not in cache
-                    job = await Job.get(job_id)
-                    job_json = await job.get_json_data(uncached=True)
+                job = await Job.get(job_id, self.id)
+                job_data = await job.get_json_data(uncached=True)
             except Exception:
-                logger.warning("ERROR getting job %s", job_id, exc_info=True)
+                logger.warning("ERROR getting job %s in experiment %s", job_id, self.id, exc_info=True)
                 continue
 
-            # Filter for status
-            if status and (job_json.get("status", "") != status):
+            if type and job_data.get("type") != type:
+                continue
+            if status and job_data.get("status") != status:
+                continue
+            if not status and job_data.get("status") == JobStatus.DELETED:
                 continue
 
-            # Exclude DELETED jobs by default (unless explicitly requested)
-            if not status and job_json.get("status", "") == JobStatus.DELETED:
-                continue
+            if "job_data" in job_data:
+                results.append(job_data)
 
-            # If it passed filters then add as long as it has job_data
-            if "job_data" in job_json:
-                results.append(job_json)
-
+        results.sort(key=_sort_key_job_recency, reverse=True)
         return results
 
     ###############################
@@ -748,10 +754,19 @@ class Experiment(BaseLabResource):
 
     async def delete_all_jobs(self):
         """Delete all jobs associated with this experiment."""
-        all_jobs = await self._get_all_jobs()
-        for job_id in all_jobs:
+        jobs_dir = await get_jobs_dir(self.id)
+        try:
+            entries = await storage.ls(jobs_dir, detail=False)
+        except Exception:
+            return
+
+        for job_path in entries:
+            if not await storage.isdir(job_path):
+                continue
+
+            job_id = job_path.rstrip("/").split("/")[-1]
             try:
-                job = await Job.get(job_id)
+                job = await Job.get(job_id, self.id)
                 await job.delete()
             except Exception:
                 pass  # Job might not exist
