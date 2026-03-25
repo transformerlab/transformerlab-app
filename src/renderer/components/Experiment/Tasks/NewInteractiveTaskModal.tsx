@@ -268,6 +268,9 @@ export default function NewInteractiveTaskModal({
   }, [selectedProvider]);
 
   const handleTemplateSelect = (template: InteractiveTemplate) => {
+    if (isSubmitting) {
+      return;
+    }
     setSelectedTemplate(template);
     setStep('config');
     // Initialize config field values
@@ -323,6 +326,9 @@ export default function NewInteractiveTaskModal({
   }, [isLocal, selectedProvider, selectedTemplate]);
 
   const handleBack = () => {
+    if (isSubmitting) {
+      return;
+    }
     if (step === 'config') {
       setStep('gallery');
       setSelectedTemplate(null);
@@ -340,6 +346,9 @@ export default function NewInteractiveTaskModal({
   };
 
   const handleImportTeamTask = async (galleryIdentifier: string | number) => {
+    if (isSubmitting) {
+      return;
+    }
     if (!experimentInfo?.id) {
       addNotification({
         type: 'warning',
@@ -395,6 +404,9 @@ export default function NewInteractiveTaskModal({
 
   const handleSubmit = (e: React.FormEvent, shouldLaunch: boolean = false) => {
     e.preventDefault();
+    if (isSubmitting) {
+      return;
+    }
     if (!title.trim()) {
       return;
     }
@@ -562,7 +574,7 @@ export default function NewInteractiveTaskModal({
                   sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}
                 >
                   <Button
-                    disabled={!selectedProviderId}
+                    disabled={!selectedProviderId || isSubmitting}
                     onClick={() => setStep('gallery')}
                     endDecorator={<ArrowRightIcon size={16} />}
                   >
@@ -580,6 +592,7 @@ export default function NewInteractiveTaskModal({
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Interactive session name"
                     autoFocus
+                    disabled={isSubmitting}
                   />
                 </FormControl>
 
@@ -630,7 +643,8 @@ export default function NewInteractiveTaskModal({
                               !(isLocal && field.env_var === 'NGROK_AUTH_TOKEN')
                             }
                             disabled={
-                              isLocal && field.env_var === 'NGROK_AUTH_TOKEN'
+                              isSubmitting ||
+                              (isLocal && field.env_var === 'NGROK_AUTH_TOKEN')
                             }
                           >
                             <FormLabel>{field.field_name}</FormLabel>
@@ -650,6 +664,11 @@ export default function NewInteractiveTaskModal({
                                 )
                               }
                               placeholder={field.placeholder}
+                              disabled={
+                                isSubmitting ||
+                                (isLocal &&
+                                  field.env_var === 'NGROK_AUTH_TOKEN')
+                              }
                             />
                             {field.help_text && (
                               <FormHelperText>{field.help_text}</FormHelperText>
@@ -671,6 +690,7 @@ export default function NewInteractiveTaskModal({
                         value={cpus}
                         onChange={(e) => setCpus(e.target.value)}
                         placeholder="e.g. 4"
+                        disabled={isSubmitting}
                       />
                     </FormControl>
 
@@ -680,6 +700,7 @@ export default function NewInteractiveTaskModal({
                         value={memory}
                         onChange={(e) => setMemory(e.target.value)}
                         placeholder="e.g. 16"
+                        disabled={isSubmitting}
                       />
                     </FormControl>
 
@@ -689,6 +710,7 @@ export default function NewInteractiveTaskModal({
                         value={accelerators}
                         onChange={(e) => setAccelerators(e.target.value)}
                         placeholder="e.g. RTX3090:1 or H100:8"
+                        disabled={isSubmitting}
                       />
                     </FormControl>
                   </Stack>
@@ -717,11 +739,12 @@ export default function NewInteractiveTaskModal({
                   size="sm"
                   value={activeGalleryTab}
                   onChange={(_e, val) => {
-                    if (val) {
-                      setActiveGalleryTab(
-                        val as 'interactive' | 'team-interactive',
-                      );
+                    if (isSubmitting || !val) {
+                      return;
                     }
+                    setActiveGalleryTab(
+                      val as 'interactive' | 'team-interactive',
+                    );
                   }}
                 >
                   <TabList>
@@ -816,7 +839,11 @@ export default function NewInteractiveTaskModal({
                                     borderColor: 'primary.500',
                                   },
                                 }}
-                                onClick={() => handleTemplateSelect(template)}
+                                onClick={() => {
+                                  if (!isSubmitting) {
+                                    handleTemplateSelect(template);
+                                  }
+                                }}
                               >
                                 <CardContent>
                                   {template.icon && (
@@ -971,9 +998,11 @@ export default function NewInteractiveTaskModal({
                                         borderColor: 'primary.500',
                                       },
                                     }}
-                                    onClick={() =>
-                                      handleImportTeamTask(galleryIdentifier)
-                                    }
+                                    onClick={() => {
+                                      if (!isSubmitting) {
+                                        handleImportTeamTask(galleryIdentifier);
+                                      }
+                                    }}
                                   >
                                     <CardContent>
                                       {task.icon && (
