@@ -2,6 +2,16 @@
 
 This document covers complex flows in the backend (`api/`, `lab-sdk/`) to help agents quickly understand how things work.
 
+## Updating the SDK
+
+If you modify code in `lab-sdk/`, the changes won't take effect until the SDK is reinstalled. For local development:
+
+```bash
+cd lab-sdk && pip install -e .
+```
+
+Then restart the API server. This is a common gotcha — the API imports the *installed* `lab` package, not the source tree directly.
+
 ## Context Variables (Organization/Team Scoping)
 
 The SDK uses Python `contextvars` to scope filesystem paths to the current organization/team. The key context var is `_current_org_id` in `lab-sdk/src/lab/dirs.py`, set via `lab.dirs.set_organization_id(team_id)`. This affects `get_workspace_dir()`, `get_jobs_dir()`, and all other directory lookups.
