@@ -130,12 +130,10 @@ export default function JobProgress({
     if (!liveStatus) return null;
 
     const isCrashed = liveStatus.toLowerCase().includes('crashed');
-    const displayStatus =
-      liveStatus === 'Remote command finished' ? 'Ready' : liveStatus;
 
     return (
       <Typography level="body-xs" color={isCrashed ? 'danger' : 'neutral'}>
-        {displayStatus}
+        {liveStatus}
       </Typography>
     );
   };
