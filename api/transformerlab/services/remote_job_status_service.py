@@ -163,10 +163,10 @@ async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
     job_data = job.get("job_data") or {}
     live_status = job_data.get("live_status")
 
-    if live_status not in ("Remote command finished", "Remote command crashed"):
+    if live_status not in ("Ready", "Remote command crashed"):
         return False
 
-    is_finished = live_status == "Remote command finished"
+    is_finished = live_status == "Ready"
     is_crashed = live_status == "Remote command crashed"
 
     job_id = str(job.get("id", ""))
