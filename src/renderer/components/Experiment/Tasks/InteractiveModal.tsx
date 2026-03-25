@@ -51,8 +51,8 @@ interface PortDef {
 }
 
 type InteractiveModalProps = {
-  jobId: number;
-  setJobId: (jobId: number) => void;
+  jobId: string | null;
+  setJobId: (jobId: string | null) => void;
   embeddedOutput?: React.ReactNode;
 };
 
@@ -482,7 +482,7 @@ export default function InteractiveModal({
   const { team } = useAuth();
 
   const url = React.useMemo(() => {
-    if (jobId === -1 || !experimentInfo?.id) {
+    if (!jobId || !experimentInfo?.id) {
       return null;
     }
     return chatAPI.Endpoints.Experiment.GetTunnelInfo(
@@ -505,10 +505,10 @@ export default function InteractiveModal({
   });
 
   const handleClose = () => {
-    setJobId(-1);
+    setJobId(null);
   };
 
-  if (jobId === -1 || !experimentInfo) {
+  if (!jobId || !experimentInfo) {
     return null;
   }
 
@@ -544,7 +544,7 @@ export default function InteractiveModal({
   }
 
   return (
-    <Modal open={jobId !== -1} onClose={handleClose}>
+    <Modal open={jobId !== null} onClose={handleClose}>
       <ModalDialog
         sx={{
           maxWidth: '95vw',

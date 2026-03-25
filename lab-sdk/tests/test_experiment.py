@@ -28,20 +28,12 @@ async def test_experiment_dir_and_jobs_index(tmp_path, monkeypatch):
     assert exp_dir.endswith(os.path.join("experiments", "exp1"))
     assert os.path.isdir(exp_dir)
 
-    # jobs.json created with default
-    jobs_index_file = os.path.join(exp_dir, "jobs.json")
-    assert os.path.isfile(jobs_index_file)
-    with open(jobs_index_file) as f:
-        data = json.load(f)
-    assert "index" in data
-    assert "TRAIN" in data["index"]
-
-    # Create two jobs via experiment API and ensure they are indexed immediately.
+    # Create two jobs via experiment API and ensure they are discoverable.
     j1 = await exp.create_job()
     j2 = await exp.create_job()
 
-    all_jobs = await exp._get_all_jobs()
-    job_ids = set(all_jobs)
+    all_jobs = await exp.get_jobs()
+    job_ids = {j.get("id") for j in all_jobs}
     assert str(j1.id) in job_ids
     assert str(j2.id) in job_ids
 
@@ -171,3 +163,165 @@ async def test_update_cached_job_is_safe_under_concurrent_writes(tmp_path, monke
         jobs_data = json.load(f)
     cached_jobs = jobs_data.get("cached_jobs", {})
     assert set(cached_jobs.keys()) >= {"job-1", "job-2"}
+
+
+@pytest.mark.asyncio
+async def test_create_job_uses_uuid_and_experiment_dir(tmp_path, monkeypatch):
+    for mod in list(importlib.sys.modules.keys()):
+        if mod.startswith("lab."):
+            importlib.sys.modules.pop(mod)
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+
+    exp = Experiment("alpha")
+    job = await exp.create_job("TRAIN")
+
+    # Job ID should be a UUID string
+    import uuid
+
+    uuid.UUID(str(job.id))  # raises ValueError if not valid UUID
+
+    # Job directory should be under the experiment
+    job_dir = await job.get_dir()
+    assert "experiments/alpha/jobs/" in job_dir
+
+    # index.json should have experiment_id and created_at
+    import os
+
+    with open(os.path.join(job_dir, "index.json")) as f:
+        data = json.load(f)
+    assert data["experiment_id"] == "alpha"
+    assert "created_at" in data
+
+
+@pytest.mark.asyncio
+async def test_get_jobs_lists_from_directory(tmp_path, monkeypatch):
+    for mod in list(importlib.sys.modules.keys()):
+        if mod.startswith("lab."):
+            importlib.sys.modules.pop(mod)
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+
+    exp = Experiment("alpha")
+    j1 = await exp.create_job("TRAIN")
+    await j1.update_status("COMPLETE")
+    j2 = await exp.create_job("DOWNLOAD_MODEL")
+    await j2.update_status("RUNNING")
+
+    all_jobs = await exp.get_jobs()
+    assert len(all_jobs) == 2
+
+    train_jobs = await exp.get_jobs(type="TRAIN")
+    assert len(train_jobs) == 1
+    assert train_jobs[0]["type"] == "TRAIN"
+
+    running_jobs = await exp.get_jobs(status="RUNNING")
+    assert len(running_jobs) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_jobs_sorted_newest_created_first_when_no_start_time(tmp_path, monkeypatch):
+    for mod in list(importlib.sys.modules.keys()):
+        if mod.startswith("lab."):
+            importlib.sys.modules.pop(mod)
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+
+    exp = Experiment("alpha")
+    j_old = await exp.create_job("TRAIN")
+    await j_old._update_json_data_field("created_at", "2020-01-01T00:00:00+00:00")
+    j_new = await exp.create_job("TRAIN")
+    await j_new._update_json_data_field("created_at", "2025-01-01T00:00:00+00:00")
+
+    jobs = await exp.get_jobs()
+    assert len(jobs) == 2
+    assert [j.get("id") for j in jobs] == [str(j_new.id), str(j_old.id)]
+
+
+@pytest.mark.asyncio
+async def test_get_jobs_sorted_by_start_time_over_created_at(tmp_path, monkeypatch):
+    for mod in list(importlib.sys.modules.keys()):
+        if mod.startswith("lab."):
+            importlib.sys.modules.pop(mod)
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+
+    exp = Experiment("alpha")
+    j_earlier_start = await exp.create_job("TRAIN")
+    await j_earlier_start._update_json_data_field("created_at", "2025-06-01T00:00:00+00:00")
+    await j_earlier_start.update_job_data_field("start_time", "2025-01-01T10:00:00+00:00")
+
+    j_later_start = await exp.create_job("TRAIN")
+    await j_later_start._update_json_data_field("created_at", "2020-01-01T00:00:00+00:00")
+    await j_later_start.update_job_data_field("start_time", "2025-03-01T10:00:00+00:00")
+
+    jobs = await exp.get_jobs()
+    assert len(jobs) == 2
+    assert [j.get("id") for j in jobs] == [str(j_later_start.id), str(j_earlier_start.id)]
+
+
+@pytest.mark.asyncio
+async def test_get_jobs_sorted_by_space_separated_start_time(tmp_path, monkeypatch):
+    """start_time often stored as 'YYYY-MM-DD HH:MM:SS' from providers (not strictly ISO-T)."""
+    for mod in list(importlib.sys.modules.keys()):
+        if mod.startswith("lab."):
+            importlib.sys.modules.pop(mod)
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+
+    exp = Experiment("alpha")
+    j_first = await exp.create_job("TRAIN")
+    await j_first.update_job_data_field("start_time", "2026-03-24 17:04:14")
+    j_mid = await exp.create_job("TRAIN")
+    await j_mid.update_job_data_field("start_time", "2026-03-24 18:32:25")
+    j_last = await exp.create_job("TRAIN")
+    await j_last.update_job_data_field("start_time", "2026-03-24 19:57:26")
+
+    jobs = await exp.get_jobs()
+    assert len(jobs) == 3
+    assert [j.get("id") for j in jobs] == [str(j_last.id), str(j_mid.id), str(j_first.id)]
+
+
+@pytest.mark.asyncio
+async def test_delete_all_jobs(tmp_path, monkeypatch):
+    for mod in list(importlib.sys.modules.keys()):
+        if mod.startswith("lab."):
+            importlib.sys.modules.pop(mod)
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+
+    exp = Experiment("alpha")
+    await exp.create_job("TRAIN")
+    await exp.create_job("TRAIN")
+
+    jobs_before = await exp.get_jobs()
+    assert len(jobs_before) == 2
+
+    await exp.delete_all_jobs()
+
+    jobs_after = await exp.get_jobs()
+    assert len(jobs_after) == 0

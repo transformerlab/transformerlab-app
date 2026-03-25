@@ -23,7 +23,7 @@ import Model3DViewer from 'renderer/components/Shared/Model3DViewer';
 interface ViewArtifactsModalProps {
   open: boolean;
   onClose: () => void;
-  jobId: number | string;
+  jobId: number | string | null;
 }
 
 interface Artifact {
@@ -110,6 +110,7 @@ export default function ViewArtifactsModal({
   };
 
   const handleViewArtifact = async (artifact: Artifact) => {
+    if (!jobId) return;
     setSelectedArtifact(artifact);
     setPreviewLoading(true);
     setPreviewError(null);
@@ -191,6 +192,7 @@ export default function ViewArtifactsModal({
   };
 
   const handleDownloadArtifact = async (artifact: Artifact) => {
+    if (!jobId) return;
     try {
       const downloadUrl = getAPIFullPath('jobs', ['getArtifact'], {
         experimentId: experimentInfo?.id,
@@ -224,6 +226,7 @@ export default function ViewArtifactsModal({
   };
 
   const handleDownloadAllArtifacts = async () => {
+    if (!jobId) return;
     try {
       setIsDownloading(true);
       const downloadUrl = getAPIFullPath('jobs', ['downloadAllArtifacts'], {
