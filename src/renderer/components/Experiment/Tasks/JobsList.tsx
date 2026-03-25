@@ -500,19 +500,19 @@ const JobsList: React.FC<JobsListProps> = ({
                       </Button>
                     )}
                     {!job?.placeholder && (
-                    <IconButton
-                      variant="plain"
-                      disabled={!isTerminalJobStatus(job?.status)}
-                      onClick={() => {
-                        if (!isTerminalJobStatus(job?.status)) {
-                          return;
-                        }
-                        onDeleteJob?.(job.id);
-                      }}
-                    >
-                      <Trash2Icon style={{ cursor: 'pointer' }} />
-                    </IconButton>
-                  )}
+                      <IconButton
+                        variant="plain"
+                        disabled={!isTerminalJobStatus(job?.status)}
+                        onClick={() => {
+                          if (!isTerminalJobStatus(job?.status)) {
+                            return;
+                          }
+                          onDeleteJob?.(job.id);
+                        }}
+                      >
+                        <Trash2Icon style={{ cursor: 'pointer' }} />
+                      </IconButton>
+                    )}
                   </ButtonGroup>
                 </td>
               </tr>
