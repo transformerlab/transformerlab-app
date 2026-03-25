@@ -136,12 +136,28 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
             )
 
             loop = asyncio.get_running_loop()
+
+            def _on_status(status: str) -> None:
+                """Callback invoked from the executor thread to update live_status."""
+                future = asyncio.run_coroutine_threadsafe(
+                    job_service.job_update_job_data_insert_key_value(
+                        item.job_id, "live_status", status, item.experiment_id
+                    ),
+                    loop,
+                )
+                try:
+                    future.result(timeout=5)
+                except Exception:
+                    pass
+
             try:
                 # Ensure only one local launch runs at a time
                 async with _worker_lock:
                     launch_result = await loop.run_in_executor(
                         None,
-                        lambda: provider_instance.launch_cluster(item.cluster_name, item.cluster_config),
+                        lambda: provider_instance.launch_cluster(
+                            item.cluster_name, item.cluster_config, on_status=_on_status
+                        ),
                     )
             except Exception as exc:  # noqa: BLE001
                 print(f"[local_provider_queue] Job {item.job_id}: launch_cluster failed: {exc}")
