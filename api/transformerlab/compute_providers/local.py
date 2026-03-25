@@ -474,43 +474,48 @@ class LocalProvider(ComputeProvider):
         stdout_log = open(job_dir / "stdout.log", "w")
         stderr_log = open(job_dir / "stderr.log", "w")
 
-        if config.setup:
-            print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
-            setup_result = subprocess.run(
-                ["/bin/bash", "-c", config.setup],
-                cwd=job_dir,
+        try:
+            if config.setup:
+                print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
+                setup_result = subprocess.run(
+                    ["/bin/bash", "-c", config.setup],
+                    cwd=job_dir,
+                    env=env,
+                    stdout=stdout_log,
+                    stderr=stderr_log,
+                    text=True,
+                    timeout=600,
+                )
+                # Flush so tunnel_info can see the output immediately
+                stdout_log.flush()
+                stderr_log.flush()
+                if setup_result.returncode != 0:
+                    # Read the last few lines from the log files for the error message
+                    tail = ""
+                    try:
+                        with open(job_dir / "stderr.log") as f:
+                            lines = f.readlines()
+                            tail = "".join(lines[-20:])
+                    except OSError:
+                        pass
+                    print(f"[LocalProvider] Setup failed with code {setup_result.returncode}")
+                    raise RuntimeError(f"Setup failed (exit {setup_result.returncode}). Last lines:\n{tail}")
+
+            # Start main run command in background (detached subprocess)
+            print(f"[LocalProvider] Launching run in {job_dir}: {config.run!r}")
+            proc = subprocess.Popen(
+                ["/bin/bash", "-c", config.run or "true"],
+                cwd=str(job_dir),
                 env=env,
                 stdout=stdout_log,
                 stderr=stderr_log,
-                text=True,
-                timeout=600,
+                start_new_session=True,
             )
-            # Flush so tunnel_info can see the output immediately
-            stdout_log.flush()
-            stderr_log.flush()
-            if setup_result.returncode != 0:
-                # Read the last few lines from the log files for the error message
-                stderr_log.close()
-                tail = ""
-                try:
-                    with open(job_dir / "stderr.log") as f:
-                        lines = f.readlines()
-                        tail = "".join(lines[-20:])
-                except OSError:
-                    pass
-                print(f"[LocalProvider] Setup failed with code {setup_result.returncode}")
-                raise RuntimeError(f"Setup failed (exit {setup_result.returncode}). Last lines:\n{tail}")
-
-        # Start main run command in background (detached subprocess)
-        print(f"[LocalProvider] Launching run in {job_dir}: {config.run!r}")
-        proc = subprocess.Popen(
-            ["/bin/bash", "-c", config.run or "true"],
-            cwd=str(job_dir),
-            env=env,
-            stdout=stdout_log,
-            stderr=stderr_log,
-            start_new_session=True,
-        )
+        finally:
+            # Close parent-side file descriptors after setup/launch. The child
+            # process keeps its own inherited descriptors for log streaming.
+            stdout_log.close()
+            stderr_log.close()
         pid = proc.pid
         with open(job_dir / "pid", "w") as f:
             f.write(str(pid))

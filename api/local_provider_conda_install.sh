@@ -35,7 +35,7 @@ install_conda_if_needed() {
 
 create_conda_env_if_needed() {
   eval "$("${CONDA_BIN}" shell.bash hook)"
-  if ! conda env list | awk '{print $1}' | rg -Fq "${ENV_DIR}"; then
+  if ! conda env list | awk '{print $1}' | grep -Fq "${ENV_DIR}"; then
     conda create -y -k --prefix "${ENV_DIR}" python=3.11
   fi
 }
