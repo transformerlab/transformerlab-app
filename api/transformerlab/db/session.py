@@ -16,10 +16,20 @@ from lab.dirs import get_workspace_dir
 # It is created once and can be imported elsewhere.
 # Use NullPool for SQLite (pooling provides no benefit since SQLite serializes writes).
 # Use higher pool limits for Postgres to handle concurrent connections.
+_pg_pool_size = int(os.getenv("TFL_DB_POOL_SIZE", "20"))
+_pg_max_overflow = int(os.getenv("TFL_DB_MAX_OVERFLOW", "40"))
+_pg_pool_timeout = int(os.getenv("TFL_DB_POOL_TIMEOUT", "60"))
+
 if DATABASE_URL.startswith("sqlite"):
     async_engine = create_async_engine(DATABASE_URL, echo=False, poolclass=NullPool)
 else:
-    async_engine = create_async_engine(DATABASE_URL, echo=False, pool_size=20, max_overflow=40, pool_timeout=60)
+    async_engine = create_async_engine(
+        DATABASE_URL,
+        echo=False,
+        pool_size=_pg_pool_size,
+        max_overflow=_pg_max_overflow,
+        pool_timeout=_pg_pool_timeout,
+    )
 
 # --- SQLAlchemy Async Session Factory ---
 # This is a factory that creates new AsyncSession objects.
