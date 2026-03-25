@@ -863,6 +863,7 @@ export default function QueueTaskModal({
                 setParameters(newParams);
               }}
               sx={{ flex: 1 }}
+              disabled={isSubmitting}
             />
           ) : (
             <Select
@@ -874,6 +875,7 @@ export default function QueueTaskModal({
               }}
               placeholder="Select a model"
               sx={{ flex: 1 }}
+              disabled={isSubmitting}
             >
               {models.map((model: any) => (
                 <Option key={model.model_id} value={model.model_id}>
@@ -906,6 +908,7 @@ export default function QueueTaskModal({
                 }
               }}
               size="sm"
+              disabled={isSubmitting}
             />
             <Typography level="body-xs" sx={{ color: 'neutral.500' }}>
               Enter any string
@@ -931,6 +934,7 @@ export default function QueueTaskModal({
                 setParameters(newParams);
               }}
               sx={{ flex: 1 }}
+              disabled={isSubmitting}
             />
           ) : (
             <Select
@@ -942,6 +946,7 @@ export default function QueueTaskModal({
               }}
               placeholder="Select a dataset"
               sx={{ flex: 1 }}
+              disabled={isSubmitting}
             >
               {datasets.map((dataset: any) => (
                 <Option key={dataset.dataset_id} value={dataset.dataset_id}>
@@ -974,6 +979,7 @@ export default function QueueTaskModal({
                 }
               }}
               size="sm"
+              disabled={isSubmitting}
             />
             <Typography level="body-xs" sx={{ color: 'neutral.500' }}>
               Enter any string
@@ -1012,6 +1018,7 @@ export default function QueueTaskModal({
               step={step}
               valueLabelDisplay="auto"
               sx={{ flex: 1 }}
+              disabled={isSubmitting}
             />
             <Input
               value={param.value}
@@ -1031,6 +1038,7 @@ export default function QueueTaskModal({
               }}
               sx={{ width: 100 }}
               error={!!validationErrors[index]}
+              disabled={isSubmitting}
             />
           </Stack>
           {validationErrors[index] && (
@@ -1055,6 +1063,7 @@ export default function QueueTaskModal({
             newParams[index].value = e.target.checked;
             setParameters(newParams);
           }}
+          disabled={isSubmitting}
         />
       );
     }
@@ -1075,7 +1084,12 @@ export default function QueueTaskModal({
           >
             <Stack direction="row" spacing={2}>
               {options.map((option) => (
-                <Radio key={option} value={option} label={option} />
+                <Radio
+                  key={option}
+                  value={option}
+                  label={option}
+                  disabled={isSubmitting}
+                />
               ))}
             </Stack>
           </RadioGroup>
@@ -1091,6 +1105,7 @@ export default function QueueTaskModal({
               setParameters(newParams);
             }}
             sx={{ flex: 1 }}
+            disabled={isSubmitting}
           >
             {options.map((option) => (
               <Option key={option} value={option}>
@@ -1134,6 +1149,7 @@ export default function QueueTaskModal({
             }}
             sx={{ flex: 1 }}
             error={!!validationErrors[index]}
+            disabled={isSubmitting}
           />
           {validationErrors[index] && (
             <FormHelperText sx={{ color: 'danger.400' }}>
@@ -1156,6 +1172,7 @@ export default function QueueTaskModal({
             setParameters(newParams);
           }}
           sx={{ flex: 1 }}
+          disabled={isSubmitting}
         />
       );
     }
@@ -1188,6 +1205,7 @@ export default function QueueTaskModal({
             fontSize: 12,
             lineNumbers: 'off',
             wordWrap: 'on',
+            readOnly: isSubmitting,
           }}
         />
       );
@@ -1204,6 +1222,7 @@ export default function QueueTaskModal({
           setParameters(newParams);
         }}
         sx={{ flex: 1 }}
+        disabled={isSubmitting}
       />
     );
   };
@@ -1344,8 +1363,12 @@ export default function QueueTaskModal({
                 direction="row"
                 alignItems="center"
                 justifyContent="space-between"
-                sx={{ cursor: 'pointer' }}
-                onClick={() => setShowParameterOverrides((prev) => !prev)}
+                sx={{ cursor: isSubmitting ? 'default' : 'pointer' }}
+                onClick={() => {
+                  if (!isSubmitting) {
+                    setShowParameterOverrides((prev) => !prev);
+                  }
+                }}
               >
                 <Typography level="title-sm">Parameter overrides</Typography>
                 <ChevronDownIcon
@@ -1510,6 +1533,7 @@ export default function QueueTaskModal({
               lowerIsBetter={lowerIsBetter}
               onLowerIsBetterChange={setLowerIsBetter}
               parameters={parameters}
+              disabled={isSubmitting}
             />
 
             {/* Optional Resource Overrides Section */}
@@ -1519,8 +1543,12 @@ export default function QueueTaskModal({
                 direction="row"
                 alignItems="center"
                 justifyContent="space-between"
-                sx={{ cursor: 'pointer' }}
-                onClick={() => setShowResourceOverrides((prev) => !prev)}
+                sx={{ cursor: isSubmitting ? 'default' : 'pointer' }}
+                onClick={() => {
+                  if (!isSubmitting) {
+                    setShowResourceOverrides((prev) => !prev);
+                  }
+                }}
               >
                 <Typography level="title-sm">
                   Optional resource overrides
@@ -1760,7 +1788,7 @@ export default function QueueTaskModal({
             color="success"
             onClick={handleSubmit}
             loading={isSubmitting}
-            disabled={!selectedProviderId}
+            disabled={!selectedProviderId || isSubmitting}
           >
             Submit
           </Button>

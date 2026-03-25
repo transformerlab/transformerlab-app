@@ -1256,7 +1256,10 @@ async def _launch_sweep_jobs(
 
                 # Create unique cluster name for this run
                 run_suffix = f"sweep-{i + 1}"
-                formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-{run_suffix}-job-{parent_job_id}"
+                parent_job_short_id = job_service.get_short_job_id(parent_job_id)
+                formatted_cluster_name = (
+                    f"{_sanitize_cluster_basename(base_name)}-{run_suffix}-job-{parent_job_short_id}"
+                )
 
                 # Create child job
                 child_job_id = await job_service.job_create(
@@ -1692,7 +1695,8 @@ async def launch_template_on_provider(
     )
 
     base_name = request.cluster_name or request.task_name or provider.name
-    formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{job_id}"
+    job_short_id = job_service.get_short_job_id(job_id)
+    formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{job_short_id}"
 
     user_info = {}
     if getattr(user, "first_name", None) or getattr(user, "last_name", None):
@@ -1850,7 +1854,7 @@ async def launch_template_on_provider(
     if request.enable_trackio:
         env_vars["TLAB_TRACKIO_AUTO_INIT"] = "true"
         project_name = (request.trackio_project_name or "").strip() or str(request.experiment_id)
-        trackio_run_name = f"{request.task_name or 'task'}-job-{job_id}"
+        trackio_run_name = f"{request.task_name or 'task'}-job-{job_short_id}"
         trackio_project_name_for_job = project_name
         trackio_run_name_for_job = trackio_run_name
         env_vars["TLAB_TRACKIO_PROJECT_NAME"] = project_name
@@ -2026,7 +2030,7 @@ async def launch_template_on_provider(
         task_dir_root = await get_task_dir()
         task_src = storage.join(task_dir_root, secure_filename(str(request.task_id)))
         if await storage.isdir(task_src):
-            workspace_job_dir = await get_job_dir(job_id)
+            workspace_job_dir = await get_job_dir(job_id, request.experiment_id)
             await _copy_task_files_to_dir(task_src, workspace_job_dir)
 
     job_data = {
@@ -2210,6 +2214,7 @@ async def launch_template_on_provider(
 @router.get("/jobs/{job_id}/check-status")
 async def check_provider_job_status(
     job_id: str,
+    experiment_id: str = Query(..., description="Experiment ID for this job"),
     user_and_team=Depends(get_user_and_team),
 ):
     """
@@ -2221,7 +2226,7 @@ async def check_provider_job_status(
     intentionally side-effect-free so that frequent frontend polling
     never blocks on provider latency or downtime.
     """
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experiment_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -2254,7 +2259,9 @@ async def ensure_quota_recorded_for_completed_jobs(
     if job_id:
         # Check specific job
         # Pass team_id from user_and_team context
-        quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(session, job_id, team_id=team_id)
+        quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(
+            session, job_id, experiment_id=experiment_id, team_id=team_id
+        )
         return {
             "status": "success",
             "job_id": job_id,
@@ -2284,7 +2291,7 @@ async def ensure_quota_recorded_for_completed_jobs(
             if job_id_str:
                 # Pass team_id from user_and_team context
                 quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(
-                    session, job_id_str, team_id=team_id
+                    session, job_id_str, experiment_id=experiment_id, team_id=team_id
                 )
                 if quota_recorded:
                     jobs_recorded += 1
@@ -2323,6 +2330,7 @@ async def check_sweep_status_all(
 @router.get("/jobs/{job_id}/sweep-status")
 async def check_sweep_status(
     job_id: str,
+    experiment_id: str = Query(..., description="Experiment ID for this sweep job"),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -2330,7 +2338,7 @@ async def check_sweep_status(
     Check status of a specific sweep job from current persisted values.
     Returns current sweep status with counts and job data.
     """
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experiment_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -2359,6 +2367,7 @@ async def check_sweep_status(
 @router.get("/jobs/{job_id}/sweep-results")
 async def get_sweep_results(
     job_id: str,
+    experiment_id: str = Query(..., description="Experiment ID for this sweep job"),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -2368,7 +2377,7 @@ async def get_sweep_results(
     """
 
     # Get the parent sweep job
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experiment_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -2379,7 +2388,6 @@ async def get_sweep_results(
     if not job_data.get("sweep_parent"):
         raise HTTPException(status_code=400, detail="Job is not a sweep parent")
 
-    experiment_id = job.get("experiment_id")
     sweep_job_ids = job_data.get("sweep_job_ids", [])
     sweep_metric = job_data.get("sweep_metric", "eval/loss")
     lower_is_better = job_data.get("lower_is_better", True)
@@ -2392,7 +2400,7 @@ async def get_sweep_results(
     best_job_id = None
 
     for child_job_id in sweep_job_ids:
-        child_job = await job_service.job_get(child_job_id)
+        child_job = await job_service.job_get(child_job_id, experiment_id=experiment_id)
         if not child_job:
             continue
 
@@ -2486,7 +2494,7 @@ async def resume_from_checkpoint(
     import time
 
     # Get the original job
-    original_job = await job_service.job_get(job_id)
+    original_job = await job_service.job_get(job_id, experiment_id=experimentId)
     if not original_job or str(original_job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -2512,7 +2520,7 @@ async def resume_from_checkpoint(
         )
 
     # Verify checkpoint exists using workspace-aware path resolution
-    checkpoints_dir = await get_job_checkpoints_dir(job_id)
+    checkpoints_dir = await get_job_checkpoints_dir(job_id, experimentId)
     checkpoint_path = storage.join(checkpoints_dir, request.checkpoint)
     if not await storage.exists(checkpoint_path):
         raise HTTPException(status_code=404, detail=f"Checkpoint '{request.checkpoint}' not found")
@@ -2579,7 +2587,8 @@ async def resume_from_checkpoint(
 
     # Build cluster name
     base_name = job_data.get("task_name") or provider.name
-    formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{new_job_id}"
+    new_job_short_id = job_service.get_short_job_id(new_job_id)
+    formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{new_job_short_id}"
 
     # Get user info
     user = user_and_team.get("user")

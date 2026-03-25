@@ -16,7 +16,11 @@ from lab.profiling import copy_profiling_to_job, finalize_profiling, inject_torc
 async def _set_live_status_async(job_id: str, status: str) -> None:
     """Async helper to set live_status on a job and mirror failures to job status."""
     try:
-        job = await Job.get(job_id)
+        experiment_id = os.environ.get("_TFL_EXPERIMENT_ID")
+        if not experiment_id:
+            return
+
+        job = await Job.get(job_id, experiment_id)
         if job is None:
             return
         await job.update_job_data_field("live_status", status)
@@ -32,7 +36,11 @@ async def _set_live_status_async(job_id: str, status: str) -> None:
 async def _set_status_async(job_id: str, status: str) -> None:
     """Async helper to set the high-level job status."""
     try:
-        job = await Job.get(job_id)
+        experiment_id = os.environ.get("_TFL_EXPERIMENT_ID")
+        if not experiment_id:
+            return
+
+        job = await Job.get(job_id, experiment_id)
         if job is None:
             return
 
@@ -106,7 +114,11 @@ async def _write_provider_logs_async(job_id: str, logs_text: str) -> None:
         # Import inside helper to avoid circular imports at module load time.
         from lab.dirs import get_job_dir
 
-        job_dir = await get_job_dir(job_id)
+        experiment_id = os.environ.get("_TFL_EXPERIMENT_ID")
+        if not experiment_id:
+            return
+
+        job_dir = await get_job_dir(job_id, experiment_id)
         log_path = storage.join(job_dir, "provider_logs.txt")
 
         # Ensure the directory exists (no-op for remote storage that doesn't require mkdirs).
@@ -230,7 +242,8 @@ def main(argv: List[str] | None = None) -> int:
     # Copy profiling output from temp dir into job's profiling folder (same as lab.finish/error).
     if profiling_temp_dir and job_id:
         try:
-            asyncio.run(copy_profiling_to_job(profiling_temp_dir, job_id))
+            experiment_id = os.environ.get("_TFL_EXPERIMENT_ID")
+            asyncio.run(copy_profiling_to_job(profiling_temp_dir, job_id, experiment_id=experiment_id))
         except Exception:
             pass
         try:
