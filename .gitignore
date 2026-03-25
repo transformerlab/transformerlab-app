@@ -37,6 +37,7 @@ npm-debug.log.*
 .cursorignore
 .claude/todos/
 .claude/settings.local.json
+.claude/worktrees/
 
 .env
 **/.env
