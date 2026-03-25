@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 from transformerlab_cli.main import app
+from tests.helpers import strip_ansi
 
 runner = CliRunner()
 
@@ -36,8 +37,9 @@ def test_task_help():
     """Test the task command help."""
     result = runner.invoke(app, ["task", "--help"])
     assert result.exit_code == 0
-    assert "Usage: lab task [OPTIONS] COMMAND [ARGS]..." in result.output
-    assert "Task management commands" in result.output
+    out = strip_ansi(result.output)
+    assert "Usage: lab task [OPTIONS] COMMAND [ARGS]..." in out
+    assert "Task management commands" in out
 
 
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASKS))
