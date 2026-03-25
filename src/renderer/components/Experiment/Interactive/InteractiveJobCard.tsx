@@ -115,15 +115,10 @@ function getTypeConfig(interactiveType: string) {
   return INTERACTIVE_TYPE_CONFIG[interactiveType] || DEFAULT_TYPE_CONFIG;
 }
 
-<<<<<<< HEAD
 export default function InteractiveJobCard({
   job,
-  onDeleteJob,
   launchProgress,
 }: InteractiveJobCardProps) {
-=======
-export default function InteractiveJobCard({ job }: InteractiveJobCardProps) {
->>>>>>> 5bee2820b6d0970ed0834a1337051f072682abb0
   type InteractiveGalleryEntry = {
     id?: string;
     name?: string;
