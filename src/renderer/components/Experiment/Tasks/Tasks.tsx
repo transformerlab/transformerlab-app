@@ -352,6 +352,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   // state, so each poll is a fast filesystem read with no provider latency risk.
   useEffect(() => {
     if (!jobs || !Array.isArray(jobs)) return;
+    if (!experimentInfo?.id) return;
 
     // Only poll jobs that are actively in-flight (LAUNCHING or WAITING).
     // Quota recording and terminal-state transitions are handled by the background worker.
@@ -368,7 +369,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       for (const job of jobsToCheck) {
         try {
           const response = await fetchWithAuth(
-            chatAPI.Endpoints.ComputeProvider.CheckJobStatus(String(job.id)),
+            chatAPI.Endpoints.ComputeProvider.CheckJobStatus(
+              String(job.id),
+              String(experimentInfo.id),
+            ),
             { method: 'GET' },
           );
           if (response.ok) {
@@ -401,7 +405,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     const interval = setInterval(checkJobs, 3000);
 
     return () => clearInterval(interval);
-  }, [jobs, fetchWithAuth, jobsMutate]);
+  }, [jobs, fetchWithAuth, jobsMutate, experimentInfo?.id]);
 
   // // Periodically ensure quota is recorded for all completed REMOTE jobs
   // useEffect(() => {
