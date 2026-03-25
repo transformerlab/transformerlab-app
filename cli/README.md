@@ -34,7 +34,7 @@
 
 ## Command Reference
 
-For a full list of all commands with detailed options and example usage, see [COMMANDS.md](COMMANDS.md).
+For a full list of all commands with detailed options and example usage, see [COMMANDS.md](https://github.com/transformerlab/transformerlab-app/blob/main/cli/COMMANDS.md).
 
 # Development
 
