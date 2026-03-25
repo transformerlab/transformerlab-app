@@ -1,6 +1,6 @@
 import typer
 from transformerlab_cli.util.ui import console
-from importlib.metadata import PackageNotFoundError, version
+from importlib.metadata import PackageNotFoundError, version as pkg_version
 
 
 app = typer.Typer()
@@ -10,8 +10,8 @@ app = typer.Typer()
 def version():
     """Display the CLI version."""
     try:
-        pkg_version = version("transformerlab-cli")
+        installed_version = pkg_version("transformerlab-cli")
     except PackageNotFoundError:
-        pkg_version = "unknown"
+        installed_version = "unknown"
 
-    console.print(f"v{pkg_version}", highlight=False)
+    console.print(f"v{installed_version}", highlight=False)
