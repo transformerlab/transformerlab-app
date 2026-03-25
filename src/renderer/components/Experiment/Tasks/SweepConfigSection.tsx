@@ -32,6 +32,8 @@ interface SweepConfigSectionProps {
   lowerIsBetter: boolean;
   onLowerIsBetterChange: (value: boolean) => void;
   parameters: ProcessedParameter[];
+  /** When true, sweep controls cannot be edited (e.g. while queue submit is in flight). */
+  disabled: boolean;
 }
 
 export default function SweepConfigSection({
@@ -44,6 +46,7 @@ export default function SweepConfigSection({
   lowerIsBetter,
   onLowerIsBetterChange,
   parameters,
+  disabled,
 }: SweepConfigSectionProps) {
   const [newSweepParam, setNewSweepParam] = React.useState('');
   const [newSweepValues, setNewSweepValues] = React.useState('');
@@ -54,7 +57,7 @@ export default function SweepConfigSection({
         const trimmedValue = val.trim();
         // Try to convert to number if possible
         const numValue = Number(trimmedValue);
-        return isNaN(numValue) ? trimmedValue : numValue;
+        return Number.isNaN(numValue) ? trimmedValue : numValue;
       });
       onSweepConfigChange({
         ...sweepConfig,
@@ -85,6 +88,7 @@ export default function SweepConfigSection({
             checked={runSweeps}
             onChange={(e) => onRunSweepsChange(e.target.checked)}
             color={runSweeps ? 'success' : 'neutral'}
+            disabled={disabled}
           />
         </Stack>
         <FormHelperText>
@@ -109,6 +113,7 @@ export default function SweepConfigSection({
                   placeholder="Select a parameter"
                   value={newSweepParam || null}
                   onChange={(_, value) => setNewSweepParam(value || '')}
+                  disabled={disabled}
                 >
                   {parameters
                     .filter(
@@ -129,6 +134,7 @@ export default function SweepConfigSection({
                   value={newSweepValues}
                   onChange={(e) => setNewSweepValues(e.target.value)}
                   placeholder="e.g. 1e-5, 3e-5, 5e-5"
+                  disabled={disabled}
                 />
                 <FormHelperText>
                   Enter values separated by commas
@@ -137,7 +143,7 @@ export default function SweepConfigSection({
               <Button
                 sx={{ mt: 3 }}
                 onClick={handleAddSweepParam}
-                disabled={!newSweepParam || !newSweepValues.trim()}
+                disabled={disabled || !newSweepParam || !newSweepValues.trim()}
               >
                 Add Parameter
               </Button>
@@ -172,6 +178,7 @@ export default function SweepConfigSection({
                       variant="soft"
                       size="sm"
                       onClick={() => handleRemoveParam(param)}
+                      disabled={disabled}
                     >
                       Remove
                     </Button>
@@ -189,6 +196,7 @@ export default function SweepConfigSection({
                 value={sweepMetric}
                 onChange={(e) => onSweepMetricChange(e.target.value)}
                 placeholder="eval/loss"
+                disabled={disabled}
               />
               <FormHelperText>
                 Metric name to use for determining best configuration. Should
@@ -205,6 +213,7 @@ export default function SweepConfigSection({
                 <Switch
                   checked={lowerIsBetter}
                   onChange={(e) => onLowerIsBetterChange(e.target.checked)}
+                  disabled={disabled}
                 />
               </Stack>
               <FormHelperText>

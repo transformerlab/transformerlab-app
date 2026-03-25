@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Typography } from '@mui/joy';
 import JobProgress from './JobProgress';
+import { isTerminalJobStatus } from 'renderer/lib/utils';
 
 export interface LaunchProgressInfo {
   phase?: string;
@@ -499,13 +500,19 @@ const JobsList: React.FC<JobsListProps> = ({
                       </Button>
                     )}
                     {!job?.placeholder && (
-                      <IconButton variant="plain">
-                        <Trash2Icon
-                          onClick={() => onDeleteJob?.(job.id)}
-                          style={{ cursor: 'pointer' }}
-                        />
-                      </IconButton>
-                    )}
+                    <IconButton
+                      variant="plain"
+                      disabled={!isTerminalJobStatus(job?.status)}
+                      onClick={() => {
+                        if (!isTerminalJobStatus(job?.status)) {
+                          return;
+                        }
+                        onDeleteJob?.(job.id);
+                      }}
+                    >
+                      <Trash2Icon style={{ cursor: 'pointer' }} />
+                    </IconButton>
+                  )}
                   </ButtonGroup>
                 </td>
               </tr>
