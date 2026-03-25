@@ -1,8 +1,8 @@
 # Transformer Lab CLI
 
-![Main Screenshot](./screenshots/screenshot001.png)
+![Main Screenshot](https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/cli/screenshots/screenshot001.png)
 
-![Job Monitor Screenshot](./screenshots/screenshot002.png)
+![Job Monitor Screenshot](https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/cli/screenshots/screenshot002.png)
 
 # Usage
 
