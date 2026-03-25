@@ -311,6 +311,11 @@ class LocalProvider(ComputeProvider):
         env["VIRTUAL_ENV"] = str(venv_path)
         env["HOME"] = str(workspace_home)
         env["UV_CACHE_DIR"] = os.path.join(get_local_provider_root(), "uv_cache")
+        # Share the host user's cache directories so that each run does not
+        # re-download large assets (HF models, pip wheels, etc.).  Fixes #1604.
+        real_home = str(Path.home())
+        env.setdefault("HF_HOME", os.path.join(real_home, ".cache", "huggingface"))
+        env.setdefault("XDG_CACHE_HOME", os.path.join(real_home, ".cache"))
 
         # Open log files early so setup output is visible to get_job_logs / tunnel_info
         # while packages are still being installed.

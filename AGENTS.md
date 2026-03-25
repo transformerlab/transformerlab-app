@@ -29,18 +29,27 @@
 
 ## Architecture
 
-- **Frontend**: Electron + React (TypeScript) in `src/`
-- **Backend**: Python FastAPI in `api/transformerlab/`, entry point: `api/api.py`
-- **SDK**: `lab-sdk/` - Python SDK published to PyPI as `transformerlab`
+- **Frontend**: Electron + React (TypeScript) in `src/`. See [Frontend Deep Dives](docs/frontend.md).
+- **Backend**: Python FastAPI in `api/transformerlab/`, entry point: `api/api.py`. See [Backend Deep Dives](docs/backend.md).
+- **SDK**: `lab-sdk/` - Python SDK published to PyPI as `transformerlab`. The SDK runs on both the API server and on remote compute nodes (via `tfl-remote-trap`).
 - **Database**: SQLite with Alembic migrations in `api/alembic/`
-- **CLI**: Typer-based Python CLI in `cli/`
+- **CLI**: Typer-based Python CLI in `cli/`. See [CLI Deep Dives](docs/cli.md).
 
 ## Documentation
 
-Detailed internal documentation lives in `docs/` — read these before working on related subsystems:
+Detailed internal documentation lives in `docs/` — read these before working on related subsystems.
 
-- **[Task Execution](docs/task-execution/README.md)** — How tasks are created, queued, dispatched to compute providers, and monitored through their lifecycle (5-part guide).
+**When working on frontend code** (`src/`), read:
+- **[Task Execution](docs/task-execution/README.md)** — How tasks are created, queued, dispatched to compute providers, and monitored through their lifecycle (5-part guide). Focus on parts 4-5 for understanding job status display and polling.
+- **[Frontend Deep Dives](docs/frontend.md)** — Frontend-specific architecture details.
+
+**When working on backend code** (`api/`, `lab-sdk/`), read:
+- **[Task Execution](docs/task-execution/README.md)** — Full 5-part guide, especially parts 1-3 for job creation, dispatch, and provider integration.
 - **[Authentication](docs/Auth.md)** — JWT auth, sliding-window refresh, registration/invite model, route protection, team access, and OIDC configuration.
+- **[Backend Deep Dives](docs/backend.md)** — Context variables, job execution on local providers, and other backend internals.
+
+**When working on CLI code** (`cli/`), read:
+- **[CLI Deep Dives](docs/cli.md)** — CLI-specific architecture details.
 
 Agent skills and browser automation references live in `.agents/skills/`.
 
@@ -97,36 +106,60 @@ Agent skills and browser automation references live in `.agents/skills/`.
 
 ### Visual UI Verification
 
-**IMPORTANT: For visual UI verification, always use the Vercel agent-browser MCP tools** (the `mcp__plugin_playwright_playwright__browser_*` tools such as `browser_navigate`, `browser_snapshot`, `browser_take_screenshot`, `browser_click`, etc.). Do **NOT** run `npx playwright test` or write Playwright test scripts unless the user explicitly asks you to. Playwright tests are only for the automated E2E test suite in `test/playwright/`.
+**IMPORTANT: For visual UI verification, always use the `agent-browser` CLI skill** (see `.agents/skills/agent-browser/`). Do **NOT** run `npx playwright test` or write Playwright test scripts unless the user explicitly asks you to. Playwright tests are only for the automated E2E test suite in `test/playwright/`.
 
-The Vercel agent-browser is more efficient for navigating pages, taking snapshots, clicking elements, and filling forms. Only fall back to the **Chrome DevTools MCP** when you specifically need lower-level capabilities such as evaluating JavaScript, inspecting network requests, analyzing console messages, or running performance traces.
+The `agent-browser` CLI is more efficient for navigating pages, taking snapshots, clicking elements, and filling forms. Only fall back to the **Chrome DevTools MCP** when you specifically need lower-level capabilities such as evaluating JavaScript, inspecting network requests, analyzing console messages, or running performance traces.
 
 When requested, verify the result with the following steps:
 
 1. Run `npm run docker-test:up` to ensure the app is running (or use `python scripts/dev.py` for local dev).
-2. Use the Vercel agent-browser MCP tools to navigate to the page you just changed. Remember that the app usually serves on port 8338 (API) and port 1212 (frontend dev server).
+2. Use the `agent-browser` CLI to navigate to the page you just changed. Remember that the app usually serves on port 8338 (API) and port 1212 (frontend dev server).
 3. If the app requires login, use the default credentials: **email:** `admin@example.com` / **password:** `admin123`.
 4. Explore related pages (e.g., if you changed the Header, also check the Dashboard and Login pages).
 5. Take screenshots and verify that no layouts are broken.
 6. If you see a visual bug in the screenshot, fix it immediately.
 
-## Architecture Deep Dives
+## Using curl to Access the API (Authentication)
 
-This section documents complex flows in the codebase to help agents quickly understand how things work.
+The API uses `fastapi-users` with JWT cookies and API keys. Most endpoints require authentication **and** a team context. When debugging or inspecting API responses with curl, follow this pattern:
 
-### Job Execution on Local Providers
+### Quick Start (cookie auth)
 
-When a job is queued for a local provider, it flows through several layers:
+```bash
+# 1. Login — saves JWT cookies to cookies.txt
+curl -c cookies.txt -X POST http://localhost:8338/auth/cookie/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=admin@example.com&password=admin123"
 
-1. **Queueing** (`api/transformerlab/routers/compute_provider.py`, ~line 1727): The router builds a `ClusterConfig` and calls `enqueue_local_launch()`, returning immediately with `WAITING` status. For remote (non-local) providers, the command is wrapped with `tfl-remote-trap` to track `live_status` (`started`/`finished`/`crashed`).
+# 2. Get your team ID (required for most endpoints)
+curl -b cookies.txt http://localhost:8338/users/me/teams
+# Returns JSON array of teams — grab the "id" field from the first one
 
-2. **Serialized worker** (`api/transformerlab/services/local_provider_queue.py`): A background `asyncio` worker (`_local_launch_worker`) pulls items from the queue one at a time. It resolves the provider via `get_provider_instance()`, transitions the job to `LAUNCHING`/`INTERACTIVE`, then calls `provider_instance.launch_cluster()` inside a `try/except` block that catches errors, releases quota holds, and marks the job `FAILED`.
+# 3. Make authenticated requests — pass cookies + X-Team-Id header
+curl -b cookies.txt -H "X-Team-Id: <team-id>" http://localhost:8338/server/announcements
+```
 
-3. **Local execution** (`api/transformerlab/compute_providers/local.py`, `LocalProvider.launch_cluster()`): Creates a per-job `uv` virtual environment, runs any setup commands, then launches the job command via `subprocess.Popen` in a detached session with stdout/stderr written to log files in the job directory.
+### Bearer token auth (no cookie file)
 
-4. **Error handling**: Local providers rely on the queue worker's `try/except` for error capture. Remote providers use the `tfl-remote-trap` SDK helper (`lab-sdk/src/lab/remote_trap.py`) which wraps the command and sets `job_data.live_status` on success or failure.
+```bash
+# Login via JWT endpoint — returns tokens in response body
+TOKEN=$(curl -s -X POST http://localhost:8338/auth/jwt/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=admin@example.com&password=admin123" | jq -r .access_token)
 
-5. **Plugin harness** (`api/transformerlab/plugin_sdk/plugin_harness.py`): For plugin-based jobs (training, eval), the subprocess entry point that loads and executes plugin logic with its own error/traceback handling.
+# Use the token (expires in 1 hour)
+curl -H "Authorization: Bearer $TOKEN" \
+  -H "X-Team-Id: <team-id>" \
+  http://localhost:8338/server/announcements
+```
+
+### Key details
+
+- **Login format**: Must be `application/x-www-form-urlencoded` with `username` and `password` fields (OAuth2 password flow).
+- **Default credentials**: `admin@example.com` / `admin123` (seeded on first startup).
+- **X-Team-Id header**: Required on all protected endpoints. Get it from `GET /users/me/teams`. Without it, requests return 400.
+- **Token lifetime**: Access tokens expire after 1 hour. Re-login to get a new one.
+- **Unprotected endpoints**: `auth`, `api_keys`, `quota`, `compute_provider`, and the OpenAI-compatible API do not require auth.
 
 ## Agentic Performance Optimization
 

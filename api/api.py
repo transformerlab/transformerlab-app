@@ -2,11 +2,13 @@
 The Entrypoint File for Transformer Lab's API Server.
 """
 
+import asyncio
 import os
 import argparse
 import re
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 import sys
 
@@ -51,6 +53,7 @@ from transformerlab.routers import (  # noqa: E402
     api_keys,
     quota,
     ssh_keys,
+    asset_versions,
     trackio,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
@@ -94,6 +97,13 @@ logging.basicConfig()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Docs on lifespan events: https://fastapi.tiangolo.com/advanced/events/"""
+    # Configure the default asyncio thread pool used by asyncio.to_thread() and run_in_executor(None, ...).
+    # Python's default is min(32, os.cpu_count() + 4) which can be very low on small machines.
+    _thread_pool_size = int(os.getenv("TFL_ASYNC_THREAD_POOL_SIZE", "256"))
+    loop = asyncio.get_running_loop()
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=_thread_pool_size))
+    print(f"✅ Async thread pool: {_thread_pool_size} workers")
+
     # Do the following at API Startup:
     print_launch_message()
     # Initialize directories early
@@ -117,6 +127,12 @@ async def lifespan(app: FastAPI):
     await seed_default_experiments()
     # Seed default admin user
     await seed_default_admin_user()
+
+    # One-time migration: legacy workspace/jobs -> workspace/experiments/<exp_id>/jobs
+    # Runs in the background so it doesn't delay the API startup.
+    from transformerlab.services.migrate_jobs_to_experiment_dirs import start_jobs_migration_worker
+
+    await start_jobs_migration_worker()
 
     # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
     tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
@@ -162,6 +178,9 @@ async def lifespan(app: FastAPI):
     await stop_sweep_status_worker()
     await stop_remote_job_status_worker()
     await stop_notification_worker()
+    from transformerlab.services.migrate_jobs_to_experiment_dirs import stop_jobs_migration_worker
+
+    await stop_jobs_migration_worker()
     await db.close()
     # Run the clean up function
     cleanup_at_exit()
@@ -316,6 +335,7 @@ app.include_router(auth.router)
 app.include_router(api_keys.router)
 app.include_router(quota.router)
 app.include_router(ssh_keys.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(asset_versions.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(trackio.router, dependencies=[Depends(get_user_and_team)])
 
 
@@ -337,15 +357,21 @@ async def install_all_plugins():
 async def healthz():
     """
     Health check endpoint to verify server status and mode.
+    Also includes version info so the frontend can detect updates without extra polling.
     """
+    from transformerlab.services.version_service import get_version_info
+
     # MULTIUSER flag: default to true unless explicitly set to 'false'
     IS_MULTIUSER = os.getenv("MULTIUSER", "true").lower() == "true"
     # Determine mode: multiuser or local
     mode = "multiuser" if IS_MULTIUSER else "local"
 
+    version_info = await get_version_info()
+
     return {
         "message": "OK",
         "mode": mode,
+        "version": version_info,
     }
 
 

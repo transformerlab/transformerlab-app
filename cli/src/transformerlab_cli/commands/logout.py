@@ -1,11 +1,9 @@
 import typer
-from rich.console import Console
 
 from transformerlab_cli.util.auth import delete_api_key
 from transformerlab_cli.util.config import delete_config, load_config
 
 app = typer.Typer()
-console = Console()
 
 
 @app.command()

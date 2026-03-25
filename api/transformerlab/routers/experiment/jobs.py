@@ -1,6 +1,5 @@
 import asyncio
 import csv
-from datetime import datetime
 from fnmatch import fnmatch
 import json
 import os
@@ -20,7 +19,6 @@ from transformerlab.routers.auth import get_user_and_team
 from transformerlab.routers.serverinfo import watch_file
 from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
 import transformerlab.services.job_service as job_service
-from transformerlab.services.cache_service import cache
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.shared import shared, zip_utils
 from transformerlab.shared.models.models import ProviderType
@@ -36,12 +34,19 @@ from lab.dirs import (
     get_job_models_dir,
     get_models_dir,
 )
+from transformerlab.services import asset_version_service
+
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
-async def jobs_get_all(experimentId: str, type: str = "", status: str = "", subtype: str = ""):
+async def jobs_get_all(
+    experimentId: str,
+    type: str = "",
+    status: str = "",
+    subtype: str = "",
+):
     """
     Return the list of jobs for an experiment, optionally filtered by type/status/subtype.
     """
@@ -109,21 +114,21 @@ async def job_delete_all(experimentId: str):
 
 
 @router.get("/{job_id}")
-async def get_training_job(job_id: str):
-    job = await job_service.job_get_cached(job_id)
+async def get_training_job(job_id: str, experimentId: str):
+    job = await job_service.job_get_cached(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     return job
 
 
 @router.get("/{job_id}/tasks_output")
-async def get_tasks_job_output(job_id: str, sweeps: bool = False):
+async def get_tasks_job_output(job_id: str, experimentId: str, sweeps: bool = False):
     """
     Get Tasks job output with robust error handling.
     Uses the same logic as stream_job_output but returns content directly.
     """
     try:
-        job = await job_service.job_get_cached(job_id)
+        job = await job_service.job_get_cached(job_id, experiment_id=experimentId)
         if job is None:
             return "Job not found"
 
@@ -144,10 +149,10 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                 output_file_name = output_file
             else:
                 # Fall back to regular output file logic
-                output_file_name = await shared.get_job_output_file_name(job_id)
+                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
         else:
             # Try to get output file name with fallback logic
-            output_file_name = await shared.get_job_output_file_name(job_id)
+            output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
 
         # Read and return the file content as JSON array of lines
         if await storage.exists(output_file_name):
@@ -164,7 +169,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             print(f"Output file not found for job {job_id}, retrying in 4 seconds...")
             await asyncio.sleep(4)
             try:
-                output_file_name = await shared.get_job_output_file_name(job_id)
+                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
                 if await storage.exists(output_file_name):
                     async with await storage.open(output_file_name, "r") as f:
                         content = await f.read()
@@ -175,7 +180,11 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                 # If still no file after retry, create an empty one in the jobs directory
                 print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
-                job_obj = Job(job_id)
+                job_dict = await job_service.job_get_cached(job_id, experiment_id=experimentId)
+                experiment_id = job_dict.get("experiment_id") if job_dict else None
+                if not experiment_id:
+                    return []
+                job_obj = Job(job_id, experiment_id)
                 output_file_name = await job_obj.get_log_path()
                 # Get directory by removing filename from path using storage.join
                 output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
@@ -215,7 +224,7 @@ async def get_provider_job_logs(
       2. Otherwise, fall back to provider-native log retrieval (existing behavior).
     """
 
-    job = await job_service.job_get_cached(job_id)
+    job = await job_service.job_get_cached(job_id, experiment_id=experimentId)
     if not job or str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -244,7 +253,7 @@ async def get_provider_job_logs(
         try:
             from lab.dirs import get_job_dir
 
-            job_dir = await get_job_dir(job_id)
+            job_dir = await get_job_dir(job_id, experimentId)
             provider_logs_path = storage.join(job_dir, "provider_logs.txt")
             if await storage.exists(provider_logs_path):
                 async with await storage.open(provider_logs_path, "r", encoding="utf-8") as f:
@@ -383,7 +392,7 @@ async def get_tunnel_info_for_job(
     choose the parser. Supports: 'vscode', 'jupyter', 'vllm', 'ollama', 'ssh'.
     """
 
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if not job or str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -566,13 +575,13 @@ async def get_tunnel_info_for_job(
 
 
 @router.get("/{job_id}/stream_output")
-async def stream_job_output(job_id: str, sweeps: bool = False):
+async def stream_job_output(job_id: str, experimentId: str, sweeps: bool = False):
     """
     Stream job output with robust error handling and retry logic.
     Enhanced version combining the best of both train and jobs routers.
     """
     try:
-        job = await job_service.job_get(job_id)
+        job = await job_service.job_get(job_id, experiment_id=experimentId)
 
         job_data = job.get("job_data", {})
 
@@ -591,10 +600,10 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 output_file_name = output_file
             else:
                 # Fall back to regular output file logic
-                output_file_name = await shared.get_job_output_file_name(job_id)
+                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
         else:
             # Try to get output file name with fallback logic
-            output_file_name = await shared.get_job_output_file_name(job_id)
+            output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
 
     except ValueError as e:
         # If the value error starts with "No output file found for job" then wait 4 seconds and try again
@@ -603,12 +612,24 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
             print(f"Output file not found for job {job_id}, retrying in 4 seconds...")
             await asyncio.sleep(4)
             try:
-                output_file_name = await shared.get_job_output_file_name(job_id)
+                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
             except Exception as retry_e:
                 # If still no file after retry, create an empty one in the jobs directory
                 print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
-                job_obj = Job(job_id)
+                job_dict = await job_service.job_get_cached(job_id, experiment_id=experimentId)
+                experiment_id = job_dict.get("experiment_id") if job_dict else None
+                if not experiment_id:
+                    return StreamingResponse(
+                        iter(["data: Error: An internal error has occurred!\n\n"]),
+                        media_type="text/event-stream",
+                        headers={
+                            "Cache-Control": "no-cache",
+                            "Connection": "keep-alive",
+                            "Access-Control-Allow-Origin": "*",
+                        },
+                    )
+                job_obj = Job(job_id, experiment_id)
                 output_file_name = await job_obj.get_log_path()
                 # Get directory by removing filename from path using storage.join
                 output_dir = storage.join(*output_file_name.split("/")[:-1]) if "/" in output_file_name else "."
@@ -670,8 +691,8 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
 
 
 @router.get("/{job_id}/get_additional_details")
-async def stream_job_additional_details(job_id: str, task: str = "view"):
-    job = await job_service.job_get(job_id)
+async def stream_job_additional_details(job_id: str, experimentId: str, task: str = "view"):
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -706,8 +727,8 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
 
 
 @router.get("/{job_id}/get_figure_json")
-async def get_figure_path(job_id: str):
-    job = await job_service.job_get(job_id)
+async def get_figure_path(job_id: str, experimentId: str):
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -723,8 +744,8 @@ async def get_figure_path(job_id: str):
 
 
 @router.get("/{job_id}/get_generated_dataset")
-async def get_generated_dataset(job_id: str):
-    job = await job_service.job_get(job_id)
+async def get_generated_dataset(job_id: str, experimentId: str):
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     # Get experiment name
@@ -751,9 +772,9 @@ async def get_generated_dataset(job_id: str):
 
 
 @router.get("/{job_id}/get_eval_results")
-async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0):
+async def get_eval_results(job_id: str, experimentId: str, task: str = "view", file_index: int = 0):
     """Get evaluation results for a job"""
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -834,9 +855,9 @@ async def get_eval_results(job_id: str, task: str = "view", file_index: int = 0)
 
 
 @router.get("/{job_id}/get_eval_images")
-async def get_eval_images(job_id: str):
+async def get_eval_images(job_id: str, experimentId: str):
     """Get list of evaluation images for a job"""
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -921,9 +942,9 @@ async def get_eval_images(job_id: str):
 
 
 @router.get("/{job_id}/image/{filename}")
-async def get_eval_image(job_id: str, filename: str):
+async def get_eval_image(job_id: str, filename: str, experimentId: str):
     """Serve individual evaluation image files"""
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -977,38 +998,40 @@ async def get_eval_image(job_id: str, filename: str):
 
 
 @router.get("/{job_id}/checkpoints")
-async def get_checkpoints(job_id: str, request: Request):
+async def get_checkpoints(job_id: str, experimentId: str, request: Request):
     if job_id is None or job_id == "" or job_id == "-1":
         return {"checkpoints": []}
 
     """Get list of checkpoints for a job"""
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return {"checkpoints": []}
 
+    experiment_id = job.get("experiment_id")
     job_data = job["job_data"]
     # First try to use the new SDK method to get checkpoints
     try:
         from lab.job import Job
 
         # Get checkpoints using the SDK method
-        sdk_job = Job(job_id)
-        checkpoint_paths = await sdk_job.get_checkpoint_paths()
+        if experiment_id:
+            sdk_job = Job(job_id, experiment_id)
+            checkpoint_paths = await sdk_job.get_checkpoint_paths()
 
-        if checkpoint_paths and len(checkpoint_paths) > 0:
-            checkpoints = []
-            for checkpoint_path in checkpoint_paths:
-                try:
-                    # Get filename from path
-                    filename = checkpoint_path.split("/")[-1] if "/" in checkpoint_path else checkpoint_path
-                    checkpoints.append({"filename": filename})
-                except Exception as e:
-                    print(f"Error processing checkpoint {checkpoint_path}: {e}")
-                    continue
+            if checkpoint_paths and len(checkpoint_paths) > 0:
+                checkpoints = []
+                for checkpoint_path in checkpoint_paths:
+                    try:
+                        # Get filename from path
+                        filename = checkpoint_path.split("/")[-1] if "/" in checkpoint_path else checkpoint_path
+                        checkpoints.append({"filename": filename})
+                    except Exception as e:
+                        print(f"Error processing checkpoint {checkpoint_path}: {e}")
+                        continue
 
-            # Sort checkpoints by filename in reverse (descending) order for consistent ordering
-            checkpoints.sort(key=lambda x: x["filename"], reverse=True)
-            return {"checkpoints": checkpoints}
+                # Sort checkpoints by filename in reverse (descending) order for consistent ordering
+                checkpoints.sort(key=lambda x: x["filename"], reverse=True)
+                return {"checkpoints": checkpoints}
     except Exception as e:
         print(f"SDK checkpoint method failed for job {job_id}, falling back to legacy method: {e}")
 
@@ -1037,7 +1060,9 @@ async def get_checkpoints(job_id: str, request: Request):
     if not checkpoints_dir:
         from lab.dirs import get_job_checkpoints_dir
 
-        checkpoints_dir = await get_job_checkpoints_dir(job_id)
+        if not experiment_id:
+            return {"checkpoints": []}
+        checkpoints_dir = await get_job_checkpoints_dir(job_id, experiment_id)
     if not checkpoints_dir or not await storage.exists(checkpoints_dir):
         return {"checkpoints": []}
     elif await storage.isdir(checkpoints_dir):
@@ -1087,7 +1112,7 @@ async def get_checkpoints(job_id: str, request: Request):
 
 
 @router.get("/{job_id}/artifacts")
-async def get_artifacts(job_id: str, request: Request):
+async def get_artifacts(job_id: str, experimentId: str, request: Request):
     """Get list of artifacts for a job"""
 
     # Validate job_id
@@ -1100,7 +1125,12 @@ async def get_artifacts(job_id: str, request: Request):
     try:
         from lab.dirs import get_job_artifacts_dir
 
-        artifacts_dir = await get_job_artifacts_dir(job_id)
+        job_dict = await job_service.job_get_cached(job_id, experiment_id=experimentId)
+        experiment_id = job_dict.get("experiment_id") if job_dict else None
+        if not experiment_id:
+            return {"artifacts": []}
+
+        artifacts_dir = await get_job_artifacts_dir(job_id, experiment_id)
         artifacts = await get_artifacts_from_directory(artifacts_dir)
     except Exception as e:
         print(f"Error getting artifacts for job {job_id}: {e}")
@@ -1113,12 +1143,12 @@ async def get_artifacts(job_id: str, request: Request):
 
 
 @router.get("/{job_id}/artifacts/download_all")
-async def download_all_artifacts(job_id: str):
+async def download_all_artifacts(job_id: str, experimentId: str):
     """
     Download a zip file containing all artifacts for a job.
     """
     # 1. Gather all artifact file paths using service
-    all_file_paths = await job_service.get_all_artifact_paths(job_id, storage)
+    all_file_paths = await job_service.get_all_artifact_paths(job_id, experimentId, storage)
 
     if not all_file_paths:
         return Response("No artifacts found for this job", status_code=404)
@@ -1141,7 +1171,7 @@ async def download_all_artifacts(job_id: str):
 
 
 @router.get("/{job_id}/artifact/{filename}")
-async def get_artifact(job_id: str, filename: str, task: str = "view"):
+async def get_artifact(job_id: str, experimentId: str, filename: str, task: str = "view"):
     """
     Serve individual artifact files for viewing or downloading.
 
@@ -1150,11 +1180,12 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
         filename: The artifact filename
         task: Either "view" or "download" (default: "view")
     """
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experimentId)
     if job is None:
         return Response("Job not found", status_code=404)
 
     job_data = job["job_data"]
+    experiment_id = job.get("experiment_id")
 
     # First try to use the new SDK method to get artifact paths
     artifact_file_path = None
@@ -1162,18 +1193,19 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
         from lab.job import Job
 
         # Get artifacts using the SDK method
-        sdk_job = Job(job_id)
-        artifact_paths = await sdk_job.get_artifact_paths()
+        if experiment_id:
+            sdk_job = Job(job_id, experiment_id)
+            artifact_paths = await sdk_job.get_artifact_paths()
 
-        if artifact_paths:
-            # Look for the file in the artifact paths
-            filename_secure = secure_filename(filename)
-            for artifact_path in artifact_paths:
-                # Check if this path matches the filename
-                path_filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
-                if path_filename == filename_secure:
-                    artifact_file_path = artifact_path
-                    break
+            if artifact_paths:
+                # Look for the file in the artifact paths
+                filename_secure = secure_filename(filename)
+                for artifact_path in artifact_paths:
+                    # Check if this path matches the filename
+                    path_filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
+                    if path_filename == filename_secure:
+                        artifact_file_path = artifact_path
+                        break
     except Exception as e:
         print(f"Error using SDK method to get artifact paths: {e}")
 
@@ -1217,6 +1249,9 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
         ".wav": "audio/wav",
         ".m4a": "audio/mp4",
         ".flac": "audio/flac",
+        # 3D Models
+        ".glb": "model/gltf-binary",
+        ".gltf": "model/gltf+json",
         # JSON
         ".json": "application/json",
         # Text
@@ -1269,14 +1304,14 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
 
 
 @router.get("/{job_id}")
-async def get_training_job_by_path(job_id: str):
-    return await job_service.job_get(job_id)
+async def get_training_job_by_path(job_id: str, experimentId: str):
+    return await job_service.job_get(job_id, experiment_id=experimentId)
 
 
 @router.get("/{job_id}/output")
-async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
+async def get_training_job_output_jobpath(job_id: str, experimentId: str, sweeps: bool = False):
     try:
-        job = await job_service.job_get(job_id)
+        job = await job_service.job_get(job_id, experiment_id=experimentId)
         if job is None:
             return "Job not found"
 
@@ -1322,9 +1357,9 @@ async def get_training_job_output_jobpath(job_id: str, sweeps: bool = False):
 
 
 @router.get("/{job_id}/sweep_results")
-async def sweep_results(job_id: str):
+async def sweep_results(job_id: str, experimentId: str):
     try:
-        job = await job_service.job_get(job_id)
+        job = await job_service.job_get(job_id, experiment_id=experimentId)
         if job is None:
             return {"status": "error", "message": "Job not found."}
 
@@ -1358,7 +1393,7 @@ async def sweep_results(job_id: str):
 
 
 @router.get("/{job_id}/datasets")
-async def get_job_datasets(job_id: str, request: Request):
+async def get_job_datasets(job_id: str, experimentId: str, request: Request):
     """Get list of datasets in the job's datasets directory"""
 
     if not job_id or job_id in ("", "-1"):
@@ -1367,7 +1402,7 @@ async def get_job_datasets(job_id: str, request: Request):
     try:
         from lab.dirs import get_job_datasets_dir
 
-        datasets_dir = await get_job_datasets_dir(job_id)
+        datasets_dir = await get_job_datasets_dir(job_id, experimentId)
         datasets = await job_service.get_datasets_from_directory(datasets_dir)
     except Exception as e:
         print(f"Error getting datasets for job {job_id}: {e}")
@@ -1379,7 +1414,7 @@ async def get_job_datasets(job_id: str, request: Request):
 
 
 @router.get("/{job_id}/models")
-async def get_job_models(job_id: str, request: Request):
+async def get_job_models(job_id: str, experimentId: str, request: Request):
     """Get list of models in the job's models directory"""
 
     if not job_id or job_id in ("", "-1"):
@@ -1388,7 +1423,7 @@ async def get_job_models(job_id: str, request: Request):
     try:
         from lab.dirs import get_job_models_dir
 
-        models_dir = await get_job_models_dir(job_id)
+        models_dir = await get_job_models_dir(job_id, experimentId)
         models = await job_service.get_models_from_directory(models_dir)
     except Exception as e:
         print(f"Error getting models for job {job_id}: {e}")
@@ -1403,171 +1438,278 @@ async def get_job_models(job_id: str, request: Request):
 async def save_dataset_to_registry(
     job_id: str,
     dataset_name: str,
-    target_name: Optional[str] = Query(None, description="Custom name for the dataset in the registry"),
+    experimentId: str,
+    target_name: Optional[str] = Query(None, description="Group name for the dataset in the registry"),
+    asset_name: Optional[str] = Query(None, description="Unique folder name for the dataset in the datasets directory"),
     mode: str = Query(
         "new", description="'new' to create a new entry, 'existing' to merge into an existing registry dataset"
     ),
+    tag: str = Query("latest", description="Tag to assign to the new version"),
+    version_label: str = Query("v1", description="Version label for this entry (e.g. 'v1', 'march-run')"),
+    description: Optional[str] = Query(None, description="Human-readable description for the version"),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Copy a dataset from job's datasets directory to the global datasets registry.
-
-    Supports two modes:
-    - mode='new': Save as a new dataset. Uses target_name if provided, otherwise uses the original dataset_name.
-      If a dataset with that name already exists, a timestamped suffix is added.
-    - mode='existing': Merge into an existing dataset in the registry. target_name must be provided and must
-      refer to an existing dataset. Files from the job dataset are copied into the existing dataset directory.
-    """
+    """Copy a dataset from job's datasets directory to the global datasets registry."""
 
     try:
-        # Secure the source dataset name
         dataset_name_secure = secure_filename(dataset_name)
 
         # Get source path (job's datasets directory)
-        job_datasets_dir = await get_job_datasets_dir(job_id)
+        job_datasets_dir = await get_job_datasets_dir(job_id, experimentId)
         source_path = storage.join(job_datasets_dir, dataset_name_secure)
 
         if not await storage.exists(source_path):
             raise HTTPException(status_code=404, detail=f"Dataset '{dataset_name}' not found in job directory")
 
-        # Get the registry directory
         datasets_registry_dir = await get_datasets_dir()
 
         if mode == "existing":
-            # Merge into an existing dataset
+            # For mode='existing', the asset is merged into the target group folder.
             if not target_name:
                 raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
             target_name_secure = secure_filename(target_name)
-            dest_path = storage.join(datasets_registry_dir, target_name_secure)
-            if not await storage.exists(dest_path):
-                raise HTTPException(status_code=404, detail=f"Dataset '{target_name}' not found in registry")
 
-            # Copy files from source into the existing dataset directory (merge)
-            try:
-                await storage.copy_dir(source_path, dest_path)
-            except Exception as copy_err:
-                print(f"Storage.copy_dir failed: {copy_err}")
+            # Verify the group exists — either in the asset versioning system
+            # or as a physical folder in the registry directory (legacy entries).
+            existing_groups = await asset_version_service.list_groups("dataset")
+            group_in_versions = any(g["group_name"] == target_name_secure for g in existing_groups)
+            group_on_disk = await storage.exists(storage.join(datasets_registry_dir, target_name_secure))
+            if not group_in_versions and not group_on_disk:
+                raise HTTPException(status_code=404, detail=f"Dataset group '{target_name}' not found in registry")
 
-            return {
-                "status": "success",
-                "message": f"Dataset merged into existing registry entry '{target_name_secure}'",
-            }
-        else:
-            # Save as a new dataset
-            final_name = secure_filename(target_name) if target_name else dataset_name_secure
-            dest_path = storage.join(datasets_registry_dir, final_name)
-
-            # Check if dataset already exists in registry and generate a unique name if needed
+            # Determine the unique folder name for this new version's files.
+            if asset_name:
+                effective_asset_name = secure_filename(asset_name)
+            else:
+                effective_asset_name = dataset_name_secure
+            dest_path = storage.join(datasets_registry_dir, effective_asset_name)
             if await storage.exists(dest_path):
+                from datetime import datetime
+
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                final_name = f"{final_name}_{timestamp}"
-                dest_path = storage.join(datasets_registry_dir, final_name)
+                effective_asset_name = f"{effective_asset_name}_{timestamp}"
+        else:
+            # Determine the unique destination folder name (asset_name).
+            # If the caller explicitly supplied asset_name, enforce uniqueness (409 on conflict).
+            # Otherwise fall back to target_name / source name and auto-suffix on conflict.
+            if asset_name:
+                effective_asset_name = secure_filename(asset_name)
+                dest_path = storage.join(datasets_registry_dir, effective_asset_name)
+                if await storage.exists(dest_path):
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"A dataset named '{effective_asset_name}' already exists in the registry. Please choose a different name.",
+                    )
+            else:
+                effective_asset_name = secure_filename(target_name) if target_name else dataset_name_secure
+                dest_path = storage.join(datasets_registry_dir, effective_asset_name)
+                if await storage.exists(dest_path):
+                    from datetime import datetime
 
-            # Copy the dataset to the registry
-            try:
-                await storage.copy_dir(source_path, dest_path)
-            except Exception as copy_err:
-                print(f"Storage.copy_dir failed: {copy_err}")
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    effective_asset_name = f"{effective_asset_name}_{timestamp}"
 
-            return {"status": "success", "message": f"Dataset saved to registry as '{final_name}'"}
+        asyncio.create_task(
+            _save_dataset_to_registry(
+                job_id=job_id,
+                dataset_name_secure=dataset_name_secure,
+                source_path=source_path,
+                datasets_registry_dir=datasets_registry_dir,
+                target_name=target_name,
+                asset_name=effective_asset_name,
+                mode=mode,
+                tag=tag,
+                version_label=version_label,
+                description=description,
+            )
+        )
+
+        return {"status": "started", "message": "Dataset save to registry started"}
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error saving dataset to registry for job {job_id}: {str(e)}")
+        print(f"Error starting dataset save to registry for job {job_id}: {str(e)}")
         import traceback
 
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to save dataset to registry: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start dataset save to registry: {str(e)}")
+
+
+async def _save_dataset_to_registry(
+    job_id: str,
+    dataset_name_secure: str,
+    source_path: str,
+    datasets_registry_dir: str,
+    target_name: Optional[str],
+    asset_name: str,
+    mode: str,
+    tag: str,
+    version_label: str,
+    description: Optional[str],
+):
+    """Coroutine that performs the copy and creates the version entry."""
+    # asset_name is always the unique destination folder name.
+    # Existence check was already done in the endpoint before dispatching.
+    dest_path = storage.join(datasets_registry_dir, asset_name)
+    await storage.copy_dir(source_path, dest_path)
+
+    group_name = secure_filename(target_name) if target_name else asset_name
+    version_description = description if description else f"Created from job {job_id}"
+    await asset_version_service.create_version(
+        asset_type="dataset",
+        group_name=group_name,
+        asset_id=asset_name,
+        version_label=version_label,
+        job_id=job_id,
+        description=version_description,
+        tag=tag,
+    )
+
+    return asset_name
 
 
 @router.post("/{job_id}/models/{model_name}/save_to_registry")
 async def save_model_to_registry(
     job_id: str,
     model_name: str,
-    target_name: Optional[str] = Query(None, description="Custom name for the model in the registry"),
+    experimentId: str,
+    target_name: Optional[str] = Query(None, description="Group name for the model in the registry"),
+    asset_name: Optional[str] = Query(None, description="Unique folder name for the model in the models directory"),
     mode: str = Query(
         "new", description="'new' to create a new entry, 'existing' to merge into an existing registry model"
     ),
+    tag: str = Query("latest", description="Tag to assign to the new version"),
+    version_label: str = Query("v1", description="Version label for this entry (e.g. 'v1', 'march-run')"),
+    description: Optional[str] = Query(None, description="Human-readable description for the version"),
 ):
-    """Copy a model from job's models directory to the global models registry.
-
-    Supports two modes:
-    - mode='new': Save as a new model. Uses target_name if provided, otherwise uses the original model_name.
-      If a model with that name already exists, a timestamped suffix is added.
-    - mode='existing': Merge into an existing model in the registry. target_name must be provided and must
-      refer to an existing model. Files from the job model are copied into the existing model directory.
-    """
+    """Copy a model from job's models directory to the global models registry."""
 
     try:
-        # Secure the source model name
         model_name_secure = secure_filename(model_name)
 
         # Get source path (job's models directory)
-        job_models_dir = await get_job_models_dir(job_id)
+        job_models_dir = await get_job_models_dir(job_id, experimentId)
         source_path = storage.join(job_models_dir, model_name_secure)
 
         if not await storage.exists(source_path):
             raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found in job directory")
 
-        # Get the registry directory
         models_registry_dir = await get_models_dir()
 
         if mode == "existing":
-            # Merge into an existing model
+            # For mode='existing', the asset is merged into the target group folder.
             if not target_name:
                 raise HTTPException(status_code=400, detail="target_name is required when mode is 'existing'")
             target_name_secure = secure_filename(target_name)
-            dest_path = storage.join(models_registry_dir, target_name_secure)
-            if not await storage.exists(dest_path):
-                raise HTTPException(status_code=404, detail=f"Model '{target_name}' not found in registry")
 
-            # Copy files from source into the existing model directory (merge)
-            try:
-                await storage.copy_dir(source_path, dest_path)
-            except Exception as copy_err:
-                print(f"storage.copy_dir failed: {copy_err}")
+            # Verify the group exists — either in the asset versioning system
+            # or as a physical folder in the registry directory (legacy entries).
+            existing_groups = await asset_version_service.list_groups("model")
+            group_in_versions = any(g["group_name"] == target_name_secure for g in existing_groups)
+            group_on_disk = await storage.exists(storage.join(models_registry_dir, target_name_secure))
+            if not group_in_versions and not group_on_disk:
+                raise HTTPException(status_code=404, detail=f"Model group '{target_name}' not found in registry")
 
-            await cache.invalidate("models", "models:list")
-
-            return {"status": "success", "message": f"Model merged into existing registry entry '{target_name_secure}'"}
-        else:
-            # Save as a new model
-            final_name = secure_filename(target_name) if target_name else model_name_secure
-            dest_path = storage.join(models_registry_dir, final_name)
-
-            # Check if model already exists in registry and generate a unique name if needed
+            # Determine the unique folder name for this new version's files.
+            if asset_name:
+                effective_asset_name = secure_filename(asset_name)
+            else:
+                effective_asset_name = model_name_secure
+            dest_path = storage.join(models_registry_dir, effective_asset_name)
             if await storage.exists(dest_path):
+                from datetime import datetime
+
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                final_name = f"{final_name}_{timestamp}"
-                dest_path = storage.join(models_registry_dir, final_name)
+                effective_asset_name = f"{effective_asset_name}_{timestamp}"
+        else:
+            # Determine the unique destination folder name (asset_name).
+            # If the caller explicitly supplied asset_name, enforce uniqueness (409 on conflict).
+            # Otherwise fall back to target_name / source name and auto-suffix on conflict.
+            if asset_name:
+                effective_asset_name = secure_filename(asset_name)
+                dest_path = storage.join(models_registry_dir, effective_asset_name)
+                if await storage.exists(dest_path):
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"A model named '{effective_asset_name}' already exists in the registry. Please choose a different name.",
+                    )
+            else:
+                effective_asset_name = secure_filename(target_name) if target_name else model_name_secure
+                dest_path = storage.join(models_registry_dir, effective_asset_name)
+                if await storage.exists(dest_path):
+                    from datetime import datetime
 
-            # Copy the model directory to the registry
-            try:
-                await storage.copy_dir(source_path, dest_path)
-            except Exception as copy_err:
-                print(f"storage.copy_dir failed: {copy_err}")
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    effective_asset_name = f"{effective_asset_name}_{timestamp}"
 
-            await cache.invalidate("models", "models:list")
+        asyncio.create_task(
+            _save_model_to_registry(
+                job_id=job_id,
+                model_name_secure=model_name_secure,
+                source_path=source_path,
+                models_registry_dir=models_registry_dir,
+                target_name=target_name,
+                asset_name=effective_asset_name,
+                mode=mode,
+                tag=tag,
+                version_label=version_label,
+                description=description,
+            )
+        )
 
-            return {"status": "success", "message": f"Model saved to registry as '{final_name}'"}
+        return {"status": "started", "message": "Model save to registry started"}
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error saving model to registry for job {job_id}: {str(e)}")
+        print(f"Error starting model save to registry for job {job_id}: {str(e)}")
         import traceback
 
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to save model to registry: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start model save to registry: {str(e)}")
+
+
+async def _save_model_to_registry(
+    job_id: str,
+    model_name_secure: str,
+    source_path: str,
+    models_registry_dir: str,
+    target_name: Optional[str],
+    asset_name: str,
+    mode: str,
+    tag: str,
+    version_label: str,
+    description: Optional[str],
+):
+    """Coroutine that performs the copy and creates the version entry."""
+    # asset_name is always the unique destination folder name.
+    # Existence check was already done in the endpoint before dispatching.
+    dest_path = storage.join(models_registry_dir, asset_name)
+    await storage.copy_dir(source_path, dest_path)
+
+    group_name = secure_filename(target_name) if target_name else asset_name
+    version_description = description if description else f"Created from job {job_id}"
+    await asset_version_service.create_version(
+        asset_type="model",
+        group_name=group_name,
+        asset_id=asset_name,
+        version_label=version_label,
+        job_id=job_id,
+        description=version_description,
+        tag=tag,
+    )
+
+    return asset_name
 
 
 @router.get("/{job_id}/files")
-async def list_job_files(job_id: str, subpath: str = ""):
+async def list_job_files(job_id: str, experimentId: str, subpath: str = ""):
     """List files and directories in a job's directory."""
     from lab.dirs import get_job_dir
 
-    job_dir = await get_job_dir(job_id)
+    job_dir = await get_job_dir(job_id, experimentId)
     if not await storage.exists(job_dir):
         return {"files": [], "path": subpath}
 
@@ -1607,11 +1749,11 @@ async def list_job_files(job_id: str, subpath: str = ""):
 
 
 @router.get("/{job_id}/file/{file_path:path}")
-async def get_job_file(job_id: str, file_path: str):
+async def get_job_file(job_id: str, file_path: str, experimentId: str):
     """Serve a file from a job's directory."""
     from lab.dirs import get_job_dir
 
-    job_dir = await get_job_dir(job_id)
+    job_dir = await get_job_dir(job_id, experimentId)
     target = storage.join(job_dir, file_path)
 
     if not await storage.exists(target) or not await storage.isfile(target):
@@ -1692,3 +1834,32 @@ async def get_job_file(job_id: str, file_path: str):
     return StreamingResponse(
         generate(), media_type=media_type, headers={"Content-Disposition": f'inline; filename="{filename}"'}
     )
+
+
+@router.get("/{job_id}/profiling_report")
+async def get_profiling_report(
+    job_id: str,
+    experimentId: str,
+    session: AsyncSession = Depends(get_async_session),
+    user_and_team: dict = Depends(get_user_and_team),
+):
+    """
+    Return the profiling_report.json from the job's profiling folder (written when
+    _TFL_PROFILING=1 and copied on lab.finish/error or when the remote trap exits).
+
+    Returns 404 if profiling was not enabled or the report is not yet available.
+    """
+    from lab.dirs import get_job_profiling_dir
+
+    profiling_dir = await get_job_profiling_dir(job_id, experimentId)
+    report_path = storage.join(profiling_dir, "profiling_report.json")
+
+    if not await storage.exists(report_path):
+        raise HTTPException(status_code=404, detail="Profiling report not found for this job")
+
+    try:
+        async with await storage.open(report_path, "r", encoding="utf-8") as f:
+            content = await f.read()
+        return json.loads(content)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to read profiling report: {exc}") from exc

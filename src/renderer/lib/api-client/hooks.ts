@@ -7,7 +7,6 @@ import {
   fetchWithAuth,
   useSWRWithAuth as useSWR,
 } from 'renderer/lib/authContext';
-import { API_URL } from './urls';
 import { Endpoints } from './endpoints';
 
 const CONNECTION_HEALTH_TIMEOUT_MS = 10000;
@@ -73,13 +72,8 @@ export const fetcher = async (
 };
 
 export function useModelStatus() {
-  const api_url = API_URL();
-  const isLocalMode =
-    typeof window !== 'undefined' && window?.platform?.multiuser !== true;
-
-  // Only set URL if in local mode, otherwise SWR won't make the request
-  const url: string | null =
-    api_url && isLocalMode ? api_url + 'v1/models' : null;
+  // In cloud-only mode we do not poll local v1 model status.
+  const url: string | null = null;
 
   // Poll every 2 seconds
   const options = { refreshInterval: 2000 };

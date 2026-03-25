@@ -1,9 +1,11 @@
 import asyncio
-import threading
+import contextlib
 import time
+import uuid
+from datetime import datetime, timezone
 from werkzeug.utils import secure_filename
 
-from .dirs import get_experiments_dir, get_jobs_dir, get_workspace_dir
+from .dirs import get_experiments_dir, get_jobs_dir
 from .labresource import BaseLabResource
 from .job import Job
 from .job_status import JobStatus
@@ -11,7 +13,58 @@ import json
 from . import storage
 import logging
 
+
 logger = logging.getLogger(__name__)
+
+
+def _timestamp_sort_value(ts):
+    """
+    Comparable value for sorting (higher = newer when using reverse=True).
+
+    Parses common string shapes (ISO / space-separated naive datetimes) so order
+    matches real time; falls back to string compare only if parsing fails.
+    Missing/invalid sorts last when using reverse=True (via float('-inf')).
+    """
+    if ts is None or ts == "":
+        return float("-inf")
+    if isinstance(ts, datetime):
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return ts.timestamp()
+    if isinstance(ts, (int, float)):
+        return float(ts)
+    if isinstance(ts, str):
+        raw = ts.strip()
+        if not raw:
+            return float("-inf")
+        # fromisoformat accepts "2026-03-24T17:04:14+00:00" and "2026-03-24 17:04:14"
+        try:
+            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except ValueError:
+            return float("-inf")
+    return float("-inf")
+
+
+def _sort_key_job_recency(job: dict):
+    """
+    Newest-first sort key. Prefer job_data.start_time (matches UI "Started") over
+    top-level created_at so order aligns with when the run actually started.
+    """
+    jd = job.get("job_data")
+    if isinstance(jd, str):
+        try:
+            jd = json.loads(jd)
+        except Exception:
+            jd = {}
+    if not isinstance(jd, dict):
+        jd = {}
+    start_time = jd.get("start_time")
+    if start_time:
+        return _timestamp_sort_value(start_time)
+    return _timestamp_sort_value(job.get("created_at"))
 
 
 class Experiment(BaseLabResource):
@@ -20,11 +73,6 @@ class Experiment(BaseLabResource):
     """
 
     DEFAULT_JOBS_INDEX = {"TRAIN": []}
-
-    # Class-level cache for background rebuild tracking
-    _cache_rebuild_pending = set()  # set of (experiment_id, workspace_dir) tuples
-    _cache_rebuild_lock = threading.Lock()
-    _cache_rebuild_thread = None
 
     def __init__(self, experiment_id):
         # For consistency and simplicity, let's edit experiment name to match
@@ -67,11 +115,7 @@ class Experiment(BaseLabResource):
     async def _initialize(self):
         await super()._initialize()
 
-        # Create a empty jobs index and write
-        jobs_json_path = await self._jobs_json_file()
-        empty_jobs_data = {"index": self.DEFAULT_JOBS_INDEX, "cached_jobs": {}}
-        async with await storage.open(jobs_json_path, "w") as f:
-            await f.write(json.dumps(empty_jobs_data, indent=4))
+        # jobs.json was eliminated in favor of direct filesystem indexing.
 
     async def update_config_field(self, key, value):
         """Update a single key in config."""
@@ -172,103 +216,56 @@ class Experiment(BaseLabResource):
                     pass
         return experiments
 
-    async def create_job(self):
+    async def create_job(self, type: str = "REMOTE"):
         """
         Creates a new job with a blank template and returns a Job object.
         """
+        # New job IDs are UUIDs so they are globally unique across experiments.
+        new_job_id = str(uuid.uuid4())
 
-        # Choose an ID for the new job
-        # Scan the jobs directory for subdirectories with numberic names
-        # Find the largest number and increment to get the new job ID
-        largest_numeric_subdir = 0
-        jobs_dir = await get_jobs_dir()
+        new_job = await Job.create(new_job_id, self.id)
+        await new_job._update_json_data_field("type", type)
+        await new_job.update_job_data_field("experiment_name", self.id)
+        return new_job
+
+    async def get_jobs(self, type: str = "", status: str = "") -> list[dict]:
+        """
+        Get all jobs for this experiment by scanning the filesystem directory:
+            experiments/{experiment_id}/jobs/{job_id}/index.json
+
+        If `type` is provided, filter by `job_data["type"]`.
+        If `status` is provided, filter by `job_data["status"]`.
+        By default, DELETED jobs are excluded.
+        """
+        jobs_dir = await get_jobs_dir(self.id)
         try:
             entries = await storage.ls(jobs_dir, detail=False)
         except Exception:
-            entries = []
-        for full_path in entries:
-            entry = full_path.rstrip("/").split("/")[-1]
-            if entry.isdigit() and await storage.isdir(full_path):
-                job_id = int(entry)
-                if job_id > largest_numeric_subdir:
-                    largest_numeric_subdir = job_id
+            return []
 
-        new_job_id = largest_numeric_subdir + 1
-
-        # Create job with next available job_id and associate the new job with this experiment
-        new_job = await Job.create(new_job_id)
-        await new_job.set_experiment(self.id)
-
-        return new_job
-
-    async def get_jobs(self, type: str = "", status: str = ""):
-        """
-        Get a list of jobs stored in this experiment.
-        Uses cached data from jobs.json for completed jobs, only reads individual files for RUNNING jobs.
-        type: If not blank, filter by jobs with this type.
-        status: If not blank, filter by jobs with this status.
-        """
-
-        # First get jobs of the passed type
-        job_list = []
-        if type:
-            job_list = await self._get_jobs_of_type(type)
-        else:
-            job_list = await self._get_all_jobs()
-
-        # Get cached job data from jobs.json
-        cached_jobs = await self._get_cached_jobs_data()
-
-        # Iterate through the job list to return Job objects for valid jobs.
-        # Also filter for status if that parameter was passed.
-        results = []
-        for job_id in job_list:
+        results: list[dict] = []
+        for job_path in entries:
+            if not await storage.isdir(job_path):
+                continue
+            job_id = job_path.rstrip("/").split("/")[-1]
             try:
-                # Check if job is in cache (non-RUNNING jobs are cached)
-                if job_id in cached_jobs:
-                    # Use cached data for completed jobs
-                    job_json = cached_jobs[job_id]
-                    # Check status of job if not RUNNING, LAUNCHING, INTERACTIVE or NOT_STARTED, then remove from cache
-                    if job_json.get("status", "") in [
-                        JobStatus.RUNNING,
-                        JobStatus.LAUNCHING,
-                        JobStatus.INTERACTIVE,
-                        JobStatus.NOT_STARTED,
-                    ]:
-                        old_status = job_json.get("status", "")
-                        del cached_jobs[job_id]
-                        job = await Job.get(job_id)
-                        job_json = await job.get_json_data(uncached=True)
-                        # Trigger rebuild cache if old status and new status are different
-                        if old_status != job_json.get("status", ""):
-                            workspace = await get_workspace_dir()
-                            self._trigger_cache_rebuild(workspace)
-                        cached_jobs[job_id] = job_json
-
-                else:
-                    # Job not in cache
-                    job = await Job.get(job_id)
-                    job_json = await job.get_json_data(uncached=True)
-                    # Check if job is COMPLETE, STOPPED or FAILED, then update cache
-                    if job_json.get("status", "") in [JobStatus.COMPLETE, JobStatus.STOPPED, JobStatus.FAILED]:
-                        workspace = await get_workspace_dir()
-                        self._trigger_cache_rebuild(workspace)
+                job = await Job.get(job_id, self.id)
+                job_data = await job.get_json_data(uncached=True)
             except Exception:
-                logger.warning("ERROR getting job %s", job_id, exc_info=True)
+                logger.warning("ERROR getting job %s in experiment %s", job_id, self.id, exc_info=True)
                 continue
 
-            # Filter for status
-            if status and (job_json.get("status", "") != status):
+            if type and job_data.get("type") != type:
+                continue
+            if status and job_data.get("status") != status:
+                continue
+            if not status and job_data.get("status") == JobStatus.DELETED:
                 continue
 
-            # Exclude DELETED jobs by default (unless explicitly requested)
-            if not status and job_json.get("status", "") == JobStatus.DELETED:
-                continue
+            if "job_data" in job_data:
+                results.append(job_data)
 
-            # If it passed filters then add as long as it has job_data
-            if "job_data" in job_json:
-                results.append(job_json)
-
+        results.sort(key=_sort_key_job_recency, reverse=True)
         return results
 
     ###############################
@@ -338,6 +335,39 @@ class Experiment(BaseLabResource):
 
         exp_dir = await self.get_dir()
         return storage.join(exp_dir, "jobs.json")
+
+    @contextlib.asynccontextmanager
+    async def _jobs_json_write_lock(self, jobs_json_path: str, timeout_seconds: float = 10.0):
+        """
+        Acquire a cross-caller filesystem lock for jobs.json mutations.
+
+        Uses an adjacent lock directory (`jobs.json.lock`) created with exist_ok=False.
+        Directory creation is atomic on local filesystems and works as a best-effort
+        lock primitive for shared storage backends.
+        """
+        lock_path = f"{jobs_json_path}.lock"
+        deadline = time.monotonic() + timeout_seconds
+        wait_seconds = 0.01
+        acquired = False
+        while time.monotonic() < deadline:
+            try:
+                await storage.makedirs(lock_path, exist_ok=False)
+                acquired = True
+                break
+            except Exception:
+                await asyncio.sleep(wait_seconds)
+                wait_seconds = min(wait_seconds * 2, 0.2)
+
+        if not acquired:
+            raise TimeoutError(f"Timed out acquiring jobs.json lock: {lock_path}")
+
+        try:
+            yield
+        finally:
+            try:
+                await storage.rm_tree(lock_path)
+            except Exception:
+                logger.warning("Failed to release jobs.json lock %s", lock_path, exc_info=True)
 
     async def rebuild_jobs_index(self, workspace_dir=None):
         results = {}
@@ -583,88 +613,134 @@ class Experiment(BaseLabResource):
                 return []
 
     async def _add_job(self, job_id, type):
-        try:
-            jobs_json_path = await self._jobs_json_file()
-            jobs_data = await self._read_jobs_json_file(jobs_json_path)
-        except Exception:
-            jobs_data = {"index": {}, "cached_jobs": {}}
-
-        # Handle both old and new format
-        if "index" in jobs_data:
-            jobs = jobs_data["index"]
-        else:
-            jobs = jobs_data
-            jobs_data = {"index": jobs, "cached_jobs": {}}
-
-        if type in jobs:
-            jobs[type].append(job_id)
-        else:
-            jobs[type] = [job_id]
-
-        # Update the file with new structure
         jobs_json_path = await self._jobs_json_file()
-        async with await storage.open(jobs_json_path, "w") as f:
-            await f.write(json.dumps(jobs_data, indent=4))
-
-        # Trigger background cache rebuild
-        workspace = await get_workspace_dir()
-        self._trigger_cache_rebuild(workspace)
-
-    @classmethod
-    def _start_background_cache_rebuild(cls):
-        """Start the background cache rebuild thread if not already running."""
-        with cls._cache_rebuild_lock:
-            if cls._cache_rebuild_thread is None or not cls._cache_rebuild_thread.is_alive():
-                cls._cache_rebuild_thread = threading.Thread(target=cls._background_cache_rebuild_worker, daemon=True)
-                cls._cache_rebuild_thread.start()
-
-    @classmethod
-    def _background_cache_rebuild_worker(cls):
-        """Background worker that rebuilds caches for pending experiments."""
-        import asyncio
-
-        logger.info("STARTING CACHE REBUILD WORKER")
-        while True:
+        for attempt in range(3):
             try:
-                # Get pending experiments with their workspace directories
-                with cls._cache_rebuild_lock:
-                    pending_experiments = set(cls._cache_rebuild_pending)
-                    cls._cache_rebuild_pending.clear()
-
-                # Rebuild caches for pending experiments
-                for experiment_id, workspace_dir in pending_experiments:
+                async with self._jobs_json_write_lock(jobs_json_path):
                     try:
-                        exp = cls(experiment_id)
-                        # Run async method in sync context using asyncio.run
-                        asyncio.run(exp.rebuild_jobs_index(workspace_dir=workspace_dir))
+                        jobs_data = await self._read_jobs_json_file(jobs_json_path)
                     except Exception:
-                        logger.error(
-                            "Error rebuilding cache for experiment %s in workspace %s:",
-                            experiment_id,
-                            workspace_dir,
-                            exc_info=True,
-                        )
+                        jobs_data = {"index": {}, "cached_jobs": {}}
 
-                # Sleep for a short time before checking again
-                time.sleep(1)
+                    # Handle both old and new format
+                    if "index" in jobs_data:
+                        jobs = jobs_data["index"]
+                    else:
+                        jobs = jobs_data
+                        jobs_data = {"index": jobs, "cached_jobs": {}}
+
+                    if type in jobs:
+                        jobs[type].append(job_id)
+                    else:
+                        jobs[type] = [job_id]
+
+                    # Update the file with new structure
+                    async with await storage.open(jobs_json_path, "w") as f:
+                        await f.write(json.dumps(jobs_data, indent=4))
+                return
+            except TimeoutError:
+                if attempt < 2:
+                    await asyncio.sleep(0.05 * (attempt + 1))
+                    continue
+                logger.warning("Timeout adding job %s to jobs.json index", job_id, exc_info=True)
+                return
+
+    async def _update_cached_job(self, job_id: str, job_data: dict):
+        """Update a single job's data in cached_jobs without a full filesystem scan."""
+        jobs_json_path = await self._jobs_json_file()
+        job_id_str = str(job_id)
+        for attempt in range(5):
+            try:
+                async with self._jobs_json_write_lock(jobs_json_path):
+                    try:
+                        jobs_data = await self._read_jobs_json_file(jobs_json_path)
+                    except FileNotFoundError:
+                        jobs_data = {"index": {}, "cached_jobs": {}}
+                    except Exception:
+                        if attempt < 4:
+                            await asyncio.sleep(0.05 * (attempt + 1))
+                            continue
+                        logger.warning("Error reading jobs.json while updating cached job %s", job_id, exc_info=True)
+                        return
+
+                    if "index" not in jobs_data:
+                        jobs_data = {"index": jobs_data, "cached_jobs": {}}
+                    if "cached_jobs" not in jobs_data:
+                        jobs_data["cached_jobs"] = {}
+
+                    jobs_data["cached_jobs"][job_id_str] = job_data
+
+                    async with await storage.open(jobs_json_path, "w") as f:
+                        await f.write(json.dumps(jobs_data, indent=4))
+
+                # Verify our write is visible before returning. This protects against
+                # stale-read windows on some storage backends.
+                try:
+                    verify_data = await self._read_jobs_json_file(jobs_json_path, max_retries=2)
+                except Exception:
+                    if attempt < 4:
+                        await asyncio.sleep(0.02 * (attempt + 1))
+                        continue
+                    logger.warning("Error verifying cached job write for %s", job_id, exc_info=True)
+                    return
+                verify_cached_jobs = verify_data.get("cached_jobs", {})
+                if job_id_str in verify_cached_jobs:
+                    return
+            except TimeoutError:
+                if attempt < 4:
+                    await asyncio.sleep(0.05 * (attempt + 1))
+                    continue
+                logger.warning("Timeout updating cached_jobs for job %s", job_id, exc_info=True)
+                return
             except Exception:
-                logger.error("Error in background cache rebuild worker", exc_info=True)
-                time.sleep(5)  # Wait longer on error
+                logger.warning("Error updating cached_jobs for job %s", job_id, exc_info=True)
+                return
 
-    def _trigger_cache_rebuild(self, workspace_dir, sync=False):
-        """Trigger a cache rebuild for this experiment."""
-        import asyncio
+            # Verification missed our key; retry mutation.
+            if attempt < 4:
+                await asyncio.sleep(0.02 * (attempt + 1))
+                continue
+            logger.warning("Write verification failed for cached job %s after retries", job_id)
+            return
 
-        if sync:
-            # Run synchronously (useful for tests) - run async method in sync context
-            asyncio.run(self.rebuild_jobs_index(workspace_dir=workspace_dir))
-        else:
-            # Start background thread if not running
-            self._start_background_cache_rebuild()
+    async def _remove_job_from_index(self, job_id: str):
+        """Remove a job from the index and cached_jobs without a full filesystem scan."""
+        jobs_json_path = await self._jobs_json_file()
+        for attempt in range(3):
+            try:
+                async with self._jobs_json_write_lock(jobs_json_path):
+                    try:
+                        jobs_data = await self._read_jobs_json_file(jobs_json_path)
+                    except FileNotFoundError:
+                        return
+                    except Exception:
+                        return
 
-            # Add to pending queue with jobs directory (non-blocking)
-            with self._cache_rebuild_lock:
-                self._cache_rebuild_pending.add((self.id, workspace_dir))
+                    if "index" not in jobs_data:
+                        jobs_data = {"index": jobs_data, "cached_jobs": {}}
+
+                    job_id_str = str(job_id)
+
+                    index = jobs_data.get("index", {})
+                    for job_type in list(index.keys()):
+                        if job_id_str in index[job_type]:
+                            index[job_type].remove(job_id_str)
+
+                    cached_jobs = jobs_data.get("cached_jobs", {})
+                    cached_jobs.pop(job_id_str, None)
+
+                    async with await storage.open(jobs_json_path, "w") as f:
+                        await f.write(json.dumps(jobs_data, indent=4))
+                return
+            except TimeoutError:
+                if attempt < 2:
+                    await asyncio.sleep(0.05 * (attempt + 1))
+                    continue
+                logger.warning("Timeout removing job %s from jobs.json index", job_id, exc_info=True)
+                return
+            except Exception:
+                logger.warning("Error removing job %s from jobs.json index", job_id, exc_info=True)
+                return
 
     # TODO: For experiments, delete the same way as jobs
     async def delete(self):
@@ -678,13 +754,19 @@ class Experiment(BaseLabResource):
 
     async def delete_all_jobs(self):
         """Delete all jobs associated with this experiment."""
-        all_jobs = await self._get_all_jobs()
-        for job_id in all_jobs:
+        jobs_dir = await get_jobs_dir(self.id)
+        try:
+            entries = await storage.ls(jobs_dir, detail=False)
+        except Exception:
+            return
+
+        for job_path in entries:
+            if not await storage.isdir(job_path):
+                continue
+
+            job_id = job_path.rstrip("/").split("/")[-1]
             try:
-                job = await Job.get(job_id)
+                job = await Job.get(job_id, self.id)
                 await job.delete()
             except Exception:
                 pass  # Job might not exist
-
-        workspace = await get_workspace_dir()
-        self._trigger_cache_rebuild(workspace)

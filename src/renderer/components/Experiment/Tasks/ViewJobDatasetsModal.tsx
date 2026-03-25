@@ -11,6 +11,7 @@ import {
   Stack,
   Alert,
   Sheet,
+  LinearProgress,
 } from '@mui/joy';
 import { Save } from 'lucide-react';
 import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
@@ -20,12 +21,12 @@ import { formatBytes } from 'renderer/lib/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
-import SaveToRegistryDialog from './SaveToRegistryDialog';
+import SaveToRegistryDialog, { SaveVersionInfo } from './SaveToRegistryDialog';
 
 interface ViewJobDatasetsModalProps {
   open: boolean;
   onClose: () => void;
-  jobId: number | string;
+  jobId: number | string | null;
 }
 
 interface Dataset {
@@ -51,12 +52,53 @@ export default function ViewJobDatasetsModal({
   const [saveDialogDataset, setSaveDialogDataset] = useState<string | null>(
     null,
   );
+  const [saveTaskJobId, setSaveTaskJobId] = useState<string | null>(null);
+  const [assetNameError, setAssetNameError] = useState<string | null>(null);
 
   // Fetch existing datasets in the registry for "Add to existing" option
   const { data: registryDatasets } = useSWR(
     open ? chatAPI.Endpoints.Dataset.LocalList() : null,
     fetcher,
   );
+
+  // Poll the background save-to-registry job when one is active
+  const { data: saveTaskData } = useSWR(
+    saveTaskJobId && experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, saveTaskJobId)
+      : null,
+    fetcher,
+    {
+      refreshInterval: 2000,
+      revalidateOnFocus: false,
+    },
+  );
+
+  // React to background task completion / failure
+  useEffect(() => {
+    if (!saveTaskData || !saveTaskJobId) return;
+    const status = saveTaskData.status;
+    const jobData =
+      typeof saveTaskData.job_data === 'string'
+        ? JSON.parse(saveTaskData.job_data || '{}')
+        : (saveTaskData.job_data ?? {});
+
+    if (status === 'COMPLETE') {
+      const msg =
+        jobData.result_message ||
+        `Successfully saved ${savingDataset ?? 'dataset'} to registry`;
+      setSaveSuccess(msg);
+      setSavingDataset(null);
+      setSaveTaskJobId(null);
+      setSaveDialogDataset(null);
+      mutate();
+    } else if (status === 'FAILED') {
+      const errMsg =
+        jobData.error_msg || 'Save to registry failed — check server logs';
+      setSaveError(errMsg);
+      setSavingDataset(null);
+      setSaveTaskJobId(null);
+    }
+  }, [saveTaskData, saveTaskJobId]);
 
   const existingDatasetNames: string[] = Array.isArray(registryDatasets)
     ? registryDatasets
@@ -68,20 +110,24 @@ export default function ViewJobDatasetsModal({
 
   const handleSaveToRegistry = async (
     datasetName: string,
-    targetName: string,
-    mode: 'new' | 'existing',
+    info: SaveVersionInfo,
   ) => {
     setSavingDataset(datasetName);
     setSaveError(null);
     setSaveSuccess(null);
+    setAssetNameError(null);
 
     try {
       const url = getAPIFullPath('jobs', ['saveDatasetToRegistry'], {
         experimentId: experimentInfo?.id,
         jobId: jobId.toString(),
         datasetName,
-        targetName: targetName,
-        mode: mode,
+        targetName: info.groupName,
+        assetName: info.assetName,
+        mode: info.mode,
+        tag: info.tag,
+        versionLabel: info.versionLabel,
+        description: info.description,
       });
 
       const response = await fetchWithAuth(url, {
@@ -97,22 +143,36 @@ export default function ViewJobDatasetsModal({
           // If response is not JSON, use status text
           errorMessage = `${response.status}: ${response.statusText}`;
         }
+        // If it's a 409 conflict (name already exists), show inline on the asset name field
+        if (response.status === 409) {
+          setAssetNameError(errorMessage);
+          setSavingDataset(null);
+          return;
+        }
         throw new Error(errorMessage);
       }
 
       const result = await response.json();
-      setSaveSuccess(
-        result.message || `Successfully saved ${datasetName} to registry`,
-      );
-      setSaveDialogDataset(null);
-      // Refresh the dataset list
-      mutate();
+
+      if (result.status === 'started' && result.task_job_id) {
+        // Background task started — polling will handle completion
+        setSaveTaskJobId(String(result.task_job_id));
+        // Close the dialog immediately; the progress bar in the table shows status
+        setSaveDialogDataset(null);
+      } else {
+        // Unexpected response shape — treat as immediate success for safety
+        setSaveSuccess(
+          result.message || `Successfully saved ${datasetName} to registry`,
+        );
+        setSaveDialogDataset(null);
+        setSavingDataset(null);
+        mutate();
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Failed to save dataset:', error);
       setSaveError(errorMessage);
-    } finally {
       setSavingDataset(null);
     }
   };
@@ -122,7 +182,7 @@ export default function ViewJobDatasetsModal({
       const timer = setTimeout(() => {
         setSaveSuccess(null);
         setSaveError(null);
-      }, 3000);
+      }, 5000);
       return () => clearTimeout(timer);
     }
   }, [saveSuccess, saveError]);
@@ -152,6 +212,17 @@ export default function ViewJobDatasetsModal({
               Datasets for Job {jobId}
             </Typography>
           </Stack>
+
+          {savingDataset && saveTaskJobId && (
+            <Alert color="primary" sx={{ mb: 2 }}>
+              <Stack spacing={1} sx={{ width: '100%' }}>
+                <Typography level="body-sm">
+                  Publishing <strong>{savingDataset}</strong> to registry…
+                </Typography>
+                <LinearProgress />
+              </Stack>
+            </Alert>
+          )}
 
           {saveSuccess && (
             <Alert color="success" sx={{ mb: 2 }}>
@@ -256,14 +327,19 @@ export default function ViewJobDatasetsModal({
       </Modal>
       <SaveToRegistryDialog
         open={saveDialogDataset !== null}
-        onClose={() => setSaveDialogDataset(null)}
+        onClose={() => {
+          setSaveDialogDataset(null);
+          setAssetNameError(null);
+        }}
         sourceName={saveDialogDataset || ''}
         type="dataset"
         existingNames={existingDatasetNames}
         saving={savingDataset !== null}
-        onSave={(targetName, mode) => {
+        jobId={jobId}
+        assetNameError={assetNameError}
+        onSave={(info) => {
           if (saveDialogDataset) {
-            handleSaveToRegistry(saveDialogDataset, targetName, mode);
+            handleSaveToRegistry(saveDialogDataset, info);
           }
         }}
       />

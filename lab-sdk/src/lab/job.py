@@ -1,9 +1,9 @@
+import json
+from datetime import datetime, timezone
 import posixpath
-from werkzeug.utils import secure_filename
 
 from . import dirs
 from .labresource import BaseLabResource
-from .dirs import get_workspace_dir
 from . import storage
 from .job_status import JobStatus
 import logging
@@ -11,21 +11,72 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+async def _iter_all_experiment_jobs() -> list[tuple[str, str]]:
+    """
+    Yield (job_id, experiment_id) pairs for every job directory across all experiments.
+
+    This uses the filesystem as the index:
+      {workspace}/experiments/{experiment_id}/jobs/{job_id}/index.json
+    """
+    pairs: list[tuple[str, str]] = []
+
+    experiments_dir = await dirs.get_experiments_dir()
+    try:
+        exp_entries = await storage.ls(experiments_dir, detail=False)
+    except Exception:
+        return pairs
+
+    for exp_path in exp_entries:
+        if not await storage.isdir(exp_path):
+            continue
+
+        exp_id = exp_path.rstrip("/").split("/")[-1]
+        jobs_path = storage.join(exp_path, "jobs")
+
+        try:
+            job_entries = await storage.ls(jobs_path, detail=False)
+        except Exception:
+            continue
+
+        for job_path in job_entries:
+            if await storage.isdir(job_path):
+                job_id = job_path.rstrip("/").split("/")[-1]
+                pairs.append((job_id, exp_id))
+
+    return pairs
+
+
 class Job(BaseLabResource):
     """
     Used to update status and info of long-running jobs.
     """
 
-    def __init__(self, job_id):
+    def __init__(self, job_id, experiment_id: str):
         self.id = job_id
+        self.experiment_id = experiment_id
         self.should_stop = False
+
+    @classmethod
+    async def create(cls, job_id: str, experiment_id: str):
+        newobj = cls(job_id, experiment_id)
+        await newobj._initialize()
+        return newobj
+
+    @classmethod
+    async def get(cls, job_id: str, experiment_id: str):
+        newobj = cls(job_id, experiment_id)
+        resource_dir = await newobj.get_dir()
+        if not await storage.isdir(resource_dir):
+            raise FileNotFoundError(f"Directory for Job with id '{job_id}' not found in experiment '{experiment_id}'")
+        json_file = await newobj._get_json_file()
+        if not await storage.exists(json_file):
+            async with await storage.open(json_file, "w", encoding="utf-8") as f:
+                await f.write(json.dumps(newobj._default_json()))
+        return newobj
 
     async def get_dir(self):
         """Abstract method on BaseLabResource"""
-        job_id_safe = secure_filename(str(self.id))
-        jobs_dir = await dirs.get_jobs_dir()
-        job_dir = storage.join(jobs_dir, job_id_safe)
-        return job_dir
+        return await dirs.get_job_dir(self.id, self.experiment_id)
 
     async def get_log_path(self):
         """
@@ -62,28 +113,13 @@ class Job(BaseLabResource):
         }
         return {
             "id": self.id,
-            "experiment_id": "",
+            "experiment_id": self.experiment_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "job_data": default_job_data,
             "status": JobStatus.NOT_STARTED,
             "type": "REMOTE",
             "progress": 0,
         }
-
-    async def set_experiment(self, experiment_id: str, sync_rebuild: bool = False):
-        await self._update_json_data_field("experiment_id", experiment_id)
-        await self.update_job_data_field("experiment_name", experiment_id)
-
-        # Trigger cache rebuild for the experiment to discover this job
-        try:
-            from .experiment import Experiment
-            from .dirs import get_workspace_dir
-
-            exp = Experiment(experiment_id)
-            workspace = await get_workspace_dir()
-            exp._trigger_cache_rebuild(workspace_dir=workspace, sync=sync_rebuild)
-        except Exception:
-            # Don't fail if cache rebuild trigger fails
-            pass
 
     async def update_progress(self, progress: int):
         """
@@ -94,25 +130,7 @@ class Job(BaseLabResource):
         await self._update_json_data_field("progress", progress)
 
     async def update_status(self, status: str):
-        """
-        Update the status of this job.
-
-        status: str representing the status of the job
-        """
         await self._update_json_data_field("status", status)
-
-        # Trigger rebuild on every status update
-        try:
-            from .experiment import Experiment
-
-            experiment_id = await self.get_experiment_id()
-            if experiment_id:
-                exp = Experiment(experiment_id)
-                workspace = await get_workspace_dir()
-                exp._trigger_cache_rebuild(workspace_dir=workspace)
-        except Exception:
-            # Don't fail if cache rebuild trigger fails
-            pass
 
     async def get_status(self):
         """
@@ -265,21 +283,14 @@ class Job(BaseLabResource):
         Count how many jobs are currently running.
         """
         count = 0
-        jobs_dir = await dirs.get_jobs_dir()
-        try:
-            entries = await storage.ls(jobs_dir, detail=False)
-        except Exception:
-            entries = []
-        for job_path in entries:
-            if await storage.isdir(job_path):
-                entry = job_path.rstrip("/").split("/")[-1]
-                try:
-                    job = await cls.get(entry)
-                    job_data = await job.get_json_data(uncached=True)
-                    if job_data.get("status") == JobStatus.RUNNING:
-                        count += 1
-                except Exception:
-                    pass
+        for job_id, exp_id in await _iter_all_experiment_jobs():
+            try:
+                job = await cls.get(job_id, exp_id)
+                job_data = await job.get_json_data(uncached=True)
+                if job_data.get("status") == JobStatus.RUNNING:
+                    count += 1
+            except Exception:
+                pass
         return count
 
     @classmethod
@@ -288,40 +299,42 @@ class Job(BaseLabResource):
         Get the next queued job (oldest first based on directory creation time).
         Returns Job data dict or None if no queued jobs.
         """
-        queued_jobs = []
-        jobs_dir = await dirs.get_jobs_dir()
-        try:
-            entries = await storage.ls(jobs_dir, detail=False)
-        except Exception:
-            entries = []
-        for job_path in entries:
-            if await storage.isdir(job_path):
-                entry = job_path.rstrip("/").split("/")[-1]
-                try:
-                    job = await cls.get(entry)
-                    job_data = await job.get_json_data(uncached=True)
-                    if job_data.get("status") == JobStatus.QUEUED:
-                        # Without ctime in object stores, sort lexicographically by job id
-                        queued_jobs.append((int(entry) if entry.isdigit() else 0, job_data))
-                except Exception:
-                    pass
+        queued_jobs: list[tuple[str, dict]] = []
 
-        if queued_jobs:
-            queued_jobs.sort(key=lambda x: x[0])
-            return queued_jobs[0][1]
-        return None
+        for job_id, exp_id in await _iter_all_experiment_jobs():
+            try:
+                job = await cls.get(job_id, exp_id)
+                job_data = await job.get_json_data(uncached=True)
+                if job_data.get("status") == JobStatus.QUEUED:
+                    created_at = job_data.get("created_at", "")
+                    queued_jobs.append((created_at, job_data))
+            except Exception:
+                pass
+
+        if not queued_jobs:
+            return None
+
+        # Sort oldest-first by ISO timestamp. Missing created_at sorts last.
+        queued_jobs.sort(key=lambda x: (x[0] == "", x[0]))
+        return queued_jobs[0][1]
 
     async def get_checkpoints_dir(self):
         """
         Get the checkpoints directory path for this job.
         """
-        return await dirs.get_job_checkpoints_dir(self.id)
+        return await dirs.get_job_checkpoints_dir(self.id, self.experiment_id)
 
     async def get_artifacts_dir(self):
         """
         Get the artifacts directory path for this job.
         """
-        return await dirs.get_job_artifacts_dir(self.id)
+        return await dirs.get_job_artifacts_dir(self.id, self.experiment_id)
+
+    async def get_profiling_dir(self):
+        """
+        Get the profiling directory path for this job.
+        """
+        return await dirs.get_job_profiling_dir(self.id, self.experiment_id)
 
     async def get_checkpoint_paths(self):
         """
@@ -372,17 +385,3 @@ class Job(BaseLabResource):
         Mark this job as deleted.
         """
         await self.update_status(JobStatus.DELETED)
-
-        # Trigger cache rebuild since deleted jobs are removed from cache
-        # This is non-blocking - just adds to pending queue
-        try:
-            from .experiment import Experiment
-
-            experiment_id = await self.get_experiment_id()
-            if experiment_id:
-                exp = Experiment(experiment_id)
-                workspace = await get_workspace_dir()
-                exp._trigger_cache_rebuild(workspace_dir=workspace)
-        except Exception:
-            # Don't fail if cache rebuild trigger fails
-            pass

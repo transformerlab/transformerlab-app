@@ -19,20 +19,21 @@ import {
   InfoIcon,
   MessageCircle,
   SearchIcon,
-  StoreIcon,
   Trash2Icon,
   ImageIcon,
   RotateCcwIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 
-import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import SelectButton from '../Experiment/SelectButton';
 import { fetchWithAuth } from 'renderer/lib/authContext';
+import VersionGroupChip from '../Shared/VersionGroupChip';
+import AssetVersionsDrawer from '../Shared/AssetVersionsDrawer';
 
 type Order = 'asc' | 'desc';
 
@@ -50,6 +51,10 @@ const LocalModelsTable = ({
   const [order, setOrder] = useState<Order>('desc');
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
+  const [versionDrawer, setVersionDrawer] = useState<{
+    open: boolean;
+    groupName: string;
+  }>({ open: false, groupName: '' });
 
   const navigate = useNavigate();
 
@@ -246,6 +251,7 @@ const LocalModelsTable = ({
               <th style={{ width: 60, padding: 12 }}>Params</th>
               {/* <th style={{ width: 220, padding: 12 }}>Type</th> */}
               <th style={{ width: 180, padding: 12 }}>Model ID</th>
+              <th style={{ width: 120, padding: 12 }}>Versions</th>
               <th style={{ width: 60, padding: 12 }}> </th>
             </tr>
           </thead>
@@ -342,6 +348,14 @@ const LocalModelsTable = ({
                       ></Box>
                     </td> */}
                       <td>{row.model_id}</td>
+                      <td>
+                        <VersionGroupChip
+                          versionGroups={row.version_groups || []}
+                          onClick={(groupName) =>
+                            setVersionDrawer({ open: true, groupName })
+                          }
+                        />
+                      </td>
                       <td style={{ textAlign: 'right' }}>
                         {/* <Link fontWeight="lg" component="button" color="neutral">
                           Archive
@@ -459,19 +473,8 @@ const LocalModelsTable = ({
                     justifyContent="center"
                     margin={5}
                   >
-                    {window?.platform?.multiuser === true ? (
-                      'No models are currently available. Models saved from jobs in this experiment will be available here.'
-                    ) : (
-                      <>
-                        You do not have any models on your local machine. You
-                        can download a model by going to the{' '}
-                        <ReactRouterLink to="/zoo">
-                          <StoreIcon />
-                          Model Registry
-                        </ReactRouterLink>
-                        .
-                      </>
-                    )}
+                    No models are currently available. Models saved from jobs in
+                    this experiment will be available here.
                   </Typography>
                 </td>
               </tr>
@@ -479,12 +482,12 @@ const LocalModelsTable = ({
           </tbody>
         </Table>
       </Sheet>
-      {window?.platform?.multiuser !== true && (
-        <Typography mt={2} level="body-sm">
-          Looking for more models? Go to the{' '}
-          <ReactRouterLink to="/zoo">Model Registry</ReactRouterLink>
-        </Typography>
-      )}
+      <AssetVersionsDrawer
+        open={versionDrawer.open}
+        onClose={() => setVersionDrawer({ open: false, groupName: '' })}
+        assetType="model"
+        groupName={versionDrawer.groupName}
+      />
     </>
   );
 };

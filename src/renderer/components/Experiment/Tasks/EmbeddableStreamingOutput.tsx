@@ -198,15 +198,17 @@ function RefreshIndicator({
   );
 }
 
-const TAB_OPTIONS: { value: 'output' | 'provider'; label: string }[] = [
+type TabValue = 'output' | 'provider';
+
+const TAB_OPTIONS: { value: TabValue; label: string }[] = [
   { value: 'output', label: 'Lab SDK Output' },
   { value: 'provider', label: 'Machine Logs' },
 ];
 
 export interface EmbeddableStreamingOutputProps {
-  jobId: number;
+  jobId: string | number | null;
   /** Which tabs to show, in order. e.g. ['output', 'provider'] or ['provider'] for interactive tasks. */
-  tabs?: ('output' | 'provider')[];
+  tabs?: TabValue[];
   /** Current job status string (e.g. 'RUNNING', 'COMPLETE'). Passed from the parent to avoid extra polling. */
   jobStatus?: string;
 }
@@ -217,7 +219,7 @@ export default function EmbeddableStreamingOutput({
   jobStatus = '',
 }: EmbeddableStreamingOutputProps) {
   const { experimentInfo } = useExperimentInfo();
-  const [activeTab, setActiveTab] = useState<'output' | 'provider'>('output');
+  const [activeTab, setActiveTab] = useState<TabValue>('output');
   const [viewLiveProviderLogs, setViewLiveProviderLogs] =
     useState<boolean>(false);
 
@@ -227,9 +229,7 @@ export default function EmbeddableStreamingOutput({
 
   useEffect(() => {
     setActiveTab((current) =>
-      tabs.includes(current)
-        ? current
-        : ((tabs[0] ?? 'output') as 'output' | 'provider'),
+      tabs.includes(current) ? current : ((tabs[0] ?? 'output') as TabValue),
     );
     setViewLiveProviderLogs(false);
     // tabsKey is a stable serialization of tabs to avoid array reference churn
@@ -237,7 +237,15 @@ export default function EmbeddableStreamingOutput({
   }, [jobId, tabsKey]);
 
   const providerLogsUrl = useMemo(() => {
-    if (jobId === -1 || !experimentInfo?.id) {
+    if (
+      !experimentInfo?.id ||
+      jobId === null ||
+      jobId === '' ||
+      jobId === -1 ||
+      jobId === '-1' ||
+      jobId === 'NaN' ||
+      (typeof jobId === 'number' && Number.isNaN(jobId))
+    ) {
       return null;
     }
     return chatAPI.Endpoints.Experiment.GetProviderLogs(
@@ -309,7 +317,7 @@ export default function EmbeddableStreamingOutput({
     resetProviderCountdown,
   ]);
 
-  if (jobId === -1 || !experimentInfo) {
+  if (!jobId || !experimentInfo) {
     return null;
   }
 
@@ -334,7 +342,7 @@ export default function EmbeddableStreamingOutput({
               typeof value === 'string' &&
               (value === 'output' || value === 'provider')
             ) {
-              setActiveTab(value);
+              setActiveTab(value as TabValue);
             }
           }}
         >

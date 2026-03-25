@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 from transformerlab_cli.main import app
+from tests.helpers import strip_ansi
 
 runner = CliRunner()
 
@@ -56,14 +57,15 @@ def test_job_help():
     """Test the job command help."""
     result = runner.invoke(app, ["job", "--help"])
     assert result.exit_code == 0
-    assert "Usage: lab job [OPTIONS] COMMAND [ARGS]..." in result.output
-    assert "Job management commands" in result.output
+    out = strip_ansi(result.output)
+    assert "Usage: lab job [OPTIONS] COMMAND [ARGS]..." in out
+    assert "Job management commands" in out
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.get_config", return_value="exp1")
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
-def test_job_list_all(mock_check, mock_get_config, mock_api):
+def test_job_list_all(mock_check, mock_require, mock_api):
     """Test that job list without --running shows all jobs."""
     result = runner.invoke(app, ["job", "list"])
     assert result.exit_code == 0
@@ -76,9 +78,9 @@ def test_job_list_all(mock_check, mock_get_config, mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.get_config", return_value="exp1")
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
-def test_job_list_running_only(mock_check, mock_get_config, mock_api):
+def test_job_list_running_only(mock_check, mock_require, mock_api):
     """Test that job list --running shows only RUNNING, LAUNCHING, and INTERACTIVE jobs."""
     result = runner.invoke(app, ["job", "list", "--running"])
     assert result.exit_code == 0
@@ -92,18 +94,18 @@ def test_job_list_running_only(mock_check, mock_get_config, mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.get_config", return_value="exp1")
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
-def test_job_list_running_no_short_flag(mock_check, mock_get_config, mock_api):
+def test_job_list_running_no_short_flag(mock_check, mock_require, mock_api):
     """Test that -r is not a valid short flag for --running."""
     result = runner.invoke(app, ["job", "list", "-r"])
     assert result.exit_code != 0
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response([SAMPLE_JOBS[1], SAMPLE_JOBS[3]]))
-@patch("transformerlab_cli.commands.job.get_config", return_value="exp1")
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
-def test_job_list_running_no_matches(mock_check, mock_get_config, mock_api):
+def test_job_list_running_no_matches(mock_check, mock_require, mock_api):
     """Test that --running with no running jobs shows an empty table."""
     result = runner.invoke(app, ["job", "list", "--running"])
     assert result.exit_code == 0
@@ -113,7 +115,7 @@ def test_job_list_running_no_matches(mock_check, mock_get_config, mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.get_config", return_value="exp1")
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_json_output(mock_check, mock_get_config, mock_api):
     """job list --format json emits valid JSON array."""
@@ -126,7 +128,7 @@ def test_job_list_json_output(mock_check, mock_get_config, mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.get_config", return_value="exp1")
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_json_no_spinner_text(mock_check, mock_get_config, mock_api):
     """job list --format json does not emit spinner/decoration text."""

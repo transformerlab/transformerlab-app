@@ -278,7 +278,7 @@ async def record_quota_usage(
 
 
 async def ensure_quota_recorded_for_completed_job(
-    session: AsyncSession, job_id: str, team_id: Optional[str] = None
+    session: AsyncSession, job_id: str, experiment_id: Optional[str] = None, team_id: Optional[str] = None
 ) -> bool:
     """
     Check if a completed REMOTE job has quota usage recorded.
@@ -291,7 +291,11 @@ async def ensure_quota_recorded_for_completed_job(
     from sqlalchemy import select
 
     # Get the job
-    job = await job_service.job_get(job_id)
+    if not experiment_id:
+        # Jobs are now experiment-scoped; caller must provide experiment context.
+        return False
+
+    job = await job_service.job_get(job_id, experiment_id=experiment_id)
     if not job:
         return False
 

@@ -20,7 +20,7 @@ def test_download_all_artifacts_endpoint():
     """
     mock_job_service = Mock()
 
-    async def mock_get_all_artifact_paths(job_id, storage):
+    async def mock_get_all_artifact_paths(job_id, experiment_id, storage):
         return ["path/to/artifact1.txt", "path/to/artifact2.png"]
 
     mock_job_service.get_all_artifact_paths = mock_get_all_artifact_paths
@@ -44,7 +44,7 @@ def test_download_all_artifacts_endpoint():
         # Test 1: Successful download
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        response = loop.run_until_complete(download_all_artifacts("test_job_id"))
+        response = loop.run_until_complete(download_all_artifacts("test_job_id", "exp_1"))
         loop.close()
 
         assert response.status_code == 200
@@ -56,7 +56,7 @@ def test_download_all_artifacts_endpoint():
         assert len(create_zip_calls) == 1
 
         # Test 2: No artifacts found
-        async def mock_get_all_artifact_paths_empty(job_id, storage):
+        async def mock_get_all_artifact_paths_empty(job_id, experiment_id, storage):
             return []
 
         mock_job_service.get_all_artifact_paths = mock_get_all_artifact_paths_empty
@@ -64,7 +64,7 @@ def test_download_all_artifacts_endpoint():
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        response_empty = loop.run_until_complete(download_all_artifacts("test_job_id_empty"))
+        response_empty = loop.run_until_complete(download_all_artifacts("test_job_id_empty", "exp_1"))
         loop.close()
 
         assert response_empty.status_code == 404

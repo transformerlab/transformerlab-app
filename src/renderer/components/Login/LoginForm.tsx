@@ -12,7 +12,6 @@ import { FcGoogle, FaGithub } from 'renderer/components/Icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/authContext';
 import { useNotification } from '../Shared/NotificationSystem';
-import { API_URL } from '../../lib/api-client/urls';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -30,41 +29,6 @@ export default function LoginForm() {
   const { login, setIsDefaultPassword } = useAuth();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
-
-  // Auto-login for single user mode
-  useEffect(() => {
-    const autoLogin = async () => {
-      // Only attempt auto-login if we have a valid API URL (connection is established)
-      const apiUrl = API_URL();
-      if (!apiUrl) {
-        console.log('Skipping auto-login: no API URL available.');
-        return;
-      }
-
-      // Only auto-login if MULTIUSER is not enabled
-      // Check window.platform first (cloud mode), then fallback to process.env
-      const isMultiUserMode =
-        (window as any).platform?.multiuser === true ||
-        (typeof process !== 'undefined' &&
-          process.env &&
-          process.env.MULTIUSER === 'true');
-      if (isMultiUserMode) {
-        return;
-      }
-
-      try {
-        console.log('Attempting auto-login for single user mode');
-        const result = await login('admin@example.com', 'admin123');
-        if (!(result instanceof Error)) {
-          setIsDefaultPassword(true);
-        }
-      } catch (error) {
-        console.error('Auto-login failed:', error);
-      }
-    };
-
-    autoLogin();
-  }, [login]);
 
   // Check OAuth status on component mount
   useEffect(() => {
@@ -281,6 +245,7 @@ export default function LoginForm() {
                   autoFocus
                   disabled={loadingState !== null}
                   variant="outlined"
+                  slotProps={{ input: { autoComplete: 'username' } }}
                 />
               </FormControl>
               <FormControl required>
@@ -291,6 +256,7 @@ export default function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loadingState !== null}
                   variant="outlined"
+                  slotProps={{ input: { autoComplete: 'current-password' } }}
                 />
               </FormControl>
 

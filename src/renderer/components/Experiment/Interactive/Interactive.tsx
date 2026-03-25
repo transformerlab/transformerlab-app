@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from 'react';
 import Sheet from '@mui/joy/Sheet';
 import { Button, Stack, Typography, Box, Skeleton } from '@mui/joy';
 import dayjs from 'dayjs';
@@ -36,6 +42,9 @@ export default function Interactive() {
     id: string;
     name?: string;
   } | null>(null);
+  const [launchProgressByJobId, setLaunchProgressByJobId] = useState<
+    Record<string, { phase?: string; percent?: number; message?: string }>
+  >({});
 
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
@@ -135,6 +144,82 @@ export default function Interactive() {
   const jobs = useMemo(() => {
     return Array.isArray(jobsRemote) ? jobsRemote : [];
   }, [jobsRemote]);
+
+  // Derive a stable string of job IDs that need launch-progress polling.
+  // This avoids resetting the 3s interval on every SWR revalidation.
+  const launchPollingJobIds = useMemo(() => {
+    if (!jobs || !Array.isArray(jobs)) return '';
+    return jobs
+      .filter(
+        (job: {
+          type?: string;
+          status?: string;
+          job_data?: { provider_id?: string };
+        }) =>
+          job.type === 'REMOTE' &&
+          job.job_data?.provider_id &&
+          (job.status === 'LAUNCHING' || job.status === 'WAITING'),
+      )
+      .map((job: { id: string | number }) => String(job.id))
+      .sort()
+      .join(',');
+  }, [jobs]);
+
+  // Keep a ref to the latest fetchWithAuth/jobsMutate so the interval callback
+  // always uses current values without being in the dependency array.
+  const fetchWithAuthRef = useRef(fetchWithAuth);
+  const jobsMutateRef = useRef(jobsMutate);
+  useEffect(() => {
+    fetchWithAuthRef.current = fetchWithAuth;
+  }, [fetchWithAuth]);
+  useEffect(() => {
+    jobsMutateRef.current = jobsMutate;
+  }, [jobsMutate]);
+
+  // Poll REMOTE jobs in LAUNCHING/WAITING for live launch_progress (same pattern as Tasks).
+  useEffect(() => {
+    if (!launchPollingJobIds) return;
+
+    const ids = launchPollingJobIds.split(',');
+
+    const checkJobs = async () => {
+      for (const jobId of ids) {
+        try {
+          const response = await fetchWithAuthRef.current(
+            chatAPI.Endpoints.ComputeProvider.CheckJobStatus(jobId),
+            { method: 'GET' },
+          );
+          if (response.ok) {
+            const result = await response.json();
+            if (
+              result.current_status === 'COMPLETE' ||
+              result.current_status === 'FAILED' ||
+              result.current_status === 'STOPPED'
+            ) {
+              setLaunchProgressByJobId((prev) => {
+                const next = { ...prev };
+                delete next[jobId];
+                return next;
+              });
+              setTimeout(() => jobsMutateRef.current(), 0);
+            } else if (result.launch_progress) {
+              setLaunchProgressByJobId((prev) => ({
+                ...prev,
+                [jobId]: result.launch_progress,
+              }));
+            }
+          }
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error(`Failed to check job ${jobId}:`, error);
+        }
+      }
+    };
+
+    checkJobs();
+    const interval = setInterval(checkJobs, 3000);
+    return () => clearInterval(interval);
+  }, [launchPollingJobIds]);
 
   // Fetch templates with interactive subtype
   const {
@@ -243,43 +328,6 @@ export default function Interactive() {
     },
     [experimentInfo?.id, addNotification, templatesMutate],
   );
-
-  const handleDeleteJob = async (jobId: string) => {
-    if (!experimentInfo?.id) return;
-
-    // eslint-disable-next-line no-alert
-    if (!confirm('Are you sure you want to delete this job?')) {
-      return;
-    }
-
-    try {
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.Delete(experimentInfo.id, jobId),
-        {
-          method: 'GET',
-        },
-      );
-
-      if (response.ok) {
-        addNotification({
-          type: 'success',
-          message: 'Job deleted successfully!',
-        });
-        await jobsMutate();
-      } else {
-        addNotification({
-          type: 'danger',
-          message: 'Failed to delete job. Please try again.',
-        });
-      }
-    } catch (error) {
-      console.error('Error deleting job:', error);
-      addNotification({
-        type: 'danger',
-        message: 'Failed to delete job. Please try again.',
-      });
-    }
-  };
 
   const handleExportTemplateToTeamInteractiveGallery = useCallback(
     async (taskId: string) => {
@@ -835,6 +883,7 @@ export default function Interactive() {
         onClose={() => {
           setInteractiveModalOpen(false);
           setInteractiveModalError(null);
+          setIsSubmitting(false);
         }}
         submitError={interactiveModalError}
         onClearSubmitError={() => setInteractiveModalError(null)}
@@ -992,7 +1041,7 @@ export default function Interactive() {
               <InteractiveJobCard
                 key={job.id}
                 job={job}
-                onDeleteJob={handleDeleteJob}
+                launchProgress={launchProgressByJobId[String(job.id)]}
               />
             ))}
           </Box>

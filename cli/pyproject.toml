@@ -4,17 +4,36 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "transformerlab-cli"
-version = "0.1.0"
+version = "0.0.2"
 description = "Transformer Lab CLI"
 requires-python = ">=3.10"
-dependencies = [
-    "typer>=0.9.0",
-    "httpx>=0.27.0",
-    "rich>=13.0.0",
-    "textual>=0.40.0",
-    "pyyaml>=6.0.3",
-    "requests>=2.32.5",
+authors = [{ name = "Transformer Lab", email = "hello@transformerlab.ai" }]
+license = { text = "Apache-2.0" }
+readme = "README.md"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Environment :: Console",
 ]
+dependencies = [
+  "typer>=0.9.0",
+  "httpx>=0.27.0",
+  "rich>=13.0.0",
+  "textual>=0.86.0",
+  "pyyaml>=6.0.3",
+]
+
+[project.urls]
+Homepage = "https://lab.cloud/for-teams/cli"
+Repository = "https://github.com/transformerlab/transformerlab-app"
 
 [project.scripts]
 lab = "transformerlab_cli.main:app"
@@ -26,8 +45,4 @@ where = ["src"]
 "*" = ["*.tcss", "*.css"]
 
 [dependency-groups]
-dev = [
-    "pytest",
-    "textual>=6.11.0",
-    "typer[testing]",
-]
+dev = ["pytest", "textual>=6.11.0", "typer[testing]"]
