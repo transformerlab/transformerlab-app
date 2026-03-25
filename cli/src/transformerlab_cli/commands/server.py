@@ -503,7 +503,7 @@ def server_install(
     console.print("     [warning]Change the default password immediately![/warning]")
 
 
-LATEST_VERSION_FILE = ENV_DIR / "src" / "LATEST_VERSION"
+LATEST_VERSION_FILE = os.path.join(ENV_DIR, "src", "LATEST_VERSION")
 GITHUB_LATEST_RELEASE_URL = "https://github.com/transformerlab/transformerlab-app/releases/latest"
 
 
