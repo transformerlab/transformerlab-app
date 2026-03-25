@@ -307,6 +307,10 @@ async def job_get_cached(
 
     resolved_job_id = str(job_id)
     if resolve_full_id:
+        # Caller requested prefix-safe lookup. The jobs_get_all fast path sets
+        # resolve_full_id=False because its IDs come from jobs directory entries
+        # (already canonical for that path). Keep resolution enabled for all
+        # other callers to support short IDs and legacy/non-UUID IDs.
         resolved_job_id = await _resolve_full_job_id(str(job_id), str(experiment_id))
     if not resolved_job_id:
         return None
