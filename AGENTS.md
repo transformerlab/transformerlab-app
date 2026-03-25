@@ -31,15 +31,29 @@
 
 - **Frontend**: Electron + React (TypeScript) in `src/`
 - **Backend**: Python FastAPI in `api/transformerlab/`, entry point: `api/api.py`
-- **SDK**: `lab-sdk/` - Python SDK published to PyPI as `transformerlab`
+- **SDK**: `lab-sdk/` - Python SDK published to PyPI as `transformerlab`. The SDK runs on both the API server and on remote compute nodes (via `tfl-remote-trap`).
 - **Database**: SQLite with Alembic migrations in `api/alembic/`
 - **CLI**: Typer-based Python CLI in `cli/`
 
+### Updating the SDK
+
+If you modify code in `lab-sdk/`, the changes won't take effect until the SDK is reinstalled. For local development:
+
+```bash
+cd lab-sdk && pip install -e .
+```
+
+Then restart the API server. This is a common gotcha — the API imports the *installed* `lab` package, not the source tree directly.
+
 ## Documentation
 
-Detailed internal documentation lives in `docs/` — read these before working on related subsystems:
+Detailed internal documentation lives in `docs/` — read these before working on related subsystems.
 
-- **[Task Execution](docs/task-execution/README.md)** — How tasks are created, queued, dispatched to compute providers, and monitored through their lifecycle (5-part guide).
+**When working on frontend code** (`src/`), read:
+- **[Task Execution](docs/task-execution/README.md)** — How tasks are created, queued, dispatched to compute providers, and monitored through their lifecycle (5-part guide). Focus on parts 4-5 for understanding job status display and polling.
+
+**When working on backend code** (`api/`, `lab-sdk/`), read:
+- **[Task Execution](docs/task-execution/README.md)** — Full 5-part guide, especially parts 1-3 for job creation, dispatch, and provider integration.
 - **[Authentication](docs/Auth.md)** — JWT auth, sliding-window refresh, registration/invite model, route protection, team access, and OIDC configuration.
 
 Agent skills and browser automation references live in `.agents/skills/`.
@@ -156,11 +170,28 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 This section documents complex flows in the codebase to help agents quickly understand how things work.
 
+### Context Variables (Organization/Team Scoping)
+
+The SDK uses Python `contextvars` to scope filesystem paths to the current organization/team. The key context var is `_current_org_id` in `lab-sdk/src/lab/dirs.py`, set via `lab.dirs.set_organization_id(team_id)`. This affects `get_workspace_dir()`, `get_jobs_dir()`, and all other directory lookups.
+
+**Critical rule**: Context vars do **not** propagate automatically to new threads or to coroutines scheduled via `asyncio.run_coroutine_threadsafe()`. If you run code in a thread executor (e.g. `loop.run_in_executor()`) or schedule a coroutine from a different thread, you must explicitly set the organization context:
+
+```python
+# In the coroutine scheduled on the main loop:
+lab_dirs.set_organization_id(team_id)
+try:
+    await job_service.some_operation(...)
+finally:
+    lab_dirs.set_organization_id(None)
+```
+
+Without this, directory lookups will resolve to the wrong path (e.g. `~/.transformerlab/workspace/jobs/` instead of `~/.transformerlab/orgs/<org_id>/workspace/jobs/`) and you'll see errors like "Directory for Job with id 'X' not found".
+
 ### Job Execution on Local Providers
 
 When a job is queued for a local provider, it flows through several layers:
 
-1. **Queueing** (`api/transformerlab/routers/compute_provider.py`, ~line 1727): The router builds a `ClusterConfig` and calls `enqueue_local_launch()`, returning immediately with `WAITING` status. For remote (non-local) providers, the command is wrapped with `tfl-remote-trap` to track `live_status` (`started`/`finished`/`crashed`).
+1. **Queueing** (`api/transformerlab/routers/compute_provider.py`, ~line 1727): The router builds a `ClusterConfig` and calls `enqueue_local_launch()`, returning immediately with `WAITING` status. For remote (non-local) providers, the command is wrapped with `tfl-remote-trap` to track `live_status` (human-readable strings like `"Remote command started"`/`"Remote command finished"`/`"Remote command crashed"`).
 
 2. **Serialized worker** (`api/transformerlab/services/local_provider_queue.py`): A background `asyncio` worker (`_local_launch_worker`) pulls items from the queue one at a time. It resolves the provider via `get_provider_instance()`, transitions the job to `LAUNCHING`/`INTERACTIVE`, then calls `provider_instance.launch_cluster()` inside a `try/except` block that catches errors, releases quota holds, and marks the job `FAILED`.
 
