@@ -20,7 +20,10 @@ SWEEP_STATUS_INTERVAL_SECONDS = int(os.getenv("SWEEP_STATUS_INTERVAL_SECONDS", "
 # Without a bound, a large sweep fires N simultaneous requests, which can spike
 # memory and approach S3 per-prefix rate limits (~5,500 GET/s).  Ten concurrent
 # reads already gives most of the latency win over purely serial fetches.
-_CHILD_FETCH_CONCURRENCY = 10
+try:
+    _CHILD_FETCH_CONCURRENCY = int(os.getenv("TFL_SWEEP_CHILD_FETCH_CONCURRENCY", "10"))
+except Exception:  # noqa: BLE001
+    _CHILD_FETCH_CONCURRENCY = 10
 _child_fetch_semaphore = asyncio.Semaphore(_CHILD_FETCH_CONCURRENCY)
 
 _sweep_status_worker_task: Optional[asyncio.Task] = None
@@ -122,9 +125,9 @@ async def apply_parent_sweep_updates(
     return job  # caller only checks truthiness; avoids a redundant S3 re-fetch
 
 
-async def _fetch_child_job(child_job_id: str) -> Optional[Dict[str, Any]]:
+async def _fetch_child_job(child_job_id: str, experiment_id: str) -> Optional[Dict[str, Any]]:
     async with _child_fetch_semaphore:
-        return await job_service.job_get(child_job_id)
+        return await job_service.job_get(child_job_id, experiment_id=experiment_id)
 
 
 async def refresh_sweep_parent(job: Dict[str, Any], experiment_id: str) -> Optional[Dict[str, Any]]:
@@ -140,7 +143,7 @@ async def refresh_sweep_parent(job: Dict[str, Any], experiment_id: str) -> Optio
     # Fetch all child jobs concurrently instead of serially.  return_exceptions=True
     # means one failed fetch doesn't abort the rest; non-dict results are filtered out.
     results = await asyncio.gather(
-        *[_fetch_child_job(str(cid)) for cid in sweep_job_ids],
+        *[_fetch_child_job(str(cid), experiment_id) for cid in sweep_job_ids],
         return_exceptions=True,
     )
     child_jobs: List[Dict[str, Any]] = [r for r in results if isinstance(r, dict)]

@@ -28,7 +28,7 @@ import SaveToRegistryDialog, { SaveVersionInfo } from './SaveToRegistryDialog';
 interface ViewJobModelsModalProps {
   open: boolean;
   onClose: () => void;
-  jobId: number | string;
+  jobId: number | string | null;
 }
 
 interface Model {

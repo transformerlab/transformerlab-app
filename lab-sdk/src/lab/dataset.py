@@ -1,7 +1,7 @@
 from werkzeug.utils import secure_filename
 from typing import Optional
 
-from .dirs import get_datasets_dir, get_job_datasets_dir
+from .dirs import get_datasets_dir, get_experiments_dir, get_job_datasets_dir
 from .labresource import BaseLabResource
 from . import storage
 
@@ -44,12 +44,36 @@ class Dataset(BaseLabResource):
         """Abstract method on BaseLabResource"""
         dataset_id_safe = secure_filename(str(self.id))
         if self.job_id:
-            # Use job-specific directory
-            return await get_job_datasets_dir(self.job_id)
+            # Jobs are now stored under experiments/{exp_id}/jobs/{job_id}/.
+            # Since callers provide only job_id, infer exp_id by scanning experiments.
+            exp_id = await self._find_job_experiment_id()
+            if not exp_id:
+                raise FileNotFoundError(f"Job with id '{self.job_id}' not found")
+            return await get_job_datasets_dir(self.job_id, exp_id)
         else:
             # Use global datasets directory
             datasets_dir = await get_datasets_dir()
             return storage.join(datasets_dir, dataset_id_safe)
+
+    async def _find_job_experiment_id(self) -> Optional[str]:
+        job_id_safe = secure_filename(str(self.job_id))
+        experiments_dir = await get_experiments_dir()
+
+        try:
+            exp_entries = await storage.ls(experiments_dir, detail=False)
+        except Exception:
+            return None
+
+        for exp_path in exp_entries:
+            if not await storage.isdir(exp_path):
+                continue
+
+            exp_id = exp_path.rstrip("/").split("/")[-1]
+            job_dir = storage.join(exp_path, "jobs", job_id_safe)
+            if await storage.isdir(job_dir):
+                return exp_id
+
+        return None
 
     def _default_json(self):
         # Default metadata modeled after API dataset table fields

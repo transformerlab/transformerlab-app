@@ -3,7 +3,6 @@ export interface PlatformInfo {
   appmode: 'cloud';
   environment: string;
   version: string;
-  multiuser?: boolean;
 }
 
 export interface StorageAPI {
