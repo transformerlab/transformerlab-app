@@ -1,6 +1,7 @@
 """Service layer for bridging database provider records to ProviderConfig."""
 
 import asyncio
+import logging
 import os
 import platform
 import sys
@@ -13,6 +14,8 @@ from transformerlab.compute_providers.base import ComputeProvider
 from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
 from transformerlab.compute_providers.local import _check_amd_gpu, _check_nvidia_gpu
 from transformerlab.shared.models.models import AcceleratorType, ProviderType, Team, TeamComputeProvider, User, UserTeam
+
+logger = logging.getLogger(__name__)
 
 
 def _local_providers_disabled() -> bool:
@@ -424,7 +427,7 @@ async def initialize_team_local_provider(
             await asyncio.to_thread(provider_instance.setup)
         except Exception:
             # Best-effort bootstrap: do not fail startup if setup fails.
-            pass
+            logger.warning("Background local provider setup failed", exc_info=True)
 
     asyncio.create_task(_run_local_setup_background())
 
