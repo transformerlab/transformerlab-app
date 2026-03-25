@@ -15,6 +15,7 @@ Outputs: scripts/pr-stats/report.html
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from collections import defaultdict
@@ -237,8 +238,6 @@ const weekLabels = {week_labels_json};
 const contributors = {contributors_json};
 const commitContributors = {commit_contributors_json};
 const locContributors = {loc_contributors_json};
-const locTotalAdded = {loc_total_added_json};
-const locTotalDeleted = {loc_total_deleted_json};
 const allNames = Object.keys(contributors);
 const allCommitNames = Object.keys(commitContributors);
 const allLocNames = Object.keys(locContributors);
@@ -276,7 +275,7 @@ sortedByTotal.forEach(name => {{
   chip.innerHTML =
     '<input type="checkbox" checked data-name="' + name + '">' +
     '<span class="dot"></span>' +
-    '<span class="chip-label">' + name + '</span>' +
+    '<span class="chip-label">' + escapeHtml(name) + '</span>' +
     '<span class="chip-count">' + prTotal + ' PRs · ' + cmTotal + ' commits</span>';
   chip.querySelector('input').addEventListener('change', function() {{
     visible[name] = this.checked;
@@ -394,6 +393,12 @@ function getColor(name) {{
   return contributors[name]?.color || commitContributors[name]?.color || locContributors[name]?.color || '#8b949e';
 }}
 
+function escapeHtml(str) {{
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}}
+
 function fmt(n) {{
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
   if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
@@ -416,8 +421,8 @@ function rebuildAll() {{
   [
     {{ label: 'Total PRs', value: totalPRs, detail: weeks.length + ' weeks tracked' }},
     {{ label: 'Total Commits', value: fmt(totalCommits), detail: visCM.length + ' contributors' }},
-    {{ label: 'Lines Added', value: fmt(totalAdded), detail: '<span style="color:#7ee787">+' + fmt(totalAdded) + '</span>' }},
-    {{ label: 'Lines Deleted', value: fmt(totalDeleted), detail: '<span style="color:#f78166">−' + fmt(totalDeleted) + '</span>' }},
+    {{ label: 'Lines Added', value: fmt(totalAdded), detail: '<span style="color:#7ee787">' + (totalAdded + totalDeleted > 0 ? Math.round(totalAdded / (totalAdded + totalDeleted) * 100) : 0) + '% of changes</span>' }},
+    {{ label: 'Lines Deleted', value: fmt(totalDeleted), detail: '<span style="color:#f78166">' + (totalAdded + totalDeleted > 0 ? Math.round(totalDeleted / (totalAdded + totalDeleted) * 100) : 0) + '% of changes</span>' }},
   ].forEach(s => {{
     statsRow.innerHTML += '<div class="stat-card"><div class="label">'+s.label+'</div><div class="value">'+s.value+'</div><div class="detail">'+s.detail+'</div></div>';
   }});
@@ -452,7 +457,7 @@ function rebuildAll() {{
     const peak = Math.max(...cData);
     const peakI = cData.indexOf(peak);
     const pct = (t.total / maxPR * 100).toFixed(0);
-    html += '<tr><td>'+(i+1)+'</td><td><span style="color:'+t.color+';font-weight:600">'+t.name+'</span></td><td class="num">'+t.total+'</td><td class="num">'+(t.total/weeks.length).toFixed(1)+'</td><td>'+peak+' ('+weekLabels[peakI]+')</td><td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:'+pct+'%;background:'+t.color+'"></div></div></td></tr>';
+    html += '<tr><td>'+(i+1)+'</td><td><span style="color:'+t.color+';font-weight:600">'+escapeHtml(t.name)+'</span></td><td class="num">'+t.total+'</td><td class="num">'+(t.total/weeks.length).toFixed(1)+'</td><td>'+peak+' ('+weekLabels[peakI]+')</td><td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:'+pct+'%;background:'+t.color+'"></div></div></td></tr>';
   }});
   html += '</tbody>';
   document.getElementById('leaderboard').innerHTML = html;
@@ -487,7 +492,7 @@ function rebuildAll() {{
     const peak = Math.max(...cData);
     const peakI = cData.indexOf(peak);
     const pct = (t.total / maxCM * 100).toFixed(0);
-    cmHtml += '<tr><td>'+(i+1)+'</td><td><span style="color:'+t.color+';font-weight:600">'+t.name+'</span></td><td class="num">'+t.total+'</td><td class="num">'+(t.total/weeks.length).toFixed(1)+'</td><td>'+peak+' ('+weekLabels[peakI]+')</td><td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:'+pct+'%;background:'+t.color+'"></div></div></td></tr>';
+    cmHtml += '<tr><td>'+(i+1)+'</td><td><span style="color:'+t.color+';font-weight:600">'+escapeHtml(t.name)+'</span></td><td class="num">'+t.total+'</td><td class="num">'+(t.total/weeks.length).toFixed(1)+'</td><td>'+peak+' ('+weekLabels[peakI]+')</td><td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:'+pct+'%;background:'+t.color+'"></div></div></td></tr>';
   }});
   cmHtml += '</tbody>';
   document.getElementById('commitLeaderboard').innerHTML = cmHtml;
@@ -525,7 +530,7 @@ function rebuildAll() {{
   let locHtml = '<thead><tr><th>#</th><th>Contributor</th><th class="num">Lines Added</th><th class="num">Lines Deleted</th><th class="num">Total Changed</th><th class="num">Avg/Week</th><th class="bar-cell">Activity</th></tr></thead><tbody>';
   locSorted.forEach((t, i) => {{
     const pct = (t.total / maxLOC * 100).toFixed(0);
-    locHtml += '<tr><td>'+(i+1)+'</td><td><span style="color:'+t.color+';font-weight:600">'+t.name+'</span></td><td class="num" style="color:#7ee787">+'+fmt(t.added)+'</td><td class="num" style="color:#f78166">−'+fmt(t.deleted)+'</td><td class="num">'+fmt(t.total)+'</td><td class="num">'+fmt(Math.round(t.total/weeks.length))+'</td><td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:'+pct+'%;background:'+t.color+'"></div></div></td></tr>';
+    locHtml += '<tr><td>'+(i+1)+'</td><td><span style="color:'+t.color+';font-weight:600">'+escapeHtml(t.name)+'</span></td><td class="num" style="color:#7ee787">+'+fmt(t.added)+'</td><td class="num" style="color:#f78166">−'+fmt(t.deleted)+'</td><td class="num">'+fmt(t.total)+'</td><td class="num">'+fmt(Math.round(t.total/weeks.length))+'</td><td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:'+pct+'%;background:'+t.color+'"></div></div></td></tr>';
   }});
   locHtml += '</tbody>';
   document.getElementById('locLeaderboard').innerHTML = locHtml;
@@ -552,20 +557,25 @@ def fetch_prs(limit: int) -> list[dict]:
 
 def fetch_commits(since_date: str | None = None) -> list[dict]:
     """Fetch commit data from git log with stats (additions/deletions)."""
-    # Format: hash|author|date|additions|deletions
     cmd = ["git", "log", "--format=%H|%aN|%aI", "--numstat", "--no-merges"]
     if since_date:
         cmd.append(f"--since={since_date}")
 
-    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        print("Error: git log failed. Make sure you're running this from inside a git repo.", file=sys.stderr)
+        print(f"  {e}", file=sys.stderr)
+        sys.exit(1)
 
+    sha_re = re.compile(r"^[0-9a-f]{40,64}$")
     commits: list[dict] = []
     current: dict | None = None
 
     for line in result.stdout.splitlines():
         if "|" in line and line.count("|") == 2:
             parts = line.split("|", 2)
-            if len(parts[0]) == 40:  # SHA length check
+            if sha_re.match(parts[0]):  # SHA-1 (40) or SHA-256 (64)
                 if current:
                     commits.append(current)
                 current = {
@@ -594,6 +604,36 @@ def fetch_commits(since_date: str | None = None) -> list[dict]:
         commits.append(current)
 
     return commits
+
+
+def fetch_author_mapping(since_date: str | None = None) -> dict[str, str]:
+    """Build a mapping from git author name to GitHub login via the GitHub API."""
+    endpoint = "repos/{owner}/{repo}/commits?per_page=100"
+    if since_date:
+        endpoint += f"&since={since_date}T00:00:00Z"
+
+    result = subprocess.run(
+        [
+            "gh",
+            "api",
+            endpoint,
+            "--paginate",
+            "--jq",
+            '.[] | select(.author != null) | "\\(.commit.author.name)\t\\(.author.login)"',
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    mapping: dict[str, str] = {}
+    if result.returncode == 0:
+        for line in result.stdout.splitlines():
+            parts = line.split("\t", 1)
+            if len(parts) == 2 and parts[0] and parts[1]:
+                # First seen mapping wins (most common association)
+                if parts[0] not in mapping:
+                    mapping[parts[0]] = parts[1]
+    return mapping
 
 
 def monday_of_iso_week(year: int, week: int) -> datetime:
@@ -685,10 +725,6 @@ def build_report(prs: list[dict], commits: list[dict]) -> str:
                 "color": author_colors[author],
             }
 
-    # Total additions/deletions per week (for add/del chart)
-    total_added = [sum(loc_weekly_added[w].values()) for w in all_week_keys]
-    total_deleted = [sum(loc_weekly_deleted[w].values()) for w in all_week_keys]
-
     # Subtitle
     first_week = week_labels[0]
     last_week = week_labels[-1]
@@ -709,8 +745,6 @@ def build_report(prs: list[dict], commits: list[dict]) -> str:
         contributors_json=json.dumps(pr_contributors),
         commit_contributors_json=json.dumps(commit_contributors),
         loc_contributors_json=json.dumps(loc_contributors),
-        loc_total_added_json=json.dumps(total_added),
-        loc_total_deleted_json=json.dumps(total_deleted),
     )
 
 
@@ -733,6 +767,17 @@ def main() -> None:
     print(f"Fetching commits from git log{' (since ' + since_date + ')' if since_date else ''}...")
     commits = fetch_commits(since_date)
     print(f"  Found {len(commits)} commits from {len({c['author'] for c in commits})} contributors")
+
+    # Map git author names to GitHub logins so the same person isn't counted twice
+    print("Mapping git author names to GitHub logins...")
+    author_mapping = fetch_author_mapping(since_date)
+    if author_mapping:
+        for commit in commits:
+            if commit["author"] in author_mapping:
+                commit["author"] = author_mapping[commit["author"]]
+        print(f"  Mapped {len(author_mapping)} git author name(s) to GitHub login(s)")
+    else:
+        print("  No mapping found (commit authors will use git names)")
 
     html = build_report(prs, commits)
 
