@@ -14,7 +14,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 interface TrackioModalProps {
-  jobId: number | null;
+  jobId: string | null;
   onClose: () => void;
 }
 

@@ -26,7 +26,7 @@ import SaveToRegistryDialog, { SaveVersionInfo } from './SaveToRegistryDialog';
 interface ViewJobDatasetsModalProps {
   open: boolean;
   onClose: () => void;
-  jobId: number | string;
+  jobId: number | string | null;
 }
 
 interface Dataset {

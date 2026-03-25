@@ -258,43 +258,6 @@ export default function Interactive() {
     [experimentInfo?.id, addNotification, templatesMutate],
   );
 
-  const handleDeleteJob = async (jobId: string) => {
-    if (!experimentInfo?.id) return;
-
-    // eslint-disable-next-line no-alert
-    if (!confirm('Are you sure you want to delete this job?')) {
-      return;
-    }
-
-    try {
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.Delete(experimentInfo.id, jobId),
-        {
-          method: 'GET',
-        },
-      );
-
-      if (response.ok) {
-        addNotification({
-          type: 'success',
-          message: 'Job deleted successfully!',
-        });
-        await jobsMutate();
-      } else {
-        addNotification({
-          type: 'danger',
-          message: 'Failed to delete job. Please try again.',
-        });
-      }
-    } catch (error) {
-      console.error('Error deleting job:', error);
-      addNotification({
-        type: 'danger',
-        message: 'Failed to delete job. Please try again.',
-      });
-    }
-  };
-
   const handleExportTemplateToTeamInteractiveGallery = useCallback(
     async (taskId: string) => {
       if (!experimentInfo?.id) return;
@@ -849,6 +812,7 @@ export default function Interactive() {
         onClose={() => {
           setInteractiveModalOpen(false);
           setInteractiveModalError(null);
+          setIsSubmitting(false);
         }}
         submitError={interactiveModalError}
         onClearSubmitError={() => setInteractiveModalError(null)}
@@ -999,11 +963,7 @@ export default function Interactive() {
             }}
           >
             {jobsWithPlaceholders.map((job: any) => (
-              <InteractiveJobCard
-                key={job.id}
-                job={job}
-                onDeleteJob={handleDeleteJob}
-              />
+              <InteractiveJobCard key={job.id} job={job} />
             ))}
           </Box>
         )}
