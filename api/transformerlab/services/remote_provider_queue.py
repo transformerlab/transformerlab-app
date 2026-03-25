@@ -156,7 +156,7 @@ async def _process_launch_item(item: RemoteLaunchWorkItem) -> None:
                     item.job_id,
                     item.experiment_id,
                     phase="cluster_started",
-                    percent=100,
+                    percent=99,
                     message="Launch initiated",
                 )
 
