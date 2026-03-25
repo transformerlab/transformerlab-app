@@ -4,7 +4,6 @@ import json
 import asyncio
 from io import BytesIO
 from PIL import Image
-from pathlib import Path
 from lab import dirs
 from transformerlab.shared.shared import slugify
 
@@ -97,8 +96,8 @@ def test_save_metadata(client):
     data = response.json()
     assert data["status"] == "success"
 
-    new_dataset_dir = Path(asyncio.run(dirs.dataset_dir_by_id(slugify(new_dataset_id))))
-    assert new_dataset_dir.exists()
+    new_dataset_dir = asyncio.run(dirs.dataset_dir_by_id(slugify(new_dataset_id)))
+    assert os.path.exists(new_dataset_dir)
 
     cleanup_dataset(source_dataset_id, client)
     cleanup_dataset(new_dataset_id, client)
