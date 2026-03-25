@@ -112,6 +112,9 @@ export default function QueueTaskModal({
   const [sweepMetric, setSweepMetric] = React.useState('eval/loss');
   const [lowerIsBetter, setLowerIsBetter] = React.useState(true);
   const [jobSlurmFlags, setJobSlurmFlags] = React.useState<string[]>(['']);
+  const [jobDockerImage, setJobDockerImage] = React.useState('');
+  const [jobRegion, setJobRegion] = React.useState('');
+  const [jobUseSpot, setJobUseSpot] = React.useState(false);
   const [useTrackio, setUseTrackio] = React.useState(false);
   const [useProfiling, setUseProfiling] = React.useState(false);
   const [useProfilingTorch, setUseProfilingTorch] = React.useState(false);
@@ -215,6 +218,7 @@ export default function QueueTaskModal({
   );
   const isLocalProvider = selectedProvider?.type === 'local';
   const isSlurmProvider = selectedProvider?.type === 'slurm';
+  const isSkypilotProvider = selectedProvider?.type === 'skypilot';
 
   // Fetch user-specific provider settings (including default custom SBATCH flags)
   const slurmUserSettingsKey =
@@ -632,6 +636,15 @@ export default function QueueTaskModal({
     setJobSlurmFlags(lines.length > 0 ? lines : ['']);
   }, [open, isSlurmProvider, selectedProviderId, slurmUserSettings]);
 
+  // Initialize SkyPilot per-job defaults from provider config when a SkyPilot provider is selected.
+  React.useEffect(() => {
+    if (!open || !isSkypilotProvider || !selectedProvider) return;
+    const cfg = selectedProvider.config || {};
+    setJobDockerImage(cfg.docker_image || '');
+    setJobRegion(cfg.default_region || '');
+    setJobUseSpot(cfg.use_spot === true);
+  }, [open, isSkypilotProvider, selectedProviderId, selectedProvider]);
+
   // Helper function to validate constraints
   const validateParameter = (param: ProcessedParameter): string | null => {
     const { schema, value } = param;
@@ -744,6 +757,19 @@ export default function QueueTaskModal({
       }
     }
 
+    // For SkyPilot providers, add optional per-job overrides
+    if (provider?.type === 'skypilot') {
+      if (jobDockerImage.trim()) {
+        config.docker_image = jobDockerImage.trim();
+      }
+      if (jobRegion.trim()) {
+        config.region = jobRegion.trim();
+      }
+      if (jobUseSpot) {
+        config.use_spot = true;
+      }
+    }
+
     // Add sweep configuration if enabled
     if (runSweeps) {
       config.run_sweeps = true;
@@ -837,6 +863,7 @@ export default function QueueTaskModal({
                 setParameters(newParams);
               }}
               sx={{ flex: 1 }}
+              disabled={isSubmitting}
             />
           ) : (
             <Select
@@ -848,6 +875,7 @@ export default function QueueTaskModal({
               }}
               placeholder="Select a model"
               sx={{ flex: 1 }}
+              disabled={isSubmitting}
             >
               {models.map((model: any) => (
                 <Option key={model.model_id} value={model.model_id}>
@@ -880,6 +908,7 @@ export default function QueueTaskModal({
                 }
               }}
               size="sm"
+              disabled={isSubmitting}
             />
             <Typography level="body-xs" sx={{ color: 'neutral.500' }}>
               Enter any string
@@ -905,6 +934,7 @@ export default function QueueTaskModal({
                 setParameters(newParams);
               }}
               sx={{ flex: 1 }}
+              disabled={isSubmitting}
             />
           ) : (
             <Select
@@ -916,6 +946,7 @@ export default function QueueTaskModal({
               }}
               placeholder="Select a dataset"
               sx={{ flex: 1 }}
+              disabled={isSubmitting}
             >
               {datasets.map((dataset: any) => (
                 <Option key={dataset.dataset_id} value={dataset.dataset_id}>
@@ -948,6 +979,7 @@ export default function QueueTaskModal({
                 }
               }}
               size="sm"
+              disabled={isSubmitting}
             />
             <Typography level="body-xs" sx={{ color: 'neutral.500' }}>
               Enter any string
@@ -986,6 +1018,7 @@ export default function QueueTaskModal({
               step={step}
               valueLabelDisplay="auto"
               sx={{ flex: 1 }}
+              disabled={isSubmitting}
             />
             <Input
               value={param.value}
@@ -1005,6 +1038,7 @@ export default function QueueTaskModal({
               }}
               sx={{ width: 100 }}
               error={!!validationErrors[index]}
+              disabled={isSubmitting}
             />
           </Stack>
           {validationErrors[index] && (
@@ -1029,6 +1063,7 @@ export default function QueueTaskModal({
             newParams[index].value = e.target.checked;
             setParameters(newParams);
           }}
+          disabled={isSubmitting}
         />
       );
     }
@@ -1049,7 +1084,12 @@ export default function QueueTaskModal({
           >
             <Stack direction="row" spacing={2}>
               {options.map((option) => (
-                <Radio key={option} value={option} label={option} />
+                <Radio
+                  key={option}
+                  value={option}
+                  label={option}
+                  disabled={isSubmitting}
+                />
               ))}
             </Stack>
           </RadioGroup>
@@ -1065,6 +1105,7 @@ export default function QueueTaskModal({
               setParameters(newParams);
             }}
             sx={{ flex: 1 }}
+            disabled={isSubmitting}
           >
             {options.map((option) => (
               <Option key={option} value={option}>
@@ -1108,6 +1149,7 @@ export default function QueueTaskModal({
             }}
             sx={{ flex: 1 }}
             error={!!validationErrors[index]}
+            disabled={isSubmitting}
           />
           {validationErrors[index] && (
             <FormHelperText sx={{ color: 'danger.400' }}>
@@ -1130,6 +1172,7 @@ export default function QueueTaskModal({
             setParameters(newParams);
           }}
           sx={{ flex: 1 }}
+          disabled={isSubmitting}
         />
       );
     }
@@ -1162,6 +1205,7 @@ export default function QueueTaskModal({
             fontSize: 12,
             lineNumbers: 'off',
             wordWrap: 'on',
+            readOnly: isSubmitting,
           }}
         />
       );
@@ -1178,6 +1222,7 @@ export default function QueueTaskModal({
           setParameters(newParams);
         }}
         sx={{ flex: 1 }}
+        disabled={isSubmitting}
       />
     );
   };
@@ -1318,8 +1363,12 @@ export default function QueueTaskModal({
                 direction="row"
                 alignItems="center"
                 justifyContent="space-between"
-                sx={{ cursor: 'pointer' }}
-                onClick={() => setShowParameterOverrides((prev) => !prev)}
+                sx={{ cursor: isSubmitting ? 'default' : 'pointer' }}
+                onClick={() => {
+                  if (!isSubmitting) {
+                    setShowParameterOverrides((prev) => !prev);
+                  }
+                }}
               >
                 <Typography level="title-sm">Parameter overrides</Typography>
                 <ChevronDownIcon
@@ -1484,6 +1533,7 @@ export default function QueueTaskModal({
               lowerIsBetter={lowerIsBetter}
               onLowerIsBetterChange={setLowerIsBetter}
               parameters={parameters}
+              disabled={isSubmitting}
             />
 
             {/* Optional Resource Overrides Section */}
@@ -1493,8 +1543,12 @@ export default function QueueTaskModal({
                 direction="row"
                 alignItems="center"
                 justifyContent="space-between"
-                sx={{ cursor: 'pointer' }}
-                onClick={() => setShowResourceOverrides((prev) => !prev)}
+                sx={{ cursor: isSubmitting ? 'default' : 'pointer' }}
+                onClick={() => {
+                  if (!isSubmitting) {
+                    setShowResourceOverrides((prev) => !prev);
+                  }
+                }}
               >
                 <Typography level="title-sm">
                   Optional resource overrides
@@ -1579,6 +1633,53 @@ export default function QueueTaskModal({
                     requirements for this run only. Leave a field empty to use
                     the template default.
                   </FormHelperText>
+
+                  {/* SkyPilot per-job overrides */}
+                  {isSkypilotProvider && (
+                    <>
+                      <Divider />
+                      <Typography level="title-sm">
+                        SkyPilot Job Overrides
+                      </Typography>
+                      <FormControl>
+                        <FormLabel>Docker Image (optional)</FormLabel>
+                        <Input
+                          value={jobDockerImage}
+                          onChange={(e) => setJobDockerImage(e.target.value)}
+                          placeholder="docker:nvcr.io/nvidia/pytorch:23.10-py3"
+                          sx={{ fontFamily: 'monospace', fontSize: 'sm' }}
+                          disabled={isSubmitting}
+                        />
+                        <FormHelperText>
+                          Prefix with &quot;docker:&quot; to run inside a
+                          container. Defaults to the provider&apos;s global
+                          setting.
+                        </FormHelperText>
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel>Region (optional)</FormLabel>
+                        <Input
+                          value={jobRegion}
+                          onChange={(e) => setJobRegion(e.target.value)}
+                          placeholder="e.g. us-east-1"
+                          disabled={isSubmitting}
+                        />
+                      </FormControl>
+                      <FormControl
+                        sx={{ flexDirection: 'row', alignItems: 'center' }}
+                      >
+                        <Switch
+                          checked={jobUseSpot}
+                          onChange={(e) => setJobUseSpot(e.target.checked)}
+                          disabled={isSubmitting}
+                          sx={{ mr: 1 }}
+                        />
+                        <FormLabel sx={{ m: 0 }}>
+                          Use Spot / Preemptible Instances
+                        </FormLabel>
+                      </FormControl>
+                    </>
+                  )}
 
                   {/* Incompatibility Warning */}
                   {selectedProvider &&
@@ -1687,7 +1788,7 @@ export default function QueueTaskModal({
             color="success"
             onClick={handleSubmit}
             loading={isSubmitting}
-            disabled={!selectedProviderId}
+            disabled={!selectedProviderId || isSubmitting}
           >
             Submit
           </Button>

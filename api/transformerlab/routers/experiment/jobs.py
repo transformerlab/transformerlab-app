@@ -1217,6 +1217,9 @@ async def get_artifact(job_id: str, filename: str, task: str = "view"):
         ".wav": "audio/wav",
         ".m4a": "audio/mp4",
         ".flac": "audio/flac",
+        # 3D Models
+        ".glb": "model/gltf-binary",
+        ".gltf": "model/gltf+json",
         # JSON
         ".json": "application/json",
         # Text
