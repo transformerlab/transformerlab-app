@@ -4,11 +4,11 @@ from PIL import Image as PILImage
 from datasets import load_dataset, load_dataset_builder
 from fastapi import APIRouter, HTTPException, UploadFile, Query
 import csv
+import os
 from pydantic import BaseModel
 from typing import Dict, Any
 from io import BytesIO
 import base64
-from pathlib import Path
 from lab import dirs
 from lab import storage
 from lab.dataset import Dataset as dataset_service
@@ -665,7 +665,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
             dest_folder = storage.join(new_dataset_dir, final_split, final_label)
         await storage.makedirs(dest_folder, exist_ok=True)
         # Get just the filename for dest
-        file_basename = Path(file_name).name
+        file_basename = os.path.basename(file_name)
         dest_path = storage.join(dest_folder, file_basename)
 
         try:
@@ -680,7 +680,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
             if k in {"__index__", "__formatted__", "split"}:
                 continue
             if k == "file_name":
-                metadata_entry[k] = Path(file_name).name
+                metadata_entry[k] = os.path.basename(file_name)
                 all_columns.add("file_name")
             elif v not in [None, "", [], {}]:
                 metadata_entry[k] = v

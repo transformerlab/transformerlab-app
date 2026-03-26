@@ -2,7 +2,6 @@ import io
 import json
 import os
 import zipfile
-from pathlib import Path
 
 import httpx
 import typer
@@ -70,14 +69,14 @@ def info_task(task_id: str, experiment_id: str) -> None:
 
 def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_run: bool = False) -> None:
     """Add a task from a local directory containing task.yaml."""
-    task_dir = Path(task_directory_path).resolve()
+    task_dir = os.path.realpath(task_directory_path)
 
-    if not task_dir.is_dir():
+    if not os.path.isdir(task_dir):
         console.print(f"[error]Error:[/error] Directory not found: {task_dir}")
         raise typer.Exit(1)
 
-    task_yaml_path = task_dir / "task.yaml"
-    if not task_yaml_path.exists():
+    task_yaml_path = os.path.join(task_dir, "task.yaml")
+    if not os.path.exists(task_yaml_path):
         console.print(f"[error]Error:[/error] task.yaml not found in {task_dir}")
         console.print("The directory must contain a task.yaml file.")
         raise typer.Exit(1)
@@ -114,10 +113,10 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
     total_size = 0
     for root, _dirs, files in os.walk(task_dir):
         for name in files:
-            file_path = Path(root) / name
-            rel_path = file_path.relative_to(task_dir)
-            file_size = file_path.stat().st_size
-            all_files.append((str(rel_path), file_size))
+            file_path = os.path.join(root, name)
+            rel_path = os.path.relpath(file_path, task_dir)
+            file_size = os.path.getsize(file_path)
+            all_files.append((rel_path, file_size))
             total_size += file_size
 
     if len(all_files) > 1:
@@ -141,8 +140,8 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for root, _dirs, files in os.walk(task_dir):
             for name in files:
-                file_path = Path(root) / name
-                arcname = file_path.relative_to(task_dir)
+                file_path = os.path.join(root, name)
+                arcname = os.path.relpath(file_path, task_dir)
                 zf.write(file_path, arcname)
     zip_buffer.seek(0)
 

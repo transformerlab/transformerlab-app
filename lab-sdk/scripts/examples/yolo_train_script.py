@@ -8,7 +8,6 @@ import os
 import argparse
 import json
 from datetime import datetime
-from pathlib import Path
 
 from lab import lab
 
@@ -306,23 +305,23 @@ download: https://github.com/ultralytics/assets/releases/download/v0.0.0/coco8.z
         lab.log("💾 Saving training artifacts...")
 
         # Find the best model and latest checkpoint
-        project_dir = Path(training_config["_config"]["project"])
-        run_dir = project_dir / training_config["_config"]["name"]
+        project_dir = training_config["_config"]["project"]
+        run_dir = os.path.join(project_dir, training_config["_config"]["name"])
 
         best_model_path = None
         latest_checkpoint = None
 
-        if run_dir.exists():
+        if os.path.exists(run_dir):
             # Look for best.pt (best model) and last.pt (latest checkpoint)
-            best_pt = run_dir / "weights" / "best.pt"
-            last_pt = run_dir / "weights" / "last.pt"
+            best_pt = os.path.join(run_dir, "weights", "best.pt")
+            last_pt = os.path.join(run_dir, "weights", "last.pt")
 
-            if best_pt.exists():
-                best_model_path = str(best_pt.parent)
+            if os.path.exists(best_pt):
+                best_model_path = os.path.dirname(best_pt)
                 lab.log(f"Found best model at: {best_model_path}")
 
-            if last_pt.exists():
-                latest_checkpoint = str(last_pt.parent)
+            if os.path.exists(last_pt):
+                latest_checkpoint = os.path.dirname(last_pt)
                 lab.log(f"Found latest checkpoint at: {latest_checkpoint}")
 
             # Save checkpoints if they exist
