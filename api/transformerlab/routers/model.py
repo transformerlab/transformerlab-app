@@ -25,8 +25,8 @@ async def get_model_prompt_template(model: str):
 
 
 @router.get("/model/list")
-@cached(key="models:list:{embedding}", ttl="7d", tags=["models", "models:list"])
-async def model_local_list(embedding=False):
+@cached(key="models:list", ttl="7d", tags=["models", "models:list"])
+async def model_local_list():
     # the model list is a combination of downloaded hugging face models and locally generated models
     models = await model_service.list_installed_models()
 
