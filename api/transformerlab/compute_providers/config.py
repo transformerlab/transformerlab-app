@@ -4,7 +4,6 @@ import os
 import yaml
 import json
 from typing import Dict, Any, Optional
-from pathlib import Path
 from pydantic import BaseModel, Field
 
 
@@ -67,47 +66,51 @@ def load_compute_providers_config(
             config_path = env_path
         else:
             # Try to find the config file in multiple locations
-            current_file = Path(__file__).resolve()
+            current_file = os.path.realpath(__file__)
+            current_dir = os.path.dirname(current_file)
 
             # 1. Check in the same directory as this file (installed package)
-            package_config = current_file.parent / "providers.yaml"
+            package_config = os.path.join(current_dir, "providers.yaml")
 
             # 2. Check in source directory (when running from repo)
             # Go up from src/lattice/compute_providers/config.py to find repo root
             # Then look for src/lattice/compute_providers/compute_providers.yaml
             source_config = None
-            for parent in [
-                current_file.parent.parent.parent.parent,
-                current_file.parent.parent.parent.parent.parent,
-            ]:
-                potential = parent / "src" / "lattice" / "providers" / "providers.yaml"
-                if potential.exists():
+            for levels_up in (4, 5):
+                parent = current_dir
+                for _ in range(levels_up):
+                    parent = os.path.dirname(parent)
+                potential = os.path.join(parent, "src", "lattice", "providers", "providers.yaml")
+                if os.path.exists(potential):
                     source_config = potential
                     break
 
             # Prefer source config if it exists (for development)
-            if source_config and source_config.exists():
-                config_path = str(source_config)
-            elif package_config.exists():
-                config_path = str(package_config)
+            if source_config is not None:
+                config_path = source_config
+            elif os.path.exists(package_config):
+                config_path = package_config
             else:
                 # Default to package directory location
-                config_path = str(package_config)
+                config_path = package_config
 
-    config_path = Path(config_path).expanduser().resolve()
+    config_path = os.path.realpath(os.path.expanduser(config_path))
 
-    if not config_path.exists():
+    if not os.path.exists(config_path):
         # YAML file is optional - return empty dict if not found
         # Providers can be loaded from database instead
         return {}
 
-    with open(config_path, "r") as f:
-        if config_path.suffix in [".yaml", ".yml"]:
+    _, ext = os.path.splitext(config_path)
+    ext = ext.lower()
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        if ext in [".yaml", ".yml"]:
             config_data = yaml.safe_load(f)
-        elif config_path.suffix == ".json":
+        elif ext == ".json":
             config_data = json.load(f)
         else:
-            raise ValueError(f"Unsupported config file format: {config_path.suffix}")
+            raise ValueError(f"Unsupported config file format: {ext}")
 
     providers = {}
     providers_data = config_data.get("providers", {})
