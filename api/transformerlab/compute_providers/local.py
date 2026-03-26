@@ -3,10 +3,15 @@
 import contextlib
 import json
 import os
+import re
 import signal
 import shlex
 import subprocess
 import sys
+import threading
+import time
+import tempfile
+import shutil
 from typing import Any, Dict, List, Optional, Union, Callable
 
 from lab.dirs import HOME_DIR, get_local_provider_config_path, get_local_provider_root
@@ -107,6 +112,98 @@ def _get_uv_pip_install_flags() -> str:
 
 
 _PYTHON_VERSION = "3.11"
+_BASE_SETUP_LOCK = threading.Lock()
+_BASE_STATE_FILE = "local_provider_base_state.json"
+_LOCAL_PROVIDER_PYPROJECT = "localprovider_pyproject.toml"
+_TLAB_DIR = os.path.join(os.path.expanduser("~"), ".transformerlab")
+_MINIFORGE_ROOT = os.path.join(_TLAB_DIR, "miniforge3")
+_CONDA_BIN = os.path.join(_MINIFORGE_ROOT, "bin", "conda")
+_CONDA_ENV_DIR = os.path.join(_TLAB_DIR, "envs", "transformerlab")
+_INSTALL_LOG_FILE = "local_provider_install.log"
+
+
+def _get_base_state_path() -> str:
+    return os.path.join(get_local_provider_root(), _BASE_STATE_FILE)
+
+
+def _read_base_state() -> Optional[Dict[str, Any]]:
+    state_path = _get_base_state_path()
+    if not os.path.exists(state_path):
+        return None
+    try:
+        with open(state_path, "r", encoding="utf-8") as f:
+            return json.loads(f.read())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _write_base_state(*, ready: bool, message: str) -> None:
+    payload = {
+        "ready": ready,
+        "message": message,
+        "updated_at": time.time(),
+        "python_version": _PYTHON_VERSION,
+    }
+    with open(_get_base_state_path(), "w", encoding="utf-8") as f:
+        f.write(json.dumps(payload))
+
+
+def _get_install_log_path() -> str:
+    root = get_local_provider_root()
+    os.makedirs(root, exist_ok=True)
+    return os.path.join(root, _INSTALL_LOG_FILE)
+
+
+def _resolve_lab_sdk_dir(localprovider_pyproject: str) -> Optional[str]:
+    """Return sibling ``lab-sdk`` next to the api directory (monorepo or ~/.transformerlab/src layout)."""
+    lab_sdk = os.path.join(os.path.dirname(os.path.dirname(localprovider_pyproject)), "lab-sdk")
+    if os.path.exists(os.path.join(lab_sdk, "pyproject.toml")):
+        return lab_sdk
+    return None
+
+
+def _strip_transformerlab_version_pin(pyproject_path: str) -> bool:
+    """
+    Remove the ``transformerlab==...`` dependency line so ``uv pip install .[extra]`` does not
+    pull PyPI after we install from a local tree. Returns True if a line was removed.
+    """
+    text = open(pyproject_path, "r", encoding="utf-8").read()
+    lines = text.splitlines(keepends=True)
+    out: List[str] = []
+    removed = False
+    for line in lines:
+        if re.match(r'^\s*"transformerlab==', line):
+            removed = True
+            continue
+        out.append(line)
+    if removed:
+        open(pyproject_path, "w", encoding="utf-8").write("".join(out))
+    return removed
+
+
+def _run_local_provider_conda_install(source_code_dir: str) -> None:
+    installer_script = os.path.join(source_code_dir, "local_provider_conda_install.sh")
+    if not os.path.exists(installer_script):
+        raise FileNotFoundError(f"local_provider_conda_install.sh not found at {installer_script}")
+
+    cmd = ["/bin/bash", installer_script]
+    log_path = _get_install_log_path()
+    with open(log_path, "a", encoding="utf-8") as log_file:
+        log_file.write(f"\n=== Local provider install start ({time.strftime('%Y-%m-%d %H:%M:%S')}) ===\n")
+        log_file.write(f"Command: {' '.join(cmd)}\n")
+        log_file.flush()
+        result = subprocess.run(
+            cmd,
+            cwd=source_code_dir,
+            stdout=log_file,
+            stderr=log_file,
+            text=True,
+            timeout=3600,
+        )
+        log_file.write(f"=== Local provider install end (exit={result.returncode}) ===\n")
+        log_file.flush()
+    if result.returncode != 0:
+        raise RuntimeError(f"local_provider_conda_install.sh failed with exit code {result.returncode}")
 
 
 def _terminate_process_tree(pid: int, sig: int = signal.SIGTERM) -> None:
@@ -194,13 +291,13 @@ class LocalProvider(ComputeProvider):
     def setup(
         self,
         progress_callback: Optional["Callable[[str, int, str], None]"] = None,
+        force_refresh: bool = False,
     ) -> None:
         """
         Perform provider-level setup for local runs.
 
         This currently ensures the shared base uv virtual environment under
-        HOME_DIR is created and up to date, along with its frozen
-        requirements. This can be slow on first run, so callers may choose
+        HOME_DIR is created and up to date. This can be slow on first run, so callers may choose
         to invoke it ahead of time and surface progress in the UI.
 
         Args:
@@ -212,63 +309,123 @@ class LocalProvider(ComputeProvider):
             progress_callback(
                 "provider_setup_start",
                 0,
-                "Preparing local provider base environment (this may take a few minutes)...",
+                "Refreshing local provider base environment..."
+                if force_refresh
+                else "Preparing local provider base environment (this may take a few minutes)...",
             )
 
-        ensure_base_venv_and_requirements(progress_callback=progress_callback)
+        ensure_base_venv_and_requirements(progress_callback=progress_callback, force_refresh=force_refresh)
 
         if progress_callback is not None:
             progress_callback(
                 "provider_setup_complete",
                 100,
-                "Local provider base environment is ready.",
+                "Local provider base environment refreshed."
+                if force_refresh
+                else "Local provider base environment is ready.",
             )
 
     def _get_source_code_and_pyproject(self) -> str:
-        """Return path to pyproject.toml in the transformerlab API source tree."""
+        """Return path to local-provider pyproject in the transformerlab API source tree."""
         source_code_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
         if not source_code_dir or not os.path.isdir(source_code_dir):
             raise FileNotFoundError("_TFL_SOURCE_CODE_DIR is not set or not a directory; cannot sync base environment")
-        pyproject_path = os.path.join(source_code_dir, "pyproject.toml")
+        pyproject_path = os.path.join(source_code_dir, _LOCAL_PROVIDER_PYPROJECT)
         if not os.path.exists(pyproject_path):
-            raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
+            raise FileNotFoundError(f"{_LOCAL_PROVIDER_PYPROJECT} not found at {pyproject_path}")
         return pyproject_path
 
-    def _ensure_job_venv_from_base(self, venv_path: str, team_requirements: str) -> None:
-        """Create or refresh a per-job venv by installing from the shared team requirements."""
-        if not os.path.exists(team_requirements):
-            raise FileNotFoundError(f"team requirements file not found at {team_requirements}")
-
+    def _ensure_job_venv_from_base(self, venv_path: str, localprovider_pyproject: str) -> None:
+        """Create or refresh a per-job venv using the local-provider pinned manifest."""
         os.makedirs(venv_path, exist_ok=True)
 
-        # uv venv --python (match plugin install default)
+        if not os.path.exists(_CONDA_BIN):
+            raise FileNotFoundError(f"Conda executable not found at {_CONDA_BIN}")
+
+        # Create per-job uv venv while running under the local-provider conda env.
         subprocess.run(
-            ["uv", "venv", venv_path, "--python", _PYTHON_VERSION, "--clear"],
+            [
+                str(_CONDA_BIN),
+                "run",
+                "--prefix",
+                str(_CONDA_ENV_DIR),
+                "uv",
+                "venv",
+                venv_path,
+                "--python",
+                _PYTHON_VERSION,
+                "--clear",
+            ],
             cwd=os.path.dirname(venv_path),
             check=True,
             capture_output=True,
-            timeout=120,
+            timeout=300,
         )
 
         additional_flags = _get_uv_pip_install_flags()
+        extra = _get_pyproject_extra()
 
         # Use uv pip with an explicit --python target so installs go into this venv.
         python_bin = os.path.join(venv_path, "bin", "python")
         env = os.environ.copy()
 
-        install_cmd = ["uv", "pip", "install"]
+        tmp_project_dir = tempfile.mkdtemp(prefix="tfl-local-provider-job-")
+        try:
+            shutil.copy2(localprovider_pyproject, os.path.join(tmp_project_dir, "pyproject.toml"))
+            shutil.copytree(
+                os.path.join(os.path.dirname(localprovider_pyproject), "tlab_package_init"),
+                os.path.join(tmp_project_dir, "tlab_package_init"),
+            )
+        except Exception:
+            shutil.rmtree(tmp_project_dir, ignore_errors=True)
+            raise
+
+        tmp_pyproject = os.path.join(tmp_project_dir, "pyproject.toml")
+        lab_sdk_dir = _resolve_lab_sdk_dir(localprovider_pyproject)
+        if lab_sdk_dir is not None:
+            _strip_transformerlab_version_pin(tmp_pyproject)
+            ed_cmd = [
+                str(_CONDA_BIN),
+                "run",
+                "--prefix",
+                str(_CONDA_ENV_DIR),
+                "uv",
+                "pip",
+                "install",
+                "--python",
+                python_bin,
+                "-e",
+                str(lab_sdk_dir),
+            ]
+            ed_result = subprocess.run(
+                ed_cmd,
+                cwd=tmp_project_dir,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=900,
+            )
+            if ed_result.returncode != 0:
+                shutil.rmtree(tmp_project_dir, ignore_errors=True)
+                raise RuntimeError(
+                    "uv pip install -e lab-sdk failed for job venv: "
+                    f"{ed_result.stderr or ed_result.stdout or 'unknown error'}"
+                )
+
+        install_cmd = [str(_CONDA_BIN), "run", "--prefix", str(_CONDA_ENV_DIR), "uv", "pip", "install"]
         if additional_flags:
             install_cmd.extend(shlex.split(additional_flags))
-        install_cmd.extend(["--python", python_bin, "-r", team_requirements])
+        install_cmd.extend(["--python", python_bin, f".{extra}"])
 
         result = subprocess.run(
             install_cmd,
-            cwd=os.path.dirname(venv_path),
+            cwd=tmp_project_dir,
             env=env,
             capture_output=True,
             text=True,
             timeout=900,
         )
+        shutil.rmtree(tmp_project_dir, ignore_errors=True)
         if result.returncode != 0:
             raise RuntimeError(
                 f"uv pip install failed for job venv: {result.stderr or result.stdout or 'unknown error'}"
@@ -292,7 +449,6 @@ class LocalProvider(ComputeProvider):
         job_dir = (config.provider_config or {}).get("workspace_dir")
         if not job_dir or not os.path.isdir(job_dir):
             raise ValueError("Local provider requires workspace_dir (job directory) in provider_config")
-        job_dir = str(job_dir)
 
         def _status(msg: str) -> None:
             if on_status:
@@ -314,10 +470,11 @@ class LocalProvider(ComputeProvider):
         # environment state (including Python packages) lives under HOME.
         venv_path = os.path.join(workspace_home, "venv")
 
-        # Ensure the shared base venv (common across all teams) exists and is up to date,
-        # then create a per-job venv from its frozen requirements.
-        base_requirements = ensure_base_venv_and_requirements()
-        self._ensure_job_venv_from_base(venv_path, base_requirements)
+        # Ensure shared local-provider base environment exists (one-time for all orgs),
+        # then create a per-job venv from the pinned local-provider manifest.
+        ensure_base_venv_and_requirements()
+        localprovider_pyproject = self._get_source_code_and_pyproject()
+        self._ensure_job_venv_from_base(venv_path, localprovider_pyproject)
 
         venv_bin = os.path.join(venv_path, "bin")
         env = os.environ.copy()
@@ -336,46 +493,52 @@ class LocalProvider(ComputeProvider):
         # while packages are still being installed.
         stdout_log = open(os.path.join(job_dir, "stdout.log"), "w")
         stderr_log = open(os.path.join(job_dir, "stderr.log"), "w")
+        try:
+            if config.setup:
+                _status("Running setup")
+                print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
+                setup_result = subprocess.run(
+                    ["/bin/bash", "-c", config.setup],
+                    cwd=job_dir,
+                    env=env,
+                    stdout=stdout_log,
+                    stderr=stderr_log,
+                    text=True,
+                    timeout=600,
+                )
 
-        if config.setup:
-            _status("Running setup")
-            print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
-            setup_result = subprocess.run(
-                ["/bin/bash", "-c", config.setup],
-                cwd=job_dir,
+                # Flush so tunnel_info can see the output immediately
+                stdout_log.flush()
+                stderr_log.flush()
+
+                if setup_result.returncode != 0:
+                    tail = ""
+                    try:
+                        with open(os.path.join(job_dir, "stderr.log")) as f:
+                            lines = f.readlines()
+                            tail = "".join(lines[-20:])
+                    except OSError:
+                        pass
+                    print(f"[LocalProvider] Setup failed with code {setup_result.returncode}")
+                    raise RuntimeError(f"Setup failed (exit {setup_result.returncode}). Last lines:\n{tail}")
+
+            # Start main run command in background (detached subprocess)
+            _status("Starting service")
+            print(f"[LocalProvider] Launching run in {job_dir}: {config.run!r}")
+            proc = subprocess.Popen(
+                ["/bin/bash", "-c", config.run or "true"],
+                cwd=str(job_dir),
                 env=env,
                 stdout=stdout_log,
                 stderr=stderr_log,
-                text=True,
-                timeout=600,
+                start_new_session=True,
             )
-            # Flush so tunnel_info can see the output immediately
-            stdout_log.flush()
-            stderr_log.flush()
-            if setup_result.returncode != 0:
-                # Read the last few lines from the log files for the error message
-                stderr_log.close()
-                tail = ""
-                try:
-                    with open(os.path.join(job_dir, "stderr.log")) as f:
-                        lines = f.readlines()
-                        tail = "".join(lines[-20:])
-                except OSError:
-                    pass
-                print(f"[LocalProvider] Setup failed with code {setup_result.returncode}")
-                raise RuntimeError(f"Setup failed (exit {setup_result.returncode}). Last lines:\n{tail}")
+        finally:
+            # Close parent-side file descriptors after setup/launch. The child
+            # process keeps its own inherited descriptors for log streaming.
+            stdout_log.close()
+            stderr_log.close()
 
-        # Start main run command in background (detached subprocess)
-        _status("Starting service")
-        print(f"[LocalProvider] Launching run in {job_dir}: {config.run!r}")
-        proc = subprocess.Popen(
-            ["/bin/bash", "-c", config.run or "true"],
-            cwd=str(job_dir),
-            env=env,
-            stdout=stdout_log,
-            stderr=stderr_log,
-            start_new_session=True,
-        )
         pid = proc.pid
         with open(os.path.join(job_dir, "pid"), "w") as f:
             f.write(str(pid))
@@ -601,14 +764,15 @@ class LocalProvider(ComputeProvider):
 
 def ensure_base_venv_and_requirements(
     progress_callback: Optional[Callable[[str, int, str], None]] = None,
+    force_refresh: bool = False,
 ) -> str:
     """
-    Ensure the shared base venv under HOME_DIR and its frozen requirements exist and are up to date.
+    Ensure the shared conda base environment for local provider exists and is up to date.
 
-    This base venv is common across all teams and is created at:
-        HOME_DIR / "local_provider" / "local_provider_base_venv"
+    This setup is common across all teams and is provisioned at:
+        ~/.transformerlab/envs/transformerlab
 
-    Returns the path to the base requirements file.
+    Returns the path to the conda environment directory.
     """
     if progress_callback is not None:
         progress_callback(
@@ -621,120 +785,71 @@ def ensure_base_venv_and_requirements(
     local_provider_root = get_local_provider_root()
     os.makedirs(local_provider_root, exist_ok=True)
 
-    base_venv_path = os.path.join(local_provider_root, "local_provider_base_venv")
-    base_requirements = os.path.join(local_provider_root, "local_provider_base_requirements.txt")
-
     source_code_dir = os.path.dirname(pyproject_path)
+    if not os.path.exists(source_code_dir):
+        raise FileNotFoundError(f"Source code directory not found at {source_code_dir}")
 
-    os.makedirs(base_venv_path, exist_ok=True)
+    with _BASE_SETUP_LOCK:
+        base_state = _read_base_state()
+        if not force_refresh and base_state and base_state.get("ready"):
+            if progress_callback is not None:
+                progress_callback(
+                    "provider_setup_reused",
+                    100,
+                    "Reusing existing shared local provider base environment.",
+                )
+            return _CONDA_ENV_DIR
 
-    if progress_callback is not None:
-        progress_callback(
-            "provider_setup_create_venv",
-            25,
-            "Creating local provider base Python environment...",
-        )
-
-    # uv venv --python (match plugin install default)
-    subprocess.run(
-        ["uv", "venv", base_venv_path, "--python", _PYTHON_VERSION, "--clear"],
-        cwd=os.path.dirname(base_venv_path),
-        check=True,
-        capture_output=True,
-        timeout=120,
-    )
-
-    extra = _get_pyproject_extra()
-    additional_flags = _get_uv_pip_install_flags()
-
-    # Use uv pip with an explicit --python target so installs go into the base venv.
-    python_bin = os.path.join(base_venv_path, "bin", "python")
-    env = os.environ.copy()
-
-    if progress_callback is not None:
-        progress_callback(
-            "provider_setup_install_deps",
-            60,
-            "Installing Transformer Lab and dependencies into the local provider base environment...",
-        )
-
-    install_cmd = ["uv", "pip", "install"]
-    if additional_flags:
-        install_cmd.extend(shlex.split(additional_flags))
-    install_cmd.extend(["--python", python_bin, f".{extra}"])
-
-    result = subprocess.run(
-        install_cmd,
-        cwd=source_code_dir,
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=900,
-    )
-
-    if result.returncode != 0:
-        raise RuntimeError(f"uv pip install failed for base venv: {result.stderr or result.stdout or 'unknown error'}")
-
-    freeze_cmd = ["uv", "pip", "freeze", "--python", str(python_bin)]
-    try:
-        with open(base_requirements, "w", encoding="utf-8") as req_file:
-            result = subprocess.run(
-                freeze_cmd,
-                cwd=source_code_dir,
-                env=env,
-                stdout=req_file,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=300,
+        if progress_callback is not None:
+            progress_callback(
+                "provider_setup_conda_install",
+                25,
+                "Installing/updating local provider conda base environment...",
             )
-    except OSError as exc:
-        raise RuntimeError(f"Failed to write base requirements file: {exc}") from exc
 
-    if result.returncode != 0:
-        raise RuntimeError(f"uv pip freeze failed for base venv: {result.stderr or 'unknown error'}")
+        if progress_callback is not None:
+            progress_callback(
+                "provider_setup_install_deps",
+                60,
+                "Installing conda environment, local provider dependencies, and CUDA (if applicable)...",
+            )
+        _run_local_provider_conda_install(source_code_dir)
 
-    if progress_callback is not None:
-        progress_callback(
-            "provider_setup_freeze_requirements",
-            80,
-            "Freezing local provider base environment requirements...",
+        # Always ensure the local provider config snapshot is generated via the base conda env.
+        # This uses the same logic as /server/info but runs inside the shared env and
+        # writes the result to HOME_DIR/local_provider/local_provider_config.json.
+        python_bin = os.path.join(_CONDA_ENV_DIR, "bin", "python")
+        script_path = os.path.join(
+            source_code_dir, "transformerlab", "compute_providers", "services", "local", "local_provider_config.py"
         )
+        env = os.environ.copy()
+        venv_bin = os.path.join(_CONDA_ENV_DIR, "bin")
+        env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
 
-    # Always ensure the local provider config snapshot is generated via the base venv.
-    # This uses the same logic as /server/info but runs inside the shared base venv and
-    # writes the result to HOME_DIR/local_provider/local_provider_config.json.
-    python_bin = os.path.join(base_venv_path, "bin", "python")
-    script_path = os.path.join(
-        source_code_dir,
-        "transformerlab",
-        "compute_providers",
-        "services",
-        "local",
-        "local_provider_config.py",
-    )
-    env = os.environ.copy()
-    venv_bin = os.path.join(base_venv_path, "bin")
-    env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+        if progress_callback is not None:
+            progress_callback(
+                "provider_setup_collect_metrics",
+                90,
+                "Collecting local machine metrics for the provider...",
+            )
 
-    if progress_callback is not None:
-        progress_callback(
-            "provider_setup_collect_metrics",
-            90,
-            "Collecting local machine metrics for the provider...",
+        result = subprocess.run(
+            [python_bin, script_path],
+            cwd=source_code_dir,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=300,
         )
+        if result.returncode != 0:
+            raise RuntimeError(
+                "Failed to generate local provider config "
+                f"(exit {result.returncode}): {result.stderr or result.stdout or 'unknown error'}"
+            )
 
-    result = subprocess.run(
-        [python_bin, script_path],
-        cwd=source_code_dir,
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=300,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            "Failed to generate local provider config "
-            f"(exit {result.returncode}): {result.stderr or result.stdout or 'unknown error'}"
+        _write_base_state(
+            ready=True,
+            message="Base environment prepared and local provider config generated.",
         )
 
     if progress_callback is not None:
@@ -744,4 +859,4 @@ def ensure_base_venv_and_requirements(
             "Local provider base environment and metrics are ready.",
         )
 
-    return base_requirements
+    return _CONDA_ENV_DIR

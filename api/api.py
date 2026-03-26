@@ -59,7 +59,6 @@ from transformerlab.routers import (  # noqa: E402
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 
 
-from transformerlab import fastchat_openai_api  # noqa: E402
 from transformerlab.routers.experiment import experiment  # noqa: E402
 from transformerlab.routers.experiment import jobs  # noqa: E402
 from transformerlab.shared import shared  # noqa: E402
@@ -323,7 +322,6 @@ app.include_router(experiment.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(plugins.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(jobs.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(config.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(fastchat_openai_api.router)
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
 app.include_router(auth.router)

@@ -43,9 +43,9 @@ jobs:
         run: |
           pip install uv
           uv pip install --system pytest pytest-asyncio jsonschema requests pytest-cov shellcheck-py
-          # Temporarily remove transformerlab from pyproject.toml to avoid installing unreleased version
+          # Minimal api/pyproject.toml only in CI; drop SDK pin so ../lab-sdk editable install wins
           sed -i.bak '/^  "transformerlab==/d' pyproject.toml
-          uv pip install --system .[cpu] --index=https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+          uv pip install --system .
           mv pyproject.toml.bak pyproject.toml || true
       - name: Install lab-sdk in editable mode
         run: |

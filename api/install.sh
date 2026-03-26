@@ -4,7 +4,10 @@ set -e
 ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
+# lab-sdk lives next to src (same layout as the git repo: repo/api, repo/lab-sdk)
+TLAB_LAB_SDK_DIR="${TLAB_DIR}/lab-sdk"
 TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
+GENERAL_UV_ENV_DIR="${TLAB_DIR}/envs/general-uv"
 
 OLD_MINICONDA_ROOT=${TLAB_DIR}/miniconda3 # old place -- used to detect if an old install exists
 MINIFORGE_ROOT=${TLAB_DIR}/miniforge3
@@ -207,6 +210,14 @@ download_transformer_lab() {
     rm "${TLAB_DIR}/transformerlab.tar.gz"
     abort "❌ Expected 'api' directory not found in downloaded release at ${NEW_DIRECTORY_PATH}/api. The release archive may be malformed or the repository structure has changed."
   fi
+  if [ -d "${NEW_DIRECTORY_PATH}/lab-sdk" ]; then
+    rm -rf "${TLAB_LAB_SDK_DIR}"
+    mv "${NEW_DIRECTORY_PATH}/lab-sdk" "${TLAB_LAB_SDK_DIR}"
+    ohai "✅ Installed lab-sdk to ${TLAB_LAB_SDK_DIR}"
+  else
+    warn "No lab-sdk directory in release at ${NEW_DIRECTORY_PATH}/lab-sdk; local-provider installs will use PyPI transformerlab unless you add lab-sdk alongside api."
+  fi
+  rm -rf "${NEW_DIRECTORY_PATH}"
   rm "${TLAB_DIR}/transformerlab.tar.gz"
   # Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
   echo "${LATEST_RELEASE_VERSION}" > "${TLAB_CODE_DIR}/LATEST_VERSION"
@@ -512,25 +523,56 @@ install_dependencies() {
   echo "🌕 Step 4: COMPLETE"
 }
 
+install_general_dependencies_uv() {
+  title "Step 4: Install General Dependencies (uv)"
+  echo "Installing minimal API dependencies in a uv venv (no global conda env)."
+  echo "🌘 Step 4: START"
+
+  # Ensure uv is available
+  if ! command -v uv &> /dev/null; then
+    if command -v pip &> /dev/null; then
+      pip install uv
+    else
+      abort "❌ uv is not installed and pip is unavailable to install it."
+    fi
+  fi
+
+  # Determine the directory containing pyproject.toml
+  if [ -e "$RUN_DIR/pyproject.toml" ]; then
+    PROJECT_DIR="$RUN_DIR"
+  elif [ -e "$TLAB_CODE_DIR/pyproject.toml" ]; then
+    PROJECT_DIR="$TLAB_CODE_DIR"
+  else
+    abort "❌ pyproject.toml not found in run directory or src location."
+  fi
+
+  mkdir -p "${TLAB_DIR}/envs"
+  uv venv "${GENERAL_UV_ENV_DIR}" --python 3.11 --clear
+
+  # Install only base project dependencies (no [cpu]/[nvidia]/[rocm] extras).
+  uv pip install --python "${GENERAL_UV_ENV_DIR}/bin/python" "${PROJECT_DIR}"
+
+  if ! "${GENERAL_UV_ENV_DIR}/bin/python" -c "import uvicorn" &> /dev/null; then
+    abort "❌ Uvicorn is not installed in the general uv environment."
+  fi
+
+  # Record the status after this install for debugging and to check if an install has been attempted
+  PIP_LIST=$(uv pip list --python "${GENERAL_UV_ENV_DIR}/bin/python" --format json)
+  echo "${PIP_LIST}" > "${TLAB_CODE_DIR}/INSTALLED_DEPENDENCIES"
+
+  echo "🌕 Step 4: COMPLETE"
+}
+
 ##############################
 ## Step 5: Install Compute Providers
 ##############################
 
 multiuser_setup() {
-  title "Step 5: Install Compute Providers (multiuser, latest release)"
-  echo "🌘 Step 5: START"
+  title "Install Teams Version of Transformer Lab (multiuser, latest release)"
 
-  # Ensure we are on the latest Transformer Lab release and environment
+  # Ensure we are on the latest Transformer Lab release and use lightweight uv setup
   TLAB_INSTALL_CHANNEL=latest download_transformer_lab
-  install_conda
-  create_conda_environment
-  install_dependencies
-
-  unset_conda_for_sure
-  eval "$(${CONDA_BIN} shell.bash hook)"
-  conda activate "$ENV_DIR"
-
-  check_python
+  install_general_dependencies_uv
 
   # Install uv if not already installed
   if ! command -v uv &> /dev/null; then
@@ -538,13 +580,13 @@ multiuser_setup() {
   fi
 
   echo "Installing SkyPilot with Kubernetes support..."
-  uv pip install "skypilot[kubernetes]==0.10.5"
+  uv pip install --python "${GENERAL_UV_ENV_DIR}/bin/python" "skypilot[kubernetes]==0.10.5"
 
   echo "Installing paramiko for SLURM provider support..."
-  uv pip install paramiko
+  uv pip install --python "${GENERAL_UV_ENV_DIR}/bin/python" paramiko
 
   echo "Installing Sentry SDK..."
-  uv pip install sentry-sdk
+  uv pip install --python "${GENERAL_UV_ENV_DIR}/bin/python" sentry-sdk
 
   # Replace webapp with multiuser web build (login, teams, etc.)
   ohai "Downloading multiuser web build and replacing webapp..."
@@ -562,7 +604,8 @@ multiuser_setup() {
     echo "Warning: Could not download multiuser web build from ${TLAB_MULTI_URL}. Webapp unchanged."
   fi
 
-  echo "🌕 Step 5: COMPLETE"
+  echo "Multiuser setup complete."
+
 }
 
 list_installed_packages() {
@@ -609,8 +652,10 @@ print_success_message() {
   echo "  ${TLAB_DIR}"
   echo "Your workspace is located at:"
   echo "  ${TLAB_DIR}/workspace"
-  echo "Your conda environment is at:"
-  echo "  ${ENV_DIR}"
+  echo "Your default conda environment is at:"
+  echo "  ${ENV_DIR} (used for full/local-provider installs)"
+  echo "Your general uv environment is at:"
+  echo "  ${GENERAL_UV_ENV_DIR} (used for multiuser/general installs)"
   echo "You can run Transformer Lab with:"
   echo "  conda activate ${ENV_DIR}"
   echo "  cd ${TLAB_CODE_DIR}"
