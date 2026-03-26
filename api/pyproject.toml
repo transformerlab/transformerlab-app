@@ -8,10 +8,6 @@ build-backend = "hatchling.build"
 packages = ["tlab_package_init"]
 
 [project]
-name = "transformerlab-api"
-version = "0.27.0"
-description = "Transformer Lab API"
-requires-python = ">=3.11"
 dependencies = [
   # Minimal dependencies for general/multiuser API installs
   "aiosqlite==0.20.0",
@@ -30,7 +26,7 @@ dependencies = [
   "python-dotenv==1.1.0",
   "python-multipart==0.0.20",
   "sqlalchemy[asyncio]==2.0.40",
-  "transformerlab==0.1.6",
+  "transformerlab==0.1.8",
   "transformerlab-inference==0.2.52",
   "uvicorn==0.35.0",
   "watchfiles==1.0.5",
@@ -38,4 +34,7 @@ dependencies = [
   "google-cloud-storage==2.18.2",
   "azure-storage-blob==12.28.0",
   "cashews==7.5.0",
-]
+]name = "transformerlab-api"
+version = "0.27.0"
+description = "Transformer Lab API"
+requires-python = ">=3.11"

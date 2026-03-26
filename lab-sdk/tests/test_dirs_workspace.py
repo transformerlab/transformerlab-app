@@ -117,5 +117,3 @@ async def test_localfs_mode_uses_storage_uri_as_home_per_org(monkeypatch, tmp_pa
     assert os.path.isdir(ws2)
 
     dirs_workspace.set_organization_id(None)
-    root_default = await lab_storage.root_uri()
-    assert root_default == str(localfs_root)

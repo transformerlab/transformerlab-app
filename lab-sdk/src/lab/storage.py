@@ -237,6 +237,20 @@ def _get_fs_and_root():
     """
     # Check context variable first, then fall back to environment variable
     tfl_uri = _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")
+
+    # When org-scoped storage is enabled, the context var MUST be set so that
+    # the resolved root is scoped to the correct organization.  If it isn't,
+    # we'd silently fall back to the unscoped TFL_STORAGE_URI, causing
+    # "not found" errors for org-specific resources (jobs, models, etc.).
+    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
+    uses_localfs_multi_org = STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI")
+    if (tfl_remote_storage_enabled or uses_localfs_multi_org) and _current_tfl_storage_uri.get() is None:
+        raise RuntimeError(
+            "Organization context is required but not set. "
+            "Ensure set_organization_id() is called before accessing storage "
+            "(e.g. in request middleware or at the start of a background task)."
+        )
+
     return _get_fs_for_uri(tfl_uri)
 
 

@@ -219,6 +219,49 @@ export default function QueueTaskModal({
   const isLocalProvider = selectedProvider?.type === 'local';
   const isSlurmProvider = selectedProvider?.type === 'slurm';
   const isSkypilotProvider = selectedProvider?.type === 'skypilot';
+  const isGalleryImported = Boolean((task as any)?.gallery_import);
+
+  const suggestedGalleryResources = React.useMemo(() => {
+    if (!isGalleryImported) return null;
+
+    const mapping = (task as any)?.supportedAccelerators as
+      | Record<
+          string,
+          { resources?: Record<string, unknown> | undefined } | undefined
+        >
+      | undefined;
+    if (!mapping || typeof mapping !== 'object') return null;
+
+    const providerSupported = selectedProvider?.config?.supported_accelerators;
+    if (!Array.isArray(providerSupported)) return null;
+
+    const providerSupportedLower = providerSupported.map((s: any) =>
+      String(s).toLowerCase(),
+    );
+
+    const priority = ['NVIDIA', 'AMD', 'AppleSilicon', 'cpu'];
+    for (const candidate of priority) {
+      const candidateLower = candidate.toLowerCase();
+      if (!providerSupportedLower.includes(candidateLower)) continue;
+
+      const entry = (mapping as any)[candidate];
+      const resources = entry?.resources;
+      if (!resources || typeof resources !== 'object') continue;
+
+      const accelerators = (resources as any).accelerators;
+      const cpus = (resources as any).cpus;
+      const memory = (resources as any).memory;
+
+      return {
+        category: candidate,
+        accelerators: accelerators ? String(accelerators) : undefined,
+        cpus: cpus ? String(cpus) : undefined,
+        memory: memory ? String(memory) : undefined,
+      };
+    }
+
+    return null;
+  }, [isGalleryImported, selectedProvider, task]);
 
   // Fetch user-specific provider settings (including default custom SBATCH flags)
   const slurmUserSettingsKey =
@@ -1291,6 +1334,56 @@ export default function QueueTaskModal({
                   Choose which compute provider should run this task.
                 </FormHelperText>
               </FormControl>
+
+              {isGalleryImported && (
+                <Alert
+                  variant="soft"
+                  color="warning"
+                  startDecorator={<AlertTriangleIcon size={18} />}
+                  sx={{ mt: 1 }}
+                >
+                  <Typography level="body-sm">
+                    This task was imported from the gallery. Please make sure
+                    the selected resources for this task match the
+                    provider&apos;s availability.
+                  </Typography>
+                  {suggestedGalleryResources && (
+                    <Typography level="body-xs" sx={{ mt: 1 }}>
+                      Suggested ({suggestedGalleryResources.category}):{' '}
+                      {[
+                        suggestedGalleryResources.accelerators &&
+                          `accelerators=${suggestedGalleryResources.accelerators}`,
+                        suggestedGalleryResources.cpus &&
+                          `cpus=${suggestedGalleryResources.cpus}`,
+                        suggestedGalleryResources.memory &&
+                          `memory=${suggestedGalleryResources.memory}`,
+                      ]
+                        .filter(Boolean)
+                        .join(', ')}
+                    </Typography>
+                  )}
+                  <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      color="warning"
+                      onClick={() => {
+                        if (!showResourceOverrides) {
+                          setShowResourceOverrides(true);
+                          return;
+                        }
+                        resourceOverridesRef.current?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'nearest',
+                        });
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      Review resources
+                    </Button>
+                  </Stack>
+                </Alert>
+              )}
 
               {/* SLURM per-job SBATCH flags */}
               {isSlurmProvider && (

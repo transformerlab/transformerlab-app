@@ -58,6 +58,8 @@ export default function JobProgress({
   const { experimentInfo } = useExperimentInfo();
   const { fetchWithAuth } = useAuth();
   const stopping = job?.status === 'STOPPING';
+  const effectiveLaunchProgress =
+    launchProgress ?? job?.job_data?.launch_progress ?? null;
 
   // Shared stop handler for both LAUNCHING and RUNNING states
   const handleStopJob = useCallback(async () => {
@@ -129,40 +131,13 @@ export default function JobProgress({
     const liveStatus = job?.job_data?.live_status;
     if (!liveStatus) return null;
 
-    if (liveStatus === 'lab_init') {
-      return (
-        <Typography level="body-xs" color="neutral">
-          Lab instance initialized inside remote job.
-        </Typography>
-      );
-    }
+    const isCrashed = liveStatus.toLowerCase().includes('crashed');
 
-    if (liveStatus === 'started') {
-      return (
-        <Typography level="body-xs" color="neutral">
-          Remote command started on compute provider&hellip;
-        </Typography>
-      );
-    }
-
-    if (liveStatus === 'crashed') {
-      return (
-        <Typography level="body-xs" color="danger">
-          Remote command crashed. Check provider logs for details.
-        </Typography>
-      );
-    }
-
-    if (liveStatus === 'finished') {
-      return (
-        <Typography level="body-xs" color="neutral">
-          Remote command finished. Waiting for provider to finalize job
-          status&hellip;
-        </Typography>
-      );
-    }
-
-    return null;
+    return (
+      <Typography level="body-xs" color={isCrashed ? 'danger' : 'neutral'}>
+        {liveStatus}
+      </Typography>
+    );
   };
 
   // Format provider launch result for display
@@ -249,6 +224,30 @@ export default function JobProgress({
             >
               {job.status}
             </Chip>
+            {effectiveLaunchProgress?.percent != null && (
+              <Stack
+                direction="row"
+                alignItems="center"
+                gap={0.5}
+                sx={{ flexShrink: 0 }}
+              >
+                <CircularProgress
+                  determinate
+                  value={Math.min(
+                    100,
+                    Math.max(0, effectiveLaunchProgress.percent),
+                  )}
+                  size="sm"
+                  thickness={3}
+                />
+                <Typography level="body-xs" fontWeight="md">
+                  {Math.round(
+                    Math.min(100, Math.max(0, effectiveLaunchProgress.percent)),
+                  )}
+                  %
+                </Typography>
+              </Stack>
+            )}
             {showLaunchResultInfo &&
               job?.status === 'LAUNCHING' &&
               job?.job_data?.provider_launch_result && (
@@ -299,22 +298,26 @@ export default function JobProgress({
               </Typography>
             )}
           </Stack>
-          {(launchProgress?.message || launchProgress?.percent != null) && (
+          {(effectiveLaunchProgress?.message ||
+            effectiveLaunchProgress?.percent != null) && (
             <Stack
               direction="column"
               sx={{ width: '100%', mt: 0.5 }}
               spacing={0.5}
             >
-              {launchProgress?.message && (
+              {effectiveLaunchProgress?.message && (
                 <Typography level="body-sm" textColor="neutral.600">
-                  {launchProgress.message}
+                  {effectiveLaunchProgress.message}
                 </Typography>
               )}
-              {launchProgress?.percent != null && (
+              {effectiveLaunchProgress?.percent != null && (
                 <LinearProgress
                   determinate
-                  value={Math.min(100, Math.max(0, launchProgress.percent))}
-                  sx={{ maxWidth: 200, height: 6 }}
+                  value={Math.min(
+                    100,
+                    Math.max(0, effectiveLaunchProgress.percent),
+                  )}
+                  sx={{ maxWidth: 240, height: 6, borderRadius: 'sm' }}
                 />
               )}
             </Stack>
@@ -484,7 +487,17 @@ export default function JobProgress({
                 <Typography level="body-sm" color="neutral" />
               ))}
             {job?.status === 'FAILED' && job?.job_data?.error_msg && (
-              <Typography level="body-sm" color="danger">
+              <Typography
+                level="body-sm"
+                color="danger"
+                sx={{
+                  maxWidth: 400,
+                  maxHeight: 80,
+                  overflow: 'auto',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              >
                 Error: {job.job_data.error_msg}
               </Typography>
             )}
