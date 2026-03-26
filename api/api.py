@@ -64,10 +64,8 @@ from transformerlab.routers.experiment import experiment  # noqa: E402
 from transformerlab.routers.experiment import jobs  # noqa: E402
 from transformerlab.shared import shared  # noqa: E402
 from transformerlab.shared import galleries  # noqa: E402
-from lab.dirs import get_workspace_dir  # noqa: E402
 from transformerlab.shared import dirs  # noqa: E402
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
-from lab import storage  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
 from transformerlab.services.sweep_status_service import start_sweep_status_worker, stop_sweep_status_worker  # noqa: E402
 from transformerlab.services.cache_service import setup as setup_cache  # noqa: E402
