@@ -1,3 +1,4 @@
+import os
 import json
 from typing import Any
 from urllib.parse import urlparse
@@ -26,10 +27,11 @@ def load_config() -> dict[str, Any]:
     if cached_config is not None:
         return cached_config
 
-    if not CONFIG_FILE.exists():
+    if not os.path.exists(CONFIG_FILE):
         return {}
     try:
-        cached_config = json.loads(CONFIG_FILE.read_text())
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            cached_config = json.loads(f.read())
         return cached_config
     except (json.JSONDecodeError, OSError):
         return {}
@@ -39,8 +41,9 @@ def _save_config(config: dict[str, Any]) -> bool:
     """Save config to file. Returns True on success."""
     global cached_config
     try:
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        CONFIG_FILE.write_text(json.dumps(config, indent=2))
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            f.write(json.dumps(config, indent=2))
         cached_config = config
         return True
     except OSError as e:
