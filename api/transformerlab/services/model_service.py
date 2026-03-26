@@ -28,15 +28,11 @@ async def list_installed_models() -> list:
 
     # Use SDK to get all models from the filesystem
     models = await ModelService.list_all()
+    models = [m for m in models if m and m != {} and m != ""]
 
     # Add additional metadata to each model
     models_dir = await get_models_dir()
     for model in models:
-        if model == {} or model is None or model == "":
-            logger.debug("Model entry not found, skipping")
-            # Remove model from models list
-            models.remove(model)
-            continue
         # Only set model["stored_in_filesystem"] to True if the model is a local model and not a Hugging Face model
         # model_filename can be:
         # - A filename (e.g., "model.gguf") for file-based models
