@@ -2,11 +2,13 @@
 The Entrypoint File for Transformer Lab's API Server.
 """
 
+import asyncio
 import os
 import argparse
 import re
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 import sys
 
@@ -62,10 +64,8 @@ from transformerlab.routers.experiment import experiment  # noqa: E402
 from transformerlab.routers.experiment import jobs  # noqa: E402
 from transformerlab.shared import shared  # noqa: E402
 from transformerlab.shared import galleries  # noqa: E402
-from lab.dirs import get_workspace_dir  # noqa: E402
 from transformerlab.shared import dirs  # noqa: E402
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
-from lab import storage  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
 from transformerlab.services.sweep_status_service import start_sweep_status_worker, stop_sweep_status_worker  # noqa: E402
 from transformerlab.services.cache_service import setup as setup_cache  # noqa: E402
@@ -95,6 +95,13 @@ logging.basicConfig()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Docs on lifespan events: https://fastapi.tiangolo.com/advanced/events/"""
+    # Configure the default asyncio thread pool used by asyncio.to_thread() and run_in_executor(None, ...).
+    # Python's default is min(32, os.cpu_count() + 4) which can be very low on small machines.
+    _thread_pool_size = int(os.getenv("TFL_ASYNC_THREAD_POOL_SIZE", "256"))
+    loop = asyncio.get_running_loop()
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=_thread_pool_size))
+    print(f"✅ Async thread pool: {_thread_pool_size} workers")
+
     # Do the following at API Startup:
     print_launch_message()
     # Initialize directories early
@@ -106,9 +113,6 @@ async def lifespan(app: FastAPI):
     setup_cache()
     print("✅ CACHE ENABLED")
 
-    # Set the temporary image directory for transformerlab (computed async)
-    temp_image_dir = storage.join(await get_workspace_dir(), "temp", "images")
-    os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
     # Validate cloud credentials early - fail fast if missing
     validate_cloud_credentials()
     await galleries.update_gallery_cache()

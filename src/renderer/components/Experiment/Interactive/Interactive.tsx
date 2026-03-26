@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from 'react';
 import Sheet from '@mui/joy/Sheet';
 import { Button, Stack, Typography, Box, Skeleton } from '@mui/joy';
 import dayjs from 'dayjs';
@@ -18,6 +24,7 @@ import NewInteractiveTaskModal from '../Tasks/NewInteractiveTaskModal';
 import EditInteractiveTaskModal from '../Tasks/EditInteractiveTaskModal';
 import DeleteTaskConfirmModal from '../Tasks/DeleteTaskConfirmModal';
 import InteractiveJobCard from './InteractiveJobCard';
+import JobsList from '../Tasks/JobsList';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -36,6 +43,9 @@ export default function Interactive() {
     id: string;
     name?: string;
   } | null>(null);
+  const [launchProgressByJobId, setLaunchProgressByJobId] = useState<
+    Record<string, { phase?: string; percent?: number; message?: string }>
+  >({});
 
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
@@ -136,6 +146,82 @@ export default function Interactive() {
     return Array.isArray(jobsRemote) ? jobsRemote : [];
   }, [jobsRemote]);
 
+  // Derive a stable string of job IDs that need launch-progress polling.
+  // This avoids resetting the 3s interval on every SWR revalidation.
+  const launchPollingJobIds = useMemo(() => {
+    if (!jobs || !Array.isArray(jobs)) return '';
+    return jobs
+      .filter(
+        (job: {
+          type?: string;
+          status?: string;
+          job_data?: { provider_id?: string };
+        }) =>
+          job.type === 'REMOTE' &&
+          job.job_data?.provider_id &&
+          (job.status === 'LAUNCHING' || job.status === 'WAITING'),
+      )
+      .map((job: { id: string | number }) => String(job.id))
+      .sort()
+      .join(',');
+  }, [jobs]);
+
+  // Keep a ref to the latest fetchWithAuth/jobsMutate so the interval callback
+  // always uses current values without being in the dependency array.
+  const fetchWithAuthRef = useRef(fetchWithAuth);
+  const jobsMutateRef = useRef(jobsMutate);
+  useEffect(() => {
+    fetchWithAuthRef.current = fetchWithAuth;
+  }, [fetchWithAuth]);
+  useEffect(() => {
+    jobsMutateRef.current = jobsMutate;
+  }, [jobsMutate]);
+
+  // Poll REMOTE jobs in LAUNCHING/WAITING for live launch_progress (same pattern as Tasks).
+  useEffect(() => {
+    if (!launchPollingJobIds) return;
+
+    const ids = launchPollingJobIds.split(',');
+
+    const checkJobs = async () => {
+      for (const jobId of ids) {
+        try {
+          const response = await fetchWithAuthRef.current(
+            chatAPI.Endpoints.ComputeProvider.CheckJobStatus(jobId),
+            { method: 'GET' },
+          );
+          if (response.ok) {
+            const result = await response.json();
+            if (
+              result.current_status === 'COMPLETE' ||
+              result.current_status === 'FAILED' ||
+              result.current_status === 'STOPPED'
+            ) {
+              setLaunchProgressByJobId((prev) => {
+                const next = { ...prev };
+                delete next[jobId];
+                return next;
+              });
+              setTimeout(() => jobsMutateRef.current(), 0);
+            } else if (result.launch_progress) {
+              setLaunchProgressByJobId((prev) => ({
+                ...prev,
+                [jobId]: result.launch_progress,
+              }));
+            }
+          }
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error(`Failed to check job ${jobId}:`, error);
+        }
+      }
+    };
+
+    checkJobs();
+    const interval = setInterval(checkJobs, 3000);
+    return () => clearInterval(interval);
+  }, [launchPollingJobIds]);
+
   // Fetch templates with interactive subtype
   const {
     data: allTemplates,
@@ -177,12 +263,13 @@ export default function Interactive() {
   const jobsWithPlaceholders = useMemo(() => {
     const baseJobs = Array.isArray(jobs) ? jobs : [];
 
-    // Show active interactive jobs (INTERACTIVE, RUNNING, LAUNCHING, STOPPING)
+    // Show active interactive jobs
     const filteredJobs = baseJobs.filter((job: any) => {
       return (
         job.status === 'INTERACTIVE' ||
         job.status === 'RUNNING' ||
         job.status === 'LAUNCHING' ||
+        job.status === 'WAITING' ||
         job.status === 'STOPPING'
       );
     });
@@ -206,6 +293,18 @@ export default function Interactive() {
 
     return [...placeholders, ...filteredJobs];
   }, [jobs, getPendingJobIds, pendingIdsTrigger]);
+
+  // Completed / failed / stopped interactive jobs for the History section
+  const historyJobs = useMemo(() => {
+    const baseJobs = Array.isArray(jobs) ? jobs : [];
+    return baseJobs.filter((job: any) => {
+      return (
+        job.status === 'COMPLETE' ||
+        job.status === 'FAILED' ||
+        job.status === 'STOPPED'
+      );
+    });
+  }, [jobs]);
 
   const handleDeleteTask = (taskId: string, taskName?: string) => {
     setTaskToDelete({ id: taskId, name: taskName });
@@ -927,15 +1026,11 @@ export default function Interactive() {
               }}
             >
               <Typography level="body-lg" sx={{ mb: 2 }}>
-                No interactive jobs yet
-              </Typography>
-              <Typography level="body-sm" color="neutral" sx={{ mb: 1 }}>
-                Interactive jobs are long running services like an Inference
-                Server, VS Code or Jupyter notebook.
+                No running services
               </Typography>
               <Typography level="body-sm" color="neutral">
-                Import an interactive task from the gallery and then queue it to
-                start.
+                Click <b>New</b> to launch an interactive service such as
+                Jupyter, VS Code, or an inference server.
               </Typography>
             </Box>
           )}
@@ -953,7 +1048,11 @@ export default function Interactive() {
             }}
           >
             {jobsWithPlaceholders.map((job: any) => (
-              <InteractiveJobCard key={job.id} job={job} />
+              <InteractiveJobCard
+                key={job.id}
+                job={job}
+                launchProgress={launchProgressByJobId[String(job.id)]}
+              />
             ))}
           </Box>
         )}
@@ -970,6 +1069,11 @@ export default function Interactive() {
           overflow: 'auto',
         }}
       >
+        <JobsList
+          jobs={historyJobs}
+          loading={jobsIsLoading || !experimentInfo?.id}
+        />
+        {/* TODO: remove TaskTemplateList once migration is complete
         <TaskTemplateList
           tasksList={tasks}
           onDeleteTask={handleDeleteTask}
@@ -979,6 +1083,7 @@ export default function Interactive() {
           loading={templatesIsLoading || !experimentInfo?.id}
           interactTasks
         />
+        */}
       </Sheet>
       <DeleteTaskConfirmModal
         open={taskToDelete !== null}

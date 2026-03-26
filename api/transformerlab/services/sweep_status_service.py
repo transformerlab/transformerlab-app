@@ -20,7 +20,10 @@ SWEEP_STATUS_INTERVAL_SECONDS = int(os.getenv("SWEEP_STATUS_INTERVAL_SECONDS", "
 # Without a bound, a large sweep fires N simultaneous requests, which can spike
 # memory and approach S3 per-prefix rate limits (~5,500 GET/s).  Ten concurrent
 # reads already gives most of the latency win over purely serial fetches.
-_CHILD_FETCH_CONCURRENCY = 10
+try:
+    _CHILD_FETCH_CONCURRENCY = int(os.getenv("TFL_SWEEP_CHILD_FETCH_CONCURRENCY", "10"))
+except Exception:  # noqa: BLE001
+    _CHILD_FETCH_CONCURRENCY = 10
 _child_fetch_semaphore = asyncio.Semaphore(_CHILD_FETCH_CONCURRENCY)
 
 _sweep_status_worker_task: Optional[asyncio.Task] = None
