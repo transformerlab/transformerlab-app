@@ -8,7 +8,7 @@ from transformers import AutoTokenizer
 from transformerlab.services import model_service
 from transformerlab.services.cache_service import cached
 from lab.dirs import get_workspace_dir
-from lab.model import Model as ModelService
+from lab.model import Model
 from lab import storage
 
 from werkzeug.utils import secure_filename
@@ -51,8 +51,8 @@ async def model_local_list():
 async def model_local_create(id: str, name: str, json_data={}):
     # Use filesystem instead of database
     try:
-        model_service = await ModelService.create(id)
-        await model_service.set_metadata(model_id=id, name=name, json_data=json_data)
+        model_obj = await Model.create(id)
+        await model_obj.set_metadata(model_id=id, name=name, json_data=json_data)
         return {"message": "model created"}
     except FileExistsError:
         return {"status": "error", "message": f"Model {id} already exists"}
@@ -65,9 +65,9 @@ async def model_local_create(id: str, name: str, json_data={}):
 async def model_local_delete(model_id: str, delete_from_cache: bool = False):
     # Try to delete from filesystem first using SDK
     try:
-        model_service = await ModelService.get(model_id)
+        model_obj = await Model.get(model_id)
         # Delete the entire directory
-        model_dir = await model_service.get_dir()
+        model_dir = await model_obj.get_dir()
         if await storage.exists(model_dir):
             await storage.rm_tree(model_dir)
             print(f"Deleted filesystem model: {model_id}")
@@ -104,7 +104,7 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
         if delete_from_cache:
             # Delete from the huggingface cache
             try:
-                model_service.delete_model_from_hf_cache(model_id)
+                model_service.delete_model_from_hf_cache(model_id)  # uses imported model_service module
             except Exception as e:
                 print(f"Error deleting model from HuggingFace cache: {e}")
                 # return {"message": "Error deleting model from HuggingFace cache"}
@@ -189,8 +189,8 @@ async def get_pipeline_tag(model_name: str):
     """
     # First try to get from filesystem
     try:
-        model_service = await ModelService.get(model_name)
-        model_data = await model_service.get_metadata()
+        model_obj = await Model.get(model_name)
+        model_data = await model_obj.get_metadata()
         if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
             pipeline_tag = model_data["json_data"]["pipeline_tag"]
             return {"status": "success", "data": pipeline_tag, "model_id": model_name}
