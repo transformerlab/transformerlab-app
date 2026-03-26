@@ -1,13 +1,5 @@
-from unittest.mock import AsyncMock, patch
 import pytest
 from unittest.mock import MagicMock
-
-
-@pytest.mark.skip(reason="Skipping test_model_list_local_uninstalled because it is taking 23 seconds to load??!!")
-def test_model_list_local_uninstalled(client):
-    resp = client.get("/model/list_local_uninstalled")
-    assert resp.status_code == 200
-    assert "data" in resp.json() or "status" in resp.json()
 
 
 def make_mock_adapter_info(overrides={}):
@@ -26,10 +18,7 @@ def make_mock_adapter_info(overrides={}):
 
 @pytest.mark.skip(reason="")
 @pytest.mark.asyncio
-@patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", new_callable=AsyncMock)
-async def test_install_peft_mock(mock_get_details, client):
-    mock_get_details.return_value = {"name": "dummy_adapter"}
-
+async def test_install_peft_mock(client):
     test_model_id = "unsloth_Llama-3.2-1B-Instruct"
     test_peft_id = "dummy_adapter"
 
