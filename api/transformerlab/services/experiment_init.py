@@ -13,6 +13,9 @@ from lab.dirs import set_organization_id as lab_set_org_id
 import os
 import shutil
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def seed_default_admin_user():
@@ -379,6 +382,8 @@ async def seed_default_experiments():
                 except Exception as e:
                     # Best-effort seeding; ignore errors (e.g., partial setups)
                     print(f"Error creating experiment {name} for team {team_id}: {e}")
+        except Exception as e:
+            logger.warning(f"Error seeding default experiments for team {team_id}: {e}")
         finally:
             if lab_set_org_id is not None:
                 lab_set_org_id(None)
