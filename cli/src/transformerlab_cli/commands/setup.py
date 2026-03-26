@@ -108,7 +108,7 @@ def _prompt_and_save_api_key(server: str) -> None:
     from transformerlab_cli.util.auth import fetch_user_info, fetch_user_teams, set_api_key
 
     console.print("\n[bold header]API Key Setup[/bold header]")
-    console.print(f"[dim]Create an API key in the web UI, then paste it here.[/dim]")
+    console.print("[dim]Create an API key in the web UI, then paste it here.[/dim]")
     console.print(f"[yellow]API keys page:[/yellow] [bold]{server.rstrip('/')}/#/user/api-keys[/bold]")
 
     key = typer.prompt("API key", hide_input=True)
