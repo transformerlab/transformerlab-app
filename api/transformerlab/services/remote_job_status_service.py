@@ -24,8 +24,8 @@ from lab.job_status import JobStatus
 from transformerlab.services import job_service, team_service
 
 
-REMOTE_JOB_STATUS_INTERVAL_SECONDS = int(os.getenv("REMOTE_JOB_STATUS_INTERVAL_SECONDS", "15"))
-EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD = int(os.getenv("EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD", "2"))
+REMOTE_JOB_STATUS_INTERVAL_SECONDS = int(os.getenv("REMOTE_JOB_STATUS_INTERVAL_SECONDS", "5"))
+EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD = int(os.getenv("EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD", "5"))
 
 # Circuit breaker: after this many consecutive provider failures, back off.
 _PROVIDER_FAILURE_THRESHOLD = 3
@@ -163,31 +163,34 @@ async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
     job_data = job.get("job_data") or {}
     live_status = job_data.get("live_status")
 
-    if live_status not in ("finished", "crashed"):
+    if live_status not in ("Remote command finished", "Remote command crashed"):
         return False
+
+    is_finished = live_status == "Remote command finished"
+    is_crashed = live_status == "Remote command crashed"
 
     job_id = str(job.get("id", ""))
     job_status = job.get("status", "")
 
     # Interactive sessions:
-    # - allow FAILED only when live_status == "crashed"
+    # - allow FAILED only when live_status indicates a crash
     # - allow STOPPED when STOPPING (user requested stop)
     # - never auto-mark COMPLETE
     if _is_interactive_subtype_job(job):
-        if live_status == "crashed":
+        if is_crashed:
             await _best_effort_stop_cluster_for_job(job)
             new_status = JobStatus.FAILED.value
         elif job_status == JobStatus.STOPPING.value:
-            new_status = JobStatus.STOPPED.value if live_status == "finished" else JobStatus.FAILED.value
+            new_status = JobStatus.STOPPED.value if is_finished else JobStatus.FAILED.value
         else:
             return False
     elif job_status == JobStatus.STOPPING.value:
-        # If the user asked to stop, prefer STOPPED even if the wrapper reports "finished".
-        new_status = JobStatus.STOPPED.value if live_status == "finished" else JobStatus.FAILED.value
+        # If the user asked to stop, prefer STOPPED even if the wrapper reports finished.
+        new_status = JobStatus.STOPPED.value if is_finished else JobStatus.FAILED.value
     else:
-        if live_status == "crashed":
+        if is_crashed:
             await _best_effort_stop_cluster_for_job(job)
-        new_status = JobStatus.COMPLETE.value if live_status == "finished" else JobStatus.FAILED.value
+        new_status = JobStatus.COMPLETE.value if is_finished else JobStatus.FAILED.value
 
     try:
         end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())

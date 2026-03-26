@@ -24,6 +24,7 @@ import NewInteractiveTaskModal from '../Tasks/NewInteractiveTaskModal';
 import EditInteractiveTaskModal from '../Tasks/EditInteractiveTaskModal';
 import DeleteTaskConfirmModal from '../Tasks/DeleteTaskConfirmModal';
 import InteractiveJobCard from './InteractiveJobCard';
+import JobsList from '../Tasks/JobsList';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -262,12 +263,13 @@ export default function Interactive() {
   const jobsWithPlaceholders = useMemo(() => {
     const baseJobs = Array.isArray(jobs) ? jobs : [];
 
-    // Show active interactive jobs (INTERACTIVE, RUNNING, LAUNCHING, STOPPING)
+    // Show active interactive jobs
     const filteredJobs = baseJobs.filter((job: any) => {
       return (
         job.status === 'INTERACTIVE' ||
         job.status === 'RUNNING' ||
         job.status === 'LAUNCHING' ||
+        job.status === 'WAITING' ||
         job.status === 'STOPPING'
       );
     });
@@ -291,6 +293,18 @@ export default function Interactive() {
 
     return [...placeholders, ...filteredJobs];
   }, [jobs, getPendingJobIds, pendingIdsTrigger]);
+
+  // Completed / failed / stopped interactive jobs for the History section
+  const historyJobs = useMemo(() => {
+    const baseJobs = Array.isArray(jobs) ? jobs : [];
+    return baseJobs.filter((job: any) => {
+      return (
+        job.status === 'COMPLETE' ||
+        job.status === 'FAILED' ||
+        job.status === 'STOPPED'
+      );
+    });
+  }, [jobs]);
 
   const handleDeleteTask = (taskId: string, taskName?: string) => {
     setTaskToDelete({ id: taskId, name: taskName });
@@ -1012,15 +1026,11 @@ export default function Interactive() {
               }}
             >
               <Typography level="body-lg" sx={{ mb: 2 }}>
-                No interactive jobs yet
-              </Typography>
-              <Typography level="body-sm" color="neutral" sx={{ mb: 1 }}>
-                Interactive jobs are long running services like an Inference
-                Server, VS Code or Jupyter notebook.
+                No running services
               </Typography>
               <Typography level="body-sm" color="neutral">
-                Import an interactive task from the gallery and then queue it to
-                start.
+                Click <b>New</b> to launch an interactive service such as
+                Jupyter, VS Code, or an inference server.
               </Typography>
             </Box>
           )}
@@ -1059,6 +1069,11 @@ export default function Interactive() {
           overflow: 'auto',
         }}
       >
+        <JobsList
+          jobs={historyJobs}
+          loading={jobsIsLoading || !experimentInfo?.id}
+        />
+        {/* TODO: remove TaskTemplateList once migration is complete
         <TaskTemplateList
           tasksList={tasks}
           onDeleteTask={handleDeleteTask}
@@ -1068,6 +1083,7 @@ export default function Interactive() {
           loading={templatesIsLoading || !experimentInfo?.id}
           interactTasks
         />
+        */}
       </Sheet>
       <DeleteTaskConfirmModal
         open={taskToDelete !== null}
