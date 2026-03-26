@@ -14,17 +14,25 @@ async def test_storage_debug_info_localfs(monkeypatch, tmp_path):
     # Ensure fresh import so env is re-read
     if "lab.storage" in list(importlib.sys.modules.keys()):
         importlib.sys.modules.pop("lab.storage")
+    if "lab.dirs" in list(importlib.sys.modules.keys()):
+        importlib.sys.modules.pop("lab.dirs")
 
     from lab import storage
+    from lab import dirs
 
-    info = await storage.debug_info()
-    # Root URI should be our localfs root path
-    assert info["root_uri"] == str(localfs_root)
-    # Provider should be reported as localfs
-    assert info["STORAGE_PROVIDER"] == "localfs"
+    dirs.set_organization_id("team1")
 
-    fs = await storage.filesystem()
-    # localfs is mounted as a local filesystem, so we expect LocalFileSystem
-    from fsspec.implementations.local import LocalFileSystem
+    try:
+        info = await storage.debug_info()
+        # Root URI should be our localfs org-scoped root path
+        assert info["root_uri"] == str(localfs_root / "orgs" / "team1")
+        # Provider should be reported as localfs
+        assert info["STORAGE_PROVIDER"] == "localfs"
 
-    assert isinstance(fs, LocalFileSystem)
+        fs = await storage.filesystem()
+        # localfs is mounted as a local filesystem, so we expect LocalFileSystem
+        from fsspec.implementations.local import LocalFileSystem
+
+        assert isinstance(fs, LocalFileSystem)
+    finally:
+        dirs.set_organization_id(None)
