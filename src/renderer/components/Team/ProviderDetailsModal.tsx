@@ -92,7 +92,7 @@ export default function ProviderDetailsModal({
   const [preSetupHook, setPreSetupHook] = useState<string>('');
   const [postSetupHook, setPostSetupHook] = useState<string>('');
   const [hooksExpanded, setHooksExpanded] = useState(false);
-  const [forceRefresh, setForceRefresh] = useState(true);
+  const [forceRefresh, setForceRefresh] = useState(false);
 
   // SLURM-specific form fields
   const [slurmMode, setSlurmMode] = useState<'ssh' | 'rest'>('ssh');
