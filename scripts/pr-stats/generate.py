@@ -18,9 +18,9 @@ import json
 import re
 import subprocess
 import sys
+import os
 from collections import defaultdict
 from datetime import datetime
-from pathlib import Path
 
 COLORS = [
     "#58a6ff",
@@ -781,14 +781,15 @@ def main() -> None:
 
     html = build_report(prs, commits)
 
-    out_path = Path(__file__).parent / "report.html"
-    out_path.write_text(html)
+    out_path = os.path.join(os.path.dirname(__file__), "report.html")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(html)
     print(f"Report written to {out_path}")
 
     if args.open:
         import webbrowser
 
-        webbrowser.open(f"file://{out_path.resolve()}")
+        webbrowser.open(f"file://{os.path.abspath(out_path)}")
 
 
 if __name__ == "__main__":

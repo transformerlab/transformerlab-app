@@ -1,18 +1,19 @@
 """Shared test fixtures for CLI tests."""
 
+import os
 import json
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
 
 @pytest.fixture()
-def tmp_config_dir(tmp_path: Path):
+def tmp_config_dir(tmp_path):
     """Provide a temporary config directory and patch CONFIG_DIR/CONFIG_FILE."""
-    config_dir = tmp_path / ".lab"
-    config_dir.mkdir()
-    config_file = config_dir / "config.json"
+    tmp_path_str = str(tmp_path)
+    config_dir = os.path.join(tmp_path_str, ".lab")
+    os.makedirs(config_dir, exist_ok=True)
+    config_file = os.path.join(config_dir, "config.json")
     return config_dir, config_file
 
 
