@@ -115,9 +115,6 @@ async def lifespan(app: FastAPI):
     setup_cache()
     print("✅ CACHE ENABLED")
 
-    # Set the temporary image directory for transformerlab (computed async)
-    temp_image_dir = storage.join(await get_workspace_dir(), "temp", "images")
-    os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
     # Validate cloud credentials early - fail fast if missing
     validate_cloud_credentials()
     await galleries.update_gallery_cache()
