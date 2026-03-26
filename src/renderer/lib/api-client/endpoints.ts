@@ -120,9 +120,8 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/task/launch`,
   LaunchTask: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/task/launch`, // Deprecated: use LaunchTemplate
-  CheckJobStatus: (jobId: string, experimentId?: string) => {
+  CheckJobStatus: (jobId: string, experimentId: string) => {
     const baseUrl = `${API_URL()}compute_provider/jobs/${jobId}/check-status`;
-    if (!experimentId) return baseUrl;
     return `${baseUrl}?experiment_id=${encodeURIComponent(String(experimentId))}`;
   },
   CheckSweepStatus: (experimentId?: string, jobId?: string) => {

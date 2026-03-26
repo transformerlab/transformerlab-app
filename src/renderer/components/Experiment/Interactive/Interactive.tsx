@@ -179,15 +179,19 @@ export default function Interactive() {
 
   // Poll REMOTE jobs in LAUNCHING/WAITING for live launch_progress (same pattern as Tasks).
   useEffect(() => {
-    if (!launchPollingJobIds) return;
+    if (!launchPollingJobIds || !experimentInfo?.id) return;
 
     const ids = launchPollingJobIds.split(',');
+    const experimentId = String(experimentInfo.id);
 
     const checkJobs = async () => {
       for (const jobId of ids) {
         try {
           const response = await fetchWithAuthRef.current(
-            chatAPI.Endpoints.ComputeProvider.CheckJobStatus(jobId),
+            chatAPI.Endpoints.ComputeProvider.CheckJobStatus(
+              jobId,
+              experimentId,
+            ),
             { method: 'GET' },
           );
           if (response.ok) {
@@ -220,7 +224,7 @@ export default function Interactive() {
     checkJobs();
     const interval = setInterval(checkJobs, 3000);
     return () => clearInterval(interval);
-  }, [launchPollingJobIds]);
+  }, [launchPollingJobIds, experimentInfo?.id]);
 
   // Fetch templates with interactive subtype
   const {
