@@ -2881,9 +2881,9 @@ def _get_provider_setup_status_path(team_id: str, provider_id: str) -> str:
 def _read_install_log_tail(max_lines: int = 60) -> Optional[str]:
     try:
         log_path = _get_install_log_path()
-        if not log_path.exists():
+        if not os.path.exists(log_path):
             return None
-        with log_path.open("r", encoding="utf-8") as f:
+        with open(log_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
         tail = "".join(lines[-max_lines:]).strip()
         return tail or None

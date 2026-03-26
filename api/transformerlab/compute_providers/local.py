@@ -12,7 +12,6 @@ import threading
 import time
 import tempfile
 import shutil
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Callable
 
 from lab.dirs import HOME_DIR, get_local_provider_config_path, get_local_provider_root
@@ -145,7 +144,8 @@ def _write_base_state(*, ready: bool, message: str) -> None:
         "updated_at": time.time(),
         "python_version": _PYTHON_VERSION,
     }
-    _get_base_state_path().write_text(json.dumps(payload), encoding="utf-8")
+    with open(_get_base_state_path(), "w", encoding="utf-8") as f:
+        f.write(json.dumps(payload))
 
 
 def _get_install_log_path() -> str:
@@ -183,10 +183,10 @@ def _strip_transformerlab_version_pin(pyproject_path: str) -> bool:
 
 def _run_local_provider_conda_install(source_code_dir: str) -> None:
     installer_script = os.path.join(source_code_dir, "local_provider_conda_install.sh")
-    if not installer_script.exists():
+    if not os.path.exists(installer_script):
         raise FileNotFoundError(f"local_provider_conda_install.sh not found at {installer_script}")
 
-    cmd = ["/bin/bash", str(installer_script)]
+    cmd = ["/bin/bash", installer_script]
     log_path = _get_install_log_path()
     with open(log_path, "a", encoding="utf-8") as log_file:
         log_file.write(f"\n=== Local provider install start ({time.strftime('%Y-%m-%d %H:%M:%S')}) ===\n")
@@ -785,7 +785,7 @@ def ensure_base_venv_and_requirements(
     local_provider_root = get_local_provider_root()
     os.makedirs(local_provider_root, exist_ok=True)
 
-    source_code_dir = os.path.join(pyproject_path.parent)
+    source_code_dir = os.path.dirname(pyproject_path)
     if not os.path.exists(source_code_dir):
         raise FileNotFoundError(f"Source code directory not found at {source_code_dir}")
 

@@ -1,11 +1,10 @@
 import os
-from pathlib import Path
 
 import pytest
 
 
 @pytest.fixture()
-def tmp_dataset_dir(tmp_path: Path) -> str:
+def tmp_dataset_dir(tmp_path) -> str:
     # Create a temporary dataset directory with various files
     tmp_path_str = str(tmp_path)
     with open(os.path.join(tmp_path_str, "a.jsonl"), "w", encoding="utf-8") as f:
