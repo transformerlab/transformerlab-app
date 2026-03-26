@@ -7,7 +7,6 @@ import signal
 import shlex
 import subprocess
 import sys
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Callable
 
 from lab.dirs import HOME_DIR, get_local_provider_config_path, get_local_provider_root
@@ -30,12 +29,12 @@ def _read_local_provider_config() -> Optional[Dict[str, Any]]:
 
     This is the same JSON payload that was previously served by `/server/config`.
     """
-    config_path = Path(get_local_provider_config_path())
-    if not config_path.exists():
+    config_path = get_local_provider_config_path()
+    if not os.path.exists(config_path):
         return None
     try:
-        raw = config_path.read_text(encoding="utf-8")
-        return json.loads(raw)
+        with open(config_path, "r", encoding="utf-8") as f:
+            return json.loads(f.read())
     except (OSError, json.JSONDecodeError):
         return None
 
@@ -225,29 +224,27 @@ class LocalProvider(ComputeProvider):
                 "Local provider base environment is ready.",
             )
 
-    def _get_source_code_and_pyproject(self) -> Path:
+    def _get_source_code_and_pyproject(self) -> str:
         """Return path to pyproject.toml in the transformerlab API source tree."""
         source_code_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
         if not source_code_dir or not os.path.isdir(source_code_dir):
             raise FileNotFoundError("_TFL_SOURCE_CODE_DIR is not set or not a directory; cannot sync base environment")
-        pyproject_path = Path(source_code_dir) / "pyproject.toml"
-        if not pyproject_path.exists():
+        pyproject_path = os.path.join(source_code_dir, "pyproject.toml")
+        if not os.path.exists(pyproject_path):
             raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
         return pyproject_path
 
-    def _ensure_job_venv_from_base(self, venv_path: Path, team_requirements: Path) -> None:
+    def _ensure_job_venv_from_base(self, venv_path: str, team_requirements: str) -> None:
         """Create or refresh a per-job venv by installing from the shared team requirements."""
-        team_requirements = Path(team_requirements)
-        if not team_requirements.exists():
+        if not os.path.exists(team_requirements):
             raise FileNotFoundError(f"team requirements file not found at {team_requirements}")
 
-        venv_path = Path(venv_path)
-        venv_path.mkdir(parents=True, exist_ok=True)
+        os.makedirs(venv_path, exist_ok=True)
 
         # uv venv --python (match plugin install default)
         subprocess.run(
-            ["uv", "venv", str(venv_path), "--python", _PYTHON_VERSION, "--clear"],
-            cwd=venv_path.parent,
+            ["uv", "venv", venv_path, "--python", _PYTHON_VERSION, "--clear"],
+            cwd=os.path.dirname(venv_path),
             check=True,
             capture_output=True,
             timeout=120,
@@ -256,17 +253,17 @@ class LocalProvider(ComputeProvider):
         additional_flags = _get_uv_pip_install_flags()
 
         # Use uv pip with an explicit --python target so installs go into this venv.
-        python_bin = venv_path / "bin" / "python"
+        python_bin = os.path.join(venv_path, "bin", "python")
         env = os.environ.copy()
 
         install_cmd = ["uv", "pip", "install"]
         if additional_flags:
             install_cmd.extend(shlex.split(additional_flags))
-        install_cmd.extend(["--python", str(python_bin), "-r", str(team_requirements)])
+        install_cmd.extend(["--python", python_bin, "-r", team_requirements])
 
         result = subprocess.run(
             install_cmd,
-            cwd=venv_path.parent,
+            cwd=os.path.dirname(venv_path),
             env=env,
             capture_output=True,
             text=True,
@@ -295,7 +292,7 @@ class LocalProvider(ComputeProvider):
         job_dir = (config.provider_config or {}).get("workspace_dir")
         if not job_dir or not os.path.isdir(job_dir):
             raise ValueError("Local provider requires workspace_dir (job directory) in provider_config")
-        job_dir = Path(job_dir)
+        job_dir = str(job_dir)
 
         def _status(msg: str) -> None:
             if on_status:
@@ -310,35 +307,35 @@ class LocalProvider(ComputeProvider):
         # rely on ~ and $HOME resolve inside the job workspace instead of the
         # user's real home directory. This makes it easier to clone and run
         # code in an isolated workspace for each job.
-        workspace_home = job_dir / "workspace"
-        workspace_home.mkdir(parents=True, exist_ok=True)
+        workspace_home = os.path.join(job_dir, "workspace")
+        os.makedirs(workspace_home, exist_ok=True)
 
         # Create the venv inside the per-job workspace HOME directory so that all
         # environment state (including Python packages) lives under HOME.
-        venv_path = workspace_home / "venv"
+        venv_path = os.path.join(workspace_home, "venv")
 
         # Ensure the shared base venv (common across all teams) exists and is up to date,
         # then create a per-job venv from its frozen requirements.
         base_requirements = ensure_base_venv_and_requirements()
         self._ensure_job_venv_from_base(venv_path, base_requirements)
 
-        venv_bin = venv_path / "bin"
+        venv_bin = os.path.join(venv_path, "bin")
         env = os.environ.copy()
         env.update(config.env_vars or {})
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
-        env["VIRTUAL_ENV"] = str(venv_path)
-        env["HOME"] = str(workspace_home)
+        env["VIRTUAL_ENV"] = venv_path
+        env["HOME"] = workspace_home
         env["UV_CACHE_DIR"] = os.path.join(get_local_provider_root(), "uv_cache")
         # Share the host user's cache directories so that each run does not
         # re-download large assets (HF models, pip wheels, etc.).  Fixes #1604.
-        real_home = str(Path.home())
+        real_home = os.path.expanduser("~")
         env.setdefault("HF_HOME", os.path.join(real_home, ".cache", "huggingface"))
         env.setdefault("XDG_CACHE_HOME", os.path.join(real_home, ".cache"))
 
         # Open log files early so setup output is visible to get_job_logs / tunnel_info
         # while packages are still being installed.
-        stdout_log = open(job_dir / "stdout.log", "w")
-        stderr_log = open(job_dir / "stderr.log", "w")
+        stdout_log = open(os.path.join(job_dir, "stdout.log"), "w")
+        stderr_log = open(os.path.join(job_dir, "stderr.log"), "w")
 
         if config.setup:
             _status("Running setup")
@@ -360,7 +357,7 @@ class LocalProvider(ComputeProvider):
                 stderr_log.close()
                 tail = ""
                 try:
-                    with open(job_dir / "stderr.log") as f:
+                    with open(os.path.join(job_dir, "stderr.log")) as f:
                         lines = f.readlines()
                         tail = "".join(lines[-20:])
                 except OSError:
@@ -380,7 +377,7 @@ class LocalProvider(ComputeProvider):
             start_new_session=True,
         )
         pid = proc.pid
-        with open(job_dir / "pid", "w") as f:
+        with open(os.path.join(job_dir, "pid"), "w") as f:
             f.write(str(pid))
         print(f"[LocalProvider] Process started with pid={pid}, logs at {job_dir}/stdout.log")
 
@@ -401,15 +398,16 @@ class LocalProvider(ComputeProvider):
                 "message": "workspace_dir (job dir) not set",
                 "status": "unknown",
             }
-        pid_file = Path(job_dir) / "pid"
-        if not pid_file.exists():
+        pid_file = os.path.join(job_dir, "pid")
+        if not os.path.exists(pid_file):
             return {
                 "cluster_name": cluster_name,
                 "message": "No pid file found",
                 "status": "stopped",
             }
         try:
-            pid = int(pid_file.read_text().strip())
+            with open(pid_file, "r", encoding="utf-8") as f:
+                pid = int(f.read().strip())
             _terminate_process_tree(pid, signal.SIGTERM)
             return {"cluster_name": cluster_name, "status": "stopped", "message": "Sent SIGTERM to process tree"}
         except (ValueError, ProcessLookupError, OSError) as e:
@@ -424,15 +422,16 @@ class LocalProvider(ComputeProvider):
                 state=ClusterState.UNKNOWN,
                 status_message="workspace_dir (job dir) not set",
             )
-        pid_file = Path(job_dir) / "pid"
-        if not pid_file.exists():
+        pid_file = os.path.join(job_dir, "pid")
+        if not os.path.exists(pid_file):
             return ClusterStatus(
                 cluster_name=cluster_name,
                 state=ClusterState.UNKNOWN,
                 status_message="No pid file (cluster may be starting)",
             )
         try:
-            pid = int(pid_file.read_text().strip())
+            with open(pid_file, "r", encoding="utf-8") as f:
+                pid = int(f.read().strip())
             os.kill(pid, 0)
             if _is_process_zombie(pid):
                 raise ProcessLookupError("Process is zombie/defunct")
@@ -541,11 +540,11 @@ class LocalProvider(ComputeProvider):
         if not job_dir:
             print(f"[LocalProvider.get_job_logs] workspace_dir not set for cluster={cluster_name}")
             return "workspace_dir (job dir) not set"
-        job_dir = Path(job_dir)
-        log_file = job_dir / "stdout.log"
-        err_file = job_dir / "stderr.log"
-        stdout_exists = log_file.exists()
-        stderr_exists = err_file.exists()
+        job_dir = str(job_dir)
+        log_file = os.path.join(job_dir, "stdout.log")
+        err_file = os.path.join(job_dir, "stderr.log")
+        stdout_exists = os.path.exists(log_file)
+        stderr_exists = os.path.exists(err_file)
         if not stdout_exists and not stderr_exists:
             print(f"[LocalProvider.get_job_logs] No log files in {job_dir}")
             return "No log files found"
@@ -554,9 +553,11 @@ class LocalProvider(ComputeProvider):
         # (which grows with runtime output) is at the end and new content
         # appears at the bottom of the log view.
         if stderr_exists:
-            lines.append(err_file.read_text())
+            with open(err_file, "r", encoding="utf-8") as f:
+                lines.append(f.read())
         if stdout_exists:
-            lines.append(log_file.read_text())
+            with open(log_file, "r", encoding="utf-8") as f:
+                lines.append(f.read())
         out = "\n".join(lines)
         total_lines = out.count("\n")
         if tail_lines is not None:
@@ -564,8 +565,8 @@ class LocalProvider(ComputeProvider):
             out = "\n".join(out_lines[-tail_lines:])
         print(
             f"[LocalProvider.get_job_logs] cluster={cluster_name}: "
-            f"stdout={stdout_exists} ({log_file.stat().st_size if stdout_exists else 0}B), "
-            f"stderr={stderr_exists} ({err_file.stat().st_size if stderr_exists else 0}B), "
+            f"stdout={stdout_exists} ({os.path.getsize(log_file) if stdout_exists else 0}B), "
+            f"stderr={stderr_exists} ({os.path.getsize(err_file) if stderr_exists else 0}B), "
             f"total_lines={total_lines}, tail_lines={tail_lines}"
         )
         return out
@@ -590,19 +591,17 @@ class LocalProvider(ComputeProvider):
 
     def check(self) -> bool:
         """Local provider is available local config exists."""
-        from pathlib import Path
-
-        config_path = Path(get_local_provider_config_path())
-        if config_path.exists():
+        config_path = get_local_provider_config_path()
+        if os.path.exists(config_path):
             return True
         # Backward-compat: allow existing installs that still have the file in HOME_DIR.
-        legacy_config_path = Path(HOME_DIR) / "local_provider_config.json"
-        return legacy_config_path.exists()
+        legacy_config_path = os.path.join(HOME_DIR, "local_provider_config.json")
+        return os.path.exists(legacy_config_path)
 
 
 def ensure_base_venv_and_requirements(
     progress_callback: Optional[Callable[[str, int, str], None]] = None,
-) -> Path:
+) -> str:
     """
     Ensure the shared base venv under HOME_DIR and its frozen requirements exist and are up to date.
 
@@ -619,15 +618,15 @@ def ensure_base_venv_and_requirements(
         )
 
     pyproject_path = LocalProvider()._get_source_code_and_pyproject()
-    local_provider_root = Path(get_local_provider_root())
-    local_provider_root.mkdir(parents=True, exist_ok=True)
+    local_provider_root = get_local_provider_root()
+    os.makedirs(local_provider_root, exist_ok=True)
 
-    base_venv_path = local_provider_root / "local_provider_base_venv"
-    base_requirements = local_provider_root / "local_provider_base_requirements.txt"
+    base_venv_path = os.path.join(local_provider_root, "local_provider_base_venv")
+    base_requirements = os.path.join(local_provider_root, "local_provider_base_requirements.txt")
 
-    source_code_dir = str(pyproject_path.parent)
+    source_code_dir = os.path.dirname(pyproject_path)
 
-    base_venv_path.mkdir(parents=True, exist_ok=True)
+    os.makedirs(base_venv_path, exist_ok=True)
 
     if progress_callback is not None:
         progress_callback(
@@ -638,8 +637,8 @@ def ensure_base_venv_and_requirements(
 
     # uv venv --python (match plugin install default)
     subprocess.run(
-        ["uv", "venv", str(base_venv_path), "--python", _PYTHON_VERSION, "--clear"],
-        cwd=base_venv_path.parent,
+        ["uv", "venv", base_venv_path, "--python", _PYTHON_VERSION, "--clear"],
+        cwd=os.path.dirname(base_venv_path),
         check=True,
         capture_output=True,
         timeout=120,
@@ -649,7 +648,7 @@ def ensure_base_venv_and_requirements(
     additional_flags = _get_uv_pip_install_flags()
 
     # Use uv pip with an explicit --python target so installs go into the base venv.
-    python_bin = base_venv_path / "bin" / "python"
+    python_bin = os.path.join(base_venv_path, "bin", "python")
     env = os.environ.copy()
 
     if progress_callback is not None:
@@ -662,7 +661,7 @@ def ensure_base_venv_and_requirements(
     install_cmd = ["uv", "pip", "install"]
     if additional_flags:
         install_cmd.extend(shlex.split(additional_flags))
-    install_cmd.extend(["--python", str(python_bin), f".{extra}"])
+    install_cmd.extend(["--python", python_bin, f".{extra}"])
 
     result = subprocess.run(
         install_cmd,
@@ -678,7 +677,7 @@ def ensure_base_venv_and_requirements(
 
     freeze_cmd = ["uv", "pip", "freeze", "--python", str(python_bin)]
     try:
-        with base_requirements.open("w", encoding="utf-8") as req_file:
+        with open(base_requirements, "w", encoding="utf-8") as req_file:
             result = subprocess.run(
                 freeze_cmd,
                 cwd=source_code_dir,
@@ -704,17 +703,17 @@ def ensure_base_venv_and_requirements(
     # Always ensure the local provider config snapshot is generated via the base venv.
     # This uses the same logic as /server/info but runs inside the shared base venv and
     # writes the result to HOME_DIR/local_provider/local_provider_config.json.
-    python_bin = base_venv_path / "bin" / "python"
-    script_path = (
-        Path(source_code_dir)
-        / "transformerlab"
-        / "compute_providers"
-        / "services"
-        / "local"
-        / "local_provider_config.py"
+    python_bin = os.path.join(base_venv_path, "bin", "python")
+    script_path = os.path.join(
+        source_code_dir,
+        "transformerlab",
+        "compute_providers",
+        "services",
+        "local",
+        "local_provider_config.py",
     )
     env = os.environ.copy()
-    venv_bin = base_venv_path / "bin"
+    venv_bin = os.path.join(base_venv_path, "bin")
     env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
 
     if progress_callback is not None:
@@ -725,7 +724,7 @@ def ensure_base_venv_and_requirements(
         )
 
     result = subprocess.run(
-        [str(python_bin), str(script_path)],
+        [python_bin, script_path],
         cwd=source_code_dir,
         env=env,
         capture_output=True,

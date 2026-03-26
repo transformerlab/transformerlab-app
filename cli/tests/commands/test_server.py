@@ -1,6 +1,6 @@
 """Tests for server install command."""
 
-from pathlib import Path
+import os
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -25,26 +25,27 @@ def test_server_install_help():
     assert "--dry-run" in strip_ansi(result.output)
 
 
-def test_load_existing_env(tmp_path: Path):
+def test_load_existing_env(tmp_path):
     """Test parsing an existing .env file."""
-    env_file = tmp_path / ".env"
-    env_file.write_text(
-        "# Comment line\n"
-        'FRONTEND_URL="http://example.com"\n'
-        "MULTIUSER=true\n"
-        "  \n"
-        "# Another comment\n"
-        "TFL_STORAGE_PROVIDER='aws'\n"
-    )
+    env_file = os.path.join(str(tmp_path), ".env")
+    with open(env_file, "w", encoding="utf-8") as f:
+        f.write(
+            "# Comment line\n"
+            'FRONTEND_URL="http://example.com"\n'
+            "MULTIUSER=true\n"
+            "  \n"
+            "# Another comment\n"
+            "TFL_STORAGE_PROVIDER='aws'\n"
+        )
     result = _load_existing_env(env_file)
     assert result["FRONTEND_URL"] == "http://example.com"
     assert result["MULTIUSER"] == "true"
     assert result["TFL_STORAGE_PROVIDER"] == "aws"
 
 
-def test_load_existing_env_missing(tmp_path: Path):
+def test_load_existing_env_missing(tmp_path):
     """Test that a missing file returns an empty dict."""
-    result = _load_existing_env(tmp_path / "nonexistent")
+    result = _load_existing_env(os.path.join(str(tmp_path), "nonexistent"))
     assert result == {}
 
 
@@ -81,9 +82,9 @@ def test_generate_secret_different():
     assert _generate_secret() != _generate_secret()
 
 
-def test_server_install_dry_run_defaults(tmp_path: Path):
+def test_server_install_dry_run_defaults(tmp_path):
     """Test a full dry-run with all defaults accepted."""
-    fake_env = tmp_path / ".env"
+    fake_env = os.path.join(str(tmp_path), ".env")
 
     # Flow: frontend URL -> storage type (aws) -> compute? (n) -> email? (n) -> auth? (n)
     user_input = "\n".join(
@@ -102,12 +103,12 @@ def test_server_install_dry_run_defaults(tmp_path: Path):
     assert result.exit_code == 0
     assert "Dry run complete" in result.output
     assert "No files were written" in result.output
-    assert not fake_env.exists()
+    assert not os.path.exists(fake_env)
 
 
-def test_server_install_writes_file(tmp_path: Path):
+def test_server_install_writes_file(tmp_path):
     """Test that install writes the .env file when not in dry-run mode."""
-    fake_env = tmp_path / ".env"
+    fake_env = os.path.join(str(tmp_path), ".env")
 
     user_input = "\n".join(
         [
@@ -124,9 +125,10 @@ def test_server_install_writes_file(tmp_path: Path):
         result = runner.invoke(app, ["server", "install"], input=user_input)
 
     assert result.exit_code == 0
-    assert fake_env.exists()
+    assert os.path.exists(fake_env)
 
-    content = fake_env.read_text()
+    with open(fake_env, "r", encoding="utf-8") as f:
+        content = f.read()
     assert 'FRONTEND_URL="http://myserver.com:8338"' in content
     assert 'TL_API_URL="http://myserver.com:8338/"' in content
     assert 'TFL_STORAGE_PROVIDER="aws"' in content
@@ -135,14 +137,15 @@ def test_server_install_writes_file(tmp_path: Path):
     assert "TRANSFORMERLAB_REFRESH_SECRET=" in content
 
 
-def test_server_install_preserves_jwt_secrets(tmp_path: Path):
+def test_server_install_preserves_jwt_secrets(tmp_path):
     """Test that existing JWT secrets are preserved on reconfigure."""
-    fake_env = tmp_path / ".env"
-    fake_env.write_text(
-        'TRANSFORMERLAB_JWT_SECRET="existing_jwt"\n'
-        'TRANSFORMERLAB_REFRESH_SECRET="existing_refresh"\n'
-        'FRONTEND_URL="http://old.com"\n'
-    )
+    fake_env = os.path.join(str(tmp_path), ".env")
+    with open(fake_env, "w", encoding="utf-8") as f:
+        f.write(
+            'TRANSFORMERLAB_JWT_SECRET="existing_jwt"\n'
+            'TRANSFORMERLAB_REFRESH_SECRET="existing_refresh"\n'
+            'FRONTEND_URL="http://old.com"\n'
+        )
 
     user_input = "\n".join(
         [
@@ -163,9 +166,9 @@ def test_server_install_preserves_jwt_secrets(tmp_path: Path):
     assert "kept existing" in result.output
 
 
-def test_server_install_storage_localfs(tmp_path: Path):
+def test_server_install_storage_localfs(tmp_path):
     """Test choosing localfs storage prompts for a path."""
-    fake_env = tmp_path / ".env"
+    fake_env = os.path.join(str(tmp_path), ".env")
 
     user_input = "\n".join(
         [
@@ -187,9 +190,9 @@ def test_server_install_storage_localfs(tmp_path: Path):
     assert "TFL_REMOTE_STORAGE_ENABLED" not in result.output
 
 
-def test_server_install_email_configured(tmp_path: Path):
+def test_server_install_email_configured(tmp_path):
     """Test configuring SMTP email."""
-    fake_env = tmp_path / ".env"
+    fake_env = os.path.join(str(tmp_path), ".env")
 
     user_input = "\n".join(
         [
@@ -214,9 +217,9 @@ def test_server_install_email_configured(tmp_path: Path):
     assert 'EMAIL_METHOD="smtp"' in result.output
 
 
-def test_server_install_email_skip(tmp_path: Path):
+def test_server_install_email_skip(tmp_path):
     """Test skipping email sets dev mode."""
-    fake_env = tmp_path / ".env"
+    fake_env = os.path.join(str(tmp_path), ".env")
 
     user_input = "\n".join(
         [
@@ -235,9 +238,9 @@ def test_server_install_email_skip(tmp_path: Path):
     assert 'EMAIL_METHOD="dev"' in result.output
 
 
-def test_server_install_admin_info_displayed(tmp_path: Path):
+def test_server_install_admin_info_displayed(tmp_path):
     """Test that admin account info is displayed during install."""
-    fake_env = tmp_path / ".env"
+    fake_env = os.path.join(str(tmp_path), ".env")
 
     user_input = "\n".join(
         [
