@@ -1071,7 +1071,6 @@ export default function Interactive() {
       >
         <JobsList
           jobs={historyJobs}
-          onDeleteJob={handleDeleteJob}
           loading={jobsIsLoading || !experimentInfo?.id}
         />
         {/* TODO: remove TaskTemplateList once migration is complete

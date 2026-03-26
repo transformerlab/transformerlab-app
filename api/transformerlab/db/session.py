@@ -84,9 +84,13 @@ async def init():
     Create the database, tables, and workspace folder if they don't exist.
     """
     global db
-    # Migrate database from old location if necessary
-    old_db_base = os.path.join(await get_workspace_dir(), "llmlab.sqlite3")
-    if os.path.exists(old_db_base):
+    try:
+        # Migrate database from old location if necessary
+        old_db_base = os.path.join(await get_workspace_dir(), "llmlab.sqlite3")
+    except RuntimeError:
+        # Assume we are in one of the cloud modes and migration is not needed
+        old_db_base = None
+    if old_db_base and os.path.exists(old_db_base):
         if not os.path.exists(DATABASE_FILE_NAME):
             for ext in ["", "-wal", "-shm"]:
                 old_path = old_db_base + ext
