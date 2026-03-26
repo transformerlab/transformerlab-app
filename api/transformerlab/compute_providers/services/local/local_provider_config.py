@@ -4,7 +4,6 @@ import os
 import platform
 import subprocess
 import sys
-from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
@@ -254,8 +253,9 @@ async def collect_server_info() -> Dict[str, Any]:
 def main() -> None:
     """Entry point: write server info snapshot to local_provider_config.json under HOME_DIR."""
     data = asyncio.run(collect_server_info())
-    output_path = Path(get_local_provider_config_path())
-    output_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    output_path = get_local_provider_config_path()
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(json.dumps(data, indent=2))
 
 
 if __name__ == "__main__":

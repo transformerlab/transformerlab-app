@@ -7,7 +7,7 @@ Caches the result in memory to avoid hitting GitHub's rate limits.
 import logging
 import time
 import asyncio
-from pathlib import Path
+import os
 
 import httpx
 from packaging.version import Version, InvalidVersion
@@ -26,9 +26,14 @@ _cache_timestamp: float = 0.0
 
 async def get_current_version() -> str:
     """Read the installed Transformer Lab version from ~/.transformerlab/src/LATEST_VERSION."""
-    latest_version_file = Path(HOME_DIR) / "src" / "LATEST_VERSION"
+    latest_version_file = os.path.join(HOME_DIR, "src", "LATEST_VERSION")
     try:
-        version = (await asyncio.to_thread(latest_version_file.read_text, encoding="utf-8")).strip()
+
+        def _read_latest_version() -> str:
+            with open(latest_version_file, "r", encoding="utf-8") as f:
+                return f.read()
+
+        version = (await asyncio.to_thread(_read_latest_version)).strip()
         if version:
             return version.lstrip("v")
     except Exception as e:
