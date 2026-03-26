@@ -431,7 +431,10 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
                     except Exception as exc:
                         logger.warning(f"Remote job status worker: live_status check failed for job {job_id}: {exc}")
                         cycle_stats["errors"] += 1
-                        continue
+                        # Fall through to _check_job_via_provider instead of skipping.
+                        # If live_status check fails (e.g. job_data is a string instead
+                        # of a dict), the provider check can still detect the process
+                        # is dead and transition the job to STOPPED.
 
                     # --- Circuit breaker check ---
                     if _is_provider_backed_off(provider_id):
