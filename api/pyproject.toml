@@ -34,7 +34,8 @@ dependencies = [
   "google-cloud-storage==2.18.2",
   "azure-storage-blob==12.28.0",
   "cashews==7.5.0",
-]name = "transformerlab-api"
+]
+name = "transformerlab-api"
 version = "0.27.0"
 description = "Transformer Lab API"
 requires-python = ">=3.11"
