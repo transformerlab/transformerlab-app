@@ -115,7 +115,7 @@ async def task_get_all():
 @cached(
     key="tasks:get:{experimentId}:{task_id}",
     ttl="300s",
-    tags=["tasks", "tasks:list:{experimentId}", "task:{experimentId}:{task_id}"],
+    tags=["tasks", "task:{experimentId}:{task_id}"],
 )
 async def task_get_by_id(experimentId: str, task_id: str):
     task = await task_service.task_get_by_id(task_id)
