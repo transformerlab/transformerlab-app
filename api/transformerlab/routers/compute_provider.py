@@ -47,6 +47,7 @@ from transformerlab.services import quota_service
 from transformerlab.services.task_service import task_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from transformerlab.services.remote_provider_queue import enqueue_remote_launch
+from transformerlab.compute_providers.local import _get_install_log_path
 
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
@@ -2876,9 +2877,24 @@ def _get_provider_setup_status_path(team_id: str, provider_id: str) -> str:
     )
 
 
+def _read_install_log_tail(max_lines: int = 60) -> Optional[str]:
+    try:
+        log_path = _get_install_log_path()
+        if not os.path.exists(log_path):
+            return None
+        with open(log_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        tail = "".join(lines[-max_lines:]).strip()
+        return tail or None
+    except Exception:
+        logger.exception("Failed to read local provider install log")
+        return None
+
+
 async def _run_local_provider_setup_background(
     provider_instance: Any,
     status_path: str,
+    force_refresh: bool = False,
 ) -> None:
     """
     Run LocalProvider.setup in the background and write progress snapshots to a status file.
@@ -2908,7 +2924,9 @@ async def _run_local_provider_setup_background(
     try:
         loop = asyncio.get_running_loop()
         # Run the blocking setup() in a thread executor.
-        await loop.run_in_executor(None, lambda: provider_instance.setup(progress_callback=progress_callback))
+        await loop.run_in_executor(
+            None, lambda: provider_instance.setup(progress_callback=progress_callback, force_refresh=force_refresh)
+        )
         write_status("provider_setup_done", 100, "Local provider setup completed successfully.", done=True, error=None)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to run provider setup in background")
@@ -2925,6 +2943,7 @@ async def _run_local_provider_setup_background(
 @router.post("/{provider_id}/setup")
 async def setup_provider(
     provider_id: str,
+    refresh: bool = False,
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ) -> Dict[str, Any]:
@@ -2935,6 +2954,10 @@ async def setup_provider(
     and populate the shared base uv virtual environment and generate a
     local machine metrics snapshot. For remote providers this endpoint is a
     fast no-op and simply returns {"status": "skipped"}.
+
+    Args:
+      refresh: When true, force a refresh of the shared local-provider base
+      environment even if it was already prepared by another org.
     """
     team_id = user_and_team["team_id"]
 
@@ -2969,7 +2992,9 @@ async def setup_provider(
                     {
                         "phase": "provider_setup_start",
                         "percent": 0,
-                        "message": "Starting local provider setup...",
+                        "message": "Refreshing local provider setup..."
+                        if refresh
+                        else "Starting local provider setup...",
                         "done": False,
                         "error": None,
                         "timestamp": time.time(),
@@ -2980,14 +3005,35 @@ async def setup_provider(
         logger.exception("Failed to write initial provider setup status to %s", status_path)
 
     # Kick off background setup and return immediately.
-    asyncio.create_task(_run_local_provider_setup_background(provider_instance, status_path))
+    asyncio.create_task(_run_local_provider_setup_background(provider_instance, status_path, force_refresh=refresh))
 
     return {
         "status": "started",
         "provider_id": provider_id,
         "provider_type": provider.type,
-        "message": "Local provider setup started.",
+        "refresh": refresh,
+        "message": "Local provider refresh started." if refresh else "Local provider setup started.",
     }
+
+
+@router.post("/{provider_id}/setup/refresh")
+async def refresh_provider_setup(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+) -> Dict[str, Any]:
+    """
+    Force-refresh local provider setup for a provider.
+
+    This explicitly re-runs local provider base setup even when an existing
+    shared base environment is already marked ready.
+    """
+    return await setup_provider(
+        provider_id=provider_id,
+        refresh=True,
+        user_and_team=user_and_team,
+        session=session,
+    )
 
 
 @router.get("/{provider_id}/setup/status")
@@ -3021,6 +3067,9 @@ async def get_setup_status(
 
     data.setdefault("status", "running" if not data.get("done") else "completed")
     data.setdefault("provider_id", provider_id)
+    log_tail = _read_install_log_tail()
+    if log_tail:
+        data["log_tail"] = log_tail
     return data
 
 

@@ -1,8 +1,9 @@
 from typing import Annotated
 from fastapi import APIRouter, Body
-from fastchat.model.model_adapter import get_conversation_template
-from huggingface_hub import HfApi
+from huggingface_hub import create_repo, upload_folder, HfApi
 from transformers import AutoTokenizer
+from huggingface_hub import ModelCard, ModelCardData
+from huggingface_hub.utils import HfHubHTTPError
 
 
 from transformerlab.services import model_service
@@ -15,13 +16,6 @@ from werkzeug.utils import secure_filename
 
 
 router = APIRouter(tags=["model"])
-
-
-@router.get("/model/get_conversation_template")
-async def get_model_prompt_template(model: str):
-    # Below we grab the conversation template from FastChat's model adapter
-    # solution by passing in the model name
-    return get_conversation_template(model)
 
 
 @router.get("/model/list")
@@ -160,20 +154,6 @@ async def model_delete_peft(model_id: str, peft: str):
     await storage.rm_tree(peft_path)
 
     return {"message": "success"}
-
-
-@router.get("/model/chat_template")
-async def chat_template(model_name: str):
-    try:
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
-            trust_remote_code=True,
-        )
-        template = getattr(tokenizer, "chat_template", None)
-        if template:
-            return {"status": "success", "data": template}
-    except Exception:
-        return {"status": "error", "message": f"Invalid model name: {model_name}", "data": None}
 
 
 @router.get("/model/pipeline_tag")
