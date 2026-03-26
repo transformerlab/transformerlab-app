@@ -169,13 +169,14 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
 
             try:
                 # Ensure only one local launch runs at a time
-                async with _worker_lock:
-                    launch_result = await loop.run_in_executor(
-                        _launch_executor,
-                        lambda: provider_instance.launch_cluster(
-                            item.cluster_name, item.cluster_config, on_status=_on_status
-                        ),
+                def _launch_with_org_context():
+                    lab_dirs.set_organization_id(item.team_id)
+                    return provider_instance.launch_cluster(
+                        item.cluster_name, item.cluster_config, on_status=_on_status
                     )
+
+                async with _worker_lock:
+                    launch_result = await loop.run_in_executor(_launch_executor, _launch_with_org_context)
             except Exception as exc:  # noqa: BLE001
                 print(f"[local_provider_queue] Job {item.job_id}: launch_cluster failed: {exc}")
                 # Release quota hold and mark job failed
