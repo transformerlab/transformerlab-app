@@ -92,6 +92,7 @@ export default function ProviderDetailsModal({
   const [preSetupHook, setPreSetupHook] = useState<string>('');
   const [postSetupHook, setPostSetupHook] = useState<string>('');
   const [hooksExpanded, setHooksExpanded] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(true);
 
   // SLURM-specific form fields
   const [slurmMode, setSlurmMode] = useState<'ssh' | 'rest'>('ssh');
@@ -487,8 +488,14 @@ export default function ProviderDetailsModal({
     providerName: string,
     providerType: string,
     providerConfig: any,
+    forceRefreshFlag: boolean = true,
   ) {
-    return fetchWithAuth(getPath('compute_provider', ['create'], { teamId }), {
+    const basePath = getPath('compute_provider', ['create'], { teamId });
+    const url =
+      providerType === 'local'
+        ? `${basePath}?force_refresh=${forceRefreshFlag}`
+        : basePath;
+    return fetchWithAuth(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -572,7 +579,7 @@ export default function ProviderDetailsModal({
 
       const response = providerId
         ? await updateProvider(providerId, name, parsedConfig)
-        : await createProvider(name, type, parsedConfig);
+        : await createProvider(name, type, parsedConfig, forceRefresh);
 
       if (response.ok) {
         // For newly created LOCAL providers, keep the modal open and show setup progress.
@@ -655,6 +662,25 @@ export default function ProviderDetailsModal({
                   </Typography>
                 )}
               </FormControl>
+
+              {type === 'local' && !providerId && (
+                <FormControl
+                  orientation="horizontal"
+                  sx={{ mt: 1, alignItems: 'center', gap: 1 }}
+                >
+                  <Box>
+                    <FormLabel>Force fresh install</FormLabel>
+                    <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
+                      Delete the existing conda environment, install log, and
+                      config and run a clean install from scratch.
+                    </Typography>
+                  </Box>
+                  <Switch
+                    checked={forceRefresh}
+                    onChange={(e) => setForceRefresh(e.target.checked)}
+                  />
+                </FormControl>
+              )}
 
               <FormControl sx={{ mt: 1 }}>
                 <FormLabel>Supported Accelerators</FormLabel>

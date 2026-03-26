@@ -800,6 +800,38 @@ def ensure_base_venv_and_requirements(
                 )
             return _CONDA_ENV_DIR
 
+        if force_refresh:
+            if progress_callback is not None:
+                progress_callback(
+                    "provider_setup_clean",
+                    5,
+                    "Cleaning up existing environment for fresh install...",
+                )
+            # Delete the conda environment directory so the install starts from scratch.
+            if os.path.exists(_CONDA_ENV_DIR):
+                shutil.rmtree(_CONDA_ENV_DIR, ignore_errors=True)
+            # Delete the install log so it reflects only the fresh install.
+            install_log = _get_install_log_path()
+            if os.path.exists(install_log):
+                try:
+                    os.unlink(install_log)
+                except OSError:
+                    pass
+            # Delete the config JSON so it is regenerated after the fresh install.
+            config_json = get_local_provider_config_path()
+            if os.path.exists(config_json):
+                try:
+                    os.unlink(config_json)
+                except OSError:
+                    pass
+            # Delete the base state file so there is no stale "ready" marker.
+            base_state_path = _get_base_state_path()
+            if os.path.exists(base_state_path):
+                try:
+                    os.unlink(base_state_path)
+                except OSError:
+                    pass
+
         if progress_callback is not None:
             progress_callback(
                 "provider_setup_conda_install",
