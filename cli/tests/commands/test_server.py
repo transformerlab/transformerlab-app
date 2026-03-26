@@ -236,7 +236,7 @@ def test_server_install_email_skip(tmp_path: Path):
 
 
 def test_server_install_admin_info_displayed(tmp_path: Path):
-    """Test that admin account info is displayed during install."""
+    """Test that first-user bootstrap guidance is displayed during install."""
     fake_env = tmp_path / ".env"
 
     user_input = "\n".join(
@@ -253,6 +253,5 @@ def test_server_install_admin_info_displayed(tmp_path: Path):
         result = runner.invoke(app, ["server", "install", "--dry-run"], input=user_input)
 
     assert result.exit_code == 0
-    assert "admin@example.com" in result.output
-    assert "admin123" in result.output
-    assert "Change the default password" in result.output
+    assert "create the first admin user" in result.output.lower()
+    assert "lab setup" in result.output

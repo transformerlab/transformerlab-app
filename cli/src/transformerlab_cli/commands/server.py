@@ -167,13 +167,13 @@ def _prompt_storage(existing: dict[str, str]) -> dict[str, str]:
 
 
 def _prompt_admin() -> dict[str, str]:
-    """Display admin account info. The API seeds a hardcoded admin on first startup."""
+    """Explain first-user bootstrap (fresh installs)."""
     console.print("\n[bold header]3. Admin Account[/bold header]")
     console.print(
-        "[dim]A default admin account is created automatically on first startup:[/dim]"
-        "\n  Email:    [bold]admin@example.com[/bold]"
-        "\n  Password: [bold]admin123[/bold]"
-        "\n[warning]Change the default password immediately after first login![/warning]"
+        "[dim]On a fresh install, you will create the first admin user after the server is running.[/dim]"
+        "\n\nYou can do this either:"
+        "\n  - In the web UI (you’ll be prompted to create the first user), or"
+        "\n  - From the CLI by running: [bold]lab setup[/bold]"
     )
     return {}
 
