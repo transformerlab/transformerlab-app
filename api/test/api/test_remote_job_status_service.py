@@ -96,8 +96,8 @@ def test_circuit_breaker_success_resets():
 
 @pytest.mark.asyncio
 async def test_handle_live_status_finished(monkeypatch):
-    """live_status=finished should transition job to COMPLETE and return True."""
-    job = _make_job(live_status="finished")
+    """live_status='Remote command finished' should transition job to COMPLETE and return True."""
+    job = _make_job(live_status="Remote command finished")
 
     calls = []
 
@@ -128,7 +128,7 @@ async def test_handle_live_status_finished(monkeypatch):
 @pytest.mark.asyncio
 async def test_handle_live_status_finished_interactive_subtype_does_not_transition(monkeypatch):
     """Interactive subtype jobs should never be auto-marked COMPLETE."""
-    job = _make_job(status="INTERACTIVE", live_status="finished")
+    job = _make_job(status="INTERACTIVE", live_status="Remote command finished")
     job["job_data"]["subtype"] = "interactive"
 
     monkeypatch.setattr(
@@ -143,8 +143,8 @@ async def test_handle_live_status_finished_interactive_subtype_does_not_transiti
 
 @pytest.mark.asyncio
 async def test_handle_live_status_crashed(monkeypatch):
-    """live_status=crashed should transition job to FAILED and return True."""
-    job = _make_job(live_status="crashed")
+    """live_status='Remote command crashed' should transition job to FAILED and return True."""
+    job = _make_job(live_status="Remote command crashed")
 
     calls = []
 
@@ -174,8 +174,8 @@ async def test_handle_live_status_crashed(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_handle_live_status_crashed_interactive_subtype_transitions_failed(monkeypatch):
-    """Interactive subtype jobs may be marked FAILED when live_status=crashed."""
-    job = _make_job(status="INTERACTIVE", live_status="crashed")
+    """Interactive subtype jobs may be marked FAILED when live_status='Remote command crashed'."""
+    job = _make_job(status="INTERACTIVE", live_status="Remote command crashed")
     job["job_data"]["subtype"] = "interactive"
 
     calls = []

@@ -274,17 +274,35 @@ class LocalProvider(ComputeProvider):
                 f"uv pip install failed for job venv: {result.stderr or result.stdout or 'unknown error'}"
             )
 
-    def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
+    def launch_cluster(
+        self,
+        cluster_name: str,
+        config: ClusterConfig,
+        on_status: Optional[Callable[[str], None]] = None,
+    ) -> Dict[str, Any]:
         """
         Create a uv venv synced with base, run setup (if any), then run command in background.
         workspace_dir in provider_config is the job directory (per-run workspace).
         Resource fields (cpus, memory, accelerators, etc.) are ignored.
         Returns dict with job_id (cluster_name) and pid for status polling.
+
+        on_status: optional callback invoked with a human-readable status string
+        at each lifecycle phase (e.g. "Preparing environment", "Running setup").
         """
         job_dir = (config.provider_config or {}).get("workspace_dir")
         if not job_dir or not os.path.isdir(job_dir):
             raise ValueError("Local provider requires workspace_dir (job directory) in provider_config")
         job_dir = str(job_dir)
+
+        def _status(msg: str) -> None:
+            if on_status:
+                try:
+                    on_status(msg)
+                except Exception:
+                    pass
+
+        _status("Preparing environment")
+
         # Use a per-job workspace directory as HOME for local runs so tools that
         # rely on ~ and $HOME resolve inside the job workspace instead of the
         # user's real home directory. This makes it easier to clone and run
@@ -320,6 +338,7 @@ class LocalProvider(ComputeProvider):
         stderr_log = open(os.path.join(job_dir, "stderr.log"), "w")
 
         if config.setup:
+            _status("Running setup")
             print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
             setup_result = subprocess.run(
                 ["/bin/bash", "-c", config.setup],
@@ -347,6 +366,7 @@ class LocalProvider(ComputeProvider):
                 raise RuntimeError(f"Setup failed (exit {setup_result.returncode}). Last lines:\n{tail}")
 
         # Start main run command in background (detached subprocess)
+        _status("Starting service")
         print(f"[LocalProvider] Launching run in {job_dir}: {config.run!r}")
         proc = subprocess.Popen(
             ["/bin/bash", "-c", config.run or "true"],

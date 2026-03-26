@@ -41,6 +41,16 @@
 - **Database**: SQLite with Alembic migrations in `api/alembic/`
 - **CLI**: Typer-based Python CLI in `cli/`. See [CLI Deep Dives](docs/cli.md).
 
+### Updating the SDK
+
+If you modify code in `lab-sdk/`, the changes won't take effect until the SDK is reinstalled. For local development:
+
+```bash
+cd lab-sdk && pip install -e .
+```
+
+Then restart the API server. This is a common gotcha — the API imports the *installed* `lab` package, not the source tree directly.
+
 ## Documentation
 
 Detailed internal documentation lives in `docs/` — read these before working on related subsystems.
