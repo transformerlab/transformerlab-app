@@ -210,6 +210,10 @@ async def _list_experiment_job_ids(experiment_id: str) -> list[str]:
     from lab.dirs import get_jobs_dir
 
     jobs_dir = await get_jobs_dir(experiment_id)
+    # Check if there are any jobs in the directory
+    if not await storage.exists(jobs_dir):
+        logger.debug(f"No jobs found in directory: {jobs_dir}")
+        return []
     try:
         entries = await storage.ls(jobs_dir, detail=False)
     except Exception:
