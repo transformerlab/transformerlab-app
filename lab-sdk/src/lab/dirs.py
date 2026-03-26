@@ -461,3 +461,33 @@ def get_local_provider_job_dir(job_id: str | int, org_id: str | None = None) -> 
     job_dir = os.path.join(org_dir, job_id_safe)
     os.makedirs(job_dir, exist_ok=True)
     return job_dir
+
+
+def resolve_local_provider_job_dir(job_id_or_prefix: str | int, org_id: str | None = None) -> str | None:
+    """
+    Resolve an existing local provider job directory from a full job id or prefix.
+
+    Unlike get_local_provider_job_dir(), this function never creates directories.
+    It returns:
+      - exact match if present
+      - unique prefix match if exact is absent
+      - None if there is no match or the prefix is ambiguous
+    """
+    org_dir = get_local_provider_org_dir(org_id)
+    job_id_safe = secure_filename(str(job_id_or_prefix))
+    exact_dir = os.path.join(org_dir, job_id_safe)
+    if os.path.isdir(exact_dir):
+        return exact_dir
+
+    try:
+        entries = [
+            entry
+            for entry in os.listdir(org_dir)
+            if os.path.isdir(os.path.join(org_dir, entry)) and entry.startswith(job_id_safe)
+        ]
+    except OSError:
+        return None
+
+    if len(entries) == 1:
+        return os.path.join(org_dir, entries[0])
+    return None
