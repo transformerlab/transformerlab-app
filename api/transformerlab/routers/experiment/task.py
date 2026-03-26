@@ -113,11 +113,11 @@ async def task_get_all():
 
 @router.get("/{task_id}/get", summary="Gets all the data for a single task")
 @cached(
-    key="tasks:get:{task_id}",
+    key="tasks:get:{experimentId}:{task_id}",
     ttl="300s",
-    tags=["tasks", "task:{task_id}"],
+    tags=["tasks", "tasks:list:{experimentId}", "task:{experimentId}:{task_id}"],
 )
-async def task_get_by_id(task_id: str):
+async def task_get_by_id(experimentId: str, task_id: str):
     task = await task_service.task_get_by_id(task_id)
     if task is None:
         return {"message": "NOT FOUND"}
@@ -458,34 +458,26 @@ async def task_get_by_subtype_in_experiment(
 
 
 @router.put("/{task_id}/update", summary="Updates a task with new information")
-async def update_task(task_id: str, new_task: dict = Body()):
+async def update_task(experimentId: str, task_id: str, new_task: dict = Body()):
     # Perform secure_filename before updating the task
     if "name" in new_task:
         new_task["name"] = secure_filename(new_task["name"])
 
-    # Fetch existing task to determine experiment for cache invalidation.
-    existing_task = await task_service.task_get_by_id(task_id)
     success = await task_service.update_task(task_id, new_task)
     if success:
-        experiment_id = existing_task.get("experiment_id") if isinstance(existing_task, dict) else None
-        if experiment_id:
-            # Best-effort invalidation of cached task lists for this experiment.
-            await cache.invalidate("tasks", f"tasks:list:{experiment_id}")
+        # Best-effort invalidation: task detail + this experiment's task lists.
+        await cache.invalidate(f"task:{experimentId}:{task_id}", f"tasks:list:{experimentId}")
         return {"message": "OK"}
     else:
         return {"message": "NOT FOUND"}
 
 
 @router.get("/{task_id}/delete", summary="Deletes a task")
-async def delete_task(task_id: str):
-    # Fetch existing task to determine experiment for cache invalidation.
-    existing_task = await task_service.task_get_by_id(task_id)
+async def delete_task(experimentId: str, task_id: str):
     success = await task_service.delete_task(task_id)
     if success:
-        experiment_id = existing_task.get("experiment_id") if isinstance(existing_task, dict) else None
-        if experiment_id:
-            # Best-effort invalidation of cached task lists for this experiment.
-            await cache.invalidate("tasks", f"tasks:list:{experiment_id}")
+        # Best-effort invalidation: task detail + this experiment's task lists.
+        await cache.invalidate(f"task:{experimentId}:{task_id}", f"tasks:list:{experimentId}")
         return {"message": "OK"}
     else:
         return {"message": "NOT FOUND"}
@@ -840,7 +832,7 @@ async def add_task(
                         print(f"Warning: Failed to process zip file: {e}")
 
                 # Invalidate cached task lists for this experiment (best-effort).
-                await cache.invalidate("tasks", f"tasks:list:{experimentId}")
+                await cache.invalidate(f"tasks:list:{experimentId}")
 
                 return {"message": "OK", "id": task_id}
             except json.JSONDecodeError:
