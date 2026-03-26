@@ -6,11 +6,16 @@ from sqlalchemy import select
 from transformerlab.shared.models.user_model import AsyncSessionLocal, create_personal_team
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.services.provider_service import initialize_team_local_provider
+from transformerlab.services.team_service import get_all_team_ids
 from transformerlab.models.users import UserManager, UserCreate
 from fastapi_users.db import SQLAlchemyUserDatabase
+from lab.dirs import set_organization_id as lab_set_org_id
 import os
 import shutil
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def seed_default_admin_user():
@@ -351,22 +356,34 @@ def update_diffusion_history_paths(old_workspace: str, new_workspace: str):
 
 async def seed_default_experiments():
     """Create a few default experiments if they do not exist (filesystem-backed)."""
-    # Only seed default experiments if there are no experiments at all
-    try:
-        existing_experiments = await Experiment.get_all()
-        if len(existing_experiments) > 0:
-            return
-    except Exception as e:
-        print(f"Error getting existing experiments: {e}, will seed default experiments")
-        pass
+    team_ids = await get_all_team_ids()
+    if not team_ids:
+        return
 
-    for name in ["alpha", "beta", "gamma"]:
+    for team_id in team_ids:
         try:
-            exp = await Experiment.create_or_get(name, create_new=True)
-            # Sanity check to make sure nothing went wrong or no Exception was silently passed
-            if exp.id != name:
-                raise Exception(f"Error creating experiment {name}: {exp.id} != {name}")
+            if lab_set_org_id is not None:
+                lab_set_org_id(team_id)
+
+            # Only seed defaults for this org if it has no experiments yet.
+            try:
+                existing_experiments = await Experiment.get_all()
+                if len(existing_experiments) > 0:
+                    continue
+            except Exception as e:
+                print(f"Error getting existing experiments for team {team_id}: {e}, will seed default experiments")
+
+            for name in ["alpha", "beta", "gamma"]:
+                try:
+                    exp = await Experiment.create_or_get(name, create_new=True)
+                    # Sanity check to make sure nothing went wrong or no Exception was silently passed
+                    if exp.id != name:
+                        raise Exception(f"Error creating experiment {name}: {exp.id} != {name}")
+                except Exception as e:
+                    # Best-effort seeding; ignore errors (e.g., partial setups)
+                    print(f"Error creating experiment {name} for team {team_id}: {e}")
         except Exception as e:
-            # Best-effort seeding; ignore errors (e.g., partial setups)
-            print(f"Error creating experiment {name}: {e}")
-            pass
+            logger.warning(f"Error seeding default experiments for team {team_id}: {e}")
+        finally:
+            if lab_set_org_id is not None:
+                lab_set_org_id(None)

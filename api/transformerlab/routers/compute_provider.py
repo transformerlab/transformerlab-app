@@ -1,11 +1,11 @@
 """Router for managing team-scoped compute providers."""
 
+from asyncio.windows_events import streams
 import logging
 import os
 import time
 import json
 import configparser
-from pathlib import Path
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request, Body
 from fastapi.responses import StreamingResponse
@@ -285,23 +285,23 @@ async def create_provider(
 
             status_path = _get_provider_setup_status_path(team_id, str(provider.id))
             try:
-                status_path.parent.mkdir(parents=True, exist_ok=True)
+                os.makedirs(os.path.dirname(status_path), exist_ok=True)
             except Exception:
                 logger.exception("Failed to ensure parent directory for provider setup status %s", status_path)
             try:
-                status_path.write_text(
-                    json.dumps(
-                        {
-                            "phase": "provider_setup_start",
-                            "percent": 0,
-                            "message": "Starting local provider setup...",
-                            "done": False,
-                            "error": None,
-                            "timestamp": time.time(),
-                        }
-                    ),
-                    encoding="utf-8",
-                )
+                with open(status_path, "w", encoding="utf-8") as f:
+                    f.write(
+                        json.dumps(
+                            {
+                                "phase": "provider_setup_start",
+                                "percent": 0,
+                                "message": "Starting local provider setup...",
+                                "done": False,
+                                "error": None,
+                                "timestamp": time.time(),
+                            }
+                        )
+                    )
             except Exception:
                 logger.exception(
                     "Failed to seed provider setup status for newly created local provider %s", provider.id
@@ -927,9 +927,9 @@ def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> T
     Returns:
         Tuple of (aws_access_key_id, aws_secret_access_key) or (None, None) if not found
     """
-    credentials_path = Path.home() / ".aws" / "credentials"
+    credentials_path = os.path.join(os.path.expanduser("~"), ".aws", "credentials")
 
-    if not credentials_path.exists():
+    if not os.path.exists(credentials_path):
         return None, None
 
     try:
@@ -2862,7 +2862,7 @@ async def list_clusters_detailed(
         raise HTTPException(status_code=500, detail="Failed to list clusters")
 
 
-def _get_provider_setup_status_path(team_id: str, provider_id: str) -> Path:
+def _get_provider_setup_status_path(team_id: str, provider_id: str) -> str:
     """Return path to the transient local-provider-setup status file for this team/provider.
 
     This is only used for LOCAL providers, so it should always live on the local filesystem
@@ -2871,10 +2871,10 @@ def _get_provider_setup_status_path(team_id: str, provider_id: str) -> Path:
     # Sanitize user-derived identifiers before using them in a file name
     safe_team = secure_filename(str(team_id).replace("/", "_")) or "team"
     safe_provider = secure_filename(str(provider_id).replace("/", "_")) or "provider"
-    return (
-        Path(get_local_provider_root())
-        / "team_setup_logs"
-        / f"local_provider_setup_status_{safe_team}_{safe_provider}.json"
+    return os.path.join(
+        get_local_provider_root(),
+        "team_setup_logs",
+        f"local_provider_setup_status_{safe_team}_{safe_provider}.json",
     )
 
 
@@ -2894,7 +2894,7 @@ def _read_install_log_tail(max_lines: int = 60) -> Optional[str]:
 
 async def _run_local_provider_setup_background(
     provider_instance: Any,
-    status_path: Path,
+    status_path: str,
     force_refresh: bool = False,
 ) -> None:
     """
@@ -2913,7 +2913,8 @@ async def _run_local_provider_setup_background(
             "timestamp": time.time(),
         }
         try:
-            status_path.write_text(json.dumps(payload), encoding="utf-8")
+            with open(status_path, "w", encoding="utf-8") as f:
+                f.write(json.dumps(payload))
         except Exception:
             # Best-effort only – avoid crashing on I/O errors.
             logger.exception("Failed to write provider setup status to %s", status_path)
@@ -2934,8 +2935,8 @@ async def _run_local_provider_setup_background(
     finally:
         # Delete the status file after completion so subsequent status checks see an idle state.
         try:
-            if status_path.exists():
-                status_path.unlink()
+            if os.path.exists(status_path):
+                os.unlink(status_path)
         except Exception:
             logger.exception("Failed to delete provider setup status file %s", status_path)
 
@@ -2979,26 +2980,28 @@ async def setup_provider(
 
     status_path = _get_provider_setup_status_path(team_id, provider_id)
     try:
-        status_path.parent.mkdir(parents=True, exist_ok=True)
+        os.makedirs(os.path.dirname(status_path), exist_ok=True)
     except Exception:
         # Parent should already exist, but log and continue if it doesn't.
         logger.exception("Failed to ensure parent directory for provider setup status %s", status_path)
 
     # Seed initial status so the status endpoint can report that setup has started.
     try:
-        status_path.write_text(
-            json.dumps(
-                {
-                    "phase": "provider_setup_start",
-                    "percent": 0,
-                    "message": "Refreshing local provider setup..." if refresh else "Starting local provider setup...",
-                    "done": False,
-                    "error": None,
-                    "timestamp": time.time(),
-                }
-            ),
-            encoding="utf-8",
-        )
+        with open(status_path, "w", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "phase": "provider_setup_start",
+                        "percent": 0,
+                        "message": "Refreshing local provider setup..."
+                        if refresh
+                        else "Starting local provider setup...",
+                        "done": False,
+                        "error": None,
+                        "timestamp": time.time(),
+                    }
+                )
+            )
     except Exception:
         logger.exception("Failed to write initial provider setup status to %s", status_path)
 
@@ -3047,7 +3050,7 @@ async def get_setup_status(
     """
     team_id = user_and_team["team_id"]
     status_path = _get_provider_setup_status_path(team_id, provider_id)
-    if not status_path.exists():
+    if not os.path.exists(status_path):
         return {
             "status": "idle",
             "provider_id": provider_id,
@@ -3056,7 +3059,8 @@ async def get_setup_status(
         }
 
     try:
-        raw = status_path.read_text(encoding="utf-8")
+        with open(status_path, "r", encoding="utf-8") as f:
+            raw = f.read()
         data = json.loads(raw)
     except Exception:
         logger.exception("Failed to read provider setup status from %s", status_path)

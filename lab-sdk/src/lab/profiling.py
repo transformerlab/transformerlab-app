@@ -387,10 +387,9 @@ if _TFL_TORCH_PROFILE_DIR:
         def _export_trace():
             try:
                 _prof.__exit__(None, None, None)
-                import pathlib as _pl
-                _pl.Path(_TFL_TORCH_PROFILE_DIR).mkdir(parents=True, exist_ok=True)
-                _trace_path = _pl.Path(_TFL_TORCH_PROFILE_DIR) / "trace.json"
-                _prof.export_chrome_trace(str(_trace_path))
+                _os.makedirs(_TFL_TORCH_PROFILE_DIR, exist_ok=True)
+                _trace_path = _os.path.join(_TFL_TORCH_PROFILE_DIR, "trace.json")
+                _prof.export_chrome_trace(_trace_path)
             except Exception:
                 pass
 

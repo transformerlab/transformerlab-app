@@ -35,12 +35,12 @@ def _read_local_provider_config() -> Optional[Dict[str, Any]]:
 
     This is the same JSON payload that was previously served by `/server/config`.
     """
-    config_path = Path(get_local_provider_config_path())
-    if not config_path.exists():
+    config_path = get_local_provider_config_path()
+    if not os.path.exists(config_path):
         return None
     try:
-        raw = config_path.read_text(encoding="utf-8")
-        return json.loads(raw)
+        with open(config_path, "r", encoding="utf-8") as f:
+            return json.loads(f.read())
     except (OSError, json.JSONDecodeError):
         return None
 
@@ -116,23 +116,24 @@ _PYTHON_VERSION = "3.11"
 _BASE_SETUP_LOCK = threading.Lock()
 _BASE_STATE_FILE = "local_provider_base_state.json"
 _LOCAL_PROVIDER_PYPROJECT = "localprovider_pyproject.toml"
-_TLAB_DIR = Path.home() / ".transformerlab"
-_MINIFORGE_ROOT = _TLAB_DIR / "miniforge3"
-_CONDA_BIN = _MINIFORGE_ROOT / "bin" / "conda"
-_CONDA_ENV_DIR = _TLAB_DIR / "envs" / "transformerlab"
+_TLAB_DIR = os.path.join(os.path.expanduser("~"), ".transformerlab")
+_MINIFORGE_ROOT = os.path.join(_TLAB_DIR, "miniforge3")
+_CONDA_BIN = os.path.join(_MINIFORGE_ROOT, "bin", "conda")
+_CONDA_ENV_DIR = os.path.join(_TLAB_DIR, "envs", "transformerlab")
 _INSTALL_LOG_FILE = "local_provider_install.log"
 
 
-def _get_base_state_path() -> Path:
-    return Path(get_local_provider_root()) / _BASE_STATE_FILE
+def _get_base_state_path() -> str:
+    return os.path.join(get_local_provider_root(), _BASE_STATE_FILE)
 
 
 def _read_base_state() -> Optional[Dict[str, Any]]:
     state_path = _get_base_state_path()
-    if not state_path.exists():
+    if not os.path.exists(state_path):
         return None
     try:
-        return json.loads(state_path.read_text(encoding="utf-8"))
+        with open(state_path, "r", encoding="utf-8") as f:
+            return json.loads(f.read())
     except (OSError, json.JSONDecodeError):
         return None
 
@@ -147,26 +148,26 @@ def _write_base_state(*, ready: bool, message: str) -> None:
     _get_base_state_path().write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _get_install_log_path() -> Path:
-    root = Path(get_local_provider_root())
-    root.mkdir(parents=True, exist_ok=True)
-    return root / _INSTALL_LOG_FILE
+def _get_install_log_path() -> str:
+    root = get_local_provider_root()
+    os.makedirs(root, exist_ok=True)
+    return os.path.join(root, _INSTALL_LOG_FILE)
 
 
-def _resolve_lab_sdk_dir(localprovider_pyproject: Path) -> Optional[Path]:
+def _resolve_lab_sdk_dir(localprovider_pyproject: str) -> Optional[str]:
     """Return sibling ``lab-sdk`` next to the api directory (monorepo or ~/.transformerlab/src layout)."""
-    lab_sdk = (localprovider_pyproject.parent.parent / "lab-sdk").resolve()
-    if (lab_sdk / "pyproject.toml").is_file():
+    lab_sdk = os.path.join(os.path.dirname(os.path.dirname(localprovider_pyproject)), "lab-sdk")
+    if os.path.exists(os.path.join(lab_sdk, "pyproject.toml")):
         return lab_sdk
     return None
 
 
-def _strip_transformerlab_version_pin(pyproject_path: Path) -> bool:
+def _strip_transformerlab_version_pin(pyproject_path: str) -> bool:
     """
     Remove the ``transformerlab==...`` dependency line so ``uv pip install .[extra]`` does not
     pull PyPI after we install from a local tree. Returns True if a line was removed.
     """
-    text = pyproject_path.read_text(encoding="utf-8")
+    text = open(pyproject_path, "r", encoding="utf-8").read()
     lines = text.splitlines(keepends=True)
     out: List[str] = []
     removed = False
@@ -176,18 +177,18 @@ def _strip_transformerlab_version_pin(pyproject_path: Path) -> bool:
             continue
         out.append(line)
     if removed:
-        pyproject_path.write_text("".join(out), encoding="utf-8")
+        open(pyproject_path, "w", encoding="utf-8").write("".join(out))
     return removed
 
 
 def _run_local_provider_conda_install(source_code_dir: str) -> None:
-    installer_script = Path(source_code_dir) / "local_provider_conda_install.sh"
+    installer_script = os.path.join(source_code_dir, "local_provider_conda_install.sh")
     if not installer_script.exists():
         raise FileNotFoundError(f"local_provider_conda_install.sh not found at {installer_script}")
 
     cmd = ["/bin/bash", str(installer_script)]
     log_path = _get_install_log_path()
-    with log_path.open("a", encoding="utf-8") as log_file:
+    with open(log_path, "a", encoding="utf-8") as log_file:
         log_file.write(f"\n=== Local provider install start ({time.strftime('%Y-%m-%d %H:%M:%S')}) ===\n")
         log_file.write(f"Command: {' '.join(cmd)}\n")
         log_file.flush()
@@ -324,22 +325,21 @@ class LocalProvider(ComputeProvider):
                 else "Local provider base environment is ready.",
             )
 
-    def _get_source_code_and_pyproject(self) -> Path:
+    def _get_source_code_and_pyproject(self) -> str:
         """Return path to local-provider pyproject in the transformerlab API source tree."""
         source_code_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
         if not source_code_dir or not os.path.isdir(source_code_dir):
             raise FileNotFoundError("_TFL_SOURCE_CODE_DIR is not set or not a directory; cannot sync base environment")
-        pyproject_path = Path(source_code_dir) / _LOCAL_PROVIDER_PYPROJECT
-        if not pyproject_path.exists():
+        pyproject_path = os.path.join(source_code_dir, _LOCAL_PROVIDER_PYPROJECT)
+        if not os.path.exists(pyproject_path):
             raise FileNotFoundError(f"{_LOCAL_PROVIDER_PYPROJECT} not found at {pyproject_path}")
         return pyproject_path
 
-    def _ensure_job_venv_from_base(self, venv_path: Path, localprovider_pyproject: Path) -> None:
+    def _ensure_job_venv_from_base(self, venv_path: str, localprovider_pyproject: str) -> None:
         """Create or refresh a per-job venv using the local-provider pinned manifest."""
-        venv_path = Path(venv_path)
-        venv_path.mkdir(parents=True, exist_ok=True)
+        os.makedirs(venv_path, exist_ok=True)
 
-        if not _CONDA_BIN.exists():
+        if not os.path.exists(_CONDA_BIN):
             raise FileNotFoundError(f"Conda executable not found at {_CONDA_BIN}")
 
         # Create per-job uv venv while running under the local-provider conda env.
@@ -351,12 +351,12 @@ class LocalProvider(ComputeProvider):
                 str(_CONDA_ENV_DIR),
                 "uv",
                 "venv",
-                str(venv_path),
+                venv_path,
                 "--python",
                 _PYTHON_VERSION,
                 "--clear",
             ],
-            cwd=venv_path.parent,
+            cwd=os.path.dirname(venv_path),
             check=True,
             capture_output=True,
             timeout=300,
@@ -366,18 +366,21 @@ class LocalProvider(ComputeProvider):
         extra = _get_pyproject_extra()
 
         # Use uv pip with an explicit --python target so installs go into this venv.
-        python_bin = venv_path / "bin" / "python"
+        python_bin = os.path.join(venv_path, "bin", "python")
         env = os.environ.copy()
 
-        tmp_project_dir = Path(tempfile.mkdtemp(prefix="tfl-local-provider-job-"))
+        tmp_project_dir = tempfile.mkdtemp(prefix="tfl-local-provider-job-")
         try:
-            shutil.copy2(localprovider_pyproject, tmp_project_dir / "pyproject.toml")
-            shutil.copytree(localprovider_pyproject.parent / "tlab_package_init", tmp_project_dir / "tlab_package_init")
+            shutil.copy2(localprovider_pyproject, os.path.join(tmp_project_dir, "pyproject.toml"))
+            shutil.copytree(
+                os.path.join(os.path.dirname(localprovider_pyproject), "tlab_package_init"),
+                os.path.join(tmp_project_dir, "tlab_package_init"),
+            )
         except Exception:
             shutil.rmtree(tmp_project_dir, ignore_errors=True)
             raise
 
-        tmp_pyproject = tmp_project_dir / "pyproject.toml"
+        tmp_pyproject = os.path.join(tmp_project_dir, "pyproject.toml")
         lab_sdk_dir = _resolve_lab_sdk_dir(localprovider_pyproject)
         if lab_sdk_dir is not None:
             _strip_transformerlab_version_pin(tmp_pyproject)
@@ -390,13 +393,13 @@ class LocalProvider(ComputeProvider):
                 "pip",
                 "install",
                 "--python",
-                str(python_bin),
+                python_bin,
                 "-e",
                 str(lab_sdk_dir),
             ]
             ed_result = subprocess.run(
                 ed_cmd,
-                cwd=str(tmp_project_dir),
+                cwd=tmp_project_dir,
                 env=env,
                 capture_output=True,
                 text=True,
@@ -412,11 +415,11 @@ class LocalProvider(ComputeProvider):
         install_cmd = [str(_CONDA_BIN), "run", "--prefix", str(_CONDA_ENV_DIR), "uv", "pip", "install"]
         if additional_flags:
             install_cmd.extend(shlex.split(additional_flags))
-        install_cmd.extend(["--python", str(python_bin), f".{extra}"])
+        install_cmd.extend(["--python", python_bin, f".{extra}"])
 
         result = subprocess.run(
             install_cmd,
-            cwd=str(tmp_project_dir),
+            cwd=tmp_project_dir,
             env=env,
             capture_output=True,
             text=True,
@@ -446,7 +449,6 @@ class LocalProvider(ComputeProvider):
         job_dir = (config.provider_config or {}).get("workspace_dir")
         if not job_dir or not os.path.isdir(job_dir):
             raise ValueError("Local provider requires workspace_dir (job directory) in provider_config")
-        job_dir = Path(job_dir)
 
         def _status(msg: str) -> None:
             if on_status:
@@ -461,12 +463,12 @@ class LocalProvider(ComputeProvider):
         # rely on ~ and $HOME resolve inside the job workspace instead of the
         # user's real home directory. This makes it easier to clone and run
         # code in an isolated workspace for each job.
-        workspace_home = job_dir / "workspace"
-        workspace_home.mkdir(parents=True, exist_ok=True)
+        workspace_home = os.path.join(job_dir, "workspace")
+        os.makedirs(workspace_home, exist_ok=True)
 
         # Create the venv inside the per-job workspace HOME directory so that all
         # environment state (including Python packages) lives under HOME.
-        venv_path = workspace_home / "venv"
+        venv_path = os.path.join(workspace_home, "venv")
 
         # Ensure shared local-provider base environment exists (one-time for all orgs),
         # then create a per-job venv from the pinned local-provider manifest.
@@ -474,23 +476,23 @@ class LocalProvider(ComputeProvider):
         localprovider_pyproject = self._get_source_code_and_pyproject()
         self._ensure_job_venv_from_base(venv_path, localprovider_pyproject)
 
-        venv_bin = venv_path / "bin"
+        venv_bin = os.path.join(venv_path, "bin")
         env = os.environ.copy()
         env.update(config.env_vars or {})
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
-        env["VIRTUAL_ENV"] = str(venv_path)
-        env["HOME"] = str(workspace_home)
+        env["VIRTUAL_ENV"] = venv_path
+        env["HOME"] = workspace_home
         env["UV_CACHE_DIR"] = os.path.join(get_local_provider_root(), "uv_cache")
         # Share the host user's cache directories so that each run does not
         # re-download large assets (HF models, pip wheels, etc.).  Fixes #1604.
-        real_home = str(Path.home())
+        real_home = os.path.expanduser("~")
         env.setdefault("HF_HOME", os.path.join(real_home, ".cache", "huggingface"))
         env.setdefault("XDG_CACHE_HOME", os.path.join(real_home, ".cache"))
 
         # Open log files early so setup output is visible to get_job_logs / tunnel_info
         # while packages are still being installed.
-        stdout_log = open(job_dir / "stdout.log", "w")
-        stderr_log = open(job_dir / "stderr.log", "w")
+        stdout_log = open(os.path.join(job_dir, "stdout.log"), "w")
+        stderr_log = open(os.path.join(job_dir, "stderr.log"), "w")
         try:
             if config.setup:
                 _status("Running setup")
@@ -512,7 +514,7 @@ class LocalProvider(ComputeProvider):
                 if setup_result.returncode != 0:
                     tail = ""
                     try:
-                        with open(job_dir / "stderr.log") as f:
+                        with open(os.path.join(job_dir, "stderr.log")) as f:
                             lines = f.readlines()
                             tail = "".join(lines[-20:])
                     except OSError:
@@ -536,8 +538,9 @@ class LocalProvider(ComputeProvider):
             # process keeps its own inherited descriptors for log streaming.
             stdout_log.close()
             stderr_log.close()
+
         pid = proc.pid
-        with open(job_dir / "pid", "w") as f:
+        with open(os.path.join(job_dir, "pid"), "w") as f:
             f.write(str(pid))
         print(f"[LocalProvider] Process started with pid={pid}, logs at {job_dir}/stdout.log")
 
@@ -558,15 +561,16 @@ class LocalProvider(ComputeProvider):
                 "message": "workspace_dir (job dir) not set",
                 "status": "unknown",
             }
-        pid_file = Path(job_dir) / "pid"
-        if not pid_file.exists():
+        pid_file = os.path.join(job_dir, "pid")
+        if not os.path.exists(pid_file):
             return {
                 "cluster_name": cluster_name,
                 "message": "No pid file found",
                 "status": "stopped",
             }
         try:
-            pid = int(pid_file.read_text().strip())
+            with open(pid_file, "r", encoding="utf-8") as f:
+                pid = int(f.read().strip())
             _terminate_process_tree(pid, signal.SIGTERM)
             return {"cluster_name": cluster_name, "status": "stopped", "message": "Sent SIGTERM to process tree"}
         except (ValueError, ProcessLookupError, OSError) as e:
@@ -581,15 +585,16 @@ class LocalProvider(ComputeProvider):
                 state=ClusterState.UNKNOWN,
                 status_message="workspace_dir (job dir) not set",
             )
-        pid_file = Path(job_dir) / "pid"
-        if not pid_file.exists():
+        pid_file = os.path.join(job_dir, "pid")
+        if not os.path.exists(pid_file):
             return ClusterStatus(
                 cluster_name=cluster_name,
                 state=ClusterState.UNKNOWN,
                 status_message="No pid file (cluster may be starting)",
             )
         try:
-            pid = int(pid_file.read_text().strip())
+            with open(pid_file, "r", encoding="utf-8") as f:
+                pid = int(f.read().strip())
             os.kill(pid, 0)
             if _is_process_zombie(pid):
                 raise ProcessLookupError("Process is zombie/defunct")
@@ -698,11 +703,11 @@ class LocalProvider(ComputeProvider):
         if not job_dir:
             print(f"[LocalProvider.get_job_logs] workspace_dir not set for cluster={cluster_name}")
             return "workspace_dir (job dir) not set"
-        job_dir = Path(job_dir)
-        log_file = job_dir / "stdout.log"
-        err_file = job_dir / "stderr.log"
-        stdout_exists = log_file.exists()
-        stderr_exists = err_file.exists()
+        job_dir = str(job_dir)
+        log_file = os.path.join(job_dir, "stdout.log")
+        err_file = os.path.join(job_dir, "stderr.log")
+        stdout_exists = os.path.exists(log_file)
+        stderr_exists = os.path.exists(err_file)
         if not stdout_exists and not stderr_exists:
             print(f"[LocalProvider.get_job_logs] No log files in {job_dir}")
             return "No log files found"
@@ -711,9 +716,11 @@ class LocalProvider(ComputeProvider):
         # (which grows with runtime output) is at the end and new content
         # appears at the bottom of the log view.
         if stderr_exists:
-            lines.append(err_file.read_text())
+            with open(err_file, "r", encoding="utf-8") as f:
+                lines.append(f.read())
         if stdout_exists:
-            lines.append(log_file.read_text())
+            with open(log_file, "r", encoding="utf-8") as f:
+                lines.append(f.read())
         out = "\n".join(lines)
         total_lines = out.count("\n")
         if tail_lines is not None:
@@ -721,8 +728,8 @@ class LocalProvider(ComputeProvider):
             out = "\n".join(out_lines[-tail_lines:])
         print(
             f"[LocalProvider.get_job_logs] cluster={cluster_name}: "
-            f"stdout={stdout_exists} ({log_file.stat().st_size if stdout_exists else 0}B), "
-            f"stderr={stderr_exists} ({err_file.stat().st_size if stderr_exists else 0}B), "
+            f"stdout={stdout_exists} ({os.path.getsize(log_file) if stdout_exists else 0}B), "
+            f"stderr={stderr_exists} ({os.path.getsize(err_file) if stderr_exists else 0}B), "
             f"total_lines={total_lines}, tail_lines={tail_lines}"
         )
         return out
@@ -747,20 +754,18 @@ class LocalProvider(ComputeProvider):
 
     def check(self) -> bool:
         """Local provider is available local config exists."""
-        from pathlib import Path
-
-        config_path = Path(get_local_provider_config_path())
-        if config_path.exists():
+        config_path = get_local_provider_config_path()
+        if os.path.exists(config_path):
             return True
         # Backward-compat: allow existing installs that still have the file in HOME_DIR.
-        legacy_config_path = Path(HOME_DIR) / "local_provider_config.json"
-        return legacy_config_path.exists()
+        legacy_config_path = os.path.join(HOME_DIR, "local_provider_config.json")
+        return os.path.exists(legacy_config_path)
 
 
 def ensure_base_venv_and_requirements(
     progress_callback: Optional[Callable[[str, int, str], None]] = None,
     force_refresh: bool = False,
-) -> Path:
+) -> str:
     """
     Ensure the shared conda base environment for local provider exists and is up to date.
 
@@ -777,10 +782,12 @@ def ensure_base_venv_and_requirements(
         )
 
     pyproject_path = LocalProvider()._get_source_code_and_pyproject()
-    local_provider_root = Path(get_local_provider_root())
-    local_provider_root.mkdir(parents=True, exist_ok=True)
+    local_provider_root = get_local_provider_root()
+    os.makedirs(local_provider_root, exist_ok=True)
 
-    source_code_dir = str(pyproject_path.parent)
+    source_code_dir = os.path.join(pyproject_path.parent)
+    if not os.path.exists(source_code_dir):
+        raise FileNotFoundError(f"Source code directory not found at {source_code_dir}")
 
     with _BASE_SETUP_LOCK:
         base_state = _read_base_state()
@@ -811,17 +818,12 @@ def ensure_base_venv_and_requirements(
         # Always ensure the local provider config snapshot is generated via the base conda env.
         # This uses the same logic as /server/info but runs inside the shared env and
         # writes the result to HOME_DIR/local_provider/local_provider_config.json.
-        python_bin = _CONDA_ENV_DIR / "bin" / "python"
-        script_path = (
-            Path(source_code_dir)
-            / "transformerlab"
-            / "compute_providers"
-            / "services"
-            / "local"
-            / "local_provider_config.py"
+        python_bin = os.path.join(_CONDA_ENV_DIR, "bin", "python")
+        script_path = os.path.join(
+            source_code_dir, "transformerlab", "compute_providers", "services", "local", "local_provider_config.py"
         )
         env = os.environ.copy()
-        venv_bin = _CONDA_ENV_DIR / "bin"
+        venv_bin = os.path.join(_CONDA_ENV_DIR, "bin")
         env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
 
         if progress_callback is not None:
@@ -832,7 +834,7 @@ def ensure_base_venv_and_requirements(
             )
 
         result = subprocess.run(
-            [str(python_bin), str(script_path)],
+            [python_bin, script_path],
             cwd=source_code_dir,
             env=env,
             capture_output=True,

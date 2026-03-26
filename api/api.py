@@ -117,10 +117,10 @@ async def lifespan(app: FastAPI):
     await galleries.update_gallery_cache()
     await db.init()  # This now runs Alembic migrations internally
     print("✅ SEED DATA")
-    # Initialize experiments
-    await seed_default_experiments()
     # Seed default admin user
     await seed_default_admin_user()
+    # Initialize default experiments (requires org/team context)
+    await seed_default_experiments()
 
     # One-time migration: legacy workspace/jobs -> workspace/experiments/<exp_id>/jobs
     # Runs in the background so it doesn't delay the API startup.
