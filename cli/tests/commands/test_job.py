@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 from transformerlab_cli.main import app
+from tests.helpers import strip_ansi
 
 runner = CliRunner()
 
@@ -56,8 +57,9 @@ def test_job_help():
     """Test the job command help."""
     result = runner.invoke(app, ["job", "--help"])
     assert result.exit_code == 0
-    assert "Usage: lab job [OPTIONS] COMMAND [ARGS]..." in result.output
-    assert "Job management commands" in result.output
+    out = strip_ansi(result.output)
+    assert "Usage: lab job [OPTIONS] COMMAND [ARGS]..." in out
+    assert "Job management commands" in out
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))

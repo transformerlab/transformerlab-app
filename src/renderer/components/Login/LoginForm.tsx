@@ -11,6 +11,7 @@ import {
 import { FcGoogle, FaGithub } from 'renderer/components/Icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/authContext';
+import { useNotification } from '../Shared/NotificationSystem';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');

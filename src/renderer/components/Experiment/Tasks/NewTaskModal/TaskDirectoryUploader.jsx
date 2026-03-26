@@ -2,6 +2,16 @@ import React, { useCallback, useState, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { FolderOpenIcon } from 'lucide-react';
 import { Box, Typography, List, ListItem, Alert, Button } from '@mui/joy';
+import ignoredNames from './taskUploadIgnore.json';
+
+const IGNORED_NAMES = new Set(ignoredNames.map((n) => n.toLowerCase()));
+
+const isIgnoredFile = (file) => {
+  const path = file.webkitRelativePath || file.name;
+  return path
+    .split('/')
+    .some((segment) => IGNORED_NAMES.has(segment.toLowerCase()));
+};
 
 const TaskDirectoryUploader = ({ onUpload }) => {
   const [fileList, setFileList] = useState([]);
@@ -96,7 +106,7 @@ const TaskDirectoryUploader = ({ onUpload }) => {
           f.webkitRelativePath,
         );
       });
-      allFiles = acceptedFiles;
+      allFiles = acceptedFiles.filter((f) => !isIgnoredFile(f));
 
       console.log('[onDrop] Total allFiles:', allFiles.length);
       allFiles.forEach((f, i) => {

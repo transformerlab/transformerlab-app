@@ -64,6 +64,22 @@ def get_organization_id() -> str | None:
     return _current_org_id.get()
 
 
+def require_organization_id() -> str:
+    """Return the current organization id, or raise if not set.
+
+    Use this at the top of any code path that must run within an
+    org context (background tasks, executor threads, etc.).
+    """
+    org_id = _current_org_id.get()
+    if org_id is None:
+        raise RuntimeError(
+            "Organization context is required but not set. "
+            "Ensure set_organization_id() is called before this code path "
+            "(e.g. in request middleware or at the start of a background task)."
+        )
+    return org_id
+
+
 async def get_workspace_dir() -> str:
     # Remote SkyPilot workspace override (highest precedence)
     # Only return container workspace path when value is exactly "true"
@@ -134,9 +150,16 @@ async def get_experiments_dir() -> str:
     return path
 
 
-async def get_jobs_dir() -> str:
-    workspace_dir = await get_workspace_dir()
-    path = storage.join(workspace_dir, "jobs")
+async def get_jobs_dir(experiment_id: str) -> str:
+    """
+    Return the filesystem directory for all jobs in an experiment.
+
+    Layout:
+        {workspace}/experiments/{experiment_id}/jobs/
+    """
+    experiments_dir = await get_experiments_dir()
+    experiment_id_safe = secure_filename(str(experiment_id))
+    path = storage.join(experiments_dir, experiment_id_safe, "jobs")
     await storage.makedirs(path, exist_ok=True)
     return path
 
@@ -245,78 +268,89 @@ def get_galleries_cache_dir() -> str:
     return path
 
 
-async def get_job_dir(job_id: str | int) -> str:
+async def get_job_dir(job_id: str | int, experiment_id: str) -> str:
     """
-    Return the filesystem directory for a specific job id under the jobs root.
-    Mirrors `Job.get_dir()` but provided here for convenience where a `Job`
-    instance is not readily available.
+    Return the filesystem directory for a specific job inside an experiment.
+
+    Layout:
+        {workspace}/experiments/{experiment_id}/jobs/{job_id}/
     """
     job_id_safe = secure_filename(str(job_id))
-    jobs_dir = await get_jobs_dir()
+    jobs_dir = await get_jobs_dir(experiment_id)
     return storage.join(jobs_dir, job_id_safe)
 
 
-async def get_job_artifacts_dir(job_id: str | int) -> str:
+async def get_job_artifacts_dir(job_id: str | int, experiment_id: str) -> str:
     """
     Return the artifacts directory for a specific job, creating it if needed.
-    Example: ~/.transformerlab/workspace/jobs/<job_id>/artifacts
+    Example: ~/.transformerlab/workspace/experiments/<experiment_id>/jobs/<job_id>/artifacts
     """
-    job_dir = await get_job_dir(job_id)
+    job_dir = await get_job_dir(job_id, experiment_id)
     path = storage.join(job_dir, "artifacts")
     await storage.makedirs(path, exist_ok=True)
     return path
 
 
-async def get_job_profiling_dir(job_id: str | int) -> str:
+async def get_job_profiling_dir(job_id: str | int, experiment_id: str | None = None) -> str:
     """
     Return the profiling directory for a specific job, creating it if needed.
-    Example: ~/.transformerlab/workspace/jobs/<job_id>/profiling
+
+    Layout:
+        {workspace}/experiments/{experiment_id}/jobs/{job_id}/profiling
+
+    If `experiment_id` is not provided, this function will attempt to resolve it from
+    the `_TFL_EXPERIMENT_ID` environment variable (used by the remote-trap wrapper).
     """
-    job_dir = await get_job_dir(job_id)
+    if experiment_id is None:
+        experiment_id = os.environ.get("_TFL_EXPERIMENT_ID")
+    if not experiment_id:
+        raise ValueError(f"experiment_id is required for profiling dir (job_id={job_id})")
+
+    job_dir = await get_job_dir(job_id, experiment_id)
     path = storage.join(job_dir, "profiling")
     await storage.makedirs(path, exist_ok=True)
     return path
 
 
-async def get_job_checkpoints_dir(job_id: str | int) -> str:
+async def get_job_checkpoints_dir(job_id: str | int, experiment_id: str) -> str:
     """
     Return the checkpoints directory for a specific job, creating it if needed.
-    Example: ~/.transformerlab/workspace/jobs/<job_id>/checkpoints
+    Example: ~/.transformerlab/workspace/experiments/<experiment_id>/jobs/<job_id>/checkpoints
     """
-    job_dir = await get_job_dir(job_id)
+    job_dir = await get_job_dir(job_id, experiment_id)
     path = storage.join(job_dir, "checkpoints")
     await storage.makedirs(path, exist_ok=True)
     return path
 
 
-async def get_job_eval_results_dir(job_id: str | int) -> str:
+async def get_job_eval_results_dir(job_id: str | int, experiment_id: str) -> str:
     """
     Return the eval_results directory for a specific job, creating it if needed.
-    Example: ~/.transformerlab/workspace/jobs/<job_id>/eval_results
+    Example: ~/.transformerlab/workspace/experiments/<experiment_id>/jobs/<job_id>/eval_results
     """
-    job_dir = await get_job_dir(job_id)
+    job_dir = await get_job_dir(job_id, experiment_id)
     path = storage.join(job_dir, "eval_results")
     await storage.makedirs(path, exist_ok=True)
     return path
 
 
-async def get_job_models_dir(job_id: str | int) -> str:
+async def get_job_models_dir(job_id: str | int, experiment_id: str) -> str:
     """
     Return the models directory for a specific job, creating it if needed.
-    Example: ~/.transformerlab/workspace/jobs/<job_id>/models
+    Example: ~/.transformerlab/workspace/experiments/<experiment_id>/jobs/<job_id>/models
     """
-    job_dir = await get_job_dir(job_id)
+    job_dir = await get_job_dir(job_id, experiment_id)
     path = storage.join(job_dir, "models")
     await storage.makedirs(path, exist_ok=True)
     return path
 
 
-async def get_job_datasets_dir(job_id: str | int) -> str:
+async def get_job_datasets_dir(job_id: str | int, experiment_id: str) -> str:
     """
     Return the datasets directory for a specific job, creating it if needed.
-    Example: ~/.transformerlab/workspace/jobs/<job_id>/datasets
+    Example: ~/.transformerlab/workspace/experiments/<experiment_id>/jobs/<job_id>/datasets
     """
-    job_dir = await get_job_dir(job_id)
+    job_dir = await get_job_dir(job_id, experiment_id)
     path = storage.join(job_dir, "datasets")
     await storage.makedirs(path, exist_ok=True)
     return path

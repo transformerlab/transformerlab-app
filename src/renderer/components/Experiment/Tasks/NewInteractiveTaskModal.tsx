@@ -34,6 +34,7 @@ import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import { generateFriendlyName } from 'renderer/lib/utils';
+import { isProviderCompatibleWithAccelerators } from './providerCompatibility';
 
 type ProviderOption = {
   id: string;
@@ -175,63 +176,9 @@ export default function NewInteractiveTaskModal({
     };
   }, [open, isSubmitting, loadingMessages]);
 
-  // Helper to check if a provider supports requested accelerators
   const isProviderCompatible = React.useCallback(
-    (provider: any, taskSupportedAccelerators: string | undefined) => {
-      // Only enforce accelerator compatibility heuristics for local providers.
-      // Remote providers (Runpod, Skypilot, SLURM, etc.) validate resources on their side.
-      if (provider?.type !== 'local') {
-        return true;
-      }
-
-      if (!taskSupportedAccelerators) return true;
-
-      const supported = provider.config?.supported_accelerators || [];
-      if (supported.length === 0) return true; // Default to compatible if not specified
-
-      const reqAcc = String(taskSupportedAccelerators).toLowerCase();
-
-      // Check for Apple Silicon
-      if (
-        (reqAcc.includes('apple') || reqAcc.includes('mps')) &&
-        supported.includes('AppleSilicon')
-      ) {
-        return true;
-      }
-
-      // Check for NVIDIA
-      if (
-        (reqAcc.includes('nvidia') ||
-          reqAcc.includes('cuda') ||
-          reqAcc.includes('rtx') ||
-          reqAcc.includes('a100') ||
-          reqAcc.includes('h100') ||
-          reqAcc.includes('v100')) &&
-        supported.includes('NVIDIA')
-      ) {
-        return true;
-      }
-
-      // Check for AMD
-      if (
-        (reqAcc.includes('amd') || reqAcc.includes('rocm')) &&
-        supported.includes('AMD')
-      ) {
-        return true;
-      }
-
-      // Check for CPU
-      if (reqAcc.includes('cpu') && supported.includes('cpu')) {
-        return true;
-      }
-
-      // If it's just a number, we assume it's NVIDIA/CUDA
-      if (/^\d+$/.test(reqAcc)) {
-        return supported.includes('NVIDIA');
-      }
-
-      return false;
-    },
+    (provider: any, taskSupportedAccelerators: string | string[] | undefined) =>
+      isProviderCompatibleWithAccelerators(provider, taskSupportedAccelerators),
     [],
   );
 
@@ -321,6 +268,9 @@ export default function NewInteractiveTaskModal({
   }, [selectedProvider]);
 
   const handleTemplateSelect = (template: InteractiveTemplate) => {
+    if (isSubmitting) {
+      return;
+    }
     setSelectedTemplate(template);
     setStep('config');
     // Initialize config field values
@@ -376,6 +326,9 @@ export default function NewInteractiveTaskModal({
   }, [isLocal, selectedProvider, selectedTemplate]);
 
   const handleBack = () => {
+    if (isSubmitting) {
+      return;
+    }
     if (step === 'config') {
       setStep('gallery');
       setSelectedTemplate(null);
@@ -393,6 +346,9 @@ export default function NewInteractiveTaskModal({
   };
 
   const handleImportTeamTask = async (galleryIdentifier: string | number) => {
+    if (isSubmitting) {
+      return;
+    }
     if (!experimentInfo?.id) {
       addNotification({
         type: 'warning',
@@ -448,6 +404,9 @@ export default function NewInteractiveTaskModal({
 
   const handleSubmit = (e: React.FormEvent, shouldLaunch: boolean = false) => {
     e.preventDefault();
+    if (isSubmitting) {
+      return;
+    }
     if (!title.trim()) {
       return;
     }
@@ -615,7 +574,7 @@ export default function NewInteractiveTaskModal({
                   sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}
                 >
                   <Button
-                    disabled={!selectedProviderId}
+                    disabled={!selectedProviderId || isSubmitting}
                     onClick={() => setStep('gallery')}
                     endDecorator={<ArrowRightIcon size={16} />}
                   >
@@ -633,6 +592,7 @@ export default function NewInteractiveTaskModal({
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Interactive session name"
                     autoFocus
+                    disabled={isSubmitting}
                   />
                 </FormControl>
 
@@ -683,7 +643,8 @@ export default function NewInteractiveTaskModal({
                               !(isLocal && field.env_var === 'NGROK_AUTH_TOKEN')
                             }
                             disabled={
-                              isLocal && field.env_var === 'NGROK_AUTH_TOKEN'
+                              isSubmitting ||
+                              (isLocal && field.env_var === 'NGROK_AUTH_TOKEN')
                             }
                           >
                             <FormLabel>{field.field_name}</FormLabel>
@@ -703,6 +664,11 @@ export default function NewInteractiveTaskModal({
                                 )
                               }
                               placeholder={field.placeholder}
+                              disabled={
+                                isSubmitting ||
+                                (isLocal &&
+                                  field.env_var === 'NGROK_AUTH_TOKEN')
+                              }
                             />
                             {field.help_text && (
                               <FormHelperText>{field.help_text}</FormHelperText>
@@ -724,6 +690,7 @@ export default function NewInteractiveTaskModal({
                         value={cpus}
                         onChange={(e) => setCpus(e.target.value)}
                         placeholder="e.g. 4"
+                        disabled={isSubmitting}
                       />
                     </FormControl>
 
@@ -733,6 +700,7 @@ export default function NewInteractiveTaskModal({
                         value={memory}
                         onChange={(e) => setMemory(e.target.value)}
                         placeholder="e.g. 16"
+                        disabled={isSubmitting}
                       />
                     </FormControl>
 
@@ -742,6 +710,7 @@ export default function NewInteractiveTaskModal({
                         value={accelerators}
                         onChange={(e) => setAccelerators(e.target.value)}
                         placeholder="e.g. RTX3090:1 or H100:8"
+                        disabled={isSubmitting}
                       />
                     </FormControl>
                   </Stack>
@@ -770,11 +739,12 @@ export default function NewInteractiveTaskModal({
                   size="sm"
                   value={activeGalleryTab}
                   onChange={(_e, val) => {
-                    if (val) {
-                      setActiveGalleryTab(
-                        val as 'interactive' | 'team-interactive',
-                      );
+                    if (isSubmitting || !val) {
+                      return;
                     }
+                    setActiveGalleryTab(
+                      val as 'interactive' | 'team-interactive',
+                    );
                   }}
                 >
                   <TabList>
@@ -869,7 +839,11 @@ export default function NewInteractiveTaskModal({
                                     borderColor: 'primary.500',
                                   },
                                 }}
-                                onClick={() => handleTemplateSelect(template)}
+                                onClick={() => {
+                                  if (!isSubmitting) {
+                                    handleTemplateSelect(template);
+                                  }
+                                }}
                               >
                                 <CardContent>
                                   {template.icon && (
@@ -1024,9 +998,11 @@ export default function NewInteractiveTaskModal({
                                         borderColor: 'primary.500',
                                       },
                                     }}
-                                    onClick={() =>
-                                      handleImportTeamTask(galleryIdentifier)
-                                    }
+                                    onClick={() => {
+                                      if (!isSubmitting) {
+                                        handleImportTeamTask(galleryIdentifier);
+                                      }
+                                    }}
                                   >
                                     <CardContent>
                                       {task.icon && (

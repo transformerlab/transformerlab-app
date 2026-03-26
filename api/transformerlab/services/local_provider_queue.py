@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 from pydantic import BaseModel
@@ -31,6 +33,12 @@ _local_launch_queue: "asyncio.Queue[LocalLaunchWorkItem]" = asyncio.Queue()
 _processing = False
 _dispatch_lock = asyncio.Lock()
 _worker_lock = asyncio.Lock()
+
+# Dedicated thread pool for launch_cluster operations so long-running subprocess
+# calls (uv pip install can take 15+ min) don't starve the default executor used
+# by the rest of the server for DB queries, file I/O, etc.
+_LAUNCH_MAX_WORKERS = int(os.environ.get("TFL_LAUNCH_MAX_WORKERS", "2"))
+_launch_executor = ThreadPoolExecutor(max_workers=_LAUNCH_MAX_WORKERS, thread_name_prefix="local-launch")
 
 
 async def enqueue_local_launch(
@@ -138,11 +146,12 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
             loop = asyncio.get_running_loop()
             try:
                 # Ensure only one local launch runs at a time
+                def _launch_with_org_context():
+                    lab_dirs.set_organization_id(item.team_id)
+                    return provider_instance.launch_cluster(item.cluster_name, item.cluster_config)
+
                 async with _worker_lock:
-                    launch_result = await loop.run_in_executor(
-                        None,
-                        lambda: provider_instance.launch_cluster(item.cluster_name, item.cluster_config),
-                    )
+                    launch_result = await loop.run_in_executor(_launch_executor, _launch_with_org_context)
             except Exception as exc:  # noqa: BLE001
                 print(f"[local_provider_queue] Job {item.job_id}: launch_cluster failed: {exc}")
                 # Release quota hold and mark job failed

@@ -1256,7 +1256,10 @@ async def _launch_sweep_jobs(
 
                 # Create unique cluster name for this run
                 run_suffix = f"sweep-{i + 1}"
-                formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-{run_suffix}-job-{parent_job_id}"
+                parent_job_short_id = job_service.get_short_job_id(parent_job_id)
+                formatted_cluster_name = (
+                    f"{_sanitize_cluster_basename(base_name)}-{run_suffix}-job-{parent_job_short_id}"
+                )
 
                 # Create child job
                 child_job_id = await job_service.job_create(
@@ -1447,6 +1450,26 @@ async def _launch_sweep_jobs(
 
                 # When file_mounts is True we use lab.copy_file_mounts() in setup; do not send to provider
                 file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
+
+                # Resolve SkyPilot-specific settings from provider config for sweep child jobs
+                sweep_image_id: str | None = None
+                sweep_region: str | None = None
+                sweep_zone: str | None = None
+                sweep_use_spot: bool = False
+                if provider.type == ProviderType.SKYPILOT.value:
+                    prov_cfg = provider.config or {}
+                    sweep_image_id = prov_cfg.get("docker_image") or None
+                    sweep_region = prov_cfg.get("default_region") or None
+                    sweep_zone = prov_cfg.get("default_zone") or None
+                    sweep_use_spot = prov_cfg.get("use_spot", False) is True
+                    if request.config:
+                        if request.config.get("docker_image"):
+                            sweep_image_id = str(request.config["docker_image"]).strip()
+                        if request.config.get("region"):
+                            sweep_region = str(request.config["region"]).strip()
+                        if request.config.get("use_spot"):
+                            sweep_use_spot = True
+
                 cluster_config = ClusterConfig(
                     cluster_name=formatted_cluster_name,
                     provider_name=provider_display_name,
@@ -1461,6 +1484,10 @@ async def _launch_sweep_jobs(
                     disk_size=disk_size,
                     file_mounts=file_mounts_for_provider,
                     provider_config={"requested_disk_space": request.disk_space},
+                    image_id=sweep_image_id,
+                    region=sweep_region,
+                    zone=sweep_zone,
+                    use_spot=sweep_use_spot,
                 )
 
                 # Launch cluster for child job
@@ -1668,7 +1695,8 @@ async def launch_template_on_provider(
     )
 
     base_name = request.cluster_name or request.task_name or provider.name
-    formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{job_id}"
+    job_short_id = job_service.get_short_job_id(job_id)
+    formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{job_short_id}"
 
     user_info = {}
     if getattr(user, "first_name", None) or getattr(user, "last_name", None):
@@ -1826,7 +1854,7 @@ async def launch_template_on_provider(
     if request.enable_trackio:
         env_vars["TLAB_TRACKIO_AUTO_INIT"] = "true"
         project_name = (request.trackio_project_name or "").strip() or str(request.experiment_id)
-        trackio_run_name = f"{request.task_name or 'task'}-job-{job_id}"
+        trackio_run_name = f"{request.task_name or 'task'}-job-{job_short_id}"
         trackio_project_name_for_job = project_name
         trackio_run_name_for_job = trackio_run_name
         env_vars["TLAB_TRACKIO_PROJECT_NAME"] = project_name
@@ -1958,6 +1986,28 @@ async def launch_template_on_provider(
     else:
         parameters_with_secrets = merged_parameters if merged_parameters else None
 
+    # For SkyPilot providers, resolve docker_image / region / use_spot.
+    # Per-job overrides (from request.config) take precedence over provider-level defaults.
+    skypilot_image_id: str | None = None
+    skypilot_region: str | None = None
+    skypilot_zone: str | None = None
+    skypilot_use_spot: bool = False
+    if provider.type == ProviderType.SKYPILOT.value:
+        prov_cfg = provider.config or {}
+        # Provider-level defaults
+        skypilot_image_id = prov_cfg.get("docker_image") or None
+        skypilot_region = prov_cfg.get("default_region") or None
+        skypilot_zone = prov_cfg.get("default_zone") or None
+        skypilot_use_spot = prov_cfg.get("use_spot", False) is True
+        # Per-job overrides from the frontend config dict
+        if request.config:
+            if request.config.get("docker_image"):
+                skypilot_image_id = str(request.config["docker_image"]).strip()
+            if request.config.get("region"):
+                skypilot_region = str(request.config["region"]).strip()
+            if request.config.get("use_spot"):
+                skypilot_use_spot = True
+
     # Build provider_config for cluster_config (and job_data for local provider)
     provider_config_dict = {"requested_disk_space": request.disk_space}
     # For SLURM, pass through any per-run custom SBATCH flags so the provider
@@ -1980,7 +2030,7 @@ async def launch_template_on_provider(
         task_dir_root = await get_task_dir()
         task_src = storage.join(task_dir_root, secure_filename(str(request.task_id)))
         if await storage.isdir(task_src):
-            workspace_job_dir = await get_job_dir(job_id)
+            workspace_job_dir = await get_job_dir(job_id, request.experiment_id)
             await _copy_task_files_to_dir(task_src, workspace_job_dir)
 
     job_data = {
@@ -2017,9 +2067,9 @@ async def launch_template_on_provider(
     if trackio_run_name_for_job is not None:
         job_data["trackio_run_name"] = trackio_run_name_for_job
 
-    for key, value in job_data.items():
-        if value is not None:
-            await job_service.job_update_job_data_insert_key_value(job_id, key, value, request.experiment_id)
+    await job_service.job_update_job_data_insert_key_values(
+        job_id, {k: v for k, v in job_data.items() if v is not None}, request.experiment_id
+    )
 
     disk_size = None
     if request.disk_space:
@@ -2094,6 +2144,10 @@ async def launch_template_on_provider(
         disk_size=disk_size,
         file_mounts=file_mounts_for_provider,
         provider_config=provider_config_dict,
+        image_id=skypilot_image_id,
+        region=skypilot_region,
+        zone=skypilot_zone,
+        use_spot=skypilot_use_spot,
     )
 
     await job_service.job_update_launch_progress(
@@ -2160,6 +2214,7 @@ async def launch_template_on_provider(
 @router.get("/jobs/{job_id}/check-status")
 async def check_provider_job_status(
     job_id: str,
+    experiment_id: str = Query(..., description="Experiment ID for this job"),
     user_and_team=Depends(get_user_and_team),
 ):
     """
@@ -2171,7 +2226,7 @@ async def check_provider_job_status(
     intentionally side-effect-free so that frequent frontend polling
     never blocks on provider latency or downtime.
     """
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experiment_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -2204,7 +2259,9 @@ async def ensure_quota_recorded_for_completed_jobs(
     if job_id:
         # Check specific job
         # Pass team_id from user_and_team context
-        quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(session, job_id, team_id=team_id)
+        quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(
+            session, job_id, experiment_id=experiment_id, team_id=team_id
+        )
         return {
             "status": "success",
             "job_id": job_id,
@@ -2234,7 +2291,7 @@ async def ensure_quota_recorded_for_completed_jobs(
             if job_id_str:
                 # Pass team_id from user_and_team context
                 quota_recorded = await quota_service.ensure_quota_recorded_for_completed_job(
-                    session, job_id_str, team_id=team_id
+                    session, job_id_str, experiment_id=experiment_id, team_id=team_id
                 )
                 if quota_recorded:
                     jobs_recorded += 1
@@ -2273,6 +2330,7 @@ async def check_sweep_status_all(
 @router.get("/jobs/{job_id}/sweep-status")
 async def check_sweep_status(
     job_id: str,
+    experiment_id: str = Query(..., description="Experiment ID for this sweep job"),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -2280,7 +2338,7 @@ async def check_sweep_status(
     Check status of a specific sweep job from current persisted values.
     Returns current sweep status with counts and job data.
     """
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experiment_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -2309,6 +2367,7 @@ async def check_sweep_status(
 @router.get("/jobs/{job_id}/sweep-results")
 async def get_sweep_results(
     job_id: str,
+    experiment_id: str = Query(..., description="Experiment ID for this sweep job"),
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -2318,7 +2377,7 @@ async def get_sweep_results(
     """
 
     # Get the parent sweep job
-    job = await job_service.job_get(job_id)
+    job = await job_service.job_get(job_id, experiment_id=experiment_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -2329,7 +2388,6 @@ async def get_sweep_results(
     if not job_data.get("sweep_parent"):
         raise HTTPException(status_code=400, detail="Job is not a sweep parent")
 
-    experiment_id = job.get("experiment_id")
     sweep_job_ids = job_data.get("sweep_job_ids", [])
     sweep_metric = job_data.get("sweep_metric", "eval/loss")
     lower_is_better = job_data.get("lower_is_better", True)
@@ -2342,7 +2400,7 @@ async def get_sweep_results(
     best_job_id = None
 
     for child_job_id in sweep_job_ids:
-        child_job = await job_service.job_get(child_job_id)
+        child_job = await job_service.job_get(child_job_id, experiment_id=experiment_id)
         if not child_job:
             continue
 
@@ -2436,7 +2494,7 @@ async def resume_from_checkpoint(
     import time
 
     # Get the original job
-    original_job = await job_service.job_get(job_id)
+    original_job = await job_service.job_get(job_id, experiment_id=experimentId)
     if not original_job or str(original_job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -2462,7 +2520,7 @@ async def resume_from_checkpoint(
         )
 
     # Verify checkpoint exists using workspace-aware path resolution
-    checkpoints_dir = await get_job_checkpoints_dir(job_id)
+    checkpoints_dir = await get_job_checkpoints_dir(job_id, experimentId)
     checkpoint_path = storage.join(checkpoints_dir, request.checkpoint)
     if not await storage.exists(checkpoint_path):
         raise HTTPException(status_code=404, detail=f"Checkpoint '{request.checkpoint}' not found")
@@ -2514,10 +2572,9 @@ async def resume_from_checkpoint(
         "team_id",
     ]
 
-    for field in config_fields:
-        value = job_data.get(field)
-        if value is not None:
-            await job_service.job_update_job_data_insert_key_value(new_job_id, field, value, experimentId)
+    await job_service.job_update_job_data_insert_key_values(
+        new_job_id, {f: job_data[f] for f in config_fields if job_data.get(f) is not None}, experimentId
+    )
 
     # Relaunch via provider (uses current user's slurm_user for SLURM)
     user_id_str = str(user_and_team["user"].id)
@@ -2529,7 +2586,8 @@ async def resume_from_checkpoint(
 
     # Build cluster name
     base_name = job_data.get("task_name") or provider.name
-    formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{new_job_id}"
+    new_job_short_id = job_service.get_short_job_id(new_job_id)
+    formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{new_job_short_id}"
 
     # Get user info
     user = user_and_team.get("user")
@@ -2631,9 +2689,9 @@ async def resume_from_checkpoint(
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
 
-    for key, value in launch_job_data.items():
-        if value is not None:
-            await job_service.job_update_job_data_insert_key_value(new_job_id, key, value, experimentId)
+    await job_service.job_update_job_data_insert_key_values(
+        new_job_id, {k: v for k, v in launch_job_data.items() if v is not None}, experimentId
+    )
 
     # Build ClusterConfig
     disk_size = None

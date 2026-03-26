@@ -214,6 +214,25 @@ export function jobChipColor(status: string): string {
   return 'var(--joy-palette-neutral-200)';
 }
 
+/** Matches `lab.job_status.TERMINAL_STATUSES` — safe to remove a job record from the UI. */
+const TERMINAL_JOB_STATUSES = new Set([
+  'COMPLETE',
+  'STOPPED',
+  'FAILED',
+  'CANCELLED',
+  'DELETED',
+  'UNAUTHORIZED',
+]);
+
+export function isTerminalJobStatus(
+  status: string | undefined | null,
+): boolean {
+  if (status == null || status === '') {
+    return false;
+  }
+  return TERMINAL_JOB_STATUSES.has(status);
+}
+
 export const colorArray = [
   '#e8c1a0',
   '#C7DFF7',

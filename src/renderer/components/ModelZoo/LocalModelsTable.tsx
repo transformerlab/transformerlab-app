@@ -19,14 +19,13 @@ import {
   InfoIcon,
   MessageCircle,
   SearchIcon,
-  StoreIcon,
   Trash2Icon,
   ImageIcon,
   RotateCcwIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 
-import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
@@ -474,19 +473,8 @@ const LocalModelsTable = ({
                     justifyContent="center"
                     margin={5}
                   >
-                    {window?.platform?.multiuser === true ? (
-                      'No models are currently available. Models saved from jobs in this experiment will be available here.'
-                    ) : (
-                      <>
-                        You do not have any models on your local machine. You
-                        can download a model by going to the{' '}
-                        <ReactRouterLink to="/zoo">
-                          <StoreIcon />
-                          Model Registry
-                        </ReactRouterLink>
-                        .
-                      </>
-                    )}
+                    No models are currently available. Models saved from jobs in
+                    this experiment will be available here.
                   </Typography>
                 </td>
               </tr>
@@ -494,12 +482,6 @@ const LocalModelsTable = ({
           </tbody>
         </Table>
       </Sheet>
-      {window?.platform?.multiuser !== true && (
-        <Typography mt={2} level="body-sm">
-          Looking for more models? Go to the{' '}
-          <ReactRouterLink to="/zoo">Model Registry</ReactRouterLink>
-        </Typography>
-      )}
       <AssetVersionsDrawer
         open={versionDrawer.open}
         onClose={() => setVersionDrawer({ open: false, groupName: '' })}

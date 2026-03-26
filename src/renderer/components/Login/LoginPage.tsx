@@ -9,7 +9,7 @@ import {
   ModalDialog,
   Typography,
 } from '@mui/joy';
-import { getPath, API_URL } from 'renderer/lib/api-client/urls';
+import { getPath } from 'renderer/lib/api-client/urls';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/authContext';
 import HexLogo from '../Shared/HexLogo';

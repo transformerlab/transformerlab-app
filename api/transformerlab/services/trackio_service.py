@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from lab import HOME_DIR, storage
 from lab.dirs import get_workspace_dir
 from lab.job import Job
+from transformerlab.services.job_service import job_get_cached
 
 from werkzeug.utils import secure_filename
 
@@ -32,8 +33,15 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
     safe_org_id = secure_filename(org_id) if org_id else ""
     safe_experiment_id = secure_filename(experiment_id) if experiment_id else ""
 
+    if not experiment_id:
+        raise HTTPException(status_code=400, detail="Missing experiment_id in request context")
+
     try:
-        job = await Job.get(job_id)
+        job_dict = await job_get_cached(job_id, experiment_id=experiment_id)
+        if not job_dict:
+            job = None
+        else:
+            job = await Job.get(job_id, experiment_id)
     except Exception:
         job = None
 

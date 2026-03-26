@@ -17,8 +17,8 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 interface ViewSweepResultsModalProps {
-  jobId: number;
-  setJobId: (jobId: number) => void;
+  jobId: string | null;
+  setJobId: (jobId: string | null) => void;
 }
 
 export default function ViewSweepResultsModal({
@@ -31,7 +31,7 @@ export default function ViewSweepResultsModal({
 
   // Always call hooks at the top level - conditionally enable the query instead
   const { data, error, isLoading } = useSWR(
-    jobId !== -1 && experimentInfo
+    jobId && experimentInfo
       ? chatAPI.Endpoints.ComputeProvider.GetSweepResults(String(jobId))
       : null,
     fetcher,
@@ -40,7 +40,7 @@ export default function ViewSweepResultsModal({
     },
   );
 
-  if (jobId === -1 || !experimentInfo) {
+  if (!jobId || !experimentInfo) {
     return null;
   }
 
@@ -260,7 +260,7 @@ export default function ViewSweepResultsModal({
     <Modal
       open={jobId !== -1}
       onClose={() => {
-        setJobId(-1);
+        setJobId(null);
       }}
     >
       <ModalDialog sx={{ width: '90vw', maxWidth: '1200px', height: '85vh' }}>

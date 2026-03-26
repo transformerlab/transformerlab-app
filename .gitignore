@@ -35,7 +35,9 @@ npm-debug.log.*
 # https://docs.cursor.com/context/ignore-files#default-ignore-list
 .cursor/
 .cursorignore
-.claude/
+.claude/todos/
+.claude/settings.local.json
+.claude/worktrees/
 
 .env
 **/.env
@@ -223,3 +225,5 @@ test-results/
 
 # Secrets
 **/.secrets
+
+docs/superpowers/*
