@@ -173,7 +173,7 @@ def _prompt_admin() -> dict[str, str]:
         "[dim]On a fresh install, you will create the first admin user after the server is running.[/dim]"
         "\n\nYou can do this either:"
         "\n  - In the web UI (you’ll be prompted to create the first user), or"
-        "\n  - From the CLI by running: [bold]lab setup[/bold]"
+        "\n  - From the CLI by running: [bold]lab server setup[/bold]"
     )
     return {}
 
@@ -496,8 +496,17 @@ def server_install(
     console.print("  1. Start the server:")
     console.print("     [bold]cd ~/.transformerlab/src && ./run.sh[/bold]")
     console.print(f"  2. Open {frontend_url} in your browser")
-    console.print("  3. Log in with [bold]admin@example.com[/bold] / [bold]admin123[/bold]")
-    console.print("     [warning]Change the default password immediately![/warning]")
+    console.print("  3. Create your first admin user (fresh installs):")
+    console.print("     [bold]lab server setup[/bold]")
+    console.print("     [dim](Or use the web UI first-user setup screen.)[/dim]")
+
+
+@app.command("setup")
+def server_setup() -> None:
+    """Interactive server bootstrap: server URL, health check, and first-user setup."""
+    from transformerlab_cli.commands.setup import command_setup
+
+    command_setup()
 
 
 LATEST_VERSION_FILE = ENV_DIR / "src" / "LATEST_VERSION"

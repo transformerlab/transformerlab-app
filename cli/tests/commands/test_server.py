@@ -254,4 +254,4 @@ def test_server_install_admin_info_displayed(tmp_path: Path):
 
     assert result.exit_code == 0
     assert "create the first admin user" in result.output.lower()
-    assert "lab setup" in result.output
+    assert "lab server setup" in result.output
