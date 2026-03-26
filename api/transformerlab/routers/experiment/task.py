@@ -1778,7 +1778,7 @@ async def export_task_to_team_gallery(
         )
 
     await galleries.add_team_task_to_gallery(gallery_entry)
-    await cache.invalidate("tasks", "tasks:gallery", "tasks:gallery:team")
+    await cache.invalidate("tasks:gallery", "tasks:gallery:team")
 
     return {
         "status": "success",
@@ -1865,7 +1865,7 @@ async def add_task_to_team_gallery(
     }
 
     await galleries.add_team_task_to_gallery(gallery_entry)
-    await cache.invalidate("tasks", "tasks:gallery", "tasks:gallery:team")
+    await cache.invalidate("tasks:gallery", "tasks:gallery:team")
     return {
         "status": "success",
         "message": f"Task '{request.title}' added to team gallery",
@@ -1883,7 +1883,7 @@ async def delete_team_task_from_gallery(
     """
     success = await galleries.delete_team_task_from_gallery(request.task_id)
     if success:
-        await cache.invalidate("tasks", "tasks:gallery", "tasks:gallery:team")
+        await cache.invalidate("tasks:gallery", "tasks:gallery:team")
         return {
             "status": "success",
             "message": "Task deleted from team gallery",
