@@ -168,7 +168,7 @@ def test_server_install_preserves_jwt_secrets(tmp_path):
 
 def test_server_install_storage_localfs(tmp_path):
     """Test choosing localfs storage prompts for a path."""
-    fake_env = tmp_path / ".env"
+    fake_env = os.path.join(str(tmp_path), ".env")
 
     user_input = "\n".join(
         [
@@ -192,7 +192,7 @@ def test_server_install_storage_localfs(tmp_path):
 
 def test_server_install_email_configured(tmp_path):
     """Test configuring SMTP email."""
-    fake_env = tmp_path / ".env"
+    fake_env = os.path.join(str(tmp_path), ".env")
 
     user_input = "\n".join(
         [
@@ -219,7 +219,7 @@ def test_server_install_email_configured(tmp_path):
 
 def test_server_install_email_skip(tmp_path):
     """Test skipping email sets dev mode."""
-    fake_env = tmp_path / ".env"
+    fake_env = os.path.join(str(tmp_path), ".env")
 
     user_input = "\n".join(
         [
@@ -240,7 +240,7 @@ def test_server_install_email_skip(tmp_path):
 
 def test_server_install_admin_info_displayed(tmp_path):
     """Test that admin account info is displayed during install."""
-    fake_env = tmp_path / ".env"
+    fake_env = os.path.join(str(tmp_path), ".env")
 
     user_input = "\n".join(
         [
