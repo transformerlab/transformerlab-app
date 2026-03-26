@@ -1,11 +1,11 @@
 import os
-from typing import Any
+from pathlib import Path
 
 import pytest
 
 
 @pytest.fixture()
-def tmp_dataset_dir(tmp_path: Any):
+def tmp_dataset_dir(tmp_path: Path) -> str:
     # Create a temporary dataset directory with various files
     tmp_path_str = str(tmp_path)
     with open(os.path.join(tmp_path_str, "a.jsonl"), "w", encoding="utf-8") as f:
@@ -37,14 +37,14 @@ async def test_load_local_dataset_filters_index_and_hidden(tmp_dataset_dir, monk
 
     monkeypatch.setattr(dataset_service, "load_dataset", fake_load_dataset)
 
-    result = await dataset_service.load_local_dataset(str(tmp_dataset_dir))
+    result = await dataset_service.load_local_dataset(tmp_dataset_dir)
 
     assert result == {"ok": True}
-    assert captured["path"] == str(tmp_dataset_dir)
+    assert captured["path"] == tmp_dataset_dir
     # Should only include top-level regular files except index.json and hidden files
     expected = {
-        os.path.join(str(tmp_dataset_dir), "a.jsonl"),
-        os.path.join(str(tmp_dataset_dir), "b.txt"),
+        os.path.join(tmp_dataset_dir, "a.jsonl"),
+        os.path.join(tmp_dataset_dir, "b.txt"),
     }
     assert set(captured["data_files"]) == expected
     assert captured["streaming"] is False
@@ -72,15 +72,15 @@ async def test_load_local_dataset_uses_explicit_data_files(tmp_path, monkeypatch
     monkeypatch.setattr(dataset_service, "load_dataset", fake_load_dataset)
 
     result = await dataset_service.load_local_dataset(
-        str(tmp_path_str), data_files=["keep.me", "index.json"], streaming=True
+        tmp_path_str, data_files=["keep.me", "index.json"], streaming=True
     )
 
     assert result == {"ok": True}
-    assert captured["path"] == str(tmp_path_str)
+    assert captured["path"] == tmp_path_str
     # Paths should be joined as provided without additional filtering
     assert captured["data_files"] == [
-        os.path.join(str(tmp_path_str), "keep.me"),
-        os.path.join(str(tmp_path_str), "index.json"),
+        os.path.join(tmp_path_str, "keep.me"),
+        os.path.join(tmp_path_str, "index.json"),
     ]
     assert captured["streaming"] is True
 
@@ -106,10 +106,10 @@ async def test_load_local_dataset_fallback_when_no_valid_files(tmp_path, monkeyp
 
     monkeypatch.setattr(dataset_service, "load_dataset", fake_load_dataset)
 
-    result = await dataset_service.load_local_dataset(str(tmp_path_str))
+    result = await dataset_service.load_local_dataset(tmp_path_str)
 
     assert result == {"ok": True}
-    assert captured["path"] == str(tmp_path_str)
+    assert captured["path"] == tmp_path_str
     # When no valid files, function should call underlying loader without data_files
     assert captured["data_files"] in (None, [])
     assert captured["streaming"] is False
