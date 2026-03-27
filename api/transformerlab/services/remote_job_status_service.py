@@ -247,6 +247,11 @@ async def _check_job_via_provider(
             )
         ):
             cluster_state = ClusterState.STOPPED
+        elif (
+            provider_type == ProviderType.RUNPOD.value
+            and getattr(cluster_status, "status_message", "") == "Pod not found"
+        ):
+            cluster_state = ClusterState.STOPPED
 
         terminal_cluster_states = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
         if cluster_state in terminal_cluster_states:

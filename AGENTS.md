@@ -15,7 +15,7 @@
 - **Frontend dev**: `npm start` (Node v22, not v23+)
 - **Frontend test**: `npm test` (Jest); single test: `npm test -- --testPathPattern="<pattern>"`
 - **Frontend lint**: `npm run format` (auto-fix) or `npm run format:check` (dry-run). **Always run `npm run format` on changed frontend files before committing.**
-- **Python env (run once per shell)**: `source ~/.transformerlab/miniforge3/bin/activate && conda activate ~/.transformerlab/envs/transformerlab`
+- **Python env (run once per shell)**: `source ~/.transformerlab/envs/general-uv/bin/activate`
 - **API install**: `cd api && ./install.sh` or `npm run api:install`
 - **API start**: `cd api && ./run.sh` or `npm run api:start`
 - **API test**: `cd api && pytest`
