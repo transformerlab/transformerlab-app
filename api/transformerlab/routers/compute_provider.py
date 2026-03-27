@@ -1925,7 +1925,9 @@ async def launch_template_on_provider(
                 setup_commands.append(INTERACTIVE_SUDO_PREFIX + " " + raw_setup)
                 interactive_setup_added = True
 
-            resolved_cmd, setup_override_from_gallery = resolve_interactive_command(gallery_entry, environment)
+            resolved_cmd, setup_override_from_gallery = resolve_interactive_command(
+                gallery_entry, environment, base_command=base_command
+            )
             if resolved_cmd:
                 base_command = INTERACTIVE_SUDO_PREFIX + " " + resolved_cmd
             if setup_override_from_gallery and team_secrets:
