@@ -395,6 +395,93 @@ async def test_check_job_via_provider_runpod_pod_not_found_stopping(monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_check_job_via_provider_runpod_pod_not_found_running_debounced(monkeypatch):
+    """RUNPOD RUNNING + Pod not found: require N polls (same threshold as empty queue) before COMPLETE."""
+    monkeypatch.setattr(remote_job_status_service, "EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD", 2)
+
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(status="RUNNING")
+    record = _make_provider_record("runpod")
+
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.UNKNOWN
+    cluster_status.status_message = "Pod not found"
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key, value))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        AsyncMock(side_effect=AssertionError("should not be called on first poll")),
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+    assert result is False
+    assert ("kv", "provider_empty_jobs_polls", 1) in calls
+
+    job["job_data"]["provider_empty_jobs_polls"] = 1
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        AsyncMock(),
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_check_job_via_provider_runpod_pod_not_found_resets_when_pod_reappears(monkeypatch):
+    """Consecutive Pod not found polls reset if the API later reports the pod again."""
+    monkeypatch.setattr(remote_job_status_service, "EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD", 2)
+
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(status="RUNNING")
+    job["job_data"]["provider_empty_jobs_polls"] = 1
+    record = _make_provider_record("runpod")
+
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.UP
+    cluster_status.status_message = ""
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key, value))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        AsyncMock(side_effect=AssertionError("should not be called")),
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+    assert result is False
+    assert ("kv", "provider_empty_jobs_polls", 0) in calls
+
+
+@pytest.mark.asyncio
 async def test_check_job_via_provider_runpod_terminating_stopping(monkeypatch):
     """RUNPOD provider, pod in TERMINATING (UNKNOWN), job STOPPING → job marked STOPPED."""
     from transformerlab.compute_providers.models import ClusterStatus, ClusterState
