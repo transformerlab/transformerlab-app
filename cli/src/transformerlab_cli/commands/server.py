@@ -85,8 +85,12 @@ def _prompt_frontend(existing: dict[str, str]) -> dict[str, str]:
     console.print("[dim]The URL where users will access the Transformer Lab web interface.[/dim]")
 
     default_url = existing.get("FRONTEND_URL", "http://localhost:8338")
-    url = typer.prompt("Frontend URL", default=default_url)
-    url = url.rstrip("/")
+    while True:
+        url = typer.prompt("Frontend URL", default=default_url)
+        url = url.rstrip("/")
+        if url.startswith("http://") or url.startswith("https://"):
+            break
+        console.print("[red]URL must start with http:// or https://[/red]")
 
     # Derive API URL from frontend URL
     api_url = url.rstrip("/") + "/"
