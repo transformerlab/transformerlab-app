@@ -7,8 +7,10 @@ import {
   CardContent,
   Chip,
   Box,
+  IconButton,
   Divider,
 } from '@mui/joy';
+import { Trash2Icon } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
@@ -28,6 +30,7 @@ interface InteractiveJobCardProps {
   job: any;
   /** Live launch progress from check-status polling; falls back to job.job_data.launch_progress in JobProgress */
   launchProgress?: LaunchProgressInfo | null;
+  onDeleteJob: (jobId: string) => void;
 }
 
 function VscodeIcon() {
@@ -118,6 +121,7 @@ function getTypeConfig(interactiveType: string) {
 export default function InteractiveJobCard({
   job,
   launchProgress,
+  onDeleteJob,
 }: InteractiveJobCardProps) {
   type InteractiveGalleryEntry = {
     id?: string;
@@ -255,6 +259,15 @@ export default function InteractiveJobCard({
                 '\u00A0'}
             </Chip>
           </Stack>
+          <IconButton
+            variant="plain"
+            color="danger"
+            size="sm"
+            onClick={() => onDeleteJob(String(job.id))}
+            sx={{ mt: -0.5, mr: -0.5 }}
+          >
+            <Trash2Icon size={16} />
+          </IconButton>
         </Stack>
 
         <Box>
