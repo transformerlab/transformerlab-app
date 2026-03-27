@@ -412,6 +412,7 @@ def _write_env_file(path: Path, env_vars: dict[str, str]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         content = _build_env_content(env_vars)
         path.write_text(content)
+        path.chmod(0o600)
     except PermissionError:
         console.print(
             f"\n[error]Permission denied: cannot write to {path}[/error]"
