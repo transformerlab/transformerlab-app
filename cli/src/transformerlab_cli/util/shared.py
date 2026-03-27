@@ -1,4 +1,4 @@
-from pathlib import Path
+import os
 
 DEFAULT_BASE_URL = "http://alpha.lab.cloud:8338"
 _BASE_URL = DEFAULT_BASE_URL
@@ -7,11 +7,11 @@ _BASE_URL = DEFAULT_BASE_URL
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_UPLOAD_TIMEOUT = 60.0
 
-CREDENTIALS_DIR = Path.home() / ".lab"
-CREDENTIALS_FILE = CREDENTIALS_DIR / "credentials"
+CREDENTIALS_DIR = os.path.join(os.path.expanduser("~"), ".lab")
+CREDENTIALS_FILE = os.path.join(CREDENTIALS_DIR, "credentials")
 
-CONFIG_DIR = Path.home() / ".lab"
-CONFIG_FILE = CONFIG_DIR / "config.json"
+CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".lab")
+CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 
 
 def set_base_url(url: str | None) -> None:

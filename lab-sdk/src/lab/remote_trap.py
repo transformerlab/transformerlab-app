@@ -26,7 +26,7 @@ async def _set_live_status_async(job_id: str, status: str) -> None:
         await job.update_job_data_field("live_status", status)
 
         # If the remote command crashed, also mark the job as FAILED.
-        if status == "crashed":
+        if status == "Remote command crashed":
             await job.update_status(JobStatus.FAILED)
     except Exception:
         # This helper should never cause the wrapped command to fail.
@@ -178,13 +178,13 @@ def main(argv: List[str] | None = None) -> int:
 
     if not cmd_parts:
         print("Error: No command provided to run. The task may be missing a 'run' or 'command' field.", file=sys.stderr)
-        _set_live_status("crashed")
+        _set_live_status("Remote command crashed")
         return 1
 
     command_str = " ".join(cmd_parts)
 
     # Mark job as started.
-    _set_live_status("started")
+    _set_live_status("Remote command started")
     _set_status(JobStatus.RUNNING)
 
     job_id = os.environ.get("_TFL_JOB_ID")
@@ -264,9 +264,9 @@ def main(argv: List[str] | None = None) -> int:
 
     # Update live_status based on outcome (best-effort).
     if exit_code == 0:
-        _set_live_status("finished")
+        _set_live_status("Remote command finished")
     else:
-        _set_live_status("crashed")
+        _set_live_status("Remote command crashed")
 
     return exit_code
 

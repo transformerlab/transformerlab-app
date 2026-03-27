@@ -34,24 +34,18 @@ const DatasetTableWithTemplate = ({
     setNumOfPages(totalPages);
   };
 
-  const shouldUseChatTemplate = !!modelName && !!chatColumn;
   const { addNotification } = useNotification();
 
   const {
     data: result,
     error,
     isLoading,
-  } = useAPI(
-    'datasets',
-    [shouldUseChatTemplate ? 'previewChatTemplate' : 'previewTemplate'],
-    {
-      datasetId,
-      template: encodeURIComponent(template),
-      offset,
-      limit: pageSize,
-      ...(shouldUseChatTemplate ? { modelName, chatColumn } : {}),
-    },
-  );
+  } = useAPI('datasets', ['previewTemplate'], {
+    datasetId,
+    template: encodeURIComponent(template),
+    offset,
+    limit: pageSize,
+  });
 
   useEffect(() => {
     setDatasetLen(null);

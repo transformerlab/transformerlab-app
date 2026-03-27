@@ -24,6 +24,7 @@ import NewInteractiveTaskModal from '../Tasks/NewInteractiveTaskModal';
 import EditInteractiveTaskModal from '../Tasks/EditInteractiveTaskModal';
 import DeleteTaskConfirmModal from '../Tasks/DeleteTaskConfirmModal';
 import InteractiveJobCard from './InteractiveJobCard';
+import JobsList from '../Tasks/JobsList';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -178,15 +179,19 @@ export default function Interactive() {
 
   // Poll REMOTE jobs in LAUNCHING/WAITING for live launch_progress (same pattern as Tasks).
   useEffect(() => {
-    if (!launchPollingJobIds) return;
+    if (!launchPollingJobIds || !experimentInfo?.id) return;
 
     const ids = launchPollingJobIds.split(',');
+    const experimentId = String(experimentInfo.id);
 
     const checkJobs = async () => {
       for (const jobId of ids) {
         try {
           const response = await fetchWithAuthRef.current(
-            chatAPI.Endpoints.ComputeProvider.CheckJobStatus(jobId),
+            chatAPI.Endpoints.ComputeProvider.CheckJobStatus(
+              jobId,
+              experimentId,
+            ),
             { method: 'GET' },
           );
           if (response.ok) {
@@ -219,7 +224,7 @@ export default function Interactive() {
     checkJobs();
     const interval = setInterval(checkJobs, 3000);
     return () => clearInterval(interval);
-  }, [launchPollingJobIds]);
+  }, [launchPollingJobIds, experimentInfo?.id]);
 
   // Fetch templates with interactive subtype
   const {
@@ -262,12 +267,13 @@ export default function Interactive() {
   const jobsWithPlaceholders = useMemo(() => {
     const baseJobs = Array.isArray(jobs) ? jobs : [];
 
-    // Show active interactive jobs (INTERACTIVE, RUNNING, LAUNCHING, STOPPING)
+    // Show active interactive jobs
     const filteredJobs = baseJobs.filter((job: any) => {
       return (
         job.status === 'INTERACTIVE' ||
         job.status === 'RUNNING' ||
         job.status === 'LAUNCHING' ||
+        job.status === 'WAITING' ||
         job.status === 'STOPPING'
       );
     });
@@ -291,6 +297,18 @@ export default function Interactive() {
 
     return [...placeholders, ...filteredJobs];
   }, [jobs, getPendingJobIds, pendingIdsTrigger]);
+
+  // Completed / failed / stopped interactive jobs for the History section
+  const historyJobs = useMemo(() => {
+    const baseJobs = Array.isArray(jobs) ? jobs : [];
+    return baseJobs.filter((job: any) => {
+      return (
+        job.status === 'COMPLETE' ||
+        job.status === 'FAILED' ||
+        job.status === 'STOPPED'
+      );
+    });
+  }, [jobs]);
 
   const handleDeleteTask = (taskId: string, taskName?: string) => {
     setTaskToDelete({ id: taskId, name: taskName });
@@ -1012,15 +1030,11 @@ export default function Interactive() {
               }}
             >
               <Typography level="body-lg" sx={{ mb: 2 }}>
-                No interactive jobs yet
-              </Typography>
-              <Typography level="body-sm" color="neutral" sx={{ mb: 1 }}>
-                Interactive jobs are long running services like an Inference
-                Server, VS Code or Jupyter notebook.
+                No running services
               </Typography>
               <Typography level="body-sm" color="neutral">
-                Import an interactive task from the gallery and then queue it to
-                start.
+                Click <b>New</b> to launch an interactive service such as
+                Jupyter, VS Code, or an inference server.
               </Typography>
             </Box>
           )}
@@ -1059,6 +1073,11 @@ export default function Interactive() {
           overflow: 'auto',
         }}
       >
+        <JobsList
+          jobs={historyJobs}
+          loading={jobsIsLoading || !experimentInfo?.id}
+        />
+        {/* TODO: remove TaskTemplateList once migration is complete
         <TaskTemplateList
           tasksList={tasks}
           onDeleteTask={handleDeleteTask}
@@ -1068,6 +1087,7 @@ export default function Interactive() {
           loading={templatesIsLoading || !experimentInfo?.id}
           interactTasks
         />
+        */}
       </Sheet>
       <DeleteTaskConfirmModal
         open={taskToDelete !== null}
