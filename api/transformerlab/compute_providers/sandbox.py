@@ -106,6 +106,14 @@ def _build_seatbelt_profile(
         "(allow mach*)",
         # sysctl reads (needed by Python, PyTorch)
         "(allow sysctl*)",
+        # Metal / Apple Silicon GPU: framework dylibs and private frameworks
+        '(allow file-read* (subpath "/System"))',
+        # Unified memory mapping (Metal + PyTorch mmap model loading)
+        "(allow vm-map)",
+        # POSIX shared memory (PyTorch DataLoader workers, multiprocessing, Metal IPC)
+        "(allow ipc-posix-shm)",
+        # Timezone data (Python datetime / zoneinfo)
+        '(allow file-read* (subpath "/private/var/db/timezone"))',
     ]
     return "\n".join(rules).encode()
 
