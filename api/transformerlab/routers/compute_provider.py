@@ -54,6 +54,7 @@ from lab.storage import STORAGE_PROVIDER
 from lab.dirs import (
     get_workspace_dir,
     get_local_provider_job_dir,
+    resolve_local_provider_job_dir,
     get_job_dir,
     set_organization_id,
     get_task_dir,
@@ -2756,14 +2757,17 @@ async def stop_cluster(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Local provider needs workspace_dir (job dir) to stop the correct process tree.
-        # Derive job_id from the standard "-job-<job_id>" suffix in the cluster name.
+        # Cluster names include a short id suffix ("-job-<short_id>"), while local
+        # provider run directories use the full job id. Resolve by exact/unique prefix
+        # without creating new directories.
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
             job_id_segment = None
             if "-job-" in cluster_name:
                 job_id_segment = cluster_name.rsplit("-job-", 1)[-1] or None
             if job_id_segment is not None:
-                job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id_segment, org_id=team_id)
-                provider_instance.extra_config["workspace_dir"] = job_dir
+                job_dir = await asyncio.to_thread(resolve_local_provider_job_dir, job_id_segment, org_id=team_id)
+                if job_dir:
+                    provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Stop cluster
         result = await asyncio.to_thread(provider_instance.stop_cluster, cluster_name)
