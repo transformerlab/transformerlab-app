@@ -72,6 +72,9 @@ const Resources = () => {
     new Set(),
   );
   const [terminateMessage, setTerminateMessage] = useState<string>('');
+  const [terminateStatus, setTerminateStatus] = useState<
+    'success' | 'error' | null
+  >(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -145,6 +148,7 @@ const Resources = () => {
 
     setTerminatingClusters((prev) => new Set(prev).add(clusterName));
     setTerminateMessage('');
+    setTerminateStatus(null);
 
     try {
       const response = await authenticatedFetch(
@@ -161,6 +165,7 @@ const Resources = () => {
         setTerminateMessage(
           `Successfully initiated termination of cluster "${clusterName}". Refreshing...`,
         );
+        setTerminateStatus('success');
         // Refresh clusters after a short delay
         setTimeout(() => {
           fetchClusters();
@@ -170,12 +175,14 @@ const Resources = () => {
         setTerminateMessage(
           `Failed to terminate cluster "${clusterName}": ${errorData.detail || 'Unknown error'}`,
         );
+        setTerminateStatus('error');
       }
     } catch (error) {
       console.error('Failed to terminate cluster:', error);
       setTerminateMessage(
         `Failed to terminate cluster "${clusterName}": ${(error as Error).message || 'Network error'}`,
       );
+      setTerminateStatus('error');
     } finally {
       setTerminatingClusters((prev) => {
         const newSet = new Set(prev);
@@ -279,11 +286,9 @@ const Resources = () => {
         </Select>
       </FormControl>
 
-      {terminateMessage && (
+      {terminateMessage && terminateStatus && (
         <Alert
-          color={
-            terminateMessage.includes('Successfully') ? 'success' : 'danger'
-          }
+          color={terminateStatus === 'success' ? 'success' : 'danger'}
           sx={{ mb: 2 }}
         >
           {terminateMessage}
