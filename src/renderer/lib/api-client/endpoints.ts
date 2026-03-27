@@ -120,9 +120,8 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/task/launch`,
   LaunchTask: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/task/launch`, // Deprecated: use LaunchTemplate
-  CheckJobStatus: (jobId: string, experimentId?: string) => {
+  CheckJobStatus: (jobId: string, experimentId: string) => {
     const baseUrl = `${API_URL()}compute_provider/jobs/${jobId}/check-status`;
-    if (!experimentId) return baseUrl;
     return `${baseUrl}?experiment_id=${encodeURIComponent(String(experimentId))}`;
   },
   CheckSweepStatus: (experimentId?: string, jobId?: string) => {
@@ -206,42 +205,14 @@ Endpoints.Dataset = {
 
 Endpoints.Models = {
   LocalList: () => `${API_URL()}model/list`,
-  CountDownloaded: () => `${API_URL()}model/count_downloaded`,
-  Gallery: () => `${API_URL()}model/gallery`,
   ModelGroups: () => `${API_URL()}model/model_groups_list`,
   GetPeftsForModel: () => `${API_URL()}model/pefts`,
-  UploadModelToHuggingFace: (
-    modelId: string,
-    modelName: string,
-    organizationName?: string,
-    model_card_data?: object,
-  ) =>
-    `${API_URL()}model/upload_to_huggingface?model_id=${modelId}&model_name=${
-      modelName
-    }&organization_name=${organizationName}&model_card_data=${JSON.stringify(
-      model_card_data,
-    )}`,
   DeletePeft: (modelId: string, peft: string) =>
     `${API_URL()}model/delete_peft?model_id=${modelId}&peft=${peft}`,
   InstallPeft: (modelId: string, peft: string) =>
     `${API_URL()}model/install_peft?model_id=${modelId}&peft=${peft}`,
   ModelDetailsFromGallery: (modelId: string) =>
     `${API_URL()}model/gallery/${convertSlashInUrl(modelId)}`,
-  ModelDetailsFromFilesystem: (modelId: string) =>
-    `${API_URL()}model/details/${convertSlashInUrl(modelId)}`,
-  ModelProvenance: (modelId: string) =>
-    `${API_URL()}model/provenance/${convertSlashInUrl(modelId)}`,
-  GetLocalHFConfig: (modelId: string) =>
-    `${API_URL()}model/get_local_hfconfig?model_id=${modelId}`,
-  SearchForLocalUninstalledModels: (path: string) =>
-    `${API_URL()}model/list_local_uninstalled?path=${path}`,
-  ImportFromSource: (modelSource: string, modelId: string) =>
-    `${API_URL()}model/import_from_source?model_source=${
-      modelSource
-    }&model_id=${modelId}`,
-
-  ImportFromLocalPath: (modelPath: string) =>
-    `${API_URL()}model/import_from_local_path?model_path=${modelPath}`,
   Delete: (modelId: string, deleteCache: boolean = false) =>
     `${API_URL()}model/delete?model_id=${modelId}&delete_from_cache=${
       deleteCache

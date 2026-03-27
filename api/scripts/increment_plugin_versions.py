@@ -12,7 +12,7 @@ Run from the transformerlab-api directory or from this scripts directory.
 
 import json
 import sys
-from pathlib import Path
+import os
 
 
 def increment_version(version_str):
@@ -31,10 +31,10 @@ def increment_version(version_str):
         return version_str
 
 
-def process_plugin_index(plugin_path):
+def process_plugin_index(plugin_path: str) -> bool:
     """Read, update version, and write index.json"""
-    index_path = plugin_path / "index.json"
-    if not index_path.exists():
+    index_path = os.path.join(plugin_path, "index.json")
+    if not os.path.exists(index_path):
         print(f"Warning: {index_path} does not exist")
         return False
 
@@ -54,7 +54,7 @@ def process_plugin_index(plugin_path):
             json.dump(data, f, indent=2, ensure_ascii=False)
             f.write("\n")  # Add newline at end
 
-        print(f"Updated {plugin_path.name}: {old_version} -> {new_version}")
+        print(f"Updated {os.path.basename(plugin_path)}: {old_version} -> {new_version}")
         return True
     except Exception as e:
         print(f"Error processing {index_path}: {e}")
@@ -63,19 +63,21 @@ def process_plugin_index(plugin_path):
 
 def main():
     # Get the script directory and find transformerlab-api root
-    script_dir = Path(__file__).parent.resolve()
+    script_dir = os.path.dirname(os.path.realpath(__file__))
 
     # Try to find transformerlab-api root (should be parent of scripts)
-    api_root = script_dir.parent
-    plugins_dir = api_root / "transformerlab" / "plugins"
+    api_root = os.path.dirname(script_dir)
+    plugins_dir = os.path.join(api_root, "transformerlab", "plugins")
 
-    if not plugins_dir.exists():
+    if not os.path.exists(plugins_dir):
         print(f"Error: {plugins_dir} does not exist")
         print(f"Script is in: {script_dir}")
         print(f"Looking for plugins in: {plugins_dir}")
         sys.exit(1)
 
-    plugin_dirs = [d for d in plugins_dir.iterdir() if d.is_dir()]
+    plugin_dirs = [
+        os.path.join(plugins_dir, d) for d in os.listdir(plugins_dir) if os.path.isdir(os.path.join(plugins_dir, d))
+    ]
     print(f"Found {len(plugin_dirs)} plugin directories")
     print(f"Processing plugins in: {plugins_dir}\n")
 

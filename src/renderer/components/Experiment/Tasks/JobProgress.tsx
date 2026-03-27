@@ -48,12 +48,14 @@ interface JobProps {
   };
   showLaunchResultInfo?: boolean;
   launchProgress?: LaunchProgressInfo | null;
+  hideCircularLaunchProgressAtOrAbove?: number;
 }
 
 export default function JobProgress({
   job,
   showLaunchResultInfo = false,
   launchProgress,
+  hideCircularLaunchProgressAtOrAbove,
 }: JobProps) {
   const { experimentInfo } = useExperimentInfo();
   const { fetchWithAuth } = useAuth();
@@ -140,6 +142,15 @@ export default function JobProgress({
     );
   };
 
+  const clampedLaunchPercent =
+    effectiveLaunchProgress?.percent == null
+      ? null
+      : Math.min(100, Math.max(0, effectiveLaunchProgress.percent));
+  const showCircularLaunchProgress =
+    clampedLaunchPercent != null &&
+    (hideCircularLaunchProgressAtOrAbove == null ||
+      clampedLaunchPercent < hideCircularLaunchProgressAtOrAbove);
+
   // Format provider launch result for display
   const formatProviderLaunchResult = (launchResult: any): string => {
     if (!launchResult) return '';
@@ -224,7 +235,7 @@ export default function JobProgress({
             >
               {job.status}
             </Chip>
-            {effectiveLaunchProgress?.percent != null && (
+            {showCircularLaunchProgress && (
               <Stack
                 direction="row"
                 alignItems="center"
@@ -233,18 +244,12 @@ export default function JobProgress({
               >
                 <CircularProgress
                   determinate
-                  value={Math.min(
-                    100,
-                    Math.max(0, effectiveLaunchProgress.percent),
-                  )}
+                  value={clampedLaunchPercent}
                   size="sm"
                   thickness={3}
                 />
                 <Typography level="body-xs" fontWeight="md">
-                  {Math.round(
-                    Math.min(100, Math.max(0, effectiveLaunchProgress.percent)),
-                  )}
-                  %
+                  {Math.round(clampedLaunchPercent)}%
                 </Typography>
               </Stack>
             )}

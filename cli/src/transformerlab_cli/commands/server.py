@@ -1,7 +1,7 @@
 import secrets
 import subprocess
 import sys
-from pathlib import Path
+import os
 
 import typer
 
@@ -9,8 +9,8 @@ from transformerlab_cli.util.ui import console
 
 app = typer.Typer()
 
-ENV_DIR = Path.home() / ".transformerlab"
-ENV_FILE = ENV_DIR / ".env"
+ENV_DIR = os.path.join(os.path.expanduser("~"), ".transformerlab")
+ENV_FILE = os.path.join(ENV_DIR, ".env")
 
 STORAGE_TYPES = ["aws", "gcp", "azure", "localfs"]
 COMPUTE_TYPES = ["skypilot", "slurm", "runpod", "local"]
@@ -21,22 +21,23 @@ COMPUTE_TYPES = ["skypilot", "slurm", "runpod", "local"]
 # ---------------------------------------------------------------------------
 
 
-def _load_existing_env(path: Path) -> dict[str, str]:
+def _load_existing_env(path: str) -> dict[str, str]:
     """Parse an existing .env file into a dict, ignoring comments and blank lines."""
     env: dict[str, str] = {}
-    if not path.exists():
+    if not os.path.exists(path):
         return env
-    for line in path.read_text().splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        # Strip surrounding quotes
-        value = value.strip().strip('"').strip("'")
-        env[key] = value
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f.read().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            # Strip surrounding quotes
+            value = value.strip().strip('"').strip("'")
+            env[key] = value
     return env
 
 
@@ -47,11 +48,12 @@ def _generate_secret(length: int = 32) -> str:
 
 def _check_aws_profile(profile: str = "transformerlab-s3") -> bool:
     """Check if an AWS credentials profile exists."""
-    creds_file = Path.home() / ".aws" / "credentials"
-    if not creds_file.exists():
+    creds_file = os.path.join(os.path.expanduser("~"), ".aws", "credentials")
+    if not os.path.exists(creds_file):
         return False
     try:
-        content = creds_file.read_text()
+        with open(creds_file, "r", encoding="utf-8") as f:
+            content = f.read()
         return f"[{profile}]" in content
     except OSError:
         return False
@@ -402,16 +404,17 @@ def _build_env_content(env_vars: dict[str, str]) -> str:
     return "\n".join(lines)
 
 
-def _write_env_file(path: Path, env_vars: dict[str, str]) -> None:
+def _write_env_file(path: str, env_vars: dict[str, str]) -> None:
     """Write the env vars to a .env file, creating directories as needed.
 
     Raises typer.Exit(1) on permission or OS errors so the installer does not
     continue with a missing or partial configuration.
     """
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         content = _build_env_content(env_vars)
-        path.write_text(content)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
     except PermissionError:
         console.print(
             f"\n[error]Permission denied: cannot write to {path}[/error]"
@@ -441,7 +444,7 @@ def server_install(
     console.print("=" * 42)
 
     # Load existing config
-    existing = _load_existing_env(ENV_FILE) if ENV_FILE.exists() else {}
+    existing = _load_existing_env(ENV_FILE) if os.path.exists(ENV_FILE) else {}
     if existing:
         console.print(
             f"\n[info]Found existing configuration at {ENV_FILE}[/info]"
@@ -509,7 +512,7 @@ def server_setup() -> None:
     command_setup()
 
 
-LATEST_VERSION_FILE = ENV_DIR / "src" / "LATEST_VERSION"
+LATEST_VERSION_FILE = os.path.join(ENV_DIR, "src", "LATEST_VERSION")
 GITHUB_LATEST_RELEASE_URL = "https://github.com/transformerlab/transformerlab-app/releases/latest"
 
 
