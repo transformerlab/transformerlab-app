@@ -1,7 +1,8 @@
+import os
 import secrets
+import shutil
 import subprocess
 import sys
-import os
 
 import typer
 
@@ -467,11 +468,24 @@ def _build_env_content(env_vars: dict[str, str]) -> str:
 def _write_env_file(path: str, env_vars: dict[str, str]) -> None:
     """Write the env vars to a .env file, creating directories as needed.
 
+    If *path* already exists it is backed up to ``<path>.bak`` before
+    overwriting so the previous configuration can be recovered.
+
     Raises typer.Exit(1) on permission or OS errors so the installer does not
     continue with a missing or partial configuration.
     """
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        # Back up existing file before overwriting
+        if os.path.exists(path):
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            backup_path = f"{path}.{timestamp}"
+            shutil.copy2(path, backup_path)
+            console.print(f"[dim]Existing config backed up to {backup_path}[/dim]")
+
         content = _build_env_content(env_vars)
         with open(path, "w", encoding="utf-8") as f:
             f.write(content)
