@@ -1,0 +1,14 @@
+name: Wan2.2 Text-to-Video Generation
+setup: pip install torch torchvision diffusers transformers accelerate
+run: python wan22_video_gen.py
+resources:
+  accelerators: "A100:1"
+parameters:
+  prompt: "A serene mountain landscape at sunset with clouds drifting by"
+  model_id: "Wan-AI/Wan2.2-T2V-1.3B"
+  num_frames: 49
+  height: 480
+  width: 832
+  guidance_scale: 5.0
+  num_inference_steps: 50
+  seed: 42
