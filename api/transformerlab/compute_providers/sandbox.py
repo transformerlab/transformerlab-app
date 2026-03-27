@@ -51,13 +51,16 @@ def _load_seatbelt() -> bool:
     return _SEATBELT_AVAILABLE
 
 
-def _build_seatbelt_profile(workspace_dir: str, extra_read_paths: list[str]) -> bytes:
+def _build_seatbelt_profile(
+    workspace_dir: str, extra_read_paths: list[str], extra_rw_paths: list[str] | None = None
+) -> bytes:
     """
     Build a Seatbelt (SBPL) profile that:
       - Denies everything by default
       - Imports bsd.sb for essential OS services
       - Allows read+write under workspace_dir
       - Allows read-only under each path in extra_read_paths (shared caches)
+      - Allows read+write under extra_rw_paths (e.g. job directory as CWD)
       - Allows GPU / DRI device access
       - Allows process operations (fork, exec, signal) for subprocesses
       - Allows outbound network (models download from HuggingFace etc.)
@@ -70,10 +73,25 @@ def _build_seatbelt_profile(workspace_dir: str, extra_read_paths: list[str]) -> 
         # Full access to the per-job workspace
         f'(allow file* (subpath "{workspace_dir}"))',
     ]
+    # Read-write access to extra paths (e.g. job_dir used as CWD)
+    for p in extra_rw_paths or []:
+        if p:
+            rules.append(f'(allow file* (subpath "{p}"))')
     # Read-only access to shared cache paths (HF models, uv/pip cache, conda)
     for p in extra_read_paths:
         if p:
             rules.append(f'(allow file-read* (subpath "{p}"))')
+    # macOS system libraries and developer tools (needed by git, xcrun, etc.)
+    rules += [
+        '(allow file-read* (subpath "/Library"))',
+        '(allow file-read* (subpath "/usr"))',
+        '(allow file-read* (subpath "/bin"))',
+        '(allow file-read* (subpath "/sbin"))',
+        # SSL config needed for HTTPS git clone
+        '(allow file-read* (subpath "/private/etc"))',
+        # xcrun writes temp cache files under /private/var/folders
+        '(allow file* (subpath "/private/var/folders"))',
+    ]
     # GPU device files (CUDA / Metal)
     rules += [
         '(allow file-read* file-write* (subpath "/dev"))',
@@ -92,7 +110,11 @@ def _build_seatbelt_profile(workspace_dir: str, extra_read_paths: list[str]) -> 
     return "\n".join(rules).encode()
 
 
-def make_seatbelt_preexec(workspace_dir: str, extra_read_paths: list[str]) -> Optional[Callable[[], None]]:
+def make_seatbelt_preexec(
+    workspace_dir: str,
+    extra_read_paths: list[str],
+    extra_rw_paths: list[str] | None = None,
+) -> Optional[Callable[[], None]]:
     """
     Return a preexec_fn callable that applies a Seatbelt policy to the child
     process before exec. Returns None if Seatbelt is unavailable.
@@ -100,7 +122,7 @@ def make_seatbelt_preexec(workspace_dir: str, extra_read_paths: list[str]) -> Op
     if not _load_seatbelt():
         return None
 
-    profile = _build_seatbelt_profile(workspace_dir, extra_read_paths)
+    profile = _build_seatbelt_profile(workspace_dir, extra_read_paths, extra_rw_paths)
     lib = _libc
 
     def _apply() -> None:

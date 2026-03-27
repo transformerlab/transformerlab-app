@@ -492,19 +492,40 @@ class LocalProvider(ComputeProvider):
 
         # Build sandbox helpers for this job.
         # extra_read_paths: shared caches that need to be visible inside the sandbox.
+        _lab_sdk_dir = _resolve_lab_sdk_dir(localprovider_pyproject)
+        _source_code_dir = os.environ.get("_TFL_SOURCE_CODE_DIR", "")
         _sandbox_read_paths = [
             env.get("HF_HOME", ""),
             env.get("XDG_CACHE_HOME", ""),
             env["UV_CACHE_DIR"],
             _CONDA_ENV_DIR,
             venv_path,
+            # uv manages its own Python installations here; the dylib must be readable.
+            os.path.join(real_home, ".local", "share", "uv"),
+            # lab-sdk is installed as an editable install; the .pth file points back to
+            # this source tree, so the sandbox must be able to read it at import time.
+            _lab_sdk_dir or "",
+            _source_code_dir,
         ]
         _sandbox_backend = get_backend_name()
         if _sandbox_backend != "none":
-            print(f"[LocalProvider] Sandbox backend: {_sandbox_backend}")
+            print(f"[LocalProvider] Sandbox backend: {_sandbox_backend} (job_dir={job_dir})")
+        else:
+            print("[LocalProvider] Sandbox backend: none (falling back to HOME-override isolation)")
+
+        # The lab SDK writes job/experiment data under ~/.transformerlab (org workspace).
+        # This path must be writable in both sandbox backends.
+        _sandbox_rw_paths = [job_dir, env["UV_CACHE_DIR"], _TLAB_DIR]
 
         # macOS: preexec_fn applies Seatbelt policy inside the child before exec.
-        _sandbox_preexec = make_seatbelt_preexec(workspace_home, _sandbox_read_paths)
+        # job_dir is the subprocess CWD (getcwd must succeed there), so grant rw access.
+        # UV_CACHE_DIR needs rw (uv pip install writes to it) even though it's also in
+        # _sandbox_read_paths (which is used for bwrap ro-bind on Linux).
+        _sandbox_preexec = make_seatbelt_preexec(
+            workspace_home,
+            _sandbox_read_paths,
+            extra_rw_paths=_sandbox_rw_paths,
+        )
 
         def _wrap(base_cmd: list[str]) -> list[str]:
             """Wrap command with bwrap on Linux; on macOS preexec_fn handles it."""
@@ -512,7 +533,7 @@ class LocalProvider(ComputeProvider):
                 base_cmd,
                 workspace_dir=workspace_home,
                 extra_read_paths=_sandbox_read_paths,
-                extra_rw_paths=[str(job_dir)],
+                extra_rw_paths=_sandbox_rw_paths,
             )
 
         # Open log files early so setup output is visible to get_job_logs / tunnel_info
@@ -524,6 +545,8 @@ class LocalProvider(ComputeProvider):
                 _status("Running setup")
                 print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
                 setup_cmd = _wrap(["/bin/bash", "-c", config.setup])
+                if setup_cmd[0] != "/bin/bash":
+                    print(f"[LocalProvider] Setup sandboxed via {_sandbox_backend}: {setup_cmd[0]}")
                 setup_result = subprocess.run(
                     setup_cmd,
                     cwd=job_dir,
@@ -554,6 +577,8 @@ class LocalProvider(ComputeProvider):
             _status("Starting service")
             print(f"[LocalProvider] Launching run in {job_dir}: {config.run!r}")
             run_cmd = _wrap(["/bin/bash", "-c", config.run or "true"])
+            if run_cmd[0] != "/bin/bash":
+                print(f"[LocalProvider] Run sandboxed via {_sandbox_backend}: {run_cmd[0]}")
             proc = subprocess.Popen(
                 run_cmd,
                 cwd=str(job_dir),
