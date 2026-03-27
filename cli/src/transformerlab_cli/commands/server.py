@@ -282,6 +282,62 @@ def _prompt_auth(existing: dict[str, str]) -> dict[str, str]:
 
 
 # ---------------------------------------------------------------------------
+# Config validation
+# ---------------------------------------------------------------------------
+
+# Placeholder values that indicate the user didn't provide real input
+_PLACEHOLDER_VALUES = {"smtp.example.com", "example.com", ""}
+
+
+def _validate_config(env_vars: dict[str, str]) -> list[str]:
+    """Check env_vars for missing required fields and placeholder values.
+
+    Returns a list of human-readable warning strings. An empty list means
+    the configuration looks valid.
+    """
+    warnings: list[str] = []
+
+    # Azure storage: need either a connection string or account+key
+    if env_vars.get("TFL_STORAGE_PROVIDER") == "azure":
+        has_conn = bool(env_vars.get("AZURE_STORAGE_CONNECTION_STRING", "").strip())
+        has_account = bool(env_vars.get("AZURE_STORAGE_ACCOUNT", "").strip())
+        has_key = bool(env_vars.get("AZURE_STORAGE_KEY", "").strip())
+        if not has_conn and not (has_account and has_key):
+            warnings.append("Azure storage selected but no connection string or account/key provided.")
+
+    # SMTP: check for placeholder server
+    if env_vars.get("EMAIL_METHOD") == "smtp":
+        server = env_vars.get("SMTP_SERVER", "").strip()
+        if server in _PLACEHOLDER_VALUES:
+            warnings.append("SMTP is enabled but the server is empty or still set to a placeholder.")
+        from_addr = env_vars.get("EMAIL_FROM", "").strip()
+        if not from_addr:
+            warnings.append("SMTP is enabled but no 'From' address is configured.")
+
+    # OIDC: discovery URL is required when enabled
+    if env_vars.get("OIDC_0_CLIENT_ID"):
+        discovery = env_vars.get("OIDC_0_DISCOVERY_URL", "").strip()
+        if not discovery:
+            warnings.append("OIDC is enabled but the discovery URL is empty.")
+
+    # Google OAuth: need client ID and secret
+    if env_vars.get("GOOGLE_OAUTH_ENABLED") == "true":
+        if not env_vars.get("GOOGLE_OAUTH_CLIENT_ID", "").strip():
+            warnings.append("Google OAuth is enabled but the Client ID is empty.")
+        if not env_vars.get("GOOGLE_OAUTH_CLIENT_SECRET", "").strip():
+            warnings.append("Google OAuth is enabled but the Client Secret is empty.")
+
+    # GitHub OAuth: need client ID and secret
+    if env_vars.get("GITHUB_OAUTH_ENABLED") == "true":
+        if not env_vars.get("GITHUB_OAUTH_CLIENT_ID", "").strip():
+            warnings.append("GitHub OAuth is enabled but the Client ID is empty.")
+        if not env_vars.get("GITHUB_OAUTH_CLIENT_SECRET", "").strip():
+            warnings.append("GitHub OAuth is enabled but the Client Secret is empty.")
+
+    return warnings
+
+
+# ---------------------------------------------------------------------------
 # Install script runner
 # ---------------------------------------------------------------------------
 
@@ -472,6 +528,16 @@ def server_install(
 
     # Ensure MULTIUSER is always set
     env_vars.setdefault("MULTIUSER", "true")
+
+    # Validate before writing
+    config_warnings = _validate_config(env_vars)
+    if config_warnings:
+        console.print("\n[bold warning]Configuration warnings:[/bold warning]")
+        for w in config_warnings:
+            console.print(f"  [warning]• {w}[/warning]")
+        if not typer.confirm("\nContinue anyway?", default=False):
+            console.print("[dim]Aborted. Re-run to fix the configuration.[/dim]")
+            raise typer.Exit(1)
 
     # Display or write
     if dry_run:
