@@ -20,6 +20,7 @@ import {
   Alert,
 } from '@mui/joy';
 import { useNavigate } from 'react-router-dom';
+import { useAPI, useAuth } from 'renderer/lib/authContext';
 import {
   authenticatedFetch,
   getAPIFullPath,
@@ -77,6 +78,10 @@ const Resources = () => {
   >(null);
   const navigate = useNavigate();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const authContext = useAuth();
+  const { data: members } = useAPI('teams', ['members'], {
+    teamId: authContext.team?.id,
+  });
 
   useEffect(() => {
     fetchProviders();
@@ -151,6 +156,17 @@ const Resources = () => {
 
   const handleTerminateCluster = async (clusterName: string) => {
     if (!selectedProvider) return;
+
+    const isAdmin = authContext.user?.email === 'admin@example.com';
+    const isOwner = members?.members?.some(
+      (m: any) => m.user_id === authContext.user?.id && m.role === 'owner',
+    );
+
+    if (!isAdmin && !isOwner) {
+      setTerminateMessage('Only team owners can terminate clusters.');
+      setTerminateStatus('error');
+      return;
+    }
 
     setTerminatingClusters((prev) => new Set(prev).add(clusterName));
     setTerminateMessage('');
