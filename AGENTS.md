@@ -107,10 +107,10 @@ Agent skills and browser automation references live in `.agents/skills/`.
   - **Always run CLI tests after modifying any code under `cli/src/`.**
 - **Playwright (E2E)**:
   - **Location**: Tests live in `test/playwright/`. Config is in `playwright.config.ts` (base URL `http://localhost:8338`).
-  - **Run all**: `npx playwright test` (requires the Docker test container).
+  - **Docker container (required)**: Always start the Docker test container before running Playwright tests: `npm run docker-test:up`. Shut it down with `npm run docker-test:down`. The `--wait` flag in the npm script already waits for the healthcheck.
+  - **Run all**: `npx playwright test` (requires the Docker test container to be running).
   - **Run one**: `npx playwright test <file-name>` (e.g. `npx playwright test hello-world-task`).
   - **Full cycle**: `npm run docker-test:playwright` (starts container, runs tests, tears down).
-  - **Docker container**: `npm run docker-test:up` starts the app; `npm run docker-test:down` stops it. Wait for the healthcheck before running tests.
   - **Auth**: Log in via UI with `admin@example.com` / `admin123`. Import the shared `login()` and `selectFirstExperiment()` helpers from `test/playwright/helpers.ts`.
   - **Debugging**: When debugging Playwright test failures (e.g. wrong elements being clicked, selectors not matching), use browser tools to navigate to the app, inspect the live DOM structure, and verify selectors before updating tests. Two browser tools are available:
     - **Vercel agent-browser** (default): More efficient and should be used by default for inspecting pages, taking snapshots, and verifying selectors.
