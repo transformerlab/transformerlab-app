@@ -624,13 +624,17 @@ def server_version() -> None:
     with console.status("[dim]Checking latest version...[/dim]", spinner="dots"):
         latest = _get_latest_version()
 
-    # Determine if an update is available
+    # Determine if an update is available (only when latest > current)
     update_available = False
     if current and latest:
-        # Strip leading 'v' for comparison
-        current_clean = current.lstrip("v")
-        latest_clean = latest.lstrip("v")
-        update_available = current_clean != latest_clean
+        from transformerlab_cli.util.pypi import _parse_version
+
+        try:
+            current_clean = current.lstrip("v")
+            latest_clean = latest.lstrip("v")
+            update_available = _parse_version(latest_clean) > _parse_version(current_clean)
+        except ValueError:
+            update_available = False
 
     if cli_state.output_format == "json":
         data: dict[str, object] = {

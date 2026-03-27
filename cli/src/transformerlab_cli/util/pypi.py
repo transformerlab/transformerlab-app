@@ -24,8 +24,19 @@ def get_installed_version() -> str:
 
 
 def _parse_version(v: str) -> tuple[int, ...]:
-    """Parse 'X.Y.Z' into a tuple of ints for comparison."""
-    return tuple(int(x) for x in v.split("."))
+    """Parse a PEP 440 version string into a tuple of ints for comparison.
+
+    Handles pre-release suffixes like '1.0.0rc1' or '0.30.0a2' by stripping
+    everything after the numeric release segments.
+    """
+    import re
+
+    # Strip leading 'v', then extract only the numeric release segments (X.Y.Z)
+    v = v.lstrip("v")
+    match = re.match(r"^(\d+(?:\.\d+)*)", v)
+    if not match:
+        raise ValueError(f"Cannot parse version: {v!r}")
+    return tuple(int(x) for x in match.group(1).split("."))
 
 
 def _read_cache() -> dict | None:
@@ -90,4 +101,4 @@ def is_update_available() -> tuple[str, str | None]:
 
         return installed, None
     except Exception:
-        return get_installed_version(), None
+        return "unknown", None

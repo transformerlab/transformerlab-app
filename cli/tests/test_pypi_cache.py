@@ -21,6 +21,15 @@ def test_parse_version():
     assert _parse_version("0.1.0") > _parse_version("0.0.9")
 
 
+def test_parse_version_prerelease():
+    """Pre-release suffixes are stripped so the numeric base is compared."""
+    assert _parse_version("0.30.0rc1") == (0, 30, 0)
+    assert _parse_version("1.0.0a2") == (1, 0, 0)
+    assert _parse_version("1.0.0b3") == (1, 0, 0)
+    assert _parse_version("v0.30.0rc1") == (0, 30, 0)
+    assert _parse_version("0.30.0rc1") < _parse_version("0.30.1")
+
+
 def test_read_cache_missing_file(tmp_path):
     """Returns None when the cache file does not exist."""
     with patch("transformerlab_cli.util.pypi.CACHE_FILE", str(tmp_path / "nonexistent.json")):

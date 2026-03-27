@@ -33,6 +33,18 @@ def test_server_version_update_available():
     assert "lab server update" in result.output
 
 
+def test_server_version_newer_local():
+    """Test that a locally newer version does not trigger an update prompt."""
+    with (
+        patch("transformerlab_cli.commands.server._get_current_version", return_value="v0.30.4"),
+        patch("transformerlab_cli.commands.server._get_latest_version", return_value="v0.30.3"),
+    ):
+        result = runner.invoke(app, ["server", "version"])
+    assert result.exit_code == 0
+    assert "up to date" in result.output.lower()
+    assert "lab server update" not in result.output
+
+
 def test_server_version_not_installed():
     """Test output when server is not installed."""
     with (
