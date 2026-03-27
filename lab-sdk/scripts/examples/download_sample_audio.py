@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 from urllib.request import urlretrieve
 
 from lab import lab
@@ -20,17 +19,17 @@ def download_sample_audio() -> str:
         "https://samplelib.com/lib/preview/wav/sample-3s.wav",
     ]
 
-    output_dir = Path(os.getenv("OUTPUT_DIR", "./output_artifacts"))
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = os.getenv("OUTPUT_DIR", "./output_artifacts")
+    os.makedirs(output_dir, exist_ok=True)
 
-    output_path = output_dir / "sample_audio.wav"
+    output_path = os.path.join(output_dir, "sample_audio.wav")
 
     last_error: Exception | None = None
     for url in urls:
         try:
             print(f"Downloading sample audio from {url}")
             urlretrieve(url, output_path)  # nosec: B310 - simple demo helper
-            print(f"Saved sample audio to: {output_path.resolve()}")
+            print(f"Saved sample audio to: {os.path.abspath(output_path)}")
             return str(output_path)
         except Exception as e:  # pragma: no cover - network/demo only
             last_error = e

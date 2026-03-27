@@ -3,7 +3,6 @@ import json
 import os
 import zipfile
 from fnmatch import fnmatch
-from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
@@ -211,7 +210,7 @@ def download_artifacts(job_id: str, output_dir: str = None) -> None:
         output_dir = os.getcwd()
     else:
         output_dir = os.path.abspath(output_dir)
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
 
     # Determine output filename
     filename = f"artifacts_{job_id}.zip"

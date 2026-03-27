@@ -1,8 +1,6 @@
 """Tests for config command and utility functions."""
 
 import json
-from pathlib import Path
-
 from typer.testing import CliRunner
 from transformerlab_cli.main import app
 from transformerlab_cli.util.config import (
@@ -26,7 +24,8 @@ def test_config_help():
 def test_config_with_key_fetches_value(tmp_config_dir):
     """Test that config with key fetches value."""
     config_dir, config_file = tmp_config_dir
-    config_file.write_text(json.dumps({"server": "http://localhost:8338"}))
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"server": "http://localhost:8338"}))
     with _patch_config_paths(config_dir, config_file):
         result = runner.invoke(app, ["config", "server"])
         assert result.exit_code == 0
@@ -71,7 +70,7 @@ def test_validate_url_empty():
 # --- Config CRUD with temp files ---
 
 
-def _patch_config_paths(config_dir: Path, config_file: Path):
+def _patch_config_paths(config_dir: str, config_file: str):
     """Return a context manager that patches CONFIG_DIR and CONFIG_FILE."""
     import transformerlab_cli.util.config as config_mod
 
@@ -131,7 +130,8 @@ def test_load_config_empty(tmp_config_dir):
 
 def test_load_config_with_data(tmp_config_dir):
     config_dir, config_file = tmp_config_dir
-    config_file.write_text(json.dumps({"server": "http://test:8338"}))
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"server": "http://test:8338"}))
     with _patch_config_paths(config_dir, config_file):
         config = load_config()
         assert config["server"] == "http://test:8338"
@@ -150,7 +150,8 @@ def test_config_list_json_format(tmp_config_dir):
         "current_experiment": "alpha",
         "team_name": "Test Team",
     }
-    config_file.write_text(json.dumps(config_data))
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write(json.dumps(config_data))
     with _patch_config_paths(config_dir, config_file):
         result = runner.invoke(app, ["--format=json", "config"])
         assert result.exit_code == 0
@@ -194,7 +195,8 @@ def test_config_set_invalid_key_json_format(tmp_config_dir):
 def test_config_get_json_format(tmp_config_dir):
     """Test that config key lookup with --format=json returns key/value JSON."""
     config_dir, config_file = tmp_config_dir
-    config_file.write_text(json.dumps({"server": "http://localhost:8338"}))
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"server": "http://localhost:8338"}))
     with _patch_config_paths(config_dir, config_file):
         result = runner.invoke(app, ["--format=json", "config", "server"])
         assert result.exit_code == 0
@@ -206,7 +208,8 @@ def test_config_get_json_format(tmp_config_dir):
 def test_config_get_subcommand_json_format(tmp_config_dir):
     """Test that config get with --format=json returns key/value JSON."""
     config_dir, config_file = tmp_config_dir
-    config_file.write_text(json.dumps({"server": "http://localhost:8338"}))
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"server": "http://localhost:8338"}))
     with _patch_config_paths(config_dir, config_file):
         result = runner.invoke(app, ["--format=json", "config", "get", "server"])
         assert result.exit_code == 0

@@ -48,12 +48,14 @@ interface JobProps {
   };
   showLaunchResultInfo?: boolean;
   launchProgress?: LaunchProgressInfo | null;
+  hideCircularLaunchProgressAtOrAbove?: number;
 }
 
 export default function JobProgress({
   job,
   showLaunchResultInfo = false,
   launchProgress,
+  hideCircularLaunchProgressAtOrAbove,
 }: JobProps) {
   const { experimentInfo } = useExperimentInfo();
   const { fetchWithAuth } = useAuth();
@@ -131,41 +133,23 @@ export default function JobProgress({
     const liveStatus = job?.job_data?.live_status;
     if (!liveStatus) return null;
 
-    if (liveStatus === 'lab_init') {
-      return (
-        <Typography level="body-xs" color="neutral">
-          Lab instance initialized inside remote job.
-        </Typography>
-      );
-    }
+    const isCrashed = liveStatus.toLowerCase().includes('crashed');
 
-    if (liveStatus === 'started') {
-      return (
-        <Typography level="body-xs" color="neutral">
-          Remote command started on compute provider&hellip;
-        </Typography>
-      );
-    }
-
-    if (liveStatus === 'crashed') {
-      return (
-        <Typography level="body-xs" color="danger">
-          Remote command crashed. Check provider logs for details.
-        </Typography>
-      );
-    }
-
-    if (liveStatus === 'finished') {
-      return (
-        <Typography level="body-xs" color="neutral">
-          Remote command finished. Waiting for provider to finalize job
-          status&hellip;
-        </Typography>
-      );
-    }
-
-    return null;
+    return (
+      <Typography level="body-xs" color={isCrashed ? 'danger' : 'neutral'}>
+        {liveStatus}
+      </Typography>
+    );
   };
+
+  const clampedLaunchPercent =
+    effectiveLaunchProgress?.percent == null
+      ? null
+      : Math.min(100, Math.max(0, effectiveLaunchProgress.percent));
+  const showCircularLaunchProgress =
+    clampedLaunchPercent != null &&
+    (hideCircularLaunchProgressAtOrAbove == null ||
+      clampedLaunchPercent < hideCircularLaunchProgressAtOrAbove);
 
   // Format provider launch result for display
   const formatProviderLaunchResult = (launchResult: any): string => {
@@ -251,7 +235,7 @@ export default function JobProgress({
             >
               {job.status}
             </Chip>
-            {effectiveLaunchProgress?.percent != null && (
+            {showCircularLaunchProgress && (
               <Stack
                 direction="row"
                 alignItems="center"
@@ -260,18 +244,12 @@ export default function JobProgress({
               >
                 <CircularProgress
                   determinate
-                  value={Math.min(
-                    100,
-                    Math.max(0, effectiveLaunchProgress.percent),
-                  )}
+                  value={clampedLaunchPercent}
                   size="sm"
                   thickness={3}
                 />
                 <Typography level="body-xs" fontWeight="md">
-                  {Math.round(
-                    Math.min(100, Math.max(0, effectiveLaunchProgress.percent)),
-                  )}
-                  %
+                  {Math.round(clampedLaunchPercent)}%
                 </Typography>
               </Stack>
             )}
@@ -514,7 +492,17 @@ export default function JobProgress({
                 <Typography level="body-sm" color="neutral" />
               ))}
             {job?.status === 'FAILED' && job?.job_data?.error_msg && (
-              <Typography level="body-sm" color="danger">
+              <Typography
+                level="body-sm"
+                color="danger"
+                sx={{
+                  maxWidth: 400,
+                  maxHeight: 80,
+                  overflow: 'auto',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              >
                 Error: {job.job_data.error_msg}
               </Typography>
             )}

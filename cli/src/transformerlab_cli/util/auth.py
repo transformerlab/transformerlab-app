@@ -1,3 +1,4 @@
+import os
 import httpx
 
 from transformerlab_cli.util.shared import CREDENTIALS_DIR, CREDENTIALS_FILE, AUTH_URL
@@ -10,7 +11,7 @@ def set_api_key(api_key: str) -> bool:
     Returns True if successful, False otherwise.
     """
     try:
-        CREDENTIALS_DIR.mkdir(parents=True, exist_ok=True)
+        os.makedirs(CREDENTIALS_DIR, exist_ok=True)
     except PermissionError:
         console.print(f"[error]Error:[/error] Cannot create directory {CREDENTIALS_DIR}")
         return False
@@ -26,7 +27,8 @@ def set_api_key(api_key: str) -> bool:
 
     if key_response.status_code == 200:
         try:
-            CREDENTIALS_FILE.write_text(api_key)
+            with open(CREDENTIALS_FILE, "w", encoding="utf-8") as f:
+                f.write(api_key)
             console.print("[success]✓[/success] API key validated and saved locally.")
             return True
         except PermissionError:
@@ -51,12 +53,12 @@ def delete_api_key() -> bool:
     Delete the saved API key.
     Returns True if successful, False otherwise.
     """
-    if not CREDENTIALS_FILE.exists():
+    if not os.path.exists(CREDENTIALS_FILE):
         console.print("[warning]No credentials file found[/warning]")
         return True
 
     try:
-        CREDENTIALS_FILE.unlink()
+        os.unlink(CREDENTIALS_FILE)
         console.print("[success]✓[/success] Logged out successfully")
         return True
     except PermissionError:
@@ -72,10 +74,11 @@ def get_api_key() -> str | None:
     Retrieve the saved API key.
     Returns the API key string or None if not found.
     """
-    if not CREDENTIALS_FILE.exists():
+    if not os.path.exists(CREDENTIALS_FILE):
         return None
     try:
-        return CREDENTIALS_FILE.read_text().strip()
+        with open(CREDENTIALS_FILE, "r", encoding="utf-8") as f:
+            return f.read().strip()
     except OSError:
         return None
 

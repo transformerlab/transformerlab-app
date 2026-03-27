@@ -144,11 +144,36 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
             )
 
             loop = asyncio.get_running_loop()
+
+            # Capture the team_id so the callback can restore the org context
+            # on the coroutine it schedules (contextvars don't propagate via
+            # run_coroutine_threadsafe).
+            team_id = item.team_id
+
+            async def _update_live_status(status: str) -> None:
+                lab_dirs.set_organization_id(team_id)
+                try:
+                    await job_service.job_update_job_data_insert_key_value(
+                        item.job_id, "live_status", status, item.experiment_id
+                    )
+                finally:
+                    lab_dirs.set_organization_id(None)
+
+            def _on_status(status: str) -> None:
+                """Callback invoked from the executor thread to update live_status."""
+                future = asyncio.run_coroutine_threadsafe(_update_live_status(status), loop)
+                try:
+                    future.result(timeout=5)
+                except Exception:
+                    pass
+
             try:
                 # Ensure only one local launch runs at a time
                 def _launch_with_org_context():
                     lab_dirs.set_organization_id(item.team_id)
-                    return provider_instance.launch_cluster(item.cluster_name, item.cluster_config)
+                    return provider_instance.launch_cluster(
+                        item.cluster_name, item.cluster_config, on_status=_on_status
+                    )
 
                 async with _worker_lock:
                     launch_result = await loop.run_in_executor(_launch_executor, _launch_with_org_context)
