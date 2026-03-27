@@ -26,6 +26,7 @@ from .models import (
     ClusterState,
     JobState,
 )
+from .sandbox import make_seatbelt_preexec, wrap_command_with_bwrap, get_backend_name
 
 
 def _read_local_provider_config() -> Optional[Dict[str, Any]]:
@@ -489,6 +490,31 @@ class LocalProvider(ComputeProvider):
         env.setdefault("HF_HOME", os.path.join(real_home, ".cache", "huggingface"))
         env.setdefault("XDG_CACHE_HOME", os.path.join(real_home, ".cache"))
 
+        # Build sandbox helpers for this job.
+        # extra_read_paths: shared caches that need to be visible inside the sandbox.
+        _sandbox_read_paths = [
+            env.get("HF_HOME", ""),
+            env.get("XDG_CACHE_HOME", ""),
+            env["UV_CACHE_DIR"],
+            _CONDA_ENV_DIR,
+            venv_path,
+        ]
+        _sandbox_backend = get_backend_name()
+        if _sandbox_backend != "none":
+            print(f"[LocalProvider] Sandbox backend: {_sandbox_backend}")
+
+        # macOS: preexec_fn applies Seatbelt policy inside the child before exec.
+        _sandbox_preexec = make_seatbelt_preexec(workspace_home, _sandbox_read_paths)
+
+        def _wrap(base_cmd: list[str]) -> list[str]:
+            """Wrap command with bwrap on Linux; on macOS preexec_fn handles it."""
+            return wrap_command_with_bwrap(
+                base_cmd,
+                workspace_dir=workspace_home,
+                extra_read_paths=_sandbox_read_paths,
+                extra_rw_paths=[str(job_dir)],
+            )
+
         # Open log files early so setup output is visible to get_job_logs / tunnel_info
         # while packages are still being installed.
         stdout_log = open(os.path.join(job_dir, "stdout.log"), "w")
@@ -497,14 +523,16 @@ class LocalProvider(ComputeProvider):
             if config.setup:
                 _status("Running setup")
                 print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
+                setup_cmd = _wrap(["/bin/bash", "-c", config.setup])
                 setup_result = subprocess.run(
-                    ["/bin/bash", "-c", config.setup],
+                    setup_cmd,
                     cwd=job_dir,
                     env=env,
                     stdout=stdout_log,
                     stderr=stderr_log,
                     text=True,
                     timeout=600,
+                    preexec_fn=_sandbox_preexec,
                 )
 
                 # Flush so tunnel_info can see the output immediately
@@ -525,13 +553,15 @@ class LocalProvider(ComputeProvider):
             # Start main run command in background (detached subprocess)
             _status("Starting service")
             print(f"[LocalProvider] Launching run in {job_dir}: {config.run!r}")
+            run_cmd = _wrap(["/bin/bash", "-c", config.run or "true"])
             proc = subprocess.Popen(
-                ["/bin/bash", "-c", config.run or "true"],
+                run_cmd,
                 cwd=str(job_dir),
                 env=env,
                 stdout=stdout_log,
                 stderr=stderr_log,
                 start_new_session=True,
+                preexec_fn=_sandbox_preexec,
             )
         finally:
             # Close parent-side file descriptors after setup/launch. The child
