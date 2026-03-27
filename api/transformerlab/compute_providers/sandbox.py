@@ -11,19 +11,19 @@ Two backends are supported:
 
 If neither backend is available the helpers return a no-op so existing
 behaviour is preserved.
+
+Linux bwrap flags used below are standard bubblewrap options; see bwrap(1)
+(e.g. https://man.archlinux.org/man/bwrap.1). Notably there is no --share-pid;
+the host PID namespace is retained unless --unshare-pid is used.
 """
 
 from __future__ import annotations
 
 import ctypes
-import logging
 import os
 import shutil
 import sys
 from typing import Callable, Optional
-
-logger = logging.getLogger(__name__)
-
 
 # ---------------------------------------------------------------------------
 # macOS Seatbelt backend
@@ -160,6 +160,16 @@ def make_seatbelt_preexec(
 
 _BWRAP_BIN: Optional[str] = None
 _BWRAP_AVAILABLE: Optional[bool] = None
+_LINUX_BASE_RO_PATHS: tuple[str, ...] = (
+    "/usr",
+    "/bin",
+    "/sbin",
+    "/lib",
+    "/lib64",
+    "/etc",
+    "/var",
+    "/opt",
+)
 
 
 def _find_bwrap() -> bool:
@@ -187,13 +197,13 @@ def wrap_command_with_bwrap(
     """
     Wrap *cmd* in a bwrap invocation that:
       - Creates a new filesystem namespace
-      - Bind-mounts / and /usr read-only (so system tools still work)
+      - Bind-mounts common Linux system paths read-only
       - Bind-mounts workspace_dir read-write
       - Bind-mounts extra_read_paths read-only (shared caches)
       - Bind-mounts /dev (needed for GPU device files)
       - Bind-mounts /proc and /sys
-      - Shares the host network namespace (models still download)
-      - Shares the host PID namespace (easier process management)
+      - Shares the host network namespace (models still download); see --share-net
+      - Uses a new IPC namespace (--unshare-ipc); host PID namespace unchanged
 
     Returns the original *cmd* unchanged if bwrap is not available.
     """
@@ -201,44 +211,39 @@ def wrap_command_with_bwrap(
         return cmd
 
     bwrap = _BWRAP_BIN
+    if not bwrap:
+        return cmd
 
+    # Order matches bwrap(1): filesystem operations apply in argument order.
     args: list[str] = [
         bwrap,
-        # Share host network so HF downloads work
         "--share-net",
-        # New IPC namespace
         "--unshare-ipc",
-        # Keep the host PID namespace so psutil / process tree kill still work
-        "--share-pid",
-        # Read-only root from host
-        "--ro-bind",
-        "/",
-        "/",
-        # /dev bind (needed for GPU, /dev/null, /dev/urandom etc.)
         "--dev-bind",
         "/dev",
         "/dev",
-        # /proc and /sys
         "--proc",
         "/proc",
         "--bind",
         "/sys",
         "/sys",
-        # Writable tmpfs for /tmp
         "--tmpfs",
         "/tmp",
-        # Writable workspace
         "--bind",
         workspace_dir,
         workspace_dir,
     ]
 
-    # Shared read-only caches (HF models, uv cache, etc.)
+    # Keep core system binaries/libs/config readable without exposing the entire
+    # host filesystem like "--ro-bind / /".
+    for p in _LINUX_BASE_RO_PATHS:
+        if os.path.exists(p):
+            args += ["--ro-bind", p, p]
+
     for p in extra_read_paths:
         if p and os.path.exists(p):
             args += ["--ro-bind", p, p]
 
-    # Any extra rw paths (e.g. the venv dir if it's outside workspace)
     for p in extra_rw_paths or []:
         if p and os.path.exists(p):
             args += ["--bind", p, p]
