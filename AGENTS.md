@@ -39,7 +39,7 @@
 - **Backend**: Python FastAPI in `api/transformerlab/`, entry point: `api/api.py`. See [Backend Deep Dives](docs/backend.md).
 - **SDK**: `lab-sdk/` - Python SDK published to PyPI as `transformerlab`. The SDK runs on both the API server and on remote compute nodes (via `tfl-remote-trap`).
 - **Database**: SQLite with Alembic migrations in `api/alembic/`
-- **CLI**: Typer-based Python CLI in `cli/`. See [CLI Deep Dives](docs/cli.md).
+- **CLI**: Typer-based Python CLI in `cli/`. The binary is called `lab` (not `tfl` or any other abbreviation). See [CLI Deep Dives](docs/cli.md).
 
 ### Updating the SDK
 
