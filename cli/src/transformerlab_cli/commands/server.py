@@ -594,7 +594,8 @@ GITHUB_LATEST_RELEASE_URL = "https://github.com/transformerlab/transformerlab-ap
 def _get_current_version() -> str | None:
     """Read the currently installed version from ~/.transformerlab/src/LATEST_VERSION."""
     try:
-        return LATEST_VERSION_FILE.read_text().strip()
+        with open(LATEST_VERSION_FILE, "r", encoding="utf-8") as f:
+            return f.read().strip() or None
     except OSError:
         return None
 
@@ -609,6 +610,55 @@ def _get_latest_version() -> str | None:
         return response.url.path.rsplit("/", 1)[-1]
     except Exception:
         return None
+
+
+@app.command("version")
+def server_version() -> None:
+    """Display the server version and check for updates."""
+    import json
+
+    from transformerlab_cli.state import cli_state
+
+    current = _get_current_version()
+
+    with console.status("[dim]Checking latest version...[/dim]", spinner="dots"):
+        latest = _get_latest_version()
+
+    # Determine if an update is available (only when latest > current)
+    update_available = False
+    if current and latest:
+        from transformerlab_cli.util.pypi import _parse_version
+
+        try:
+            current_clean = current.lstrip("v")
+            latest_clean = latest.lstrip("v")
+            update_available = _parse_version(latest_clean) > _parse_version(current_clean)
+        except ValueError:
+            update_available = False
+
+    if cli_state.output_format == "json":
+        data: dict[str, object] = {
+            "installed_version": current,
+            "latest_version": latest,
+            "update_available": update_available,
+        }
+        if update_available:
+            data["upgrade_command"] = "lab server update"
+        print(json.dumps(data))
+    else:
+        if current:
+            console.print(f"{current}", highlight=False)
+        else:
+            console.print("[warning]Server is not installed.[/warning]")
+
+        if update_available:
+            console.print(
+                f"[yellow]Update available:[/yellow] {latest}\nRun [bold]lab server update[/bold] to upgrade."
+            )
+        elif current and latest:
+            console.print("[green]Server is up to date.[/green]")
+        elif not latest:
+            console.print("[dim]Could not check for updates.[/dim]")
 
 
 @app.command("update")
