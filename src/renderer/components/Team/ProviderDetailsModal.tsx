@@ -488,7 +488,7 @@ export default function ProviderDetailsModal({
     providerName: string,
     providerType: string,
     providerConfig: any,
-    forceRefreshFlag: boolean = true,
+    forceRefreshFlag: boolean = false,
   ) {
     const basePath = getPath('compute_provider', ['create'], { teamId });
     const url =

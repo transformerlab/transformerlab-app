@@ -230,7 +230,7 @@ async def list_providers(
 @router.post("/", response_model=ProviderRead)
 async def create_provider(
     provider_data: ProviderCreate,
-    force_refresh: bool = True,
+    force_refresh: bool = False,
     owner_info=Depends(require_team_owner),
     session: AsyncSession = Depends(get_async_session),
 ):
