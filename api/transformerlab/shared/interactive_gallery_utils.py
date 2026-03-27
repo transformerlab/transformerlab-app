@@ -38,7 +38,13 @@ def build_ngrok_tunnel_command(entry_id: str, ports: list[dict[str, Any]]) -> st
     if not ports:
         return ""
 
-    install_and_auth = f"{NGROK_INSTALL_CMD}; ngrok config add-authtoken $NGROK_AUTH_TOKEN"
+    install_and_auth = (
+        f"{NGROK_INSTALL_CMD}; "
+        'if [ -z "${NGROK_AUTH_TOKEN:-}" ]; then '
+        "echo 'ERROR: NGROK_AUTH_TOKEN is required for remote interactive tunnels.'; "
+        "exit 1; "
+        'fi; ngrok config add-authtoken "$NGROK_AUTH_TOKEN"'
+    )
 
     config_path = f"~/ngrok-{entry_id}.yml"
     yaml_lines = ["version: 2", "authtoken: $NGROK_AUTH_TOKEN", "tunnels:"]

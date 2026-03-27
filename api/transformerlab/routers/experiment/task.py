@@ -489,6 +489,31 @@ def _clear_interactive_launch_provider(task_data: dict) -> None:
     task_data.pop("provider_name", None)
 
 
+def _merge_interactive_gallery_env_parameters(task_data: dict, gallery_entry: dict) -> None:
+    """
+    Ensure env vars declared on the gallery entry (env_parameters) exist on the task.
+
+    GitHub task.yaml may omit keys that the interactive gallery still defines for the UI
+    (e.g. NGROK_AUTH_TOKEN). YAML/envs still win for keys already present; this only adds
+    missing keys with empty defaults so launch can merge secrets and user values.
+    """
+    env_params = gallery_entry.get("env_parameters")
+    if not isinstance(env_params, list) or not env_params:
+        return
+    existing = task_data.get("env_vars")
+    if not isinstance(existing, dict):
+        existing = {}
+    for param in env_params:
+        if not isinstance(param, dict):
+            continue
+        ev = param.get("env_var")
+        if not isinstance(ev, str) or not ev.strip():
+            continue
+        if ev not in existing:
+            existing[ev] = ""
+    task_data["env_vars"] = existing
+
+
 async def _resolve_provider(
     task_data: dict,
     user_and_team: dict,
@@ -1038,6 +1063,8 @@ async def import_task_from_gallery(
         ):
             if key in source_yaml_data:
                 task_data[key] = source_yaml_data[key]
+
+        _merge_interactive_gallery_env_parameters(task_data, gallery_entry)
 
         # Merge user-provided env_vars from the request (e.g. MODEL_NAME)
         if request.env_vars:

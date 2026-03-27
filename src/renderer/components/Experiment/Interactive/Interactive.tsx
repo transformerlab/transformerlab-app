@@ -40,6 +40,18 @@ function defaultLaunchProviderId(
   return remote?.id ?? providers[0]?.id ?? null;
 }
 
+/** Local interactive runs do not use ngrok; never send token placeholder or secret to the provider. */
+function omitNgrokAuthTokenForLocal(
+  env: Record<string, string> | undefined,
+  isLocalProvider: boolean,
+): Record<string, string> {
+  const out = { ...(env || {}) };
+  if (isLocalProvider) {
+    delete out.NGROK_AUTH_TOKEN;
+  }
+  return out;
+}
+
 export default function Interactive() {
   const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
   const [interactiveModalError, setInteractiveModalError] = useState<
@@ -509,6 +521,29 @@ export default function Interactive() {
       if (template.local_task_dir || template.github_repo_url) {
         // Use the gallery import API which reads task.yaml and copies files,
         // just like the "Upload from Local Directory" or GitHub import flow.
+        const envVarsForImport: Record<string, string> = {
+          ...(data.env_parameters || {}),
+        };
+        // Remote interactive tasks with exposed ports get auto-ngrok on the server; ensure the
+        // team ngrok secret is referenced (same as non-GitHub template path). ollama_gradio etc.
+        // do not list NGROK_AUTH_TOKEN in env_parameters, so it would otherwise be missing.
+        const galleryPorts = Array.isArray(template?.ports)
+          ? template.ports
+          : [];
+        const hasNgrokField = template?.env_parameters?.some(
+          (p: { env_var?: string }) => p.env_var === 'NGROK_AUTH_TOKEN',
+        );
+        const shouldInjectNgrokSecret =
+          providerMeta.type !== 'local' &&
+          !envVarsForImport.NGROK_AUTH_TOKEN?.trim() &&
+          (galleryPorts.length > 0 || hasNgrokField);
+        if (shouldInjectNgrokSecret) {
+          envVarsForImport.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
+        }
+        const envVarsForImportClean = omitNgrokAuthTokenForLocal(
+          envVarsForImport,
+          providerMeta.type === 'local',
+        );
         response = await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Task.ImportFromGallery(experimentInfo.id),
           {
@@ -518,7 +553,10 @@ export default function Interactive() {
               gallery_id: templateId,
               experiment_id: experimentInfo.id,
               is_interactive: true,
-              env_vars: data.env_parameters || undefined,
+              env_vars:
+                Object.keys(envVarsForImportClean).length > 0
+                  ? envVarsForImportClean
+                  : undefined,
               cpus: data.cpus || undefined,
               memory: data.memory || undefined,
               accelerators: data.accelerators || undefined,
@@ -541,6 +579,10 @@ export default function Interactive() {
         ) {
           envVars.NGROK_AUTH_TOKEN = '{{secret._NGROK_AUTH_TOKEN}}';
         }
+        const envVarsClean = omitNgrokAuthTokenForLocal(
+          envVars,
+          providerMeta.type === 'local',
+        );
 
         templatePayload = {
           name: data.title,
@@ -558,7 +600,8 @@ export default function Interactive() {
           interactive_gallery_id: templateId,
           provider_id: providerMeta.id,
           provider_name: providerMeta.name,
-          env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
+          env_vars:
+            Object.keys(envVarsClean).length > 0 ? envVarsClean : undefined,
           github_repo_url: galleryTemplate?.github_repo_url || undefined,
           github_directory: galleryTemplate?.github_repo_dir || undefined,
         };
@@ -704,7 +747,10 @@ export default function Interactive() {
         accelerators: cfg.accelerators || task.accelerators,
         num_nodes: cfg.num_nodes || task.num_nodes,
         setup: cfg.setup || task.setup,
-        env_vars: cfg.env_vars || task.env_vars || {},
+        env_vars: omitNgrokAuthTokenForLocal(
+          { ...(cfg.env_vars || task.env_vars || {}) },
+          providerMeta.type === 'local',
+        ),
         parameters: cfg.parameters || task.parameters || undefined,
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: providerMeta.name,
@@ -853,7 +899,10 @@ export default function Interactive() {
         accelerators: cfg.accelerators || task.accelerators,
         num_nodes: cfg.num_nodes || task.num_nodes,
         setup: cfg.setup || task.setup,
-        env_vars: cfg.env_vars || task.env_vars || {},
+        env_vars: omitNgrokAuthTokenForLocal(
+          { ...(cfg.env_vars || task.env_vars || {}) },
+          providerMeta.type === 'local',
+        ),
         parameters: cfg.parameters || task.parameters || undefined,
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: providerMeta.name,
