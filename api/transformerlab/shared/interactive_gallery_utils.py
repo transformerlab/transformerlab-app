@@ -71,7 +71,8 @@ def build_ngrok_tunnel_command(entry_id: str, ports: list[dict[str, Any]]) -> st
             escaped = line.replace("'", "'\"'\"'")
             printf_parts.append(f"'{escaped}'")
     printf_cmd = " ".join(printf_parts) + f" > {config_path}"
-    start_cmd = f"ngrok start --all --config {config_path} --log=stdout 2>&1 | tee /tmp/ngrok.log"
+    # Run ngrok in the background so task-level run commands can continue uninterrupted.
+    start_cmd = f"ngrok start --all --config {config_path} --log=stdout > /tmp/ngrok.log 2>&1 &"
 
     return f"{install_and_auth}; {printf_cmd} && {start_cmd}"
 
@@ -96,7 +97,6 @@ def _compose_command_from_logic(
     if not isinstance(core, str) or not core.strip():
         return None
 
-    tunnel = logic.get("tunnel")
     tail_logs = logic.get("tail_logs")
 
     parts: list[str] = []
@@ -137,8 +137,8 @@ def _compose_command_from_logic(
         if echo_cmd:
             parts.append(echo_cmd)
 
-    # Only include tunnel logic for remote environments; tunnel is only ever "ngrok"
-    if environment == "remote" and tunnel == "ngrok" and template_entry:
+    # For remote interactive jobs, auto-start ngrok whenever ports are defined.
+    if environment == "remote" and template_entry:
         entry_id = template_entry.get("id") or "default"
         ports = template_entry.get("ports") or []
         if isinstance(ports, list) and ports:
@@ -163,6 +163,7 @@ def _compose_command_from_logic(
 def resolve_interactive_command(
     template_entry: dict,
     environment: str,
+    base_command: str = "",
 ) -> Tuple[str, Optional[str]]:
     """
     Resolve the run command and optional setup override for an interactive template
@@ -171,6 +172,7 @@ def resolve_interactive_command(
     Args:
         template_entry: One entry from the interactive gallery (e.g. from get_interactive_gallery).
         environment: "local" or "remote".
+        base_command: Existing run command already resolved from task data (e.g. task.yaml run).
 
     Returns:
         (command, setup_override). setup_override is None if the entry-level "setup"
@@ -185,9 +187,19 @@ def resolve_interactive_command(
         if composed:
             return (composed, None)
 
-    # Final fallback: legacy top-level command only (no setup override)
-    legacy_command = template_entry.get("command", "")
-    return (legacy_command or "", None)
+    # Fallback path: compose from existing command (task.yaml run) or legacy top-level command.
+    resolved_base = (base_command or "").strip() or str(template_entry.get("command", "") or "").strip()
+    if env == "remote":
+        entry_id = template_entry.get("id") or "default"
+        ports = template_entry.get("ports") or []
+        if isinstance(ports, list) and ports:
+            ngrok_cmd = build_ngrok_tunnel_command(entry_id, ports)
+            if ngrok_cmd:
+                if resolved_base:
+                    return (f"{ngrok_cmd}; {resolved_base}", None)
+                return (ngrok_cmd, None)
+
+    return (resolved_base, None)
 
 
 def find_interactive_gallery_entry(

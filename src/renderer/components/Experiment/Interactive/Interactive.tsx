@@ -31,6 +31,15 @@ const duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
 dayjs.extend(relativeTime);
 
+/** Interactive tasks may have no stored provider_id; prefer a remote provider over local. */
+function defaultLaunchProviderId(
+  providers: { id?: string; type?: string }[],
+): string | null {
+  if (!providers?.length) return null;
+  const remote = providers.find((p) => p.type !== 'local');
+  return remote?.id ?? providers[0]?.id ?? null;
+}
+
 export default function Interactive() {
   const [interactiveModalOpen, setInteractiveModalOpen] = useState(false);
   const [interactiveModalError, setInteractiveModalError] = useState<
@@ -510,6 +519,9 @@ export default function Interactive() {
               experiment_id: experimentInfo.id,
               is_interactive: true,
               env_vars: data.env_parameters || undefined,
+              cpus: data.cpus || undefined,
+              memory: data.memory || undefined,
+              accelerators: data.accelerators || undefined,
             }),
           },
         );
@@ -593,7 +605,9 @@ export default function Interactive() {
 
           // Launch the task immediately. If launch fails (e.g. missing secrets),
           // keep the modal open and show the error inline.
-          const launch = await launchInteractiveTask(newTask);
+          const launch = await launchInteractiveTask(newTask, {
+            provider_id: data.provider_id,
+          });
           if (!launch.ok) {
             setInteractiveModalError(launch.error);
             return;
@@ -628,7 +642,10 @@ export default function Interactive() {
   };
 
   const launchInteractiveTask = useCallback(
-    async (task: any): Promise<{ ok: true } | { ok: false; error: string }> => {
+    async (
+      task: any,
+      launchOverrides?: { provider_id?: string },
+    ): Promise<{ ok: true } | { ok: false; error: string }> => {
       if (!experimentInfo?.id) {
         return { ok: false, error: 'No experiment selected.' };
       }
@@ -636,10 +653,15 @@ export default function Interactive() {
       const cfg =
         task.config !== undefined ? SafeJSONParse(task.config, task) : task;
 
+      // Prefer the provider the user picked in the modal. Imported interactive tasks
+      // (e.g. GitHub task.yaml) get provider_id from _resolve_provider on the server
+      // (often the first listed provider — frequently local), which would otherwise
+      // ignore the user's selection here.
       const providerId =
+        launchOverrides?.provider_id ||
         cfg.provider_id ||
         task.provider_id ||
-        (providers.length ? providers[0]?.id : null);
+        defaultLaunchProviderId(providers);
       if (!providerId) {
         return {
           ok: false,
@@ -711,6 +733,7 @@ export default function Interactive() {
               : undefined,
         minutes_requested:
           cfg.minutes_requested || task.minutes_requested || undefined,
+        local: providerMeta.type === 'local',
       };
 
       try {
@@ -775,9 +798,7 @@ export default function Interactive() {
       task.config !== undefined ? SafeJSONParse(task.config, task) : task;
 
     const providerId =
-      cfg.provider_id ||
-      task.provider_id ||
-      (providers.length ? providers[0]?.id : null);
+      cfg.provider_id || task.provider_id || defaultLaunchProviderId(providers);
     if (!providerId) {
       addNotification({
         type: 'danger',
@@ -861,6 +882,7 @@ export default function Interactive() {
               : undefined,
         minutes_requested:
           cfg.minutes_requested || task.minutes_requested || undefined,
+        local: providerMeta.type === 'local',
       };
 
       const response = await fetchWithAuth(
