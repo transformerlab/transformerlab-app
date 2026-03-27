@@ -497,8 +497,9 @@ class LocalProvider(ComputeProvider):
             if config.setup:
                 _status("Running setup")
                 print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
+                strict_setup_script = f"set -e -o pipefail; {config.setup}"
                 setup_result = subprocess.run(
-                    ["/bin/bash", "-c", config.setup],
+                    ["/bin/bash", "-c", strict_setup_script],
                     cwd=job_dir,
                     env=env,
                     stdout=stdout_log,
