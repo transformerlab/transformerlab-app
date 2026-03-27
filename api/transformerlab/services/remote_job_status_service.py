@@ -238,8 +238,9 @@ async def _check_job_via_provider(
         # state as terminal STOPPED so the job does not stay stuck in STOPPING. This
         # covers: "Pod not found" (pod already deleted), "TERMINATING", or any other
         # UNKNOWN returned while the pod is going away.
-        if provider_type == ProviderType.RUNPOD.value and (
-            job_status == JobStatus.STOPPING.value
+        if (
+            provider_type == ProviderType.RUNPOD.value
+            and job_status == JobStatus.STOPPING.value
             and (
                 cluster_state == ClusterState.UNKNOWN
                 or getattr(cluster_status, "status_message", "") == "Pod not found"
