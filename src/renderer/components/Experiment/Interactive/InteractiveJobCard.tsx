@@ -15,6 +15,7 @@ import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { isTerminalJobStatus } from 'renderer/lib/utils';
 import JobProgress from '../Tasks/JobProgress';
 import InteractiveModal from '../Tasks/InteractiveModal';
 import InteractIframeModal from './InteractIframeModal';
@@ -183,6 +184,8 @@ export default function InteractiveJobCard({
     job.status === 'RUNNING' ||
     job.status === 'STOPPING';
   const isLaunching = job.status === 'LAUNCHING' || job.status === 'WAITING';
+  const showDeleteAction =
+    isTerminalJobStatus(job.status) || job.status === 'STOPPING';
   const showActions = isInteractive || isLaunching;
   const title =
     jobData.cluster_name ||
@@ -259,15 +262,17 @@ export default function InteractiveJobCard({
                 '\u00A0'}
             </Chip>
           </Stack>
-          <IconButton
-            variant="plain"
-            color="danger"
-            size="sm"
-            onClick={() => onDeleteJob(String(job.id))}
-            sx={{ mt: -0.5, mr: -0.5 }}
-          >
-            <Trash2Icon size={16} />
-          </IconButton>
+          {showDeleteAction && (
+            <IconButton
+              variant="plain"
+              color="danger"
+              size="sm"
+              onClick={() => onDeleteJob(String(job.id))}
+              sx={{ mt: -0.5, mr: -0.5 }}
+            >
+              <Trash2Icon size={16} />
+            </IconButton>
+          )}
         </Stack>
 
         <Box>
