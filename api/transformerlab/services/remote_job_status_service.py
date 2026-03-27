@@ -239,7 +239,16 @@ async def _check_job_via_provider(
         # covers: "Pod not found" (pod already deleted), "TERMINATING", or any other
         # UNKNOWN returned while the pod is going away.
         if provider_type == ProviderType.RUNPOD.value and (
-            cluster_state == ClusterState.UNKNOWN or getattr(cluster_status, "status_message", "") == "Pod not found"
+            job_status == JobStatus.STOPPING.value
+            and (
+                cluster_state == ClusterState.UNKNOWN
+                or getattr(cluster_status, "status_message", "") == "Pod not found"
+            )
+        ):
+            cluster_state = ClusterState.STOPPED
+        elif (
+            provider_type == ProviderType.RUNPOD.value
+            and getattr(cluster_status, "status_message", "") == "Pod not found"
         ):
             cluster_state = ClusterState.STOPPED
 
