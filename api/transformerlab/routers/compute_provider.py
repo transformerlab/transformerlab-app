@@ -2021,6 +2021,9 @@ async def launch_template_on_provider(
         # on TFL_REMOTE_STORAGE_ENABLED / remote storage configuration.
         job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id, org_id=team_id)
         provider_config_dict["workspace_dir"] = job_dir
+        provider_config_dict["org_id"] = team_id
+        provider_config_dict["experiment_id"] = request.experiment_id
+        provider_config_dict["job_id"] = str(job_id)
 
     # Copy task files (task.yaml and any attachments) into the job directory
     # so they are available to the running command on any provider.

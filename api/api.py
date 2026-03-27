@@ -175,6 +175,9 @@ async def lifespan(app: FastAPI):
     from transformerlab.services.migrate_jobs_to_experiment_dirs import stop_jobs_migration_worker
 
     await stop_jobs_migration_worker()
+    from transformerlab.services.process_registry import get_registry
+
+    get_registry().kill_all()
     await db.close()
     # Run the clean up function
     cleanup_at_exit()

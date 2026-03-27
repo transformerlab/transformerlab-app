@@ -1,6 +1,5 @@
 """Local compute provider: runs tasks in a uv venv synced with the base environment."""
 
-import contextlib
 import json
 import os
 import re
@@ -15,6 +14,7 @@ import shutil
 from typing import Any, Dict, List, Optional, Union, Callable
 
 from lab.dirs import HOME_DIR, get_local_provider_config_path, get_local_provider_root
+from transformerlab.services.process_registry import _terminate_process_tree, get_registry
 
 from .base import ComputeProvider
 from .models import (
@@ -205,48 +205,6 @@ def _run_local_provider_conda_install(source_code_dir: str) -> None:
         log_file.flush()
     if result.returncode != 0:
         raise RuntimeError(f"local_provider_conda_install.sh failed with exit code {result.returncode}")
-
-
-def _terminate_process_tree(pid: int, sig: int = signal.SIGTERM) -> None:
-    """
-    Best-effort termination of a process and all of its descendants.
-
-    Uses psutil when available to walk the full process tree and then force-kill
-    any survivors; otherwise falls back to killing the process group (if possible)
-    and then the single pid.
-    """
-    try:
-        import psutil  # type: ignore[import-not-found]
-    except Exception:
-        psutil = None  # type: ignore[assignment]
-
-    if psutil is not None:
-        try:
-            parent = psutil.Process(pid)
-        except psutil.NoSuchProcess:
-            parent = None
-
-        if parent is not None:
-            procs = [parent] + parent.children(recursive=True)
-
-            # First try graceful termination
-            for proc in procs:
-                with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error):
-                    proc.send_signal(sig)
-
-            # Give processes a short window to exit, then force kill survivors
-            gone, alive = psutil.wait_procs(procs, timeout=3)  # type: ignore[assignment]
-            for proc in alive:
-                with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error):
-                    proc.kill()
-            return
-
-    # Fallback path when psutil is unavailable or parent no longer exists
-    try:
-        pgid = os.getpgid(pid)
-        os.killpg(pgid, sig)
-    except Exception:
-        os.kill(pid, sig)
 
 
 def _is_process_zombie(pid: int) -> bool:
@@ -598,6 +556,14 @@ class LocalProvider(ComputeProvider):
         with open(os.path.join(job_dir, "pid"), "w") as f:
             f.write(str(pid))
         print(f"[LocalProvider] Process started with pid={pid}, logs at {job_dir}/stdout.log")
+        _org_id = (config.provider_config or {}).get("org_id", "")
+        _exp_id = (config.provider_config or {}).get("experiment_id", "")
+        _job_id = (config.provider_config or {}).get("job_id", "")
+        if _org_id and _exp_id and _job_id:
+            _reg_key = f"local:{_org_id}:{_exp_id}:{_job_id}"
+            get_registry().register(_reg_key, proc, workspace_dir=job_dir)
+        else:
+            get_registry().register(f"local:{job_dir}", proc, workspace_dir=job_dir)
 
         return {
             "cluster_name": cluster_name,
@@ -626,6 +592,7 @@ class LocalProvider(ComputeProvider):
         try:
             with open(pid_file, "r", encoding="utf-8") as f:
                 pid = int(f.read().strip())
+            get_registry().kill_by_workspace(job_dir)
             _terminate_process_tree(pid, signal.SIGTERM)
             return {"cluster_name": cluster_name, "status": "stopped", "message": "Sent SIGTERM to process tree"}
         except (ValueError, ProcessLookupError, OSError) as e:
