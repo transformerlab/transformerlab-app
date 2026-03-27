@@ -435,6 +435,8 @@ def get_custom_tunnel_info(logs: str, url_patterns: list[dict] | None) -> dict:
     """
     values: dict = {}
     found_any = False
+    ngrok_match = re.search(r"(https://[a-zA-Z0-9-]+\.(?:ngrok-free\.app|ngrok-free\.dev|ngrok\.io))", logs)
+    preferred_ngrok_url = ngrok_match.group(1) if ngrok_match else None
 
     for pattern_def in url_patterns or []:
         value_key = pattern_def.get("value_key")
@@ -442,6 +444,13 @@ def get_custom_tunnel_info(logs: str, url_patterns: list[dict] | None) -> dict:
         group = pattern_def.get("group", 0)
 
         if not value_key or not regex:
+            continue
+
+        # Prefer a discovered ngrok public URL for URL-like keys.
+        # This avoids selecting local URLs (e.g. 0.0.0.0 / localhost) when both are present.
+        if preferred_ngrok_url and isinstance(value_key, str) and value_key.endswith("_url"):
+            values[value_key] = preferred_ngrok_url
+            found_any = True
             continue
 
         try:

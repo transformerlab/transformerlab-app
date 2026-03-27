@@ -72,7 +72,8 @@ def build_ngrok_tunnel_command(entry_id: str, ports: list[dict[str, Any]]) -> st
             printf_parts.append(f"'{escaped}'")
     printf_cmd = " ".join(printf_parts) + f" > {config_path}"
     # Run ngrok in the background so task-level run commands can continue uninterrupted.
-    start_cmd = f"ngrok start --all --config {config_path} --log=stdout > /tmp/ngrok.log 2>&1 &"
+    # Wrap in a subshell so callers can safely append `; <next command>` without producing `&;`.
+    start_cmd = f"(ngrok start --all --config {config_path} --log=stdout > /tmp/ngrok.log 2>&1 &)"
 
     return f"{install_and_auth}; {printf_cmd} && {start_cmd}"
 
