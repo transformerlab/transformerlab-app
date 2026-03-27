@@ -502,7 +502,8 @@ class LocalProvider(ComputeProvider):
             if config.setup:
                 _status("Running setup")
                 print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
-                setup_cmd = _wrap(["/bin/bash", "-c", config.setup])
+                strict_setup_script = f"set -e -o pipefail; {config.setup}"
+                setup_cmd = _wrap(["/bin/bash", "-c", strict_setup_script])
                 if setup_cmd[0] != "/bin/bash":
                     print(f"[LocalProvider] Setup sandboxed via {_sandbox_backend}: {setup_cmd[0]}")
                 setup_result = subprocess.run(
