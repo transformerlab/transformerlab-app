@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Card,
@@ -76,6 +76,7 @@ const Resources = () => {
     'success' | 'error' | null
   >(null);
   const navigate = useNavigate();
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchProviders();
@@ -86,6 +87,14 @@ const Resources = () => {
       fetchClusters();
     }
   }, [selectedProvider]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   const fetchProviders = async () => {
     setLoading(true);
@@ -103,10 +112,7 @@ const Resources = () => {
         console.error('Failed to fetch providers:', await response.text());
       }
     } catch (error) {
-      console.error('Failed to terminate cluster:', error);
-      setTerminateMessage(
-        `Failed to terminate cluster "${clusterName}": ${(error as Error).message || 'Network error'}`,
-      );
+      console.error('Failed to fetch providers:', error);
     } finally {
       setLoading(false);
     }
@@ -167,13 +173,20 @@ const Resources = () => {
         );
         setTerminateStatus('success');
         // Refresh clusters after a short delay
-        setTimeout(() => {
+        timerRef.current = setTimeout(() => {
           fetchClusters();
         }, 2000);
       } else {
-        const errorData = await response.json();
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage += `: ${errorData.detail || 'Unknown error'}`;
+        } catch (jsonError) {
+          const text = await response.text();
+          errorMessage += `: ${text || 'Unknown error'}`;
+        }
         setTerminateMessage(
-          `Failed to terminate cluster "${clusterName}": ${errorData.detail || 'Unknown error'}`,
+          `Failed to terminate cluster "${clusterName}": ${errorMessage}`,
         );
         setTerminateStatus('error');
       }
