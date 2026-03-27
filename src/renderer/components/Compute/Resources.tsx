@@ -17,12 +17,14 @@ import {
   Sheet,
   Button,
   Stack,
+  Alert,
 } from '@mui/joy';
 import { useNavigate } from 'react-router-dom';
 import {
   authenticatedFetch,
   getAPIFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { RotateCcw } from 'lucide-react';
 import FixedComputeClusterVisualization from './FixedComputeClusterVisualization';
 import LocalMachineSummary from './LocalMachineSummary';
@@ -66,6 +68,10 @@ const Resources = () => {
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [loading, setLoading] = useState(true);
+  const [terminatingClusters, setTerminatingClusters] = useState<Set<string>>(
+    new Set(),
+  );
+  const [terminateMessage, setTerminateMessage] = useState<string>('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -94,7 +100,10 @@ const Resources = () => {
         console.error('Failed to fetch providers:', await response.text());
       }
     } catch (error) {
-      console.error('Failed to fetch providers:', error);
+      console.error('Failed to terminate cluster:', error);
+      setTerminateMessage(
+        `Failed to terminate cluster "${clusterName}": ${(error as Error).message || 'Network error'}`,
+      );
     } finally {
       setLoading(false);
     }
@@ -128,6 +137,51 @@ const Resources = () => {
     await fetchProviders();
     if (selectedProvider) {
       await fetchClusters();
+    }
+  };
+
+  const handleTerminateCluster = async (clusterName: string) => {
+    if (!selectedProvider) return;
+
+    setTerminatingClusters((prev) => new Set(prev).add(clusterName));
+    setTerminateMessage('');
+
+    try {
+      const response = await authenticatedFetch(
+        chatAPI.Endpoints.ComputeProvider.StopCluster(
+          selectedProvider,
+          clusterName,
+        ),
+        {
+          method: 'POST',
+        },
+      );
+
+      if (response.ok) {
+        setTerminateMessage(
+          `Successfully initiated termination of cluster "${clusterName}". Refreshing...`,
+        );
+        // Refresh clusters after a short delay
+        setTimeout(() => {
+          fetchClusters();
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        setTerminateMessage(
+          `Failed to terminate cluster "${clusterName}": ${errorData.detail || 'Unknown error'}`,
+        );
+      }
+    } catch (error) {
+      console.error('Failed to terminate cluster:', error);
+      setTerminateMessage(
+        `Failed to terminate cluster "${clusterName}": ${(error as Error).message || 'Network error'}`,
+      );
+    } finally {
+      setTerminatingClusters((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(clusterName);
+        return newSet;
+      });
     }
   };
 
@@ -225,6 +279,17 @@ const Resources = () => {
         </Select>
       </FormControl>
 
+      {terminateMessage && (
+        <Alert
+          color={
+            terminateMessage.includes('Successfully') ? 'success' : 'danger'
+          }
+          sx={{ mb: 2 }}
+        >
+          {terminateMessage}
+        </Alert>
+      )}
+
       <Grid container spacing={3}>
         {selectedProviderObj?.type === 'local' && (
           <Grid xs={12}>
@@ -279,166 +344,18 @@ const Resources = () => {
                     },
                   }}
                 >
-                  {/* <Table sx={{ minWidth: 700 }}>
-                    <thead>
-                      <tr>
-                        <th>
-                          {fixedClusters?.backend_type === 'SLURM'
-                            ? 'Partition'
-                            : 'Node Pool'}
-                        </th>
-                        <th>Clusters</th>
-                        <th>Jobs</th>
-                        <th>Nodes</th>
-                        <th>GPU Types</th>
-                        <th>#GPUs</th>
-                        <th>GPU Availability</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fixedClusters.map((cluster) => {
-                        // Calculate totals from nodes
-                        const totalGPUs = cluster.nodes
-                          .filter((node) => node.is_fixed === true)
-                          .reduce((sum, node) => {
-                            const nodeGPUCount = Object.values(
-                              node.resources.gpus,
-                            ).reduce((a, b) => a + b, 0);
-                            return sum + nodeGPUCount;
-                          }, 0);
-
-                        // Get free GPUs from the pool capacity node
-                        const freeGPUs = cluster.nodes
-                          .filter((node) => node.is_fixed === true)
-                          .reduce((sum, node) => {
-                            const nodeFreeGPUCount = node.resources.gpus_free
-                              ? Object.values(node.resources.gpus_free).reduce(
-                                  (a, b) => a + b,
-                                  0,
-                                )
-                              : 0;
-                            return sum + nodeFreeGPUCount;
-                          }, 0);
-
-                        const gpuTypes = new Set<string>();
-                        cluster.nodes.forEach((node) => {
-                          Object.keys(node.resources.gpus).forEach((gpuType) =>
-                            gpuTypes.add(gpuType),
-                          );
-                        });
-
-                        // Count active nodes (running clusters/jobs)
-                        const activeNodes = cluster.nodes.filter(
-                          (node) => node.is_active,
-                        ).length;
-
-                        return (
-                          <tr key={cluster.cluster_id}>
-                            <td>
-                              <Box
-                                sx={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 1,
-                                }}
-                              >
-                                <Typography
-                                  level="body-md"
-                                  fontWeight="bold"
-                                  sx={{
-                                    color: 'primary.main',
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  {cluster.cluster_name}
-                                </Typography>
-                              </Box>
-                            </td>
-                            <td>
-                              <Typography level="body-md">
-                                {activeNodes > 0 ? activeNodes : '0'}
-                              </Typography>
-                            </td>
-                            <td>
-                              <Typography
-                                level="body-md"
-                                sx={{
-                                  color:
-                                    activeNodes > 0
-                                      ? 'inherit'
-                                      : 'text.secondary',
-                                }}
-                              >
-                                {activeNodes > 0 ? activeNodes : '0'}
-                              </Typography>
-                            </td>
-                            <td>
-                              <Typography level="body-md">
-                                {cluster.nodes.length > 0
-                                  ? cluster.nodes.length
-                                  : '1'}
-                              </Typography>
-                            </td>
-                            <td>
-                              {gpuTypes.size > 0 ? (
-                                <Typography level="body-md">
-                                  {Array.from(gpuTypes).join(', ')}
-                                </Typography>
-                              ) : (
-                                <Typography
-                                  level="body-md"
-                                  sx={{ color: 'text.secondary' }}
-                                >
-                                  -
-                                </Typography>
-                              )}
-                            </td>
-                            <td>
-                              <Typography level="body-md">
-                                {totalGPUs > 0 ? totalGPUs : '0'}
-                              </Typography>
-                            </td>
-                            <td>
-                              {totalGPUs > 0 ? (
-                                <Box
-                                  sx={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 1,
-                                  }}
-                                >
-                                  <Chip
-                                    color={
-                                      freeGPUs === totalGPUs
-                                        ? 'success'
-                                        : freeGPUs > 0
-                                          ? 'warning'
-                                          : 'danger'
-                                    }
-                                    size="sm"
-                                    variant="soft"
-                                  >
-                                    {freeGPUs} of {totalGPUs} free
-                                  </Chip>
-                                </Box>
-                              ) : (
-                                <Typography
-                                  level="body-md"
-                                  sx={{ color: 'text.secondary' }}
-                                >
-                                  -
-                                </Typography>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </Table> */}
+                  {/*  */}
                 </Sheet>
               )}
               {fixedClusters.length > 0 && (
-                <FixedComputeClusterVisualization cluster={fixedClusters[0]} />
+                <FixedComputeClusterVisualization
+                  cluster={fixedClusters[0]}
+                  providerId={selectedProvider}
+                  onClusterTerminate={handleTerminateCluster}
+                  isTerminating={terminatingClusters.has(
+                    fixedClusters[0].cluster_name,
+                  )}
+                />
               )}
             </CardContent>
           </Card>
