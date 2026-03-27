@@ -1,6 +1,5 @@
 import json
 import os
-from pathlib import Path
 
 from typing import Annotated
 
@@ -225,9 +224,17 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
 
     # The following prevents path traversal attacks:
     plugin_dir = await lab_dirs.plugin_dir_by_name((pluginId))
-    final_path = Path(plugin_dir).joinpath(filename + file_ext).resolve().relative_to(plugin_dir)
+    plugin_dir_real = os.path.realpath(plugin_dir)
+    candidate_path = os.path.realpath(os.path.join(plugin_dir, filename + file_ext))
+    try:
+        common = os.path.commonpath([plugin_dir_real, candidate_path])
+    except Exception:
+        # Treat inability to compare paths as unsafe.
+        return "FILE NOT FOUND"
+    if common != plugin_dir_real:
+        return "FILE NOT FOUND"
 
-    final_path = plugin_dir + "/" + str(final_path)
+    final_path = candidate_path
 
     # now get the file contents
     try:

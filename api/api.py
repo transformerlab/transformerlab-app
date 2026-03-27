@@ -59,15 +59,12 @@ from transformerlab.routers import (  # noqa: E402
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 
 
-from transformerlab import fastchat_openai_api  # noqa: E402
 from transformerlab.routers.experiment import experiment  # noqa: E402
 from transformerlab.routers.experiment import jobs  # noqa: E402
 from transformerlab.shared import shared  # noqa: E402
 from transformerlab.shared import galleries  # noqa: E402
-from lab.dirs import get_workspace_dir  # noqa: E402
 from transformerlab.shared import dirs  # noqa: E402
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
-from lab import storage  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
 from transformerlab.services.sweep_status_service import start_sweep_status_worker, stop_sweep_status_worker  # noqa: E402
 from transformerlab.services.cache_service import setup as setup_cache  # noqa: E402
@@ -115,18 +112,15 @@ async def lifespan(app: FastAPI):
     setup_cache()
     print("✅ CACHE ENABLED")
 
-    # Set the temporary image directory for transformerlab (computed async)
-    temp_image_dir = storage.join(await get_workspace_dir(), "temp", "images")
-    os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
     # Validate cloud credentials early - fail fast if missing
     validate_cloud_credentials()
     await galleries.update_gallery_cache()
     await db.init()  # This now runs Alembic migrations internally
     print("✅ SEED DATA")
-    # Initialize experiments
-    await seed_default_experiments()
     # Seed default admin user
     await seed_default_admin_user()
+    # Initialize default experiments (requires org/team context)
+    await seed_default_experiments()
 
     # One-time migration: legacy workspace/jobs -> workspace/experiments/<exp_id>/jobs
     # Runs in the background so it doesn't delay the API startup.
@@ -328,7 +322,6 @@ app.include_router(experiment.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(plugins.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(jobs.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(config.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(fastchat_openai_api.router)
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(compute_provider.router)
 app.include_router(auth.router)

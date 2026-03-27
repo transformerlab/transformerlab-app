@@ -5,7 +5,6 @@ import os
 import time
 import json
 import configparser
-from pathlib import Path
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request, Body
 from fastapi.responses import StreamingResponse
@@ -48,12 +47,14 @@ from transformerlab.services import quota_service
 from transformerlab.services.task_service import task_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
 from transformerlab.services.remote_provider_queue import enqueue_remote_launch
+from transformerlab.compute_providers.local import _get_install_log_path
 
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
 from lab.dirs import (
     get_workspace_dir,
     get_local_provider_job_dir,
+    resolve_local_provider_job_dir,
     get_job_dir,
     set_organization_id,
     get_task_dir,
@@ -284,23 +285,23 @@ async def create_provider(
 
             status_path = _get_provider_setup_status_path(team_id, str(provider.id))
             try:
-                status_path.parent.mkdir(parents=True, exist_ok=True)
+                os.makedirs(os.path.dirname(status_path), exist_ok=True)
             except Exception:
                 logger.exception("Failed to ensure parent directory for provider setup status %s", status_path)
             try:
-                status_path.write_text(
-                    json.dumps(
-                        {
-                            "phase": "provider_setup_start",
-                            "percent": 0,
-                            "message": "Starting local provider setup...",
-                            "done": False,
-                            "error": None,
-                            "timestamp": time.time(),
-                        }
-                    ),
-                    encoding="utf-8",
-                )
+                with open(status_path, "w", encoding="utf-8") as f:
+                    f.write(
+                        json.dumps(
+                            {
+                                "phase": "provider_setup_start",
+                                "percent": 0,
+                                "message": "Starting local provider setup...",
+                                "done": False,
+                                "error": None,
+                                "timestamp": time.time(),
+                            }
+                        )
+                    )
             except Exception:
                 logger.exception(
                     "Failed to seed provider setup status for newly created local provider %s", provider.id
@@ -926,9 +927,9 @@ def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> T
     Returns:
         Tuple of (aws_access_key_id, aws_secret_access_key) or (None, None) if not found
     """
-    credentials_path = Path.home() / ".aws" / "credentials"
+    credentials_path = os.path.join(os.path.expanduser("~"), ".aws", "credentials")
 
-    if not credentials_path.exists():
+    if not os.path.exists(credentials_path):
         return None, None
 
     try:
@@ -2753,14 +2754,17 @@ async def stop_cluster(
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
         # Local provider needs workspace_dir (job dir) to stop the correct process tree.
-        # Derive job_id from the standard "-job-<job_id>" suffix in the cluster name.
+        # Cluster names include a short id suffix ("-job-<short_id>"), while local
+        # provider run directories use the full job id. Resolve by exact/unique prefix
+        # without creating new directories.
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
             job_id_segment = None
             if "-job-" in cluster_name:
                 job_id_segment = cluster_name.rsplit("-job-", 1)[-1] or None
             if job_id_segment is not None:
-                job_dir = await asyncio.to_thread(get_local_provider_job_dir, job_id_segment, org_id=team_id)
-                provider_instance.extra_config["workspace_dir"] = job_dir
+                job_dir = await asyncio.to_thread(resolve_local_provider_job_dir, job_id_segment, org_id=team_id)
+                if job_dir:
+                    provider_instance.extra_config["workspace_dir"] = job_dir
 
         # Stop cluster
         result = await asyncio.to_thread(provider_instance.stop_cluster, cluster_name)
@@ -2861,7 +2865,7 @@ async def list_clusters_detailed(
         raise HTTPException(status_code=500, detail="Failed to list clusters")
 
 
-def _get_provider_setup_status_path(team_id: str, provider_id: str) -> Path:
+def _get_provider_setup_status_path(team_id: str, provider_id: str) -> str:
     """Return path to the transient local-provider-setup status file for this team/provider.
 
     This is only used for LOCAL providers, so it should always live on the local filesystem
@@ -2870,16 +2874,31 @@ def _get_provider_setup_status_path(team_id: str, provider_id: str) -> Path:
     # Sanitize user-derived identifiers before using them in a file name
     safe_team = secure_filename(str(team_id).replace("/", "_")) or "team"
     safe_provider = secure_filename(str(provider_id).replace("/", "_")) or "provider"
-    return (
-        Path(get_local_provider_root())
-        / "team_setup_logs"
-        / f"local_provider_setup_status_{safe_team}_{safe_provider}.json"
+    return os.path.join(
+        get_local_provider_root(),
+        "team_setup_logs",
+        f"local_provider_setup_status_{safe_team}_{safe_provider}.json",
     )
+
+
+def _read_install_log_tail(max_lines: int = 60) -> Optional[str]:
+    try:
+        log_path = _get_install_log_path()
+        if not os.path.exists(log_path):
+            return None
+        with open(log_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        tail = "".join(lines[-max_lines:]).strip()
+        return tail or None
+    except Exception:
+        logger.exception("Failed to read local provider install log")
+        return None
 
 
 async def _run_local_provider_setup_background(
     provider_instance: Any,
-    status_path: Path,
+    status_path: str,
+    force_refresh: bool = False,
 ) -> None:
     """
     Run LocalProvider.setup in the background and write progress snapshots to a status file.
@@ -2897,7 +2916,8 @@ async def _run_local_provider_setup_background(
             "timestamp": time.time(),
         }
         try:
-            status_path.write_text(json.dumps(payload), encoding="utf-8")
+            with open(status_path, "w", encoding="utf-8") as f:
+                f.write(json.dumps(payload))
         except Exception:
             # Best-effort only – avoid crashing on I/O errors.
             logger.exception("Failed to write provider setup status to %s", status_path)
@@ -2908,7 +2928,9 @@ async def _run_local_provider_setup_background(
     try:
         loop = asyncio.get_running_loop()
         # Run the blocking setup() in a thread executor.
-        await loop.run_in_executor(None, lambda: provider_instance.setup(progress_callback=progress_callback))
+        await loop.run_in_executor(
+            None, lambda: provider_instance.setup(progress_callback=progress_callback, force_refresh=force_refresh)
+        )
         write_status("provider_setup_done", 100, "Local provider setup completed successfully.", done=True, error=None)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to run provider setup in background")
@@ -2916,8 +2938,8 @@ async def _run_local_provider_setup_background(
     finally:
         # Delete the status file after completion so subsequent status checks see an idle state.
         try:
-            if status_path.exists():
-                status_path.unlink()
+            if os.path.exists(status_path):
+                os.unlink(status_path)
         except Exception:
             logger.exception("Failed to delete provider setup status file %s", status_path)
 
@@ -2925,6 +2947,7 @@ async def _run_local_provider_setup_background(
 @router.post("/{provider_id}/setup")
 async def setup_provider(
     provider_id: str,
+    refresh: bool = False,
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ) -> Dict[str, Any]:
@@ -2935,6 +2958,10 @@ async def setup_provider(
     and populate the shared base uv virtual environment and generate a
     local machine metrics snapshot. For remote providers this endpoint is a
     fast no-op and simply returns {"status": "skipped"}.
+
+    Args:
+      refresh: When true, force a refresh of the shared local-provider base
+      environment even if it was already prepared by another org.
     """
     team_id = user_and_team["team_id"]
 
@@ -2956,38 +2983,61 @@ async def setup_provider(
 
     status_path = _get_provider_setup_status_path(team_id, provider_id)
     try:
-        status_path.parent.mkdir(parents=True, exist_ok=True)
+        os.makedirs(os.path.dirname(status_path), exist_ok=True)
     except Exception:
         # Parent should already exist, but log and continue if it doesn't.
         logger.exception("Failed to ensure parent directory for provider setup status %s", status_path)
 
     # Seed initial status so the status endpoint can report that setup has started.
     try:
-        status_path.write_text(
-            json.dumps(
-                {
-                    "phase": "provider_setup_start",
-                    "percent": 0,
-                    "message": "Starting local provider setup...",
-                    "done": False,
-                    "error": None,
-                    "timestamp": time.time(),
-                }
-            ),
-            encoding="utf-8",
-        )
+        with open(status_path, "w", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "phase": "provider_setup_start",
+                        "percent": 0,
+                        "message": "Refreshing local provider setup..."
+                        if refresh
+                        else "Starting local provider setup...",
+                        "done": False,
+                        "error": None,
+                        "timestamp": time.time(),
+                    }
+                )
+            )
     except Exception:
         logger.exception("Failed to write initial provider setup status to %s", status_path)
 
     # Kick off background setup and return immediately.
-    asyncio.create_task(_run_local_provider_setup_background(provider_instance, status_path))
+    asyncio.create_task(_run_local_provider_setup_background(provider_instance, status_path, force_refresh=refresh))
 
     return {
         "status": "started",
         "provider_id": provider_id,
         "provider_type": provider.type,
-        "message": "Local provider setup started.",
+        "refresh": refresh,
+        "message": "Local provider refresh started." if refresh else "Local provider setup started.",
     }
+
+
+@router.post("/{provider_id}/setup/refresh")
+async def refresh_provider_setup(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+) -> Dict[str, Any]:
+    """
+    Force-refresh local provider setup for a provider.
+
+    This explicitly re-runs local provider base setup even when an existing
+    shared base environment is already marked ready.
+    """
+    return await setup_provider(
+        provider_id=provider_id,
+        refresh=True,
+        user_and_team=user_and_team,
+        session=session,
+    )
 
 
 @router.get("/{provider_id}/setup/status")
@@ -3003,7 +3053,7 @@ async def get_setup_status(
     """
     team_id = user_and_team["team_id"]
     status_path = _get_provider_setup_status_path(team_id, provider_id)
-    if not status_path.exists():
+    if not os.path.exists(status_path):
         return {
             "status": "idle",
             "provider_id": provider_id,
@@ -3012,7 +3062,8 @@ async def get_setup_status(
         }
 
     try:
-        raw = status_path.read_text(encoding="utf-8")
+        with open(status_path, "r", encoding="utf-8") as f:
+            raw = f.read()
         data = json.loads(raw)
     except Exception:
         logger.exception("Failed to read provider setup status from %s", status_path)
@@ -3020,6 +3071,9 @@ async def get_setup_status(
 
     data.setdefault("status", "running" if not data.get("done") else "completed")
     data.setdefault("provider_id", provider_id)
+    log_tail = _read_install_log_tail()
+    if log_tail:
+        data["log_tail"] = log_tail
     return data
 
 

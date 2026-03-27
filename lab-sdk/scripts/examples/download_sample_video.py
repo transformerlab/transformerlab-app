@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 from urllib.request import urlretrieve
 
 from lab import lab
@@ -18,10 +17,10 @@ def download_sample_video() -> str:
         "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
     ]
 
-    output_dir = Path(os.getenv("OUTPUT_DIR", "./output_artifacts"))
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = os.getenv("OUTPUT_DIR", "./output_artifacts")
+    os.makedirs(output_dir, exist_ok=True)
 
-    output_path = output_dir / "sample_video.mp4"
+    output_path = os.path.join(output_dir, "sample_video.mp4")
 
     # Try each URL until one works
     last_error = None
@@ -29,7 +28,7 @@ def download_sample_video() -> str:
         try:
             print(f"Downloading sample video from {url}")
             urlretrieve(url, output_path)  # nosec: B310 - simple demo helper
-            print(f"Saved sample video to: {output_path.resolve()}")
+            print(f"Saved sample video to: {os.path.abspath(output_path)}")
             return str(output_path)
         except Exception as e:
             last_error = e
