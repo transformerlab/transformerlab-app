@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Card,
@@ -17,12 +17,15 @@ import {
   Sheet,
   Button,
   Stack,
+  Alert,
 } from '@mui/joy';
 import { useNavigate } from 'react-router-dom';
+import { useAPI, useAuth } from 'renderer/lib/authContext';
 import {
   authenticatedFetch,
   getAPIFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { RotateCcw } from 'lucide-react';
 import FixedComputeClusterVisualization from './FixedComputeClusterVisualization';
 import LocalMachineSummary from './LocalMachineSummary';
@@ -66,7 +69,19 @@ const Resources = () => {
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [loading, setLoading] = useState(true);
+  const [terminatingClusters, setTerminatingClusters] = useState<Set<string>>(
+    new Set(),
+  );
+  const [terminateMessage, setTerminateMessage] = useState<string>('');
+  const [terminateStatus, setTerminateStatus] = useState<
+    'success' | 'error' | null
+  >(null);
   const navigate = useNavigate();
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const authContext = useAuth();
+  const { data: members } = useAPI('teams', ['members'], {
+    teamId: authContext.team?.id,
+  });
 
   useEffect(() => {
     fetchProviders();
@@ -77,6 +92,14 @@ const Resources = () => {
       fetchClusters();
     }
   }, [selectedProvider]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   const fetchProviders = async () => {
     setLoading(true);
@@ -128,6 +151,73 @@ const Resources = () => {
     await fetchProviders();
     if (selectedProvider) {
       await fetchClusters();
+    }
+  };
+
+  const handleTerminateCluster = async (clusterName: string) => {
+    if (!selectedProvider) return;
+
+    const isAdmin = authContext.user?.email === 'admin@example.com';
+    const isOwner = members?.members?.some(
+      (m: any) => m.user_id === authContext.user?.id && m.role === 'owner',
+    );
+
+    if (!isAdmin && !isOwner) {
+      setTerminateMessage('Only team owners can terminate clusters.');
+      setTerminateStatus('error');
+      return;
+    }
+
+    setTerminatingClusters((prev) => new Set(prev).add(clusterName));
+    setTerminateMessage('');
+    setTerminateStatus(null);
+
+    try {
+      const response = await authenticatedFetch(
+        chatAPI.Endpoints.ComputeProvider.StopCluster(
+          selectedProvider,
+          clusterName,
+        ),
+        {
+          method: 'POST',
+        },
+      );
+
+      if (response.ok) {
+        setTerminateMessage(
+          `Successfully initiated termination of cluster "${clusterName}". Refreshing...`,
+        );
+        setTerminateStatus('success');
+        // Refresh clusters after a short delay
+        timerRef.current = setTimeout(() => {
+          fetchClusters();
+        }, 2000);
+      } else {
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage += `: ${errorData.detail || 'Unknown error'}`;
+        } catch (jsonError) {
+          const text = await response.text();
+          errorMessage += `: ${text || 'Unknown error'}`;
+        }
+        setTerminateMessage(
+          `Failed to terminate cluster "${clusterName}": ${errorMessage}`,
+        );
+        setTerminateStatus('error');
+      }
+    } catch (error) {
+      console.error('Failed to terminate cluster:', error);
+      setTerminateMessage(
+        `Failed to terminate cluster "${clusterName}": ${(error as Error).message || 'Network error'}`,
+      );
+      setTerminateStatus('error');
+    } finally {
+      setTerminatingClusters((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(clusterName);
+        return newSet;
+      });
     }
   };
 
@@ -224,6 +314,15 @@ const Resources = () => {
           ))}
         </Select>
       </FormControl>
+
+      {terminateMessage && terminateStatus && (
+        <Alert
+          color={terminateStatus === 'success' ? 'success' : 'danger'}
+          sx={{ mb: 2 }}
+        >
+          {terminateMessage}
+        </Alert>
+      )}
 
       <Grid container spacing={3}>
         {selectedProviderObj?.type === 'local' && (
@@ -438,7 +537,14 @@ const Resources = () => {
                 </Sheet>
               )}
               {fixedClusters.length > 0 && (
-                <FixedComputeClusterVisualization cluster={fixedClusters[0]} />
+                <FixedComputeClusterVisualization
+                  cluster={fixedClusters[0]}
+                  providerId={selectedProvider}
+                  onClusterTerminate={handleTerminateCluster}
+                  isTerminating={terminatingClusters.has(
+                    fixedClusters[0].cluster_name,
+                  )}
+                />
               )}
             </CardContent>
           </Card>

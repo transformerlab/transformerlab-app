@@ -8,7 +8,9 @@ import Chip from '@mui/joy/Chip';
 import LinearProgress from '@mui/joy/LinearProgress';
 import Tooltip from '@mui/joy/Tooltip';
 import Stack from '@mui/joy/Stack';
-import { InfoIcon } from 'lucide-react';
+import Button from '@mui/joy/Button';
+import CircularProgress from '@mui/joy/CircularProgress';
+import { InfoIcon, Trash2 } from 'lucide-react';
 
 interface NodeResources {
   cpus_total?: number;
@@ -301,8 +303,14 @@ const NodeCard = ({ node }: { node: ClusterNode }) => {
 
 export default function UnifiedComputeCluster({
   cluster,
+  providerId,
+  onClusterTerminate,
+  isTerminating = false,
 }: {
   cluster: ClusterData;
+  providerId?: string;
+  onClusterTerminate?: (clusterName: string) => void;
+  isTerminating?: boolean;
 }) {
   return (
     <Sheet
@@ -330,6 +338,28 @@ export default function UnifiedComputeCluster({
           >
             {cluster?.cluster_id}
           </Chip>
+          {(cluster?.backend_type === 'SLURM' ||
+            cluster?.backend_type === 'SKYPILOT') &&
+            providerId &&
+            onClusterTerminate && (
+              <Button
+                size="sm"
+                color="danger"
+                variant="soft"
+                startDecorator={
+                  isTerminating ? (
+                    <CircularProgress size="sm" />
+                  ) : (
+                    <Trash2 size={16} />
+                  )
+                }
+                onClick={() => onClusterTerminate(cluster.cluster_name)}
+                disabled={isTerminating}
+                sx={{ ml: 'auto' }}
+              >
+                {isTerminating ? 'Terminating...' : 'Terminate Cluster'}
+              </Button>
+            )}
         </Stack>
 
         <Stack direction="row" gap={2} alignItems="center" flexWrap="wrap">
