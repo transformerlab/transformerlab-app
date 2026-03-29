@@ -15,10 +15,11 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 interface TrackioModalProps {
   jobId: string | null;
+  experimentId: string | number | null;
   onClose: () => void;
 }
 
-export default function TrackioModal({ jobId, onClose }: TrackioModalProps) {
+export default function TrackioModal({ jobId, experimentId, onClose }: TrackioModalProps) {
   const [iframeReady, setIframeReady] = useState(false);
   const [trackioUrl, setTrackioUrl] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +34,7 @@ export default function TrackioModal({ jobId, onClose }: TrackioModalProps) {
 
       try {
         const response = await chatAPI.authenticatedFetch(
-          `${chatAPI.API_URL()}trackio/start?job_id=${jobId}`,
+          `${chatAPI.API_URL()}trackio/start?job_id=${jobId}&experiment_id=${experimentId}`,
         );
         if (!response.ok) {
           const txt = await response.text();
@@ -45,7 +46,14 @@ export default function TrackioModal({ jobId, onClose }: TrackioModalProps) {
         }
         const data = (await response.json()) as { url?: string };
         if (!cancelled && data.url) {
-          setTrackioUrl(data.url);
+          // Replace localhost/127.0.0.1 with the actual server hostname so the
+          // iframe loads correctly when the user's browser is remote from the server.
+          const serverHost = window.location.hostname;
+          const resolvedUrl = data.url.replace(
+            /localhost|127\.0\.0\.1/,
+            serverHost,
+          );
+          setTrackioUrl(resolvedUrl);
           setIframeReady(true);
         }
       } catch (e) {
@@ -75,7 +83,7 @@ export default function TrackioModal({ jobId, onClose }: TrackioModalProps) {
         );
       }
     };
-  }, [jobId]);
+  }, [jobId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClose = () => {
     onClose();
