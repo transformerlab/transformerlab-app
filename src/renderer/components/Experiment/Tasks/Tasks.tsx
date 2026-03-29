@@ -1421,6 +1421,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       />
       <TrackioModal
         jobId={trackioJobIdForModal}
+        experimentId={experimentInfo?.id ?? null}
         onClose={() => setTrackioJobIdForModal(null)}
       />
       <DeleteTaskConfirmModal

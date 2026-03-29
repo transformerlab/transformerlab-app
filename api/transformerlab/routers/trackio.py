@@ -12,7 +12,7 @@ router = APIRouter(tags=["train"])
 
 
 @router.get("/trackio/start")
-async def trackio_start(job_id: str, user_and_team=Depends(get_user_and_team)) -> dict:
+async def trackio_start(job_id: str, experiment_id: str, user_and_team=Depends(get_user_and_team)) -> dict:
     """
     Start a Trackio dashboard for the given job and return its local URL.
 
@@ -20,7 +20,6 @@ async def trackio_start(job_id: str, user_and_team=Depends(get_user_and_team)) -
     be scoped to the correct workspace and kept isolated per job.
     """
     org_id = str(user_and_team.get("team_id") or "")
-    experiment_id = user_and_team.get("experiment_id")
     return await start_trackio_for_job(job_id, org_id=org_id, experiment_id=experiment_id)
 
 
