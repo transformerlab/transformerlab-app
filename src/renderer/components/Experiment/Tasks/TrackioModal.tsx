@@ -19,7 +19,11 @@ interface TrackioModalProps {
   onClose: () => void;
 }
 
-export default function TrackioModal({ jobId, experimentId, onClose }: TrackioModalProps) {
+export default function TrackioModal({
+  jobId,
+  experimentId,
+  onClose,
+}: TrackioModalProps) {
   const [iframeReady, setIframeReady] = useState(false);
   const [trackioUrl, setTrackioUrl] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
