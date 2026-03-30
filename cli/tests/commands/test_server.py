@@ -86,12 +86,12 @@ def test_server_install_dry_run_defaults(tmp_path):
     """Test a full dry-run with all defaults accepted."""
     fake_env = os.path.join(str(tmp_path), ".env")
 
-    # Flow: frontend URL -> storage type (aws) -> compute? (n) -> email? (n) -> auth? (n)
+    # Flow: frontend URL -> storage type (aws) -> compute (skip) -> email? (n) -> auth? (n)
     user_input = "\n".join(
         [
             "",  # frontend URL (accept default)
-            "1",  # storage type: aws
-            "n",  # skip compute provider
+            "2",  # storage type: aws
+            "5",  # compute: skip
             "n",  # skip email
             "n",  # skip auth
         ]
@@ -113,8 +113,8 @@ def test_server_install_writes_file(tmp_path):
     user_input = "\n".join(
         [
             "http://myserver.com:8338",  # frontend URL
-            "1",  # storage type: aws
-            "n",  # skip compute
+            "2",  # storage type: aws
+            "5",  # compute: skip
             "n",  # skip email
             "n",  # skip auth
             "n",  # skip running install script
@@ -150,8 +150,8 @@ def test_server_install_preserves_jwt_secrets(tmp_path):
     user_input = "\n".join(
         [
             "",  # frontend URL (accept existing default)
-            "1",  # storage: aws
-            "n",  # skip compute
+            "2",  # storage: aws
+            "5",  # compute: skip
             "n",  # skip email
             "n",  # skip auth
         ]
@@ -173,9 +173,9 @@ def test_server_install_storage_localfs(tmp_path):
     user_input = "\n".join(
         [
             "",  # frontend URL
-            "4",  # storage type: localfs
+            "1",  # storage type: localfs
             "/mnt/shared",  # storage path
-            "n",  # skip compute
+            "5",  # compute: skip
             "n",  # skip email
             "n",  # skip auth
         ]
@@ -197,8 +197,8 @@ def test_server_install_email_configured(tmp_path):
     user_input = "\n".join(
         [
             "",  # frontend URL
-            "1",  # storage: aws
-            "n",  # skip compute
+            "2",  # storage: aws
+            "5",  # compute: skip
             "y",  # configure email
             "smtp.gmail.com",  # smtp server
             "587",  # port
@@ -224,8 +224,8 @@ def test_server_install_email_skip(tmp_path):
     user_input = "\n".join(
         [
             "",  # frontend URL
-            "1",  # storage: aws
-            "n",  # skip compute
+            "2",  # storage: aws
+            "5",  # compute: skip
             "n",  # skip email
             "n",  # skip auth
         ]
@@ -245,8 +245,8 @@ def test_server_install_admin_info_displayed(tmp_path):
     user_input = "\n".join(
         [
             "",  # frontend URL
-            "1",  # storage: aws
-            "n",  # skip compute
+            "2",  # storage: aws
+            "5",  # compute: skip
             "n",  # skip email
             "n",  # skip auth
         ]
