@@ -2032,11 +2032,15 @@ async def launch_template_on_provider(
     # index.json is excluded because the job system uses its own index.json
     # for metadata and overwriting it with the task's index.json would break
     # job status tracking.
+    # Always ensure the job directory exists in remote storage BEFORE launching,
+    # so the container can call Job.get() successfully on startup.
+    workspace_job_dir = await get_job_dir(job_id, request.experiment_id)
+    await storage.makedirs(workspace_job_dir, exist_ok=True)
+
     if request.task_id:
         task_dir_root = await get_task_dir()
         task_src = storage.join(task_dir_root, secure_filename(str(request.task_id)))
         if await storage.isdir(task_src):
-            workspace_job_dir = await get_job_dir(job_id, request.experiment_id)
             await _copy_task_files_to_dir(task_src, workspace_job_dir)
 
     job_data = {
