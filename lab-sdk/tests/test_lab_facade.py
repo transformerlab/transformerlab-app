@@ -2,6 +2,7 @@ import os
 import asyncio
 import json
 import importlib
+import pytest
 
 
 def _fresh(monkeypatch):
@@ -1057,3 +1058,46 @@ def test_lab_load_generation_model_smoke(tmp_path, monkeypatch):
     assert isinstance(model, LocalHTTPGenerationModel)
     assert model.base_url == "http://localhost:9999/v1"
     assert model.model == "test-model"
+
+
+def test_run_async_propagates_runtime_error_from_coroutine():
+    from lab.lab_facade import _run_async
+
+    async def _raises_runtime_error():
+        raise RuntimeError("inner runtime error")
+
+    with pytest.raises(RuntimeError, match="inner runtime error"):
+        _run_async(_raises_runtime_error())
+
+
+def test_lab_save_model_does_not_call_sync_log_in_async_path(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab import lab_facade as lab_facade_module
+    from lab.lab_facade import Lab
+
+    async def _raise_metadata_error(self, architecture, model_filename="", json_data=None):
+        raise RuntimeError("metadata failed")
+
+    monkeypatch.setattr(lab_facade_module.ModelService, "generate_model_json", _raise_metadata_error)
+
+    lab = Lab()
+    lab.init(experiment_id="test_exp")
+
+    model_dir = tmp_path / "model_dir"
+    model_dir.mkdir()
+    (model_dir / "weights.bin").write_text("weights")
+
+    saved_path = lab.save_model(str(model_dir), name="trained_model", architecture="TestArchitecture")
+    assert os.path.exists(saved_path)
+
+    log_path = asyncio.run(lab._job.get_log_path())
+    with open(log_path, "r") as f:
+        content = f.read()
+    assert "Warning: Model saved but metadata creation failed: metadata failed" in content

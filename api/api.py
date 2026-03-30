@@ -360,11 +360,15 @@ async def healthz():
     mode = "multiuser" if IS_MULTIUSER else "local"
 
     version_info = await get_version_info()
+    email_method = os.getenv("EMAIL_METHOD", "dev").lower()
 
     return {
         "message": "OK",
         "mode": mode,
         "version": version_info,
+        "metadata": {
+            "email_method": email_method,
+        },
     }
 
 

@@ -49,6 +49,7 @@ interface JobsListProps {
   onViewFileBrowser?: (jobId: string) => void;
   loading: boolean;
   onViewTrackio?: (jobId: string) => void;
+  hideOutputButton?: boolean;
   selectMode?: boolean;
   selectedJobIds?: string[];
   onToggleJobSelected?: (jobId: string) => void;
@@ -73,6 +74,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewFileBrowser,
   loading,
   onViewTrackio,
+  hideOutputButton = false,
   selectMode = false,
   selectedJobIds = [],
   onToggleJobSelected,
@@ -126,6 +128,7 @@ const JobsList: React.FC<JobsListProps> = ({
 
     const userInfo = jobData.user_info || {};
     const userDisplay = userInfo.name || userInfo.email || '';
+    const providerDisplay = jobData.provider_name || job?.provider_name || '';
 
     if (job?.placeholder) {
       return (
@@ -136,7 +139,7 @@ const JobsList: React.FC<JobsListProps> = ({
       );
     }
     // Build preferred details
-    if (clusterName || userDisplay) {
+    if (clusterName || userDisplay || providerDisplay) {
       return (
         <>
           {clusterName && (
@@ -147,6 +150,11 @@ const JobsList: React.FC<JobsListProps> = ({
           )}
           {userDisplay && (
             <Typography level="body-sm">{userDisplay}</Typography>
+          )}
+          {providerDisplay && (
+            <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
+              <b>Provider:</b> {providerDisplay}
+            </Typography>
           )}
         </>
       );
@@ -291,24 +299,26 @@ const JobsList: React.FC<JobsListProps> = ({
                       </Button>
                     )}
 
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewOutput?.(job?.id)}
-                      startDecorator={<LogsIcon />}
-                    >
-                      <Box
-                        sx={{
-                          display: {
-                            xs: 'none',
-                            sm: 'none',
-                            md: 'inline-flex',
-                          },
-                        }}
+                    {!hideOutputButton && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewOutput?.(job?.id)}
+                        startDecorator={<LogsIcon />}
                       >
-                        Output
-                      </Box>
-                    </Button>
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
+                        >
+                          Output
+                        </Box>
+                      </Button>
+                    )}
                     {job?.job_data?.eval_images_dir && (
                       <Button
                         size="sm"
@@ -436,24 +446,26 @@ const JobsList: React.FC<JobsListProps> = ({
                           >
                             Interactive Setup
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="plain"
-                            onClick={() => onViewOutput?.(job?.id)}
-                            startDecorator={<LogsIcon />}
-                          >
-                            <Box
-                              sx={{
-                                display: {
-                                  xs: 'none',
-                                  sm: 'none',
-                                  md: 'inline-flex',
-                                },
-                              }}
+                          {!hideOutputButton && (
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() => onViewOutput?.(job?.id)}
+                              startDecorator={<LogsIcon />}
                             >
-                              Output
-                            </Box>
-                          </Button>
+                              <Box
+                                sx={{
+                                  display: {
+                                    xs: 'none',
+                                    sm: 'none',
+                                    md: 'inline-flex',
+                                  },
+                                }}
+                              >
+                                Output
+                              </Box>
+                            </Button>
+                          )}
                         </>
                       )}
                     {job?.job_data?.checkpoints && (

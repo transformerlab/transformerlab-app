@@ -25,6 +25,7 @@ export default function LoginForm() {
   const [oidcProviders, setOidcProviders] = useState<
     Array<{ id: string; name: string }>
   >([]);
+  const [emailMethod, setEmailMethod] = useState('smtp');
 
   const { login, setIsDefaultPassword } = useAuth();
   const { addNotification } = useNotification();
@@ -67,6 +68,16 @@ export default function LoginForm() {
         }
       } catch (err) {
         console.warn('Failed to check OIDC providers:', err);
+      }
+
+      try {
+        const response = await fetch(`${apiUrl}healthz`);
+        if (response.ok) {
+          const data = await response.json();
+          setEmailMethod(data.metadata?.email_method ?? 'smtp');
+        }
+      } catch (err) {
+        console.warn('Failed to check email method:', err);
       }
     };
 
@@ -117,7 +128,9 @@ export default function LoginForm() {
       if (result instanceof Error) {
         if (result.info?.detail === 'LOGIN_USER_NOT_VERIFIED') {
           setError(
-            'Email not verified. Please check your email for the verification link.',
+            emailMethod === 'dev'
+              ? 'Email not verified. Check the terminal where you started the server for the verification link.'
+              : 'Email not verified. Please check your email for the verification link.',
           );
           return;
         }

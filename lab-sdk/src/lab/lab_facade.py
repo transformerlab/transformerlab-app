@@ -44,18 +44,21 @@ def _run_async(coro):
         # Check if this is our custom error or a "no running loop" error
         if "Cannot use sync method" in str(e):
             raise
-        # No running loop - we can safely create/use one
+        # No running loop - we can safely create/use one.
+        # IMPORTANT: only catch get_event_loop() errors here; runtime errors raised
+        # by the coroutine itself must propagate and should not trigger a retry with
+        # the same coroutine object.
         try:
             loop = asyncio.get_event_loop()
-            if loop.is_closed():
-                # Loop is closed, create a new one
-                return asyncio.run(coro)
-            else:
-                # Loop exists but not running, use it
-                return loop.run_until_complete(coro)
         except RuntimeError:
-            # No event loop at all, create one
             return asyncio.run(coro)
+
+        if loop.is_closed():
+            # Loop is closed, create a new one
+            return asyncio.run(coro)
+
+        # Loop exists but not running, use it
+        return loop.run_until_complete(coro)
 
 
 class Lab:
@@ -1070,7 +1073,8 @@ class Lab:
                 )
                 await self._job.log_info(f"Model saved to '{dest}'")  # type: ignore[union-attr]
             except Exception as e:
-                self.log(f"Warning: Model saved but metadata creation failed: {str(e)}")
+                # This branch runs inside async code, so log directly with the async API.
+                await self._job.log_info(f"Warning: Model saved but metadata creation failed: {str(e)}")  # type: ignore[union-attr]
 
             # Track in job_data
             try:

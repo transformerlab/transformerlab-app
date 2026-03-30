@@ -3,6 +3,7 @@
 import asyncio
 import requests
 import os
+import re
 from typing import Dict, Any, Optional, Union, List
 from lab import storage
 from .base import ComputeProvider
@@ -58,6 +59,34 @@ class SLURMProvider(ComputeProvider):
             raise ValueError("REST mode requires rest_url")
         if mode == "ssh" and not ssh_host:
             raise ValueError("SSH mode requires ssh_host")
+
+    @staticmethod
+    def _has_task_allocation_flags(raw_flags: Optional[str]) -> bool:
+        """Check if custom SBATCH flags already configure task layout."""
+        if not raw_flags:
+            return False
+        normalized = " ".join(line.strip() for line in raw_flags.splitlines() if line.strip())
+        task_flag_patterns = [
+            r"(?:^|\s)--ntasks(?:\s+|=|$)",
+            r"(?:^|\s)--ntasks-per-node(?:\s+|=|$)",
+            r"(?:^|\s)-n(?:\s+|=|$)",
+        ]
+        return any(re.search(pattern, normalized) for pattern in task_flag_patterns)
+
+    def _build_distributed_env_setup(self, num_nodes: Optional[int]) -> str:
+        """Build shell exports that normalize distributed env vars across launchers."""
+        if not num_nodes or num_nodes <= 1:
+            return ""
+
+        return (
+            "\n# Distributed multi-node defaults\n"
+            'export MASTER_ADDR="${MASTER_ADDR:-$(scontrol show hostnames "${SLURM_JOB_NODELIST}" | head -n 1)}"\n'
+            'export MASTER_PORT="${MASTER_PORT:-$((10000 + ${SLURM_JOB_ID:-0} % 50000))}"\n'
+            'export NODE_RANK="${NODE_RANK:-${SLURM_NODEID:-0}}"\n'
+            'export RANK="${RANK:-${SLURM_PROCID:-$NODE_RANK}}"\n'
+            'export LOCAL_RANK="${LOCAL_RANK:-${SLURM_LOCALID:-0}}"\n'
+            f'export WORLD_SIZE="${{WORLD_SIZE:-${{SLURM_NTASKS:-{num_nodes}}}}}"\n'
+        )
 
     def _ssh_execute(self, command: str) -> str:
         """Execute command via SSH."""
@@ -276,6 +305,12 @@ class SLURMProvider(ComputeProvider):
                 else:
                     script_content += f"#SBATCH {stripped}\n"
 
+        # For multinode jobs, ensure at least one task per node if user did not
+        # explicitly provide their own task layout flags.
+        if config.num_nodes and config.num_nodes > 1 and not self._has_task_allocation_flags(effective_flags):
+            script_content += f"#SBATCH --ntasks={config.num_nodes}\n"
+            script_content += "#SBATCH --ntasks-per-node=1\n"
+
         # Add setup commands if provided
         if config.setup:
             script_content += f"\n# Setup commands\n{config.setup}\n"
@@ -283,6 +318,7 @@ class SLURMProvider(ComputeProvider):
         # Add environment variables
         for key, value in config.env_vars.items():
             script_content += f"export {key}={value}\n"
+        script_content += self._build_distributed_env_setup(config.num_nodes)
 
         # Add the main run command
         if config.run:
@@ -772,9 +808,14 @@ class SLURMProvider(ComputeProvider):
                 else:
                     script_content += f"#SBATCH {stripped}\n"
 
+        if job_config.num_nodes and job_config.num_nodes > 1 and not self._has_task_allocation_flags(user_flags):
+            script_content += f"#SBATCH --ntasks={job_config.num_nodes}\n"
+            script_content += "#SBATCH --ntasks-per-node=1\n"
+
         # Add environment variables
         for key, value in job_config.env_vars.items():
             script_content += f"export {key}={value}\n"
+        script_content += self._build_distributed_env_setup(job_config.num_nodes)
 
         script_content += f"\n{job_config.run}\n"
 
