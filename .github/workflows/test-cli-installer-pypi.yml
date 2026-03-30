@@ -1,0 +1,55 @@
+name: "CLI Installer (PyPI)"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "cli/**"
+      - "api/install.sh"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cli-install:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install CLI from PyPI
+        run: uv tool install transformerlab-cli
+
+      - name: Verify lab command is available
+        run: lab --help
+
+      - name: Test lab server install --config --dry-run
+        run: |
+          cat > /tmp/test-config.env <<'ENVEOF'
+          FRONTEND_URL=http://localhost:8338
+          TL_API_URL=http://localhost:8338/
+          MULTIUSER=true
+          TFL_STORAGE_PROVIDER=localfs
+          TFL_STORAGE_URI=/tmp/tlab-test-data
+          EMAIL_METHOD=dev
+          EMAIL_AUTH_ENABLED=true
+          ENVEOF
+          lab server install --config /tmp/test-config.env --dry-run
+
+      - name: Test lab server version
+        run: lab server version
