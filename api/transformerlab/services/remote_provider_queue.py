@@ -10,6 +10,7 @@ from transformerlab.db.session import async_session
 from transformerlab.services import job_service, quota_service
 from transformerlab.services.provider_service import get_provider_by_id, get_provider_instance
 from lab import dirs as lab_dirs
+from lab import storage
 from lab.job_status import JobStatus
 
 logger = logging.getLogger(__name__)
@@ -100,6 +101,14 @@ async def _process_launch_item(item: RemoteLaunchWorkItem) -> None:
         async with async_session() as session:
             lab_dirs.set_organization_id(item.team_id)
             try:
+                # Ensure the job directory exists in remote storage (e.g. S3) before the
+                # container boots and calls lab.init() → Job.get(). The router's job_create()
+                # runs without the S3 ContextVar set, so the directory ends up on the local
+                # filesystem only. Here we have the correct org context, so makedirs targets
+                # the right S3 bucket.
+                job_dir = await lab_dirs.get_job_dir(item.job_id, item.experiment_id)
+                await storage.makedirs(job_dir, exist_ok=True)
+
                 await job_service.job_update_launch_progress(
                     item.job_id,
                     item.experiment_id,
