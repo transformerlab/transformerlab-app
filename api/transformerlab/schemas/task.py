@@ -14,6 +14,11 @@ class ImportTaskFromGalleryRequest(BaseModel):
     experiment_id: str
     is_interactive: Optional[bool] = False  # Whether importing from interactive gallery
     env_vars: Optional[dict] = None  # User-provided environment variable values
+    cpus: Optional[str] = None
+    memory: Optional[str] = None
+    disk_space: Optional[str] = None
+    accelerators: Optional[str] = None
+    num_nodes: Optional[int] = None
 
 
 class ImportTaskFromTeamGalleryRequest(BaseModel):
@@ -21,6 +26,11 @@ class ImportTaskFromTeamGalleryRequest(BaseModel):
     experiment_id: str
     is_interactive: Optional[bool] = False  # Whether to import as an interactive task
     env_vars: Optional[dict] = None  # User-provided environment variable values (merged into env_vars)
+    cpus: Optional[str] = None
+    memory: Optional[str] = None
+    disk_space: Optional[str] = None
+    accelerators: Optional[str] = None
+    num_nodes: Optional[int] = None
 
 
 class AddTeamTaskToGalleryRequest(BaseModel):

@@ -230,6 +230,7 @@ async def list_providers(
 @router.post("/", response_model=ProviderRead)
 async def create_provider(
     provider_data: ProviderCreate,
+    force_refresh: bool = False,
     owner_info=Depends(require_team_owner),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -295,7 +296,7 @@ async def create_provider(
                             {
                                 "phase": "provider_setup_start",
                                 "percent": 0,
-                                "message": "Starting local provider setup...",
+                                "message": "Starting fresh local provider setup...",
                                 "done": False,
                                 "error": None,
                                 "timestamp": time.time(),
@@ -307,7 +308,9 @@ async def create_provider(
                     "Failed to seed provider setup status for newly created local provider %s", provider.id
                 )
 
-            asyncio.create_task(_run_local_provider_setup_background(provider_instance, status_path))
+            asyncio.create_task(
+                _run_local_provider_setup_background(provider_instance, status_path, force_refresh=force_refresh)
+            )
         except Exception:
             # Non-fatal: provider was created successfully; setup can still be started manually.
             logger.exception("Failed to auto-start setup for newly created local provider %s", provider.id)
@@ -1922,7 +1925,9 @@ async def launch_template_on_provider(
                 setup_commands.append(INTERACTIVE_SUDO_PREFIX + " " + raw_setup)
                 interactive_setup_added = True
 
-            resolved_cmd, setup_override_from_gallery = resolve_interactive_command(gallery_entry, environment)
+            resolved_cmd, setup_override_from_gallery = resolve_interactive_command(
+                gallery_entry, environment, base_command=base_command
+            )
             if resolved_cmd:
                 base_command = INTERACTIVE_SUDO_PREFIX + " " + resolved_cmd
             if setup_override_from_gallery and team_secrets:

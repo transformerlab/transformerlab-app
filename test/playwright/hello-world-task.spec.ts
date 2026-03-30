@@ -98,9 +98,7 @@ test.describe('Hello World Task', () => {
     ).toBeVisible();
 
     // Switch to Machine Logs tab
-    await outputDialog
-      .getByRole('tab', { name: 'Machine Logs' })
-      .click();
+    await outputDialog.getByRole('tab', { name: 'Machine Logs' }).click();
 
     // The Machine Logs are rendered in an xterm.js terminal, so text isn't
     // directly available in the DOM. Verify the content by calling the
@@ -110,22 +108,20 @@ test.describe('Hello World Task', () => {
       .first()
       .textContent();
 
-    // Extract the experiment ID and job ID from the API
-    // We can get the job ID from the dialog title ("Output from job: <id>")
+    // Extract the job ID from the dialog title ("Output from job: <id>")
     const dialogTitle = await outputDialog
       .locator('text=Output from job:')
       .textContent();
-    const jobId = dialogTitle?.match(/Output from job:\s*(\d+)/)?.[1];
+    const jobId = dialogTitle?.match(/Output from job:\s*(\S+)/)?.[1];
     expect(jobId).toBeTruthy();
 
     // Poll the provider logs API until "hello" appears.
-    // The experiment name is "alpha" (from the first experiment).
     // The API is served directly from the base URL (no /api/ prefix).
     await expect
       .poll(
         async () => {
           const response = await page.request.get(
-            `/experiment/alpha/jobs/${jobId}/provider_logs?tail_lines=400&live=false`,
+            `/experiment/${experimentName?.trim()}/jobs/${jobId}/provider_logs?tail_lines=400&live=false`,
           );
           if (!response.ok()) return '';
           const data = await response.json();

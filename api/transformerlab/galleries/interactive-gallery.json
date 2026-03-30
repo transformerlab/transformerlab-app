@@ -1,398 +1,534 @@
 [
-  {
-    "id": "vscode",
-    "interactive_type": "vscode",
-    "name": "VS Code",
-    "description": "Remote VS Code development environment via tunnel",
-    "setup": "$SUDO apt-get update && $SUDO apt-get install -y gnupg software-properties-common apt-transport-https wget && wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg && $SUDO install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/ && echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main\" | $SUDO tee /etc/apt/sources.list.d/vscode.list && $SUDO apt-get update && $SUDO apt-get install -y code",
-    "command": "code tunnel --accept-server-license-terms --disable-telemetry",
-    "env_parameters": [],
-    "icon": "https://lab.cloud/img/icons/vscode.png",
-    "supported_accelerators": ["cpu", "NVIDIA", "AMD"],
-    "remoteOnly": true,
-    "_comment_ports": "VS Code tunnel does not expose fixed local ports; the tunnel URL is generated dynamically by the VS Code CLI.",
-    "ports": [],
-    "modal_title": "VS Code Interactive Session",
-    "modal_subtitle": "Follow the steps below to authenticate and open your VS Code session.",
-    "instructions": [
-      {
-        "kind": "code",
-        "title": "Step 1: Authorize VS Code",
-        "description": "When the VS Code service starts, it may print an authorization code. Copy the code below (when available), go to https://github.com/login/device and complete the sign-in flow in your browser.",
-        "value_key": "auth_code",
-        "placeholder": "Waiting for auth code from provider logs...",
-        "help_links": [
-          {
-            "label": "https://github.com/login/device",
-            "href": "https://github.com/login/device"
-          }
+    {
+        "id": "vscode",
+        "interactive_type": "vscode",
+        "name": "VS Code",
+        "description": "Remote VS Code development environment via tunnel",
+        "setup": "$SUDO apt-get update && $SUDO apt-get install -y gnupg software-properties-common apt-transport-https wget && wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg && $SUDO install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/ && echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main\" | $SUDO tee /etc/apt/sources.list.d/vscode.list && $SUDO apt-get update && $SUDO apt-get install -y code",
+        "command": "code tunnel --accept-server-license-terms --disable-telemetry",
+        "env_parameters": [],
+        "icon": "https://lab.cloud/img/icons/vscode.png",
+        "supported_accelerators": [
+            "cpu",
+            "NVIDIA",
+            "AMD"
+        ],
+        "remoteOnly": true,
+        "_comment_ports": "VS Code tunnel does not expose fixed local ports; the tunnel URL is generated dynamically by the VS Code CLI.",
+        "ports": [],
+        "modal_title": "VS Code Interactive Session",
+        "modal_subtitle": "Follow the steps below to authenticate and open your VS Code session.",
+        "instructions": [
+            {
+                "kind": "code",
+                "title": "Step 1: Authorize VS Code",
+                "description": "When the VS Code service starts, it may print an authorization code. Copy the code below (when available), go to https://github.com/login/device and complete the sign-in flow in your browser.",
+                "value_key": "auth_code",
+                "placeholder": "Waiting for auth code from provider logs...",
+                "help_links": [
+                    {
+                        "label": "https://github.com/login/device",
+                        "href": "https://github.com/login/device"
+                    }
+                ]
+            },
+            {
+                "kind": "url",
+                "title": "Step 2: Open VS Code",
+                "description": "After you finish authorization, the URL will appear here. Use it to open the remote environment in your browser-based VS Code.",
+                "value_key": "tunnel_url",
+                "placeholder": "Waiting for VS Code to print a URL in the provider logs..."
+            }
         ]
-      },
-      {
-        "kind": "url",
-        "title": "Step 2: Open VS Code",
-        "description": "After you finish authorization, the URL will appear here. Use it to open the remote environment in your browser-based VS Code.",
-        "value_key": "tunnel_url",
-        "placeholder": "Waiting for VS Code to print a URL in the provider logs..."
-      }
-    ]
-  },
-  {
-    "id": "jupyter",
-    "interactive_type": "jupyter",
-    "name": "Jupyter Notebook",
-    "description": "Jupyter Lab notebook environment via ngrok tunnel",
-    "setup": "pip install jupyter",
-    "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' --notebook-dir=~ > /tmp/jupyter.log 2>&1 & sleep 3 && ngrok http 8888 --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/jupyter.log /tmp/ngrok.log",
-    "env_parameters": [
-      {
-        "field_name": "ngrok Auth Token",
-        "env_var": "NGROK_AUTH_TOKEN",
-        "field_type": "str",
-        "required": true,
-        "placeholder": "ngrok_...",
-        "help_text": "Your ngrok authentication token. You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
-        "password": true
-      }
-    ],
-    "icon": "https://lab.cloud/img/icons/jupyter.png",
-    "supported_accelerators": ["cpu", "NVIDIA", "AMD", "AppleSilicon"],
-    "logic": {
-      "core": "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' --notebook-dir=~ > /tmp/jupyter.log 2>&1 & sleep 3",
-      "tunnel": "ngrok",
-      "tail_logs": "tail -f /tmp/jupyter.log /tmp/ngrok.log"
     },
-    "_comment_ports": "Jupyter Lab listens on port 8888. The ngrok tunnel exposes this port externally.",
-    "ports": [
-      {
-        "port": 8888,
-        "label": "Jupyter Lab",
-        "protocol": "http"
-      }
-    ],
-    "modal_title": "Jupyter Notebook Interactive Session",
-    "modal_subtitle": "Access your Jupyter notebook through the URL below.",
-    "instructions": [
-      {
-        "kind": "url",
-        "title": "Access Jupyter Notebook",
-        "description": "Once ready, click the link below to open your Jupyter notebook in your browser.",
-        "value_key": "jupyter_url",
-        "placeholder": "Waiting for service to start. The URL will appear here once the connection is available..."
-      }
-    ]
-  },
-  {
-    "id": "vllm",
-    "interactive_type": "vllm",
-    "name": "vLLM Server",
-    "description": "vLLM OpenAI-compatible API server via ngrok tunnel (plus Open WebUI)",
-    "setup": "if ! command -v uv >/dev/null 2>&1; then curl -LsSf https://astral.sh/uv/install.sh | sh; fi && export PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" && uv venv ~/vllm-venv --seed --python 3.11 && . ~/vllm-venv/bin/activate && uv pip install \"vllm>=0.13.0\" \"transformers>=4.57.3\" qwen-vl-utils==0.0.14 open-webui",
-    "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; ~/vllm-venv/bin/python -u -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --tensor-parallel-size $TP_SIZE --host 0.0.0.0 --port 8000 --gpu-memory-utilization 0.9 > /tmp/vllm.log 2>&1 & sleep 10 && OPENAI_API_BASE_URL=http://127.0.0.1:8000/v1 OPENAI_API_KEY=dummy WEBUI_AUTH=false ~/vllm-venv/bin/open-webui serve --host 0.0.0.0 --port 8080 > /tmp/openwebui.log 2>&1 & sleep 5 && printf '%s\n' 'version: 2' 'authtoken: '\"$NGROK_AUTH_TOKEN\" 'tunnels:' '  vllm:' '    proto: http' '    addr: 8000' '  openwebui:' '    proto: http' '    addr: 8080' > ~/ngrok-vllm.yml && ngrok start --all --config ~/ngrok-vllm.yml --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/vllm.log /tmp/openwebui.log /tmp/ngrok.log",
-    "env_parameters": [
-      {
-        "field_name": "Model Name",
-        "env_var": "MODEL_NAME",
-        "field_type": "str",
-        "required": true,
-        "placeholder": "e.g. meta-llama/Llama-2-7b-chat-hf",
-        "help_text": "HuggingFace model identifier"
-      },
-      {
-        "field_name": "Tensor Parallel Size",
-        "env_var": "TP_SIZE",
-        "field_type": "integer",
-        "required": true,
-        "placeholder": "1",
-        "help_text": "Number of GPUs for tensor parallelism (default: 1)"
-      },
-      {
-        "field_name": "HuggingFace Token",
-        "env_var": "HF_TOKEN",
-        "field_type": "str",
-        "required": false,
-        "placeholder": "hf_...",
-        "help_text": "Optional: Required for private/gated models",
-        "password": true
-      },
-      {
-        "field_name": "ngrok Auth Token",
-        "env_var": "NGROK_AUTH_TOKEN",
-        "field_type": "str",
-        "required": true,
-        "placeholder": "ngrok_...",
-        "help_text": "Your ngrok authentication token. You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
-        "password": true
-      }
-    ],
-    "supported_accelerators": ["NVIDIA", "AMD"],
-    "logic": {
-      "core": "~/vllm-venv/bin/python -u -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --tensor-parallel-size $TP_SIZE --host 0.0.0.0 --port 8000 --gpu-memory-utilization 0.9 > /tmp/vllm.log 2>&1 & sleep 10 && OPENAI_API_BASE_URL=http://127.0.0.1:8000/v1 OPENAI_API_KEY=dummy WEBUI_AUTH=false ~/vllm-venv/bin/open-webui serve --host 0.0.0.0 --port 8080 > /tmp/openwebui.log 2>&1 & sleep 5",
-      "tunnel": "ngrok",
-      "tail_logs": "tail -f /tmp/vllm.log /tmp/openwebui.log /tmp/ngrok.log"
-    },
-    "icon": "https://lab.cloud/img/icons/vllm.png",
-    "_comment_ports": "vLLM API on 8000, Open WebUI on 8080. Both tunneled via ngrok.",
-    "ports": [
-      {
-        "port": 8000,
-        "label": "vLLM API",
-        "protocol": "http"
-      },
-      {
-        "port": 8080,
-        "label": "Open WebUI",
-        "protocol": "http"
-      }
-    ],
-    "modal_title": "vLLM Server Interactive Session",
-    "modal_subtitle": "Access your vLLM API server through the URL below.",
-    "instructions": [
-      {
-        "kind": "url",
-        "title": "Access vLLM API Server",
-        "description": "Once ready, use the URL below to access your vLLM server. The vLLM server provides an OpenAI-compatible API endpoint.",
-        "value_key": "vllm_url",
-        "placeholder": "Waiting for service to start. The URL will appear here once the connection is available...",
-        "example_template": "curl {{vllm_url}}/v1/completions \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"model\": \"your-model-name\",\n    \"prompt\": \"Hello, world!\",\n    \"max_tokens\": 50\n  }'"
-      },
-      {
-        "kind": "url",
-        "title": "Access Open WebUI",
-        "description": "Use the URL below to open Open WebUI connected to this vLLM server. This provides a browser-based chat UI backed by the same vLLM API.",
-        "value_key": "openwebui_url",
-        "placeholder": "Waiting for the Open WebUI service to start..."
-      }
-    ]
-  },
-  {
-    "id": "ollama",
-    "interactive_type": "ollama",
-    "name": "Ollama + Open WebUI",
-    "description": "Ollama model server with Open WebUI chat interface via ngrok tunnel",
-    "setup": "if ! command -v uv >/dev/null 2>&1; then curl -LsSf https://astral.sh/uv/install.sh | sh; fi && export PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" && uv venv ~/ollama-venv --seed --python 3.11 && . ~/ollama-venv/bin/activate && uv pip install open-webui && if ! command -v ollama >/dev/null 2>&1; then curl -fsSL https://ollama.com/install.sh | sh; fi && if [ \"$(uname)\" != \"Darwin\" ]; then $SUDO apt-get update && $SUDO apt-get install -y pciutils lshw; fi",
-    "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; export OLLAMA_HOST=0.0.0.0:11434 && ollama serve > /tmp/ollama.log 2>&1 & sleep 3 && ollama pull $MODEL_NAME > /tmp/ollama-pull.log 2>&1 & sleep 5 && OLLAMA_BASE_URL=http://127.0.0.1:11434 WEBUI_AUTH=false ~/ollama-venv/bin/open-webui serve --host 0.0.0.0 --port 8080 > /tmp/openwebui.log 2>&1 & sleep 5 && printf '%s\n' 'version: 2' 'authtoken: '\"$NGROK_AUTH_TOKEN\" 'tunnels:' '  ollama:' '    proto: http' '    addr: 11434' '  openwebui:' '    proto: http' '    addr: 8080' > ~/ngrok-ollama.yml && ngrok start --all --config ~/ngrok-ollama.yml --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/ollama.log /tmp/ollama-pull.log /tmp/openwebui.log /tmp/ngrok.log",
-    "env_parameters": [
-      {
-        "field_name": "Model Name",
-        "env_var": "MODEL_NAME",
-        "field_type": "str",
-        "required": true,
-        "placeholder": "e.g. llama2, mistral, codellama",
-        "help_text": "Ollama model name (e.g. llama2, mistral, codellama). Use \"ollama pull <model>\" to download models."
-      },
-      {
-        "field_name": "ngrok Auth Token",
-        "env_var": "NGROK_AUTH_TOKEN",
-        "field_type": "str",
-        "required": true,
-        "placeholder": "ngrok_...",
-        "help_text": "Your ngrok authentication token. You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
-        "password": true
-      }
-    ],
-    "icon": "https://lab.cloud/img/icons/ollama.png",
-    "supported_accelerators": ["cpu", "NVIDIA", "AMD", "AppleSilicon"],
-    "logic": {
-      "core": "export OLLAMA_HOST=0.0.0.0:11434 && ollama serve > /tmp/ollama.log 2>&1 & sleep 3 && ollama pull $MODEL_NAME > /tmp/ollama-pull.log 2>&1 & sleep 5 && OLLAMA_BASE_URL=http://127.0.0.1:11434 WEBUI_AUTH=false ~/ollama-venv/bin/open-webui serve --host 0.0.0.0 --port 8080 > /tmp/openwebui.log 2>&1 & sleep 5",
-      "tunnel": "ngrok",
-      "tail_logs": "tail -f /tmp/ollama.log /tmp/ollama-pull.log /tmp/openwebui.log /tmp/ngrok.log"
-    },
-    "_comment_ports": "Ollama API on 11434, Open WebUI on 8080. Both tunneled via ngrok.",
-    "ports": [
-      {
-        "port": 11434,
-        "label": "Ollama API",
-        "protocol": "http"
-      },
-      {
-        "port": 8080,
-        "label": "Open WebUI",
-        "protocol": "http"
-      }
-    ],
-    "modal_title": "Ollama Server Interactive Session",
-    "modal_subtitle": "Access your Ollama API server through the URL below.",
-    "instructions": [
-      {
-        "kind": "url",
-        "title": "Access Ollama API Server",
-        "description": "Once ready, use the URL below to access your Ollama server. The Ollama server provides an OpenAI-compatible API endpoint.",
-        "value_key": "ollama_url",
-        "placeholder": "Waiting for service to start. The URL will appear here once the connection is available...",
-        "example_template": "curl {{ollama_url}}/api/generate -d '{\n  \"model\": \"your-model-name\",\n  \"prompt\": \"Why is the sky blue?\",\n  \"stream\": false\n}'"
-      },
-      {
-        "kind": "url",
-        "title": "Access Open WebUI",
-        "description": "Use the URL below to open Open WebUI connected to this Ollama server. This gives you a convenient browser chat UI backed by the same Ollama API.",
-        "value_key": "openwebui_url",
-        "placeholder": "Waiting for the Open WebUI service to start..."
-      }
-    ]
-  },
-  {
-    "id": "ollama_gradio",
-    "name": "Ollama + Gradio",
-    "description": "Ollama model server with Gradio chat UI via ngrok tunnel",
-    "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
-    "github_repo_dir": "inference-ollama-gradio-chat",
-    "env_parameters": [
-      {
-        "field_name": "Model Name",
-        "env_var": "MODEL_NAME",
-        "field_type": "str",
-        "required": true,
-        "placeholder": "e.g. llama2, mistral, codellama",
-        "help_text": "Ollama model name (e.g. llama2, mistral, codellama)."
-      }
-    ],
-    "icon": "https://lab.cloud/img/icons/ollama.png",
-    "supported_accelerators": ["cpu", "NVIDIA", "AMD", "AppleSilicon"],
-    "_comment_ports": "Ollama API on 11434, Gradio UI on 7860. Both tunneled via ngrok.",
-    "ports": [
-      { "port": 11434, "label": "Ollama API", "protocol": "http" },
-      { "port": 7860, "label": "Gradio Chat UI", "protocol": "http" }
-    ],
-
-    "url_patterns": [
-      {
-        "value_key": "gradio_url",
-        "regex": "Running on (?:local URL:\\s*)?(https?://[^\\s]+)",
-        "group": 1
-      }
-    ],
-
-    "modal_title": "Ollama + Gradio Interactive Session",
-    "modal_subtitle": "Access your Ollama server and Gradio chat UI through the URLs below.",
-    "instructions": [
-      {
-        "kind": "url",
-        "title": "Access Gradio Chat UI",
-        "description": "Once ready, click the link below to open the Gradio chat interface connected to your Ollama server.",
-        "value_key": "gradio_url",
-        "placeholder": "Waiting for Gradio to start. The URL will appear here once the connection is available..."
-      }
-    ]
-  },
-  {
-    "id": "comfy_ui",
-    "name": "ComfyUI",
-    "description": "ComfyUI server via ngrok tunnel",
-    "setup": "detect_accel(){ if [ $(uname -s) = 'Darwin' ]; then echo 'm-series'; return; fi; if command -v nvidia-smi >/dev/null 2>&1; then echo 'nvidia'; return; fi; if command -v rocminfo >/dev/null 2>&1; then echo 'amd'; return; fi; echo 'cpu'; }; ACCEL=$(detect_accel); pip install -q --upgrade pip; if [ $ACCEL = 'nvidia' ]; then pip install torch torchvision torchaudio; elif [ $ACCEL = 'amd' ]; then pip install -q --index-url https://download.pytorch.org/whl/rocm6.4 torch torchvision torchaudio; else pip install -q torch torchvision torchaudio; fi; pip install comfy-cli; yes | comfy install --$ACCEL",
-    "run": "true",
-    "env_parameters": [
-      {
-        "field_name": "ngrok Auth Token",
-        "env_var": "NGROK_AUTH_TOKEN",
-        "field_type": "str",
-        "required": true,
-        "placeholder": "ngrok_...",
-        "help_text": "Your ngrok authentication token. You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
-        "password": true
-      }
-    ],
-    "icon": "https://lab.cloud/img/icons/comfyui.png",
-    "supported_accelerators": ["cpu", "NVIDIA", "AMD", "AppleSilicon"],
-    "logic": {
-      "core": "comfy launch -- --listen 0.0.0.0 --enable-manager > /tmp/comfy-ui.log 2>&1 & sleep 5",
-      "tunnel": "ngrok",
-      "tail_logs": "tail -f /tmp/comfy-ui.log /tmp/ngrok.log"
-    },
-    "ports": [
-      {
-        "port": 8188,
-        "label": "ComfyUI",
-        "protocol": "http"
-      }
-    ],
-    "url_patterns": [
-      {
-        "value_key": "comfy_url",
-        "regex": "(https://[a-zA-Z0-9-]+\\.(?:trycloudflare\\.com|ngrok-free\\.app|ngrok-free\\.dev|ngrok\\.io))",
-        "group": 1
-      }
-    ],
-    "modal_title": "ComfyUI Interactive Session",
-    "modal_subtitle": "Access your ComfyUI server through the URL below.",
-    "instructions": [
-      {
-        "kind": "url",
-        "title": "Access ComfyUI",
-        "description": "Once ready, click the link below to open ComfyUI in your browser.",
-        "value_key": "comfy_url",
-        "placeholder": "Waiting for ngrok to start. The URL will appear here once available..."
-      }
-    ]
-  },
-  {
-    "id": "ssh",
-    "interactive_type": "ssh",
-    "name": "SSH",
-    "description": "SSH access via ngrok TCP tunnel",
-    "setup": "",
-    "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; echo USER_ID=$(whoami 2>/dev/null || basename $HOME 2>/dev/null || echo ''); ngrok tcp 22 --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/ngrok.log",
-    "env_parameters": [
-      {
-        "field_name": "ngrok Auth Token",
-        "env_var": "NGROK_AUTH_TOKEN",
-        "field_type": "str",
-        "required": true,
-        "placeholder": "ngrok_...",
-        "help_text": "Your ngrok authentication token. Note: You may need to add a payment method to your ngrok account (it won't be charged, but it's necessary for SSH connections). You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
-        "password": true
-      }
-    ],
-    "icon": "https://lab.cloud/img/icons/ssh.png",
-    "supported_accelerators": ["cpu", "NVIDIA", "AMD"],
-    "logic": {
-      "core": "echo USER_ID=$(whoami 2>/dev/null || basename $HOME 2>/dev/null || echo '')",
-      "tunnel": "ngrok",
-      "tail_logs": "tail -f /tmp/ngrok.log"
-    },
-    "remoteOnly": true,
-    "_comment_ports": "SSH runs on port 22, tunneled via ngrok TCP tunnel.",
-    "ports": [
-      {
-        "port": 22,
-        "label": "SSH",
-        "protocol": "tcp"
-      }
-    ],
-    "modal_title": "SSH Tunnel Interactive Session",
-    "modal_subtitle": "Access your remote machine via SSH through the ngrok tunnel.",
-    "instructions": [
-      {
-        "kind": "kv",
-        "title": "Connection Information",
-        "items": [
-          {
-            "label": "Domain",
-            "value_key": "domain"
-          },
-          {
-            "label": "Port",
-            "value_key": "port"
-          },
-          {
-            "label": "Username",
-            "value_key": "username",
-            "optional": true
-          }
+    {
+        "id": "jupyter",
+        "interactive_type": "jupyter",
+        "name": "Jupyter Notebook",
+        "description": "Jupyter Lab notebook environment via ngrok tunnel",
+        "setup": "pip install jupyter",
+        "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' --notebook-dir=~ > /tmp/jupyter.log 2>&1 & sleep 3 && ngrok http 8888 --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/jupyter.log /tmp/ngrok.log",
+        "env_parameters": [
+            {
+                "field_name": "ngrok Auth Token",
+                "env_var": "NGROK_AUTH_TOKEN",
+                "field_type": "str",
+                "required": true,
+                "placeholder": "ngrok_...",
+                "help_text": "Your ngrok authentication token. You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
+                "password": true
+            }
+        ],
+        "icon": "https://lab.cloud/img/icons/jupyter.png",
+        "supported_accelerators": [
+            "cpu",
+            "NVIDIA",
+            "AMD",
+            "AppleSilicon"
+        ],
+        "logic": {
+            "core": "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' --notebook-dir=~ > /tmp/jupyter.log 2>&1 & sleep 3",
+            "tunnel": "ngrok",
+            "tail_logs": "tail -f /tmp/jupyter.log /tmp/ngrok.log"
+        },
+        "_comment_ports": "Jupyter Lab listens on port 8888. The ngrok tunnel exposes this port externally.",
+        "ports": [
+            {
+                "port": 8888,
+                "label": "Jupyter Lab",
+                "protocol": "http"
+            }
+        ],
+        "modal_title": "Jupyter Notebook Interactive Session",
+        "modal_subtitle": "Access your Jupyter notebook through the URL below.",
+        "instructions": [
+            {
+                "kind": "url",
+                "title": "Access Jupyter Notebook",
+                "description": "Once ready, click the link below to open your Jupyter notebook in your browser.",
+                "value_key": "jupyter_url",
+                "placeholder": "Waiting for service to start. The URL will appear here once the connection is available..."
+            }
         ]
-      },
-      {
-        "kind": "command",
-        "title": "SSH Command",
-        "description": "Use the command below to connect to your remote machine.",
-        "value_key": "ssh_command",
-        "placeholder": "Waiting for tunnel to start. The SSH command will appear here once ngrok creates the tunnel..."
-      },
-      {
-        "kind": "text",
-        "title": "Usage Instructions",
-        "template": "1. Download your organization's SSH key from Team Settings\n2. Save the key file (e.g., ~/org_ssh_key_{{team_id}})\n3. Set permissions: chmod 600 ~/org_ssh_key_{{team_id}}\n4. Copy the SSH command above\n5. Open your terminal\n6. Paste and run the command"
-      }
-    ]
-  }
+    },
+    {
+        "id": "vllm",
+        "interactive_type": "vllm",
+        "name": "vLLM Server",
+        "description": "vLLM OpenAI-compatible API server via ngrok tunnel (plus Open WebUI)",
+        "setup": "if ! command -v uv >/dev/null 2>&1; then curl -LsSf https://astral.sh/uv/install.sh | sh; fi && export PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" && uv venv ~/vllm-venv --seed --python 3.11 && . ~/vllm-venv/bin/activate && uv pip install \"vllm>=0.13.0\" \"transformers>=4.57.3\" qwen-vl-utils==0.0.14 open-webui",
+        "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; ~/vllm-venv/bin/python -u -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --tensor-parallel-size $TP_SIZE --host 0.0.0.0 --port 8000 --gpu-memory-utilization 0.9 > /tmp/vllm.log 2>&1 & sleep 10 && OPENAI_API_BASE_URL=http://127.0.0.1:8000/v1 OPENAI_API_KEY=dummy WEBUI_AUTH=false ~/vllm-venv/bin/open-webui serve --host 0.0.0.0 --port 8080 > /tmp/openwebui.log 2>&1 & sleep 5 && printf '%s\n' 'version: 2' 'authtoken: '\"$NGROK_AUTH_TOKEN\" 'tunnels:' '  vllm:' '    proto: http' '    addr: 8000' '  openwebui:' '    proto: http' '    addr: 8080' > ~/ngrok-vllm.yml && ngrok start --all --config ~/ngrok-vllm.yml --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/vllm.log /tmp/openwebui.log /tmp/ngrok.log",
+        "env_parameters": [
+            {
+                "field_name": "Model Name",
+                "env_var": "MODEL_NAME",
+                "field_type": "str",
+                "required": true,
+                "placeholder": "e.g. meta-llama/Llama-2-7b-chat-hf",
+                "help_text": "HuggingFace model identifier"
+            },
+            {
+                "field_name": "Tensor Parallel Size",
+                "env_var": "TP_SIZE",
+                "field_type": "integer",
+                "required": true,
+                "placeholder": "1",
+                "help_text": "Number of GPUs for tensor parallelism (default: 1)"
+            },
+            {
+                "field_name": "HuggingFace Token",
+                "env_var": "HF_TOKEN",
+                "field_type": "str",
+                "required": false,
+                "placeholder": "hf_...",
+                "help_text": "Optional: Required for private/gated models",
+                "password": true
+            },
+            {
+                "field_name": "ngrok Auth Token",
+                "env_var": "NGROK_AUTH_TOKEN",
+                "field_type": "str",
+                "required": true,
+                "placeholder": "ngrok_...",
+                "help_text": "Your ngrok authentication token. You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
+                "password": true
+            }
+        ],
+        "supported_accelerators": [
+            "NVIDIA",
+            "AMD"
+        ],
+        "logic": {
+            "core": "~/vllm-venv/bin/python -u -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --tensor-parallel-size $TP_SIZE --host 0.0.0.0 --port 8000 --gpu-memory-utilization 0.9 > /tmp/vllm.log 2>&1 & sleep 10 && OPENAI_API_BASE_URL=http://127.0.0.1:8000/v1 OPENAI_API_KEY=dummy WEBUI_AUTH=false ~/vllm-venv/bin/open-webui serve --host 0.0.0.0 --port 8080 > /tmp/openwebui.log 2>&1 & sleep 5",
+            "tunnel": "ngrok",
+            "tail_logs": "tail -f /tmp/vllm.log /tmp/openwebui.log /tmp/ngrok.log"
+        },
+        "icon": "https://lab.cloud/img/icons/vllm.png",
+        "_comment_ports": "vLLM API on 8000, Open WebUI on 8080. Both tunneled via ngrok.",
+        "ports": [
+            {
+                "port": 8000,
+                "label": "vLLM API",
+                "protocol": "http"
+            },
+            {
+                "port": 8080,
+                "label": "Open WebUI",
+                "protocol": "http"
+            }
+        ],
+        "modal_title": "vLLM Server Interactive Session",
+        "modal_subtitle": "Access your vLLM API server through the URL below.",
+        "instructions": [
+            {
+                "kind": "url",
+                "title": "Access vLLM API Server",
+                "description": "Once ready, use the URL below to access your vLLM server. The vLLM server provides an OpenAI-compatible API endpoint.",
+                "value_key": "vllm_url",
+                "placeholder": "Waiting for service to start. The URL will appear here once the connection is available...",
+                "example_template": "curl {{vllm_url}}/v1/completions \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"model\": \"your-model-name\",\n    \"prompt\": \"Hello, world!\",\n    \"max_tokens\": 50\n  }'"
+            },
+            {
+                "kind": "url",
+                "title": "Access Open WebUI",
+                "description": "Use the URL below to open Open WebUI connected to this vLLM server. This provides a browser-based chat UI backed by the same vLLM API.",
+                "value_key": "openwebui_url",
+                "placeholder": "Waiting for the Open WebUI service to start..."
+            }
+        ]
+    },
+    {
+        "id": "ollama",
+        "interactive_type": "ollama",
+        "name": "Ollama + Open WebUI",
+        "description": "Ollama model server with Open WebUI chat interface via ngrok tunnel",
+        "setup": "if ! command -v uv >/dev/null 2>&1; then curl -LsSf https://astral.sh/uv/install.sh | sh; fi && export PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" && uv venv ~/ollama-venv --seed --python 3.11 && . ~/ollama-venv/bin/activate && uv pip install open-webui && if ! command -v ollama >/dev/null 2>&1; then curl -fsSL https://ollama.com/install.sh | sh; fi && if [ \"$(uname)\" != \"Darwin\" ]; then $SUDO apt-get update && $SUDO apt-get install -y pciutils lshw; fi",
+        "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; export OLLAMA_HOST=0.0.0.0:11434 && ollama serve > /tmp/ollama.log 2>&1 & sleep 3 && ollama pull $MODEL_NAME > /tmp/ollama-pull.log 2>&1 & sleep 5 && OLLAMA_BASE_URL=http://127.0.0.1:11434 WEBUI_AUTH=false ~/ollama-venv/bin/open-webui serve --host 0.0.0.0 --port 8080 > /tmp/openwebui.log 2>&1 & sleep 5 && printf '%s\n' 'version: 2' 'authtoken: '\"$NGROK_AUTH_TOKEN\" 'tunnels:' '  ollama:' '    proto: http' '    addr: 11434' '  openwebui:' '    proto: http' '    addr: 8080' > ~/ngrok-ollama.yml && ngrok start --all --config ~/ngrok-ollama.yml --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/ollama.log /tmp/ollama-pull.log /tmp/openwebui.log /tmp/ngrok.log",
+        "env_parameters": [
+            {
+                "field_name": "Model Name",
+                "env_var": "MODEL_NAME",
+                "field_type": "str",
+                "required": true,
+                "placeholder": "e.g. llama2, mistral, codellama",
+                "help_text": "Ollama model name (e.g. llama2, mistral, codellama). Use \"ollama pull <model>\" to download models."
+            },
+            {
+                "field_name": "ngrok Auth Token",
+                "env_var": "NGROK_AUTH_TOKEN",
+                "field_type": "str",
+                "required": true,
+                "placeholder": "ngrok_...",
+                "help_text": "Your ngrok authentication token. You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
+                "password": true
+            }
+        ],
+        "icon": "https://lab.cloud/img/icons/ollama.png",
+        "supported_accelerators": [
+            "cpu",
+            "NVIDIA",
+            "AMD",
+            "AppleSilicon"
+        ],
+        "logic": {
+            "core": "export OLLAMA_HOST=0.0.0.0:11434 && ollama serve > /tmp/ollama.log 2>&1 & sleep 3 && ollama pull $MODEL_NAME > /tmp/ollama-pull.log 2>&1 & sleep 5 && OLLAMA_BASE_URL=http://127.0.0.1:11434 WEBUI_AUTH=false ~/ollama-venv/bin/open-webui serve --host 0.0.0.0 --port 8080 > /tmp/openwebui.log 2>&1 & sleep 5",
+            "tunnel": "ngrok",
+            "tail_logs": "tail -f /tmp/ollama.log /tmp/ollama-pull.log /tmp/openwebui.log /tmp/ngrok.log"
+        },
+        "_comment_ports": "Ollama API on 11434, Open WebUI on 8080. Both tunneled via ngrok.",
+        "ports": [
+            {
+                "port": 11434,
+                "label": "Ollama API",
+                "protocol": "http"
+            },
+            {
+                "port": 8080,
+                "label": "Open WebUI",
+                "protocol": "http"
+            }
+        ],
+        "modal_title": "Ollama Server Interactive Session",
+        "modal_subtitle": "Access your Ollama API server through the URL below.",
+        "instructions": [
+            {
+                "kind": "url",
+                "title": "Access Ollama API Server",
+                "description": "Once ready, use the URL below to access your Ollama server. The Ollama server provides an OpenAI-compatible API endpoint.",
+                "value_key": "ollama_url",
+                "placeholder": "Waiting for service to start. The URL will appear here once the connection is available...",
+                "example_template": "curl {{ollama_url}}/api/generate -d '{\n  \"model\": \"your-model-name\",\n  \"prompt\": \"Why is the sky blue?\",\n  \"stream\": false\n}'"
+            },
+            {
+                "kind": "url",
+                "title": "Access Open WebUI",
+                "description": "Use the URL below to open Open WebUI connected to this Ollama server. This gives you a convenient browser chat UI backed by the same Ollama API.",
+                "value_key": "openwebui_url",
+                "placeholder": "Waiting for the Open WebUI service to start..."
+            }
+        ]
+    },
+    {
+        "id": "ollama_gradio",
+        "name": "Ollama + Gradio",
+        "description": "Ollama model server with Gradio chat UI via ngrok tunnel",
+        "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+        "github_repo_dir": "inference-ollama-gradio-chat",
+        "env_parameters": [
+            {
+                "field_name": "Model Name",
+                "env_var": "MODEL_NAME",
+                "field_type": "str",
+                "required": true,
+                "placeholder": "e.g. llama2, mistral, codellama",
+                "help_text": "Ollama model name (e.g. llama2, mistral, codellama)."
+            }
+        ],
+        "icon": "https://lab.cloud/img/icons/ollama.png",
+        "supported_accelerators": [
+            "cpu",
+            "NVIDIA",
+            "AMD",
+            "AppleSilicon"
+        ],
+        "_comment_ports": "Ollama API on 11434, Gradio UI on 7860. Both tunneled via ngrok.",
+        "ports": [
+            {
+                "port": 11434,
+                "label": "Ollama API",
+                "protocol": "http"
+            },
+            {
+                "port": 7860,
+                "label": "Gradio Chat UI",
+                "protocol": "http"
+            }
+        ],
+        "url_patterns": [
+            {
+                "value_key": "gradio_url",
+                "regex": "Running on (?:local URL:\\s*)?(https?://[^\\s]+)",
+                "group": 1
+            }
+        ],
+        "modal_title": "Ollama + Gradio Interactive Session",
+        "modal_subtitle": "Access your Ollama server and Gradio chat UI through the URLs below.",
+        "instructions": [
+            {
+                "kind": "url",
+                "title": "Access Gradio Chat UI",
+                "description": "Once ready, click the link below to open the Gradio chat interface connected to your Ollama server.",
+                "value_key": "gradio_url",
+                "placeholder": "Waiting for Gradio to start. The URL will appear here once the connection is available..."
+            }
+        ]
+    },
+    {
+        "id": "comfy_ui",
+        "name": "ComfyUI",
+        "description": "ComfyUI server via ngrok tunnel",
+        "setup": "detect_accel(){ if [ $(uname -s) = 'Darwin' ]; then echo 'm-series'; return; fi; if command -v nvidia-smi >/dev/null 2>&1; then echo 'nvidia'; return; fi; if command -v rocminfo >/dev/null 2>&1; then echo 'amd'; return; fi; echo 'cpu'; }; ACCEL=$(detect_accel); pip install -q --upgrade pip; if [ $ACCEL = 'nvidia' ]; then pip install torch torchvision torchaudio; elif [ $ACCEL = 'amd' ]; then pip install -q --index-url https://download.pytorch.org/whl/rocm6.4 torch torchvision torchaudio; else pip install -q torch torchvision torchaudio; fi; pip install comfy-cli; yes | comfy install --$ACCEL",
+        "run": "true",
+        "env_parameters": [
+            {
+                "field_name": "ngrok Auth Token",
+                "env_var": "NGROK_AUTH_TOKEN",
+                "field_type": "str",
+                "required": true,
+                "placeholder": "ngrok_...",
+                "help_text": "Your ngrok authentication token. You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
+                "password": true
+            }
+        ],
+        "icon": "https://lab.cloud/img/icons/comfyui.png",
+        "supported_accelerators": [
+            "cpu",
+            "NVIDIA",
+            "AMD",
+            "AppleSilicon"
+        ],
+        "logic": {
+            "core": "comfy launch -- --listen 0.0.0.0 --enable-manager > /tmp/comfy-ui.log 2>&1 & sleep 5",
+            "tunnel": "ngrok",
+            "tail_logs": "tail -f /tmp/comfy-ui.log /tmp/ngrok.log"
+        },
+        "ports": [
+            {
+                "port": 8188,
+                "label": "ComfyUI",
+                "protocol": "http"
+            }
+        ],
+        "url_patterns": [
+            {
+                "value_key": "comfy_url",
+                "regex": "(https://[a-zA-Z0-9-]+\\.(?:trycloudflare\\.com|ngrok-free\\.app|ngrok-free\\.dev|ngrok\\.io))",
+                "group": 1
+            }
+        ],
+        "modal_title": "ComfyUI Interactive Session",
+        "modal_subtitle": "Access your ComfyUI server through the URL below.",
+        "instructions": [
+            {
+                "kind": "url",
+                "title": "Access ComfyUI",
+                "description": "Once ready, click the link below to open ComfyUI in your browser.",
+                "value_key": "comfy_url",
+                "placeholder": "Waiting for ngrok to start. The URL will appear here once available..."
+            }
+        ]
+    },
+    {
+        "id": "ssh",
+        "interactive_type": "ssh",
+        "name": "SSH",
+        "description": "SSH access via ngrok TCP tunnel",
+        "setup": "",
+        "command": "ngrok config add-authtoken $NGROK_AUTH_TOKEN; echo USER_ID=$(whoami 2>/dev/null || basename $HOME 2>/dev/null || echo ''); ngrok tcp 22 --log=stdout 2>&1 | tee /tmp/ngrok.log; tail -f /tmp/ngrok.log",
+        "env_parameters": [
+            {
+                "field_name": "ngrok Auth Token",
+                "env_var": "NGROK_AUTH_TOKEN",
+                "field_type": "str",
+                "required": true,
+                "placeholder": "ngrok_...",
+                "help_text": "Your ngrok authentication token. Note: You may need to add a payment method to your ngrok account (it won't be charged, but it's necessary for SSH connections). You can get your token from https://dashboard.ngrok.com/get-started/your-authtoken.",
+                "password": true
+            }
+        ],
+        "icon": "https://lab.cloud/img/icons/ssh.png",
+        "supported_accelerators": [
+            "cpu",
+            "NVIDIA",
+            "AMD"
+        ],
+        "logic": {
+            "core": "echo USER_ID=$(whoami 2>/dev/null || basename $HOME 2>/dev/null || echo '')",
+            "tunnel": "ngrok",
+            "tail_logs": "tail -f /tmp/ngrok.log"
+        },
+        "remoteOnly": true,
+        "_comment_ports": "SSH runs on port 22, tunneled via ngrok TCP tunnel.",
+        "ports": [
+            {
+                "port": 22,
+                "label": "SSH",
+                "protocol": "tcp"
+            }
+        ],
+        "modal_title": "SSH Tunnel Interactive Session",
+        "modal_subtitle": "Access your remote machine via SSH through the ngrok tunnel.",
+        "instructions": [
+            {
+                "kind": "kv",
+                "title": "Connection Information",
+                "items": [
+                    {
+                        "label": "Domain",
+                        "value_key": "domain"
+                    },
+                    {
+                        "label": "Port",
+                        "value_key": "port"
+                    },
+                    {
+                        "label": "Username",
+                        "value_key": "username",
+                        "optional": true
+                    }
+                ]
+            },
+            {
+                "kind": "command",
+                "title": "SSH Command",
+                "description": "Use the command below to connect to your remote machine.",
+                "value_key": "ssh_command",
+                "placeholder": "Waiting for tunnel to start. The SSH command will appear here once ngrok creates the tunnel..."
+            },
+            {
+                "kind": "text",
+                "title": "Usage Instructions",
+                "template": "1. Download your organization's SSH key from Team Settings\n2. Save the key file (e.g., ~/org_ssh_key_{{team_id}})\n3. Set permissions: chmod 600 ~/org_ssh_key_{{team_id}}\n4. Copy the SSH command above\n5. Open your terminal\n6. Paste and run the command"
+            }
+        ]
+    },
+    {
+        "id": "mlx_gradio",
+        "name": "MLX LM + Gradio",
+        "description": "MLX LM inference server with Gradio chat UI for Apple Silicon",
+        "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+        "github_repo_dir": "inference-mlx-gradio-chat",
+        "env_parameters": [
+            {
+                "field_name": "Model Name",
+                "env_var": "MODEL_NAME",
+                "field_type": "str",
+                "required": true,
+                "placeholder": "e.g. mlx-community/Llama-3.2-3B-Instruct-4bit",
+                "help_text": "HuggingFace model identifier (must be an MLX-compatible model, e.g. from mlx-community)"
+            }
+        ],
+        "icon": "https://github.com/ml-explore.png",
+        "supported_accelerators": [
+            "AppleSilicon"
+        ],
+        "_comment_ports": "MLX LM API on 8001, Gradio UI on 7860.",
+        "ports": [
+            {
+                "port": 8001,
+                "label": "MLX LM API",
+                "protocol": "http"
+            },
+            {
+                "port": 7860,
+                "label": "Gradio Chat UI",
+                "protocol": "http"
+            }
+        ],
+        "url_patterns": [
+            {
+                "value_key": "gradio_url",
+                "regex": "Running on (?:local URL:\\s*)?(https?://[^\\s]+)",
+                "group": 1
+            }
+        ],
+        "modal_title": "MLX LM + Gradio Interactive Session",
+        "modal_subtitle": "Access your MLX LM server and Gradio chat UI through the URL below.",
+        "instructions": [
+            {
+                "kind": "url",
+                "title": "Access Gradio Chat UI",
+                "description": "Once ready, click the link below to open the Gradio chat interface connected to your MLX LM server.",
+                "value_key": "gradio_url",
+                "placeholder": "Waiting for Gradio to start. The URL will appear here once the connection is available..."
+            }
+        ]
+    },
+    {
+        "id": "mlx_audio_tts",
+        "name": "MLX Audio TTS + Gradio",
+        "description": "Text-to-Speech using MLX Audio with Gradio UI for Apple Silicon",
+        "github_repo_url": "https://github.com/transformerlab/transformerlab-examples",
+        "github_repo_dir": "inference-mlx-audio-tts",
+        "env_parameters": [
+            {
+                "field_name": "Model Name",
+                "env_var": "MODEL_NAME",
+                "field_type": "str",
+                "required": true,
+                "placeholder": "e.g. mlx-community/Kokoro-82M-bf16",
+                "help_text": "HuggingFace model identifier for an MLX-compatible TTS model (e.g. mlx-community/Kokoro-82M-bf16, mlx-community/Dia-1.6B-fp16)"
+            }
+        ],
+        "icon": "https://github.com/ml-explore.png",
+        "supported_accelerators": [
+            "AppleSilicon"
+        ],
+        "_comment_ports": "Gradio TTS UI on 7860.",
+        "ports": [
+            {
+                "port": 7860,
+                "label": "Gradio TTS UI",
+                "protocol": "http"
+            }
+        ],
+        "url_patterns": [
+            {
+                "value_key": "gradio_url",
+                "regex": "Running on (?:local URL:\\s*)?(https?://[^\\s]+)",
+                "group": 1
+            }
+        ],
+        "modal_title": "MLX Audio TTS + Gradio Interactive Session",
+        "modal_subtitle": "Access your MLX Audio text-to-speech interface through the URL below.",
+        "instructions": [
+            {
+                "kind": "url",
+                "title": "Access Gradio TTS UI",
+                "description": "Once ready, click the link below to open the Gradio text-to-speech interface.",
+                "value_key": "gradio_url",
+                "placeholder": "Waiting for Gradio to start. The URL will appear here once the connection is available..."
+            }
+        ]
+    }
 ]

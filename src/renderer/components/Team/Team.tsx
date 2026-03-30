@@ -1227,7 +1227,9 @@ export default function UserLoginTest(): JSX.Element {
                               setOpenProviderDetailsModal(true);
                             }}
                             disabled={
-                              providersLoading || providers === undefined
+                              provider.type === 'local' ||
+                              providersLoading ||
+                              providers === undefined
                             }
                             sx={{ minWidth: '60px', fontSize: '0.75rem' }}
                           >

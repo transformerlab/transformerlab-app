@@ -483,6 +483,37 @@ async def delete_task(experimentId: str, task_id: str):
         return {"message": "NOT FOUND"}
 
 
+def _clear_interactive_launch_provider(task_data: dict) -> None:
+    """Drop provider hints for interactive tasks; compute provider is chosen at launch in the UI."""
+    task_data.pop("provider_id", None)
+    task_data.pop("provider_name", None)
+
+
+def _merge_interactive_gallery_env_parameters(task_data: dict, gallery_entry: dict) -> None:
+    """
+    Ensure env vars declared on the gallery entry (env_parameters) exist on the task.
+
+    GitHub task.yaml may omit keys that the interactive gallery still defines for the UI
+    (e.g. NGROK_AUTH_TOKEN). YAML/envs still win for keys already present; this only adds
+    missing keys with empty defaults so launch can merge secrets and user values.
+    """
+    env_params = gallery_entry.get("env_parameters")
+    if not isinstance(env_params, list) or not env_params:
+        return
+    existing = task_data.get("env_vars")
+    if not isinstance(existing, dict):
+        existing = {}
+    for param in env_params:
+        if not isinstance(param, dict):
+            continue
+        ev = param.get("env_var")
+        if not isinstance(ev, str) or not ev.strip():
+            continue
+        if ev not in existing:
+            existing[ev] = ""
+    task_data["env_vars"] = existing
+
+
 async def _resolve_provider(
     task_data: dict,
     user_and_team: dict,
@@ -1033,6 +1064,8 @@ async def import_task_from_gallery(
             if key in source_yaml_data:
                 task_data[key] = source_yaml_data[key]
 
+        _merge_interactive_gallery_env_parameters(task_data, gallery_entry)
+
         # Merge user-provided env_vars from the request (e.g. MODEL_NAME)
         if request.env_vars:
             existing = task_data.get("env_vars", {})
@@ -1041,7 +1074,24 @@ async def import_task_from_gallery(
             existing.update(request.env_vars)
             task_data["env_vars"] = existing
 
-        await _resolve_provider(task_data, user_and_team, session)
+        # For interactive gallery imports, allow the UI modal to override the
+        # resources parsed from GitHub task.yaml.
+        if request.cpus is not None:
+            task_data["cpus"] = str(request.cpus)
+        if request.memory is not None:
+            task_data["memory"] = str(request.memory)
+        if request.disk_space is not None:
+            task_data["disk_space"] = str(request.disk_space)
+        if request.accelerators is not None:
+            task_data["accelerators"] = str(request.accelerators)
+        if request.num_nodes is not None:
+            task_data["num_nodes"] = int(request.num_nodes)
+
+        # Interactive gallery tasks: do not resolve provider from task.yaml or team defaults.
+        # The user picks the compute provider in the UI when launching; storing a resolved
+        # provider_id here (often the first-listed local provider) was misleading and ignored
+        # the modal selection.
+        _clear_interactive_launch_provider(task_data)
 
         # Create the task
         task_id = await task_service.add_task(task_data)
@@ -1453,7 +1503,10 @@ async def import_task_from_team_gallery(
         if github_branch and not task_data.get("github_repo_branch"):
             task_data["github_repo_branch"] = github_branch
 
-        await _resolve_provider(task_data, user_and_team, session)
+        if not is_interactive_import:
+            await _resolve_provider(task_data, user_and_team, session)
+        else:
+            _clear_interactive_launch_provider(task_data)
 
         # Create task + copy full directory into the task workspace dir
         task_id = await task_service.add_task(task_data)
@@ -1531,7 +1584,10 @@ async def import_task_from_team_gallery(
             existing.update(request.env_vars)
             task_data["env_vars"] = existing
 
-        await _resolve_provider(task_data, user_and_team, session)
+        if not is_interactive_import:
+            await _resolve_provider(task_data, user_and_team, session)
+        else:
+            _clear_interactive_launch_provider(task_data)
         task_id = await task_service.add_task(task_data)
 
         # Write a task.yaml into the task directory so the editor works
@@ -1619,8 +1675,11 @@ async def import_task_from_team_gallery(
     if github_branch and not task_data.get("github_branch"):
         task_data["github_branch"] = github_branch
 
-    # Resolve provider
-    await _resolve_provider(task_data, user_and_team, session)
+    # Interactive imports: provider is chosen at launch in the UI, not from YAML/defaults.
+    if not is_interactive_import:
+        await _resolve_provider(task_data, user_and_team, session)
+    else:
+        _clear_interactive_launch_provider(task_data)
 
     # Get task name from task.yaml or use title
     task_name = task_data.get("name") or title

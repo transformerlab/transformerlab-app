@@ -11,7 +11,7 @@ from transformerlab.shared.interactive_gallery_utils import (
 def test_build_ngrok_single_port_http():
     """Single http port produces YAML + ngrok start --all with correct config path."""
     cmd = build_ngrok_tunnel_command("jupyter", [{"port": 8888, "label": "Jupyter Lab", "protocol": "http"}])
-    assert "ngrok config add-authtoken $NGROK_AUTH_TOKEN" in cmd
+    assert 'ngrok config add-authtoken "$NGROK_AUTH_TOKEN"' in cmd
     assert "~/ngrok-jupyter.yml" in cmd
     assert "ngrok start --all" in cmd
     assert "proto: http" in cmd
@@ -80,7 +80,7 @@ def test_resolve_logic_remote_tunnel_ngrok_uses_builder():
     cmd, setup = resolve_interactive_command(entry, "remote")
     assert "start-core" in cmd
     assert "tail-logs" in cmd
-    assert "ngrok config add-authtoken $NGROK_AUTH_TOKEN" in cmd
+    assert 'ngrok config add-authtoken "$NGROK_AUTH_TOKEN"' in cmd
     assert "~/ngrok-jupyter.yml" in cmd
     assert "ngrok start --all" in cmd
     assert setup is None

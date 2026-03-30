@@ -129,7 +129,6 @@ export default function NewInteractiveTaskModal({
   const [cpus, setCpus] = React.useState('');
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
-  const [isLocal, setIsLocal] = React.useState(false);
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
   const [configFieldValues, setConfigFieldValues] = React.useState<
     Record<string, string>
@@ -231,7 +230,6 @@ export default function NewInteractiveTaskModal({
       setCpus('');
       setMemory('');
       setAccelerators('');
-      setIsLocal(false);
       setConfigFieldValues({});
       setSelectedProviderId('');
       setActiveGalleryTab('interactive');
@@ -261,11 +259,8 @@ export default function NewInteractiveTaskModal({
     [providers, selectedProviderId],
   );
 
-  React.useEffect(() => {
-    if (selectedProvider?.type === 'local') {
-      setIsLocal(true);
-    }
-  }, [selectedProvider]);
+  /** True when the chosen compute provider is the local one; ngrok is not required then. */
+  const isLocalProvider = selectedProvider?.type === 'local';
 
   const handleTemplateSelect = (template: InteractiveTemplate) => {
     if (isSubmitting) {
@@ -279,11 +274,7 @@ export default function NewInteractiveTaskModal({
       if (field.field_type === 'integer' && field.env_var === 'TP_SIZE') {
         initialValues[field.env_var] = '1';
       }
-      if (
-        field.env_var === 'NGROK_AUTH_TOKEN' &&
-        !isLocal &&
-        selectedProvider?.type !== 'local'
-      ) {
+      if (field.env_var === 'NGROK_AUTH_TOKEN' && !isLocalProvider) {
         initialValues[field.env_var] = '{{secret._NGROK_AUTH_TOKEN}}';
       }
     });
@@ -301,7 +292,7 @@ export default function NewInteractiveTaskModal({
     );
     if (!hasNgrokField) return;
 
-    if (isLocal || selectedProvider?.type === 'local') {
+    if (isLocalProvider) {
       // Remove NGROK_AUTH_TOKEN entirely for local/direct sessions
       setConfigFieldValues((prev) => {
         if (!Object.prototype.hasOwnProperty.call(prev, 'NGROK_AUTH_TOKEN')) {
@@ -323,7 +314,7 @@ export default function NewInteractiveTaskModal({
         };
       });
     }
-  }, [isLocal, selectedProvider, selectedTemplate]);
+  }, [isLocalProvider, selectedProvider, selectedTemplate]);
 
   const handleBack = () => {
     if (isSubmitting) {
@@ -422,7 +413,7 @@ export default function NewInteractiveTaskModal({
     // Validate required config fields
     const requiredFields = (
       selectedTemplate.env_parameters?.filter((f) => f.required) || []
-    ).filter((f) => !(isLocal && f.env_var === 'NGROK_AUTH_TOKEN'));
+    ).filter((f) => !(isLocalProvider && f.env_var === 'NGROK_AUTH_TOKEN'));
     for (const field of requiredFields) {
       if (!configFieldValues[field.env_var]?.trim()) {
         return;
@@ -444,7 +435,7 @@ export default function NewInteractiveTaskModal({
         template_id: selectedTemplate.id,
         provider_id: selectedProviderId,
         env_parameters: configFieldValues,
-        local: isLocal,
+        local: !!isLocalProvider,
       },
       shouldLaunch,
     );
@@ -457,7 +448,7 @@ export default function NewInteractiveTaskModal({
 
     const requiredFields = (
       selectedTemplate.env_parameters?.filter((f) => f.required) || []
-    ).filter((f) => !(isLocal && f.env_var === 'NGROK_AUTH_TOKEN'));
+    ).filter((f) => !(isLocalProvider && f.env_var === 'NGROK_AUTH_TOKEN'));
     for (const field of requiredFields) {
       if (!configFieldValues[field.env_var]?.trim()) {
         return false;
@@ -465,7 +456,13 @@ export default function NewInteractiveTaskModal({
     }
 
     return true;
-  }, [title, selectedProviderId, selectedTemplate, configFieldValues]);
+  }, [
+    title,
+    selectedProviderId,
+    selectedTemplate,
+    configFieldValues,
+    isLocalProvider,
+  ]);
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -640,11 +637,15 @@ export default function NewInteractiveTaskModal({
                             key={field.env_var}
                             required={
                               field.required &&
-                              !(isLocal && field.env_var === 'NGROK_AUTH_TOKEN')
+                              !(
+                                isLocalProvider &&
+                                field.env_var === 'NGROK_AUTH_TOKEN'
+                              )
                             }
                             disabled={
                               isSubmitting ||
-                              (isLocal && field.env_var === 'NGROK_AUTH_TOKEN')
+                              (isLocalProvider &&
+                                field.env_var === 'NGROK_AUTH_TOKEN')
                             }
                           >
                             <FormLabel>{field.field_name}</FormLabel>
@@ -666,7 +667,7 @@ export default function NewInteractiveTaskModal({
                               placeholder={field.placeholder}
                               disabled={
                                 isSubmitting ||
-                                (isLocal &&
+                                (isLocalProvider &&
                                   field.env_var === 'NGROK_AUTH_TOKEN')
                               }
                             />
