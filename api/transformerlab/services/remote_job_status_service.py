@@ -260,6 +260,7 @@ async def _check_job_via_provider(
         elif (
             provider_type == ProviderType.RUNPOD.value
             and getattr(cluster_status, "status_message", "") == "Pod not found"
+            and job_status != JobStatus.LAUNCHING.value
         ):
             cluster_state = ClusterState.STOPPED
 
