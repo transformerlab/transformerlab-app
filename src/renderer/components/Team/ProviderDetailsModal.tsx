@@ -16,6 +16,7 @@ import {
   DialogActions,
   FormControl,
   FormLabel,
+  FormHelperText,
   Textarea,
   Alert,
   Chip,
@@ -77,6 +78,7 @@ export default function ProviderDetailsModal({
   hasLocalProvider = false,
 }: ProviderDetailsModalProps) {
   const [name, setName] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
   const [type, setType] = useState('');
   const [config, setConfig] = useState('');
   const [loading, setLoading] = useState(false);
@@ -241,6 +243,7 @@ export default function ProviderDetailsModal({
   useEffect(() => {
     if (providerId && providerData) {
       setName(providerData.name || '');
+      setNameError(null);
       setType(providerData.type || '');
       // Config is an object, stringify it for display in textarea
       const rawConfigObj =
@@ -282,6 +285,7 @@ export default function ProviderDetailsModal({
     } else if (!providerId) {
       // Reset form when in "add" mode (no providerId)
       setName('');
+      setNameError(null);
       setType('');
       setConfig('');
       setSupportedAccelerators([]);
@@ -310,6 +314,7 @@ export default function ProviderDetailsModal({
   useEffect(() => {
     if (!open) {
       setName('');
+      setNameError(null);
       setType('');
       setConfig('');
       setSupportedAccelerators([]);
@@ -524,6 +529,13 @@ export default function ProviderDetailsModal({
   }
 
   const saveProvider = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setNameError('A name is required.');
+      return;
+    }
+    setNameError(null);
+
     setLoading(true);
     try {
       // For SLURM and SkyPilot providers, build config from form fields
@@ -578,8 +590,8 @@ export default function ProviderDetailsModal({
       }
 
       const response = providerId
-        ? await updateProvider(providerId, name, parsedConfig)
-        : await createProvider(name, type, parsedConfig, forceRefresh);
+        ? await updateProvider(providerId, trimmedName, parsedConfig)
+        : await createProvider(trimmedName, type, parsedConfig, forceRefresh);
 
       if (response.ok) {
         // For newly created LOCAL providers, keep the modal open and show setup progress.
@@ -596,9 +608,41 @@ export default function ProviderDetailsModal({
         setConfig('');
         onClose();
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         // eslint-disable-next-line no-console
         console.error('Error updating provider:', errorData);
+        let message = 'Could not save compute provider.';
+        const detail = (errorData as { detail?: unknown }).detail;
+        let nameValidationMessage: string | null = null;
+        if (typeof detail === 'string') {
+          message = detail;
+        } else if (Array.isArray(detail)) {
+          const first = detail.find(
+            (item): item is { msg?: string; loc?: unknown[] } =>
+              !!item && typeof item === 'object',
+          );
+          if (first && typeof first.msg === 'string') {
+            message = first.msg;
+          }
+          const nameIssue = detail.find(
+            (item) =>
+              item &&
+              typeof item === 'object' &&
+              Array.isArray((item as { loc?: unknown[] }).loc) &&
+              (item as { loc: unknown[] }).loc.includes('name'),
+          );
+          if (
+            nameIssue &&
+            typeof nameIssue === 'object' &&
+            typeof (nameIssue as { msg?: string }).msg === 'string'
+          ) {
+            nameValidationMessage = (nameIssue as { msg: string }).msg;
+          }
+        }
+        if (nameValidationMessage) {
+          setNameError(nameValidationMessage);
+        }
+        addNotification({ type: 'danger', message });
       }
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -629,14 +673,21 @@ export default function ProviderDetailsModal({
             </Box>
           ) : (
             <>
-              <FormControl sx={{ mt: 2 }}>
+              <FormControl required error={!!nameError} sx={{ mt: 2 }}>
                 <FormLabel>Compute Provider Name</FormLabel>
                 <Input
                   value={name}
-                  onChange={(event) => setName(event.currentTarget.value)}
+                  onChange={(event) => {
+                    setName(event.currentTarget.value);
+                    setNameError(null);
+                  }}
                   placeholder="Enter friendly name for compute provider"
                   fullWidth
+                  color={nameError ? 'danger' : undefined}
                 />
+                {nameError ? (
+                  <FormHelperText>{nameError}</FormHelperText>
+                ) : null}
               </FormControl>
               <FormControl sx={{ mt: 1 }}>
                 <FormLabel>Compute Provider Type</FormLabel>
