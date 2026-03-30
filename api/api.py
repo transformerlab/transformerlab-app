@@ -36,7 +36,6 @@ from fastchat.protocol.openai_api_protocol import (  # noqa: E402
 
 from transformerlab.services.experiment_init import (  # noqa: E402
     seed_default_experiments,
-    seed_default_admin_user,
 )
 import transformerlab.db.session as db  # noqa: E402
 
@@ -117,9 +116,7 @@ async def lifespan(app: FastAPI):
     await galleries.update_gallery_cache()
     await db.init()  # This now runs Alembic migrations internally
     print("✅ SEED DATA")
-    # Seed default admin user
-    await seed_default_admin_user()
-    # Initialize default experiments (requires org/team context)
+    # Initialize experiments
     await seed_default_experiments()
 
     # One-time migration: legacy workspace/jobs -> workspace/experiments/<exp_id>/jobs

@@ -8,12 +8,12 @@ on:
     branches: ["main"]
     paths:
       - "api/**"
+      - "src/**"
   pull_request:
     branches: ["main"]
     paths:
       - "api/**"
-  schedule:
-    - cron: "30 21 * * 0"
+      - "src/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

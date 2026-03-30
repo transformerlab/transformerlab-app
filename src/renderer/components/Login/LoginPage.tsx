@@ -17,6 +17,7 @@ import HexLogo from '../Shared/HexLogo';
 import labImage from '../Welcome/img/lab.jpg';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterUser';
+import FirstUserSetupForm from './FirstUserSetupForm';
 
 function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
   const { fetchWithAuth } = useAuth();
@@ -74,8 +75,7 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
 export default function LoginPage() {
   const [verifyMessage, setVerifyMessage] = useState('');
   const [hash, setHash] = useState(window.location.hash);
-
-  const authContext = useAuth();
+  const [hasUsers, setHasUsers] = useState<boolean | null>(null);
 
   const navigate = useNavigate();
 
@@ -89,6 +89,28 @@ export default function LoginPage() {
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
     };
+  }, []);
+
+  useEffect(() => {
+    const loadBootstrapStatus = async () => {
+      const apiUrl = API_URL();
+      if (!apiUrl) return;
+
+      try {
+        const res = await fetch(`${apiUrl}auth/setup/status`);
+        if (!res.ok) {
+          setHasUsers(true);
+          return;
+        }
+        const data = await res.json();
+        setHasUsers(Boolean(data?.has_users));
+      } catch {
+        // If we can't determine status, fall back to normal auth UI.
+        setHasUsers(true);
+      }
+    };
+
+    loadBootstrapStatus();
   }, []);
 
   useEffect(() => {
@@ -209,17 +231,25 @@ export default function LoginPage() {
               {verifyMessage}
             </Typography>
           )}
-          <Routes>
-            <Route
-              path="/register"
-              element={<RegisterForm onClose={() => navigate('/')} />}
-            />
-            <Route
-              path="/forgot-password"
-              element={<ForgotPasswordForm onClose={() => navigate('/')} />}
-            />
-            <Route path="*" element={<LoginForm />} />
-          </Routes>
+          {hasUsers === null ? (
+            <Typography level="body-sm" sx={{ textAlign: 'center' }}>
+              Loading...
+            </Typography>
+          ) : hasUsers === false ? (
+            <FirstUserSetupForm />
+          ) : (
+            <Routes>
+              <Route
+                path="/register"
+                element={<RegisterForm onClose={() => navigate('/')} />}
+              />
+              <Route
+                path="/forgot-password"
+                element={<ForgotPasswordForm onClose={() => navigate('/')} />}
+              />
+              <Route path="*" element={<LoginForm />} />
+            </Routes>
+          )}
         </ModalDialog>
       </Modal>
     </Box>

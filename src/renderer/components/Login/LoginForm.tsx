@@ -26,8 +26,7 @@ export default function LoginForm() {
     Array<{ id: string; name: string }>
   >([]);
 
-  const { login, setIsDefaultPassword } = useAuth();
-  const { addNotification } = useNotification();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   // Check OAuth status on component mount
@@ -134,9 +133,7 @@ export default function LoginForm() {
             'Login failed. Please check your credentials.',
         );
       } else {
-        if (password === 'admin123') {
-          setIsDefaultPassword(true);
-        }
+        // AuthContext updates user/teams state; no additional handling here.
       }
     } catch (err) {
       setError(
@@ -171,6 +168,8 @@ export default function LoginForm() {
     >
       <form onSubmit={handleSubmit} style={{ width: '100%' }}>
         <Stack spacing={2} sx={{ width: '100%' }}>
+          {/* Note: first-user bootstrap is handled by `LoginPage`, not seeded credentials. */}
+
           <Stack spacing={1.5} sx={{ mt: 1 }}>
             {googleOAuthEnabled && (
               <Button

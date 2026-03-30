@@ -9,6 +9,10 @@ import { login, selectFirstExperiment } from './helpers';
  */
 
 test.describe('Smoke: main screen navigation', () => {
+  // This suite mutates shared app state (first-user bootstrap, experiment creation),
+  // so it must run serially when local runs use multiple workers.
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeEach(async ({ page }) => {
     await login(page);
   });
