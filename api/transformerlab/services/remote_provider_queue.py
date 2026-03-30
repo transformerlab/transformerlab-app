@@ -102,10 +102,12 @@ async def _process_launch_item(item: RemoteLaunchWorkItem) -> None:
             lab_dirs.set_organization_id(item.team_id)
             try:
                 # Ensure the job directory exists in remote storage (e.g. S3) before the
-                # container boots and calls lab.init() → Job.get(). The router's job_create()
-                # runs without the S3 ContextVar set, so the directory ends up on the local
-                # filesystem only. Here we have the correct org context, so makedirs targets
-                # the right S3 bucket.
+                # remote execution environment starts and calls lab.init() → Job.get().
+                # The router's job_create() runs without set_organization_id() having been
+                # called, so when TFL_REMOTE_STORAGE_ENABLED is true and TFL_STORAGE_URI is
+                # not set as a global env var, the ContextVar is unset and job_create() falls
+                # back to local filesystem. Here set_organization_id() has already been called
+                # above, so makedirs targets the correct per-team S3 bucket.
                 job_dir = await lab_dirs.get_job_dir(item.job_id, item.experiment_id)
                 await storage.makedirs(job_dir, exist_ok=True)
 
