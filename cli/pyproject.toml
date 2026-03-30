@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "transformerlab-cli"
-version = "0.0.3"
+version = "0.0.4"
 description = "Transformer Lab CLI"
 requires-python = ">=3.10"
 authors = [{ name = "Transformer Lab", email = "hello@transformerlab.ai" }]

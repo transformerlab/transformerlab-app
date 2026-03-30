@@ -247,6 +247,21 @@ async def _check_job_via_provider(
             )
         ):
             cluster_state = ClusterState.STOPPED
+        elif (
+            provider_type == ProviderType.LOCAL.value
+            and job_status == JobStatus.STOPPING.value
+            and cluster_state == ClusterState.UNKNOWN
+            and "No pid file" in getattr(cluster_status, "status_message", "")
+        ):
+            # Local setup can be interrupted before a pid file is created.
+            # If the user requested stop, treat this as terminal STOPPED so
+            # the job does not remain stuck in STOPPING.
+            cluster_state = ClusterState.STOPPED
+        elif (
+            provider_type == ProviderType.RUNPOD.value
+            and getattr(cluster_status, "status_message", "") == "Pod not found"
+        ):
+            cluster_state = ClusterState.STOPPED
 
         terminal_cluster_states = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
         if cluster_state in terminal_cluster_states:

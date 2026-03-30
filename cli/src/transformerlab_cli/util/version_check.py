@@ -1,30 +1,23 @@
-"""Check the API server for available version updates and display a banner if outdated."""
+"""Check for CLI updates via PyPI and display a banner if outdated."""
 
 from rich.console import Console
 from rich.panel import Panel
 
 
 def check_for_update(console: Console) -> None:
-    """Query the API for version info and print a banner if an update is available."""
+    """Check if a newer CLI version is available on PyPI and print a banner if so."""
     try:
-        from transformerlab_cli.util.api import get
+        from transformerlab_cli.util.pypi import is_update_available
 
-        response = get("/server/version", timeout=3.0)
-        if response.status_code != 200:
+        installed, latest = is_update_available()
+        if latest is None:
             return
 
-        data = response.json()
-        if not data.get("update_available"):
-            return
-
-        current = data.get("current_version", "unknown")
-        latest = data.get("latest_version", "unknown")
         console.print(
             Panel(
                 f"[yellow]Update available![/yellow] "
-                f"You are running [bold]v{current}[/bold], but [bold]v{latest}[/bold] is available.\n"
-                f"Visit [link=https://lab.cloud/for-teams/update]https://lab.cloud/for-teams/update[/link] "
-                f"for update instructions.",
+                f"You are running [bold]v{installed}[/bold], but [bold]v{latest}[/bold] is available.\n"
+                f"Run [bold]uv tool upgrade transformerlab-cli[/bold] to upgrade.",
                 border_style="yellow",
                 expand=False,
             )

@@ -15,7 +15,7 @@
 - **Frontend dev**: `npm start` (Node v22, not v23+)
 - **Frontend test**: `npm test` (Jest); single test: `npm test -- --testPathPattern="<pattern>"`
 - **Frontend lint**: `npm run format` (auto-fix) or `npm run format:check` (dry-run). **Always run `npm run format` on changed frontend files before committing.**
-- **Python env (run once per shell)**: `source ~/.transformerlab/miniforge3/bin/activate && conda activate ~/.transformerlab/envs/transformerlab`
+- **Python env (run once per shell)**: `source ~/.transformerlab/envs/general-uv/bin/activate`
 - **API install**: `cd api && ./install.sh` or `npm run api:install`
 - **API start**: `cd api && ./run.sh` or `npm run api:start`
 - **API test**: `cd api && pytest`
@@ -39,7 +39,7 @@
 - **Backend**: Python FastAPI in `api/transformerlab/`, entry point: `api/api.py`. See [Backend Deep Dives](docs/backend.md).
 - **SDK**: `lab-sdk/` - Python SDK published to PyPI as `transformerlab`. The SDK runs on both the API server and on remote compute nodes (via `tfl-remote-trap`).
 - **Database**: SQLite with Alembic migrations in `api/alembic/`
-- **CLI**: Typer-based Python CLI in `cli/`. See [CLI Deep Dives](docs/cli.md).
+- **CLI**: Typer-based Python CLI in `cli/`. The binary is called `lab` (not `tfl` or any other abbreviation). See [CLI Deep Dives](docs/cli.md).
 
 ### Updating the SDK
 
@@ -107,10 +107,12 @@ Agent skills and browser automation references live in `.agents/skills/`.
   - **Always run CLI tests after modifying any code under `cli/src/`.**
 - **Playwright (E2E)**:
   - **Location**: Tests live in `test/playwright/`. Config is in `playwright.config.ts` (base URL `http://localhost:8338`).
-  - **Run all**: `npx playwright test` (requires the Docker test container).
+  - **App must be running**: Always start the app before running Playwright tests. Two options:
+    - `python scripts/dev.py` — faster iteration, uses your local environment.
+    - `npm run docker-test:up` — more self-contained, no local env needed. Shut down with `npm run docker-test:down`.
+  - **Run all**: `npx playwright test` (requires the app to be running on `localhost:8338`).
   - **Run one**: `npx playwright test <file-name>` (e.g. `npx playwright test hello-world-task`).
   - **Full cycle**: `npm run docker-test:playwright` (starts container, runs tests, tears down).
-  - **Docker container**: `npm run docker-test:up` starts the app; `npm run docker-test:down` stops it. Wait for the healthcheck before running tests.
   - **Auth**: Log in via UI with `admin@example.com` / `admin123`. Import the shared `login()` and `selectFirstExperiment()` helpers from `test/playwright/helpers.ts`.
   - **Debugging**: When debugging Playwright test failures (e.g. wrong elements being clicked, selectors not matching), use browser tools to navigate to the app, inspect the live DOM structure, and verify selectors before updating tests. Two browser tools are available:
     - **Vercel agent-browser** (default): More efficient and should be used by default for inspecting pages, taking snapshots, and verifying selectors.
