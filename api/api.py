@@ -34,10 +34,6 @@ from fastchat.protocol.openai_api_protocol import (  # noqa: E402
     ErrorResponse,
 )
 
-from transformerlab.services.experiment_init import (  # noqa: E402
-    seed_default_experiments,
-    seed_default_admin_user,
-)
 import transformerlab.db.session as db  # noqa: E402
 
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert  # noqa: E402
@@ -62,10 +58,8 @@ from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 from transformerlab.routers.experiment import experiment  # noqa: E402
 from transformerlab.routers.experiment import jobs  # noqa: E402
 from transformerlab.shared import shared  # noqa: E402
-from transformerlab.shared import galleries  # noqa: E402
 from transformerlab.shared import dirs  # noqa: E402
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
-from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
 from transformerlab.services.sweep_status_service import start_sweep_status_worker, stop_sweep_status_worker  # noqa: E402
 from transformerlab.services.cache_service import setup as setup_cache  # noqa: E402
 
@@ -112,15 +106,13 @@ async def lifespan(app: FastAPI):
     setup_cache()
     print("✅ CACHE ENABLED")
 
-    # Validate cloud credentials early - fail fast if missing
-    validate_cloud_credentials()
-    await galleries.update_gallery_cache()
-    await db.init()  # This now runs Alembic migrations internally
-    print("✅ SEED DATA")
-    # Seed default admin user
-    await seed_default_admin_user()
-    # Initialize default experiments (requires org/team context)
-    await seed_default_experiments()
+    # ── Per-process DB connection ────────────────────────────────────
+    # Migrations, seeding, and gallery cache updates have already been
+    # handled by startup_tasks.py (run once in run.sh before any worker
+    # is forked).  Here we only open this process's aiosqlite connection
+    # and set the pragmas it needs for the lifetime of this worker.
+    await db.init_connection()
+    print("✅ DATABASE CONNECTION READY")
 
     # One-time migration: legacy workspace/jobs -> workspace/experiments/<exp_id>/jobs
     # Runs in the background so it doesn't delay the API startup.
