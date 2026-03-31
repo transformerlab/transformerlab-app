@@ -79,9 +79,32 @@ async def run_alembic_migrations():
         # The database might already be in the correct state
 
 
+async def init_connection():
+    """
+    Open the per-process aiosqlite connection and set pragmas.
+
+    This is the lightweight init that each worker process calls.
+    It assumes that migrations, legacy file moves, and schema updates
+    have already been handled by startup_tasks.py before the server started.
+    """
+    global db
+    os.makedirs(os.path.dirname(DATABASE_FILE_NAME), exist_ok=True)
+    db = await aiosqlite.connect(DATABASE_FILE_NAME)
+    await db.execute("PRAGMA journal_mode=WAL")
+    await db.execute("PRAGMA synchronous=normal")
+    await db.execute("PRAGMA busy_timeout = 30000")
+    print("✅ Database connection ready")
+    return
+
+
 async def init():
     """
     Create the database, tables, and workspace folder if they don't exist.
+
+    NOTE: In production, startup_tasks.py handles migrations and seeding
+    before the server starts.  This function is kept for backward
+    compatibility (tests, single-process dev mode, etc.) and performs
+    the full initialization including migrations.
     """
     global db
     try:
