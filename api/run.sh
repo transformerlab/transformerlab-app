@@ -125,6 +125,19 @@ export PYTHONUNBUFFERED=1
 
 UVICORN_WORKERS=${TFL_UVICORN_WORKERS:-1}
 
+# ── Pre-server startup tasks ────────────────────────────────────────
+# Run one-time startup tasks (migrations, seeding, gallery cache)
+# BEFORE any uvicorn worker is forked.  This ensures every worker
+# connects to an already-migrated, already-seeded database and avoids
+# race conditions when running with --workers N.
+echo "🔧 Running pre-server startup tasks..."
+python startup_tasks.py
+STARTUP_EXIT=$?
+if [ "$STARTUP_EXIT" -ne 0 ]; then
+    echo "❌ Pre-server startup tasks failed (exit code $STARTUP_EXIT). Aborting."
+    exit $STARTUP_EXIT
+fi
+
 echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
