@@ -86,6 +86,8 @@ async def create_sweep_parent_job(
         "provider_type": provider.type,
         "provider_name": provider_display_name,
         "user_info": user_info or None,
+        "team_id": team_id,
+        "created_by_user_id": str(user_and_team["user"].id),
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
 
@@ -307,6 +309,8 @@ async def launch_sweep_jobs(
                     "provider_type": provider.type,
                     "provider_name": provider_display_name,
                     "user_info": user_info or None,
+                    "team_id": team_id,
+                    "created_by_user_id": user_id,
                     "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                 }
                 if request.file_mounts is True and request.task_id:

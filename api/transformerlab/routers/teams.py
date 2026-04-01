@@ -29,6 +29,10 @@ from transformerlab.schemas.secrets import (
     SPECIAL_SECRET_TYPES,
     SPECIAL_SECRET_KEYS,
 )
+from transformerlab.services.members_visibility_service import (
+    get_members_job_visibility,
+    set_members_job_visibility,
+)
 
 
 class TeamCreate(BaseModel):
@@ -77,6 +81,14 @@ class AcceptInvitationRequest(BaseModel):
 
 class GitHubPATRequest(BaseModel):
     pat: Optional[str] = None
+
+
+class JobVisibilitySettingsResponse(BaseModel):
+    mode: str
+
+
+class JobVisibilitySettingsRequest(BaseModel):
+    mode: str
 
 
 router = APIRouter(tags=["teams"])
@@ -266,6 +278,34 @@ async def delete_team(
     await session.commit()
 
     return {"message": "Team deleted"}
+
+
+@router.get("/teams/{team_id}/settings/job_visibility", response_model=JobVisibilitySettingsResponse)
+async def get_job_visibility_settings(
+    team_id: str,
+    user_and_team=Depends(get_user_and_team),
+):
+    """Whether members see all jobs/tasks or only their own. Any member can read."""
+    if team_id != user_and_team["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+    mode = await get_members_job_visibility(team_id)
+    return JobVisibilitySettingsResponse(mode=mode)
+
+
+@router.put("/teams/{team_id}/settings/job_visibility", response_model=JobVisibilitySettingsResponse)
+async def put_job_visibility_settings(
+    team_id: str,
+    body: JobVisibilitySettingsRequest,
+    owner_info=Depends(require_team_owner),
+):
+    """Set job/task visibility for members. Only team owners."""
+    if team_id != owner_info["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+    mode = body.mode.strip().lower()
+    if mode not in ("all", "own"):
+        raise HTTPException(status_code=400, detail="mode must be 'all' or 'own'")
+    await set_members_job_visibility(team_id, mode)  # type: ignore[arg-type]
+    return JobVisibilitySettingsResponse(mode=mode)
 
 
 @router.get("/teams/{team_id}/members")

@@ -35,6 +35,13 @@ from transformerlab.shared.github_utils import (
 )
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.services.members_visibility_service import (
+    ensure_task_accessible,
+    ensure_task_accessible_by_id,
+    filter_tasks_for_viewer,
+    get_members_job_visibility,
+)
+from transformerlab.shared.models.models import TeamRole
 from lab.task_template import TaskTemplate
 from transformerlab.schemas.task import (
     ExportTaskToTeamGalleryRequest,
@@ -101,52 +108,30 @@ def process_env_parameters_to_env_vars(config: dict) -> dict:
 
 
 @router.get("/list", summary="Returns all the tasks")
-@cached(
-    key="tasks:list",
-    ttl="300s",
-    tags=["tasks", "tasks:list"],
-)
-async def task_get_all():
+async def task_get_all(user_and_team=Depends(get_user_and_team)):
     tasks = await task_service.task_get_all()
-    return tasks
+    return await filter_tasks_for_viewer(tasks, user_and_team)
 
 
 @router.get("/{task_id}/get", summary="Gets all the data for a single task")
-@cached(
-    key="tasks:get:{experimentId}:{task_id}",
-    ttl="300s",
-    tags=["tasks", "task:{experimentId}:{task_id}"],
-)
-async def task_get_by_id(experimentId: str, task_id: str):
-    task = await task_service.task_get_by_id(task_id)
-    if task is None:
-        return {"message": "NOT FOUND"}
+async def task_get_by_id(experimentId: str, task_id: str, user_and_team=Depends(get_user_and_team)):
+    task = await ensure_task_accessible_by_id(task_id, experimentId, user_and_team)
     return task
 
 
 @router.get("/list_by_type", summary="Returns all the tasks of a certain type, e.g TRAIN")
-@cached(
-    key="tasks:list_by_type:{type}",
-    ttl="300s",
-    tags=["tasks", "tasks:list_by_type:{type}"],
-)
-async def task_get_by_type(type: str):
+async def task_get_by_type(type: str, user_and_team=Depends(get_user_and_team)):
     tasks = await task_service.task_get_by_type(type)
-    return tasks
+    return await filter_tasks_for_viewer(tasks, user_and_team)
 
 
 @router.get(
     "/list_by_type_in_experiment",
     summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN",
 )
-@cached(
-    key="tasks:list_by_type_in_experiment:{experimentId}:{type}",
-    ttl="300s",
-    tags=["tasks", "tasks:list:{experimentId}", "tasks:list_by_type:{experimentId}:{type}"],
-)
-async def task_get_by_type_in_experiment(experimentId: str, type: str):
+async def task_get_by_type_in_experiment(experimentId: str, type: str, user_and_team=Depends(get_user_and_team)):
     tasks = await task_service.task_get_by_type_in_experiment(type, experimentId)
-    return tasks
+    return await filter_tasks_for_viewer(tasks, user_and_team)
 
 
 @router.get(
@@ -154,7 +139,9 @@ async def task_get_by_type_in_experiment(experimentId: str, type: str):
     response_model=TaskFilesResponse,
     summary="List files associated with a task template (GitHub + local mounts)",
 )
-async def task_list_files(task_id: str) -> TaskFilesResponse:
+async def task_list_files(
+    experimentId: str, task_id: str, user_and_team=Depends(get_user_and_team)
+) -> TaskFilesResponse:
     """
     Return a lightweight list of files associated with a task template.
 
@@ -164,9 +151,7 @@ async def task_list_files(task_id: str) -> TaskFilesResponse:
       readily available.
     - If file_mounts is set, it will be returned as-is as a list of local paths.
     """
-    task = await task_service.task_get_by_id(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = await ensure_task_accessible_by_id(task_id, experimentId, user_and_team)
 
     github_files: list[str] = []
     local_files: list[str] = []
@@ -235,7 +220,7 @@ async def task_list_files(task_id: str) -> TaskFilesResponse:
     "/{task_id}/file/{file_path:path}",
     summary="Serve a file from a task's local workspace directory for preview",
 )
-async def task_get_file(task_id: str, file_path: str):
+async def task_get_file(experimentId: str, task_id: str, file_path: str, user_and_team=Depends(get_user_and_team)):
     """
     Serve a file from the per-task workspace directory (used for upload-from-directory tasks).
 
@@ -243,6 +228,8 @@ async def task_get_file(task_id: str, file_path: str):
     workspace/task/{task_id}. It is primarily intended for lightweight previews in
     the UI and supports both text and binary content.
     """
+    await ensure_task_accessible_by_id(task_id, experimentId, user_and_team)
+
     workspace_dir = await get_workspace_dir()
     if not workspace_dir:
         raise HTTPException(status_code=500, detail="Workspace directory is not configured")
@@ -340,16 +327,16 @@ async def task_get_file(task_id: str, file_path: str):
     "/{task_id}/github_file/{file_path:path}",
     summary="Serve a file from the task's associated GitHub repository for preview",
 )
-async def task_get_github_file(task_id: str, file_path: str):
+async def task_get_github_file(
+    experimentId: str, task_id: str, file_path: str, user_and_team=Depends(get_user_and_team)
+):
     """
     Serve a file from the GitHub repository configured on the task (github_repo_url).
 
     This endpoint uses the same GitHub PAT resolution logic as other GitHub helpers
     and is intended for lightweight previews in the UI.
     """
-    task = await task_service.task_get_by_id(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = await ensure_task_accessible_by_id(task_id, experimentId, user_and_team)
 
     github_repo_url = task.get("github_repo_url")
     github_branch = task.get("github_branch")
@@ -443,22 +430,21 @@ async def task_get_github_file(task_id: str, file_path: str):
     "/list_by_subtype_in_experiment",
     summary="Returns all tasks for an experiment filtered by subtype and optionally by type",
 )
-@cached(
-    key="tasks:list:{experimentId}:{subtype}:{type}",
-    ttl="300s",
-    tags=["tasks", "tasks:list:{experimentId}"],
-)
 async def task_get_by_subtype_in_experiment(
     experimentId: str,
     subtype: str,
     type: Optional[str] = Query(None, description="Optional task type filter (e.g., REMOTE)"),
+    user_and_team=Depends(get_user_and_team),
 ):
     tasks = await task_service.task_get_by_subtype_in_experiment(experimentId, subtype, type)
-    return tasks
+    return await filter_tasks_for_viewer(tasks, user_and_team)
 
 
 @router.put("/{task_id}/update", summary="Updates a task with new information")
-async def update_task(experimentId: str, task_id: str, new_task: dict = Body()):
+async def update_task(
+    experimentId: str, task_id: str, new_task: dict = Body(), user_and_team=Depends(get_user_and_team)
+):
+    await ensure_task_accessible_by_id(task_id, experimentId, user_and_team)
     # Perform secure_filename before updating the task
     if "name" in new_task:
         new_task["name"] = secure_filename(new_task["name"])
@@ -473,7 +459,8 @@ async def update_task(experimentId: str, task_id: str, new_task: dict = Body()):
 
 
 @router.get("/{task_id}/delete", summary="Deletes a task")
-async def delete_task(experimentId: str, task_id: str):
+async def delete_task(experimentId: str, task_id: str, user_and_team=Depends(get_user_and_team)):
+    await ensure_task_accessible_by_id(task_id, experimentId, user_and_team)
     success = await task_service.delete_task(task_id)
     if success:
         # Best-effort invalidation: task detail + this experiment's task lists.
@@ -849,7 +836,7 @@ async def add_task(
                         new_task["interactive_gallery_id"] = gid
 
                 # All fields are stored directly in the JSON (not nested in inputs/outputs/config)
-                task_id = await task_service.add_task(new_task)
+                task_id = await task_service.add_task(new_task, creator_user_id=str(user_and_team["user"].id))
 
                 # Handle zip file if provided (for JSON requests, zip_file would come from multipart)
                 if zip_file and zip_file.filename:
@@ -882,7 +869,7 @@ async def add_task(
                 # Handle provider matching
                 await _resolve_provider(task_data, user_and_team, session)
 
-                task_id = await task_service.add_task(task_data)
+                task_id = await task_service.add_task(task_data, creator_user_id=str(user_and_team["user"].id))
 
                 # Handle zip file if provided
                 if zip_file and zip_file.filename:
@@ -914,7 +901,7 @@ async def add_task(
             if "name" in task_data:
                 task_data["name"] = secure_filename(task_data["name"])
 
-            task_id = await task_service.add_task(task_data)
+            task_id = await task_service.add_task(task_data, creator_user_id=str(user_and_team["user"].id))
 
             # Handle zip file if provided
             if zip_file and zip_file.filename:
@@ -935,7 +922,13 @@ async def add_task(
 
 
 @router.get("/delete_all", summary="Wipe all tasks")
-async def task_delete_all():
+async def task_delete_all(user_and_team=Depends(get_user_and_team)):
+    visibility = await get_members_job_visibility(user_and_team["team_id"])
+    if visibility == "own" and user_and_team["role"] != TeamRole.OWNER.value:
+        raise HTTPException(
+            status_code=403,
+            detail="Only team owners can delete all tasks when members see only their own jobs",
+        )
     await task_service.task_delete_all()
     return {"message": "OK"}
 
@@ -1094,7 +1087,7 @@ async def import_task_from_gallery(
         _clear_interactive_launch_provider(task_data)
 
         # Create the task
-        task_id = await task_service.add_task(task_data)
+        task_id = await task_service.add_task(task_data, creator_user_id=str(user_and_team["user"].id))
 
         # Invalidate cached task lists for this experiment (best-effort).
         await cache.invalidate("tasks", f"tasks:list:{experimentId}")
@@ -1219,7 +1212,7 @@ async def import_task_from_gallery(
         task_data["name"] = secure_filename(task_name)
 
     # Create the task with all fields stored directly (flat structure)
-    task_id = await task_service.add_task(task_data)
+    task_id = await task_service.add_task(task_data, creator_user_id=str(user_and_team["user"].id))
 
     # Store task.yaml in task directory
     task = TaskTemplate(secure_filename(str(task_id)))
@@ -1509,7 +1502,7 @@ async def import_task_from_team_gallery(
             _clear_interactive_launch_provider(task_data)
 
         # Create task + copy full directory into the task workspace dir
-        task_id = await task_service.add_task(task_data)
+        task_id = await task_service.add_task(task_data, creator_user_id=str(user_and_team["user"].id))
         task = TaskTemplate(secure_filename(str(task_id)))
         task_dir = await task.get_dir()
         await storage.makedirs(task_dir, exist_ok=True)
@@ -1588,7 +1581,7 @@ async def import_task_from_team_gallery(
             await _resolve_provider(task_data, user_and_team, session)
         else:
             _clear_interactive_launch_provider(task_data)
-        task_id = await task_service.add_task(task_data)
+        task_id = await task_service.add_task(task_data, creator_user_id=str(user_and_team["user"].id))
 
         # Write a task.yaml into the task directory so the editor works
         task = TaskTemplate(secure_filename(str(task_id)))
@@ -1689,7 +1682,7 @@ async def import_task_from_team_gallery(
         task_data["name"] = secure_filename(task_name)
 
     # Create the task with all fields stored directly (flat structure)
-    task_id = await task_service.add_task(task_data)
+    task_id = await task_service.add_task(task_data, creator_user_id=str(user_and_team["user"].id))
 
     # Store task.yaml in task directory
     task = TaskTemplate(secure_filename(str(task_id)))
@@ -1721,6 +1714,9 @@ async def export_task_to_team_gallery(
     task = await task_service.task_get_by_id(request.task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    if not task.get("experiment_id"):
+        raise HTTPException(status_code=400, detail="Task has no experiment_id")
+    await ensure_task_accessible(task=task, user_and_team=user_and_team)
 
     # For tasks, all fields are stored directly (not nested in config)
     # Build config object from task fields for gallery entry (for backwards compatibility)

@@ -11,7 +11,7 @@ from lab.task_template import TaskTemplate as TaskTemplateService
 # Keys that are never removed when syncing from task.yaml (system-owned).
 # Any other key in stored metadata that is not in the parsed task_data is
 # removed, so we don't need to maintain a list of YAML field names.
-_PROTECTED_METADATA_KEYS = frozenset({"id", "experiment_id", "type", "plugin", "created_at"})
+_PROTECTED_METADATA_KEYS = frozenset({"id", "experiment_id", "type", "plugin", "created_at", "created_by_user_id"})
 
 
 def _normalize_legacy_command(task: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -76,21 +76,25 @@ class TaskService:
         tasks = await self.task_service.list_by_subtype_in_experiment(experiment_id, subtype, task_type)
         return [_normalize_legacy_command(t) or t for t in tasks]
 
-    async def add_task(self, task_data: Dict[str, Any]) -> str:
+    async def add_task(self, task_data: Dict[str, Any], creator_user_id: Optional[str] = None) -> str:
         """Create a new task - all fields stored directly in JSON"""
+        data = dict(task_data)
+        if creator_user_id and not data.get("created_by_user_id"):
+            data["created_by_user_id"] = creator_user_id
+
         # Generate a unique ID for the task
         task_id = str(uuid.uuid4())
 
         try:
             task = await self.task_service.create(task_id)
             # Store all fields directly (not nested)
-            await task.set_metadata(**task_data)
+            await task.set_metadata(**data)
             return task_id
         except FileExistsError:
             # If task already exists, generate a new ID
             task_id = str(uuid.uuid4())
             task = await self.task_service.create(task_id)
-            await task.set_metadata(**task_data)
+            await task.set_metadata(**data)
             return task_id
 
     async def update_task(self, task_id: str, new_task_data: Dict[str, Any]) -> bool:

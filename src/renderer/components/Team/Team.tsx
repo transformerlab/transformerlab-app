@@ -43,6 +43,7 @@ import InviteUserModal from './InviteUserModal';
 import ProviderDetailsModal from './ProviderDetailsModal';
 import QuotaSettingsSection from './QuotaSettingsSection';
 import TeamSecretsSection from './TeamSecretsSection';
+import TeamJobVisibilitySection from './TeamJobVisibilitySection';
 import SshKeySection from './SshKeySection';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
@@ -1087,6 +1088,10 @@ export default function UserLoginTest(): JSX.Element {
             )}
           </Box>
         )}
+        <TeamJobVisibilitySection
+          teamId={authContext.team?.id || ''}
+          isOwner={iAmOwner}
+        />
         <Box sx={{ mt: 4 }}>
           <Typography level="title-lg" mb={1} startDecorator={<ServerIcon />}>
             Compute Providers: ({providers?.length ?? 0})

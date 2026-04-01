@@ -262,6 +262,7 @@ async def resume_remote_job_from_checkpoint(
         "provider_name": provider_display_name,
         "user_info": user_info or None,
         "team_id": team_id,
+        "created_by_user_id": str(user.id) if user else None,
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
 

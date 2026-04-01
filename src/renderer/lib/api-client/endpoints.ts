@@ -492,6 +492,10 @@ Endpoints.Quota = {
 Endpoints.Teams = {
   GetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
   SetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
+  GetJobVisibility: (teamId: string) =>
+    `${API_URL()}teams/${teamId}/settings/job_visibility`,
+  SetJobVisibility: (teamId: string) =>
+    `${API_URL()}teams/${teamId}/settings/job_visibility`,
 };
 
 Endpoints.Users = {

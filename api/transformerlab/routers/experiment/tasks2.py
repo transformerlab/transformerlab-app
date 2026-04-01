@@ -57,7 +57,7 @@ async def create_blank_task(
         "name": "my-task",
     }
     await _resolve_provider(task_data, user_and_team, session)
-    task_id = await task_service.add_task(task_data)
+    task_id = await task_service.add_task(task_data, creator_user_id=str(user_and_team["user"].id))
     task_dir = await _get_task_dir_path(task_id)
     await storage.makedirs(task_dir, exist_ok=True)
     yaml_path = storage.join(task_dir, "task.yaml")
@@ -170,7 +170,7 @@ async def from_directory(
             await _resolve_provider(task_data, user_and_team, session)
             if "name" in task_data:
                 task_data["name"] = secure_filename(task_data["name"])
-            task_id = await task_service.add_task(task_data)
+            task_id = await task_service.add_task(task_data, creator_user_id=str(user_and_team["user"].id))
             task_dir = await _get_task_dir_path(task_id)
             await storage.makedirs(task_dir, exist_ok=True)
             await storage.copy_dir(task_root_for_zip, task_dir)
@@ -199,7 +199,7 @@ async def from_directory(
         await _resolve_provider(task_data, user_and_team, session)
         if "name" in task_data:
             task_data["name"] = secure_filename(task_data["name"])
-        task_id = await task_service.add_task(task_data)
+        task_id = await task_service.add_task(task_data, creator_user_id=str(user_and_team["user"].id))
 
     task_dir = await _get_task_dir_path(task_id)
     await storage.makedirs(task_dir, exist_ok=True)

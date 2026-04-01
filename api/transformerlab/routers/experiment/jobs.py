@@ -22,7 +22,7 @@ from transformerlab.services.job_service import get_artifacts_from_directory, jo
 import transformerlab.services.job_service as job_service
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.shared import shared, zip_utils
-from transformerlab.shared.models.models import ProviderType
+from transformerlab.shared.models.models import ProviderType, TeamRole
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.shared.tunnel_parser import get_tunnel_info
 from transformerlab.shared import galleries
@@ -37,6 +37,11 @@ from lab.dirs import (
     get_models_dir,
 )
 from transformerlab.services import asset_version_service
+from transformerlab.services.members_visibility_service import (
+    ensure_job_accessible,
+    filter_jobs_for_viewer,
+    get_members_job_visibility,
+)
 
 
 router = APIRouter(prefix="/jobs", tags=["train"])
@@ -74,6 +79,7 @@ async def jobs_get_all(
     type: str = "",
     status: str = "",
     subtype: str = "",
+    user_and_team=Depends(get_user_and_team),
 ):
     """
     Return the list of jobs for an experiment, optionally filtered by type/status/subtype.
@@ -92,20 +98,24 @@ async def jobs_get_all(
                     job_data = {}
             if job_data.get("subtype") == subtype:
                 filtered.append(job)
-        return filtered
+        jobs = filtered
 
-    return jobs
+    return await filter_jobs_for_viewer(jobs, user_and_team)
 
 
 @router.get("/delete/{job_id}")
-async def job_delete(job_id: str, experimentId: str):
+async def job_delete(job_id: str, experimentId: str, user_and_team=Depends(get_user_and_team)):
+    await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
     await job_service.job_delete(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.put("/{job_id}/job_data")
-async def job_update_job_data(job_id: str, experimentId: str, body: dict = Body(...)):
+async def job_update_job_data(
+    job_id: str, experimentId: str, body: dict = Body(...), user_and_team=Depends(get_user_and_team)
+):
     """Update user-facing metadata fields in job_data (favorite, hidden, tags)."""
+    await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
     updates = body.get("updates", {})
     ALLOWED_KEYS = {"favorite", "hidden", "tags"}
     filtered = {k: v for k, v in updates.items() if k in ALLOWED_KEYS}
@@ -115,14 +125,38 @@ async def job_update_job_data(job_id: str, experimentId: str, body: dict = Body(
     return {"message": "OK"}
 
 
+def _user_info_from_user(user) -> dict:
+    user_info: dict = {}
+    if getattr(user, "first_name", None) or getattr(user, "last_name", None):
+        user_info["name"] = " ".join(
+            part for part in [getattr(user, "first_name", ""), getattr(user, "last_name", "")] if part
+        ).strip()
+    if getattr(user, "email", None):
+        user_info["email"] = getattr(user, "email")
+    return user_info
+
+
 @router.get("/create")
 async def job_create(
     experimentId: str,
     type: str = "UNDEFINED",
     status: str = "CREATED",
     data: str = "{}",
+    user_and_team=Depends(get_user_and_team),
 ):
-    jobid = await job_service.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
+    try:
+        parsed: dict = json.loads(data) if data else {}
+    except json.JSONDecodeError:
+        parsed = {}
+    if not isinstance(parsed, dict):
+        parsed = {}
+    user = user_and_team["user"]
+    team_id = user_and_team["team_id"]
+    ui = _user_info_from_user(user)
+    parsed.setdefault("user_info", ui or None)
+    parsed.setdefault("created_by_user_id", str(user.id))
+    parsed.setdefault("team_id", team_id)
+    jobid = await job_service.job_create(type=type, status=status, job_data=parsed, experiment_id=experimentId)
     return jobid
 
 
@@ -134,43 +168,48 @@ async def job_create_task(script: str, job_data: str = "{}", experimentId: str =
 
 
 @router.get("/update/{job_id}")
-async def job_update(job_id: str, status: str, experimentId: str):
+async def job_update(job_id: str, status: str, experimentId: str, user_and_team=Depends(get_user_and_team)):
+    await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
     await job_update_status(job_id, status, experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/{job_id}/stop")
-async def stop_job(job_id: str, experimentId: str):
+async def stop_job(job_id: str, experimentId: str, user_and_team=Depends(get_user_and_team)):
     # The way a job is stopped is simply by adding "stop: true" to the job_data
     # This will be checked by the plugin as it runs
+    await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
     await job_service.job_stop(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/delete_all")
-async def job_delete_all(experimentId: str):
+async def job_delete_all(experimentId: str, user_and_team=Depends(get_user_and_team)):
+    visibility = await get_members_job_visibility(user_and_team["team_id"])
+    if visibility == "own" and user_and_team["role"] != TeamRole.OWNER.value:
+        raise HTTPException(
+            status_code=403,
+            detail="Only team owners can delete all jobs when members see only their own jobs",
+        )
     await job_service.job_delete_all(experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/{job_id}")
-async def get_training_job(job_id: str, experimentId: str):
-    job = await job_service.job_get_cached(job_id, experiment_id=experimentId)
-    if job is None:
-        return Response("Job not found", status_code=404)
-    return job
+async def get_training_job(job_id: str, experimentId: str, user_and_team=Depends(get_user_and_team)):
+    return await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
 
 
 @router.get("/{job_id}/tasks_output")
-async def get_tasks_job_output(job_id: str, experimentId: str, sweeps: bool = False):
+async def get_tasks_job_output(
+    job_id: str, experimentId: str, sweeps: bool = False, user_and_team=Depends(get_user_and_team)
+):
     """
     Get Tasks job output with robust error handling.
     Uses the same logic as stream_job_output but returns content directly.
     """
     try:
-        job = await job_service.job_get_cached(job_id, experiment_id=experimentId)
-        if job is None:
-            return "Job not found"
+        job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
 
         job_data = job.get("job_data", {})
 
@@ -220,7 +259,7 @@ async def get_tasks_job_output(job_id: str, experimentId: str, sweeps: bool = Fa
                 # If still no file after retry, create an empty one in the jobs directory
                 print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
-                job_dict = await job_service.job_get_cached(job_id, experiment_id=experimentId)
+                job_dict = job
                 experiment_id = job_dict.get("experiment_id") if job_dict else None
                 if not experiment_id:
                     return []
@@ -264,8 +303,8 @@ async def get_provider_job_logs(
       2. Otherwise, fall back to provider-native log retrieval (existing behavior).
     """
 
-    job = await job_service.job_get_cached(job_id, experiment_id=experimentId)
-    if not job or str(job.get("experiment_id")) != str(experimentId):
+    job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
+    if str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
     job_data = job.get("job_data") or {}
@@ -432,8 +471,8 @@ async def get_tunnel_info_for_job(
     choose the parser. Supports: 'vscode', 'jupyter', 'vllm', 'ollama', 'ssh'.
     """
 
-    job = await job_service.job_get(job_id, experiment_id=experimentId)
-    if not job or str(job.get("experiment_id")) != str(experimentId):
+    job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
+    if str(job.get("experiment_id")) != str(experimentId):
         raise HTTPException(status_code=404, detail="Job not found")
 
     job_data = job.get("job_data") or {}
@@ -615,13 +654,15 @@ async def get_tunnel_info_for_job(
 
 
 @router.get("/{job_id}/stream_output")
-async def stream_job_output(job_id: str, experimentId: str, sweeps: bool = False):
+async def stream_job_output(
+    job_id: str, experimentId: str, sweeps: bool = False, user_and_team=Depends(get_user_and_team)
+):
     """
     Stream job output with robust error handling and retry logic.
     Enhanced version combining the best of both train and jobs routers.
     """
     try:
-        job = await job_service.job_get(job_id, experiment_id=experimentId)
+        job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
 
         job_data = job.get("job_data", {})
 
@@ -657,7 +698,7 @@ async def stream_job_output(job_id: str, experimentId: str, sweeps: bool = False
                 # If still no file after retry, create an empty one in the jobs directory
                 print(f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}")
                 # Use the Job class to get the proper directory and create the file
-                job_dict = await job_service.job_get_cached(job_id, experiment_id=experimentId)
+                job_dict = job
                 experiment_id = job_dict.get("experiment_id") if job_dict else None
                 if not experiment_id:
                     return StreamingResponse(
@@ -731,10 +772,10 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
 
 
 @router.get("/{job_id}/get_additional_details")
-async def stream_job_additional_details(job_id: str, experimentId: str, task: str = "view"):
-    job = await job_service.job_get(job_id, experiment_id=experimentId)
-    if job is None:
-        return Response("Job not found", status_code=404)
+async def stream_job_additional_details(
+    job_id: str, experimentId: str, task: str = "view", user_and_team=Depends(get_user_and_team)
+):
+    job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
     job_data = job["job_data"]
     if "additional_output_path" not in job_data:
         return Response("No additional details found for this job", media_type="text/csv")
@@ -767,10 +808,8 @@ async def stream_job_additional_details(job_id: str, experimentId: str, task: st
 
 
 @router.get("/{job_id}/get_figure_json")
-async def get_figure_path(job_id: str, experimentId: str):
-    job = await job_service.job_get(job_id, experiment_id=experimentId)
-    if job is None:
-        return Response("Job not found", status_code=404)
+async def get_figure_path(job_id: str, experimentId: str, user_and_team=Depends(get_user_and_team)):
+    job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
     job_data = job["job_data"]
     file_path = job_data.get("plot_data_path", None)
 
@@ -784,10 +823,8 @@ async def get_figure_path(job_id: str, experimentId: str):
 
 
 @router.get("/{job_id}/get_generated_dataset")
-async def get_generated_dataset(job_id: str, experimentId: str):
-    job = await job_service.job_get(job_id, experiment_id=experimentId)
-    if job is None:
-        return Response("Job not found", status_code=404)
+async def get_generated_dataset(job_id: str, experimentId: str, user_and_team=Depends(get_user_and_team)):
+    job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
     # Get experiment name
     job_data = job["job_data"]
 
@@ -812,11 +849,15 @@ async def get_generated_dataset(job_id: str, experimentId: str):
 
 
 @router.get("/{job_id}/get_eval_results")
-async def get_eval_results(job_id: str, experimentId: str, task: str = "view", file_index: int = 0):
+async def get_eval_results(
+    job_id: str,
+    experimentId: str,
+    task: str = "view",
+    file_index: int = 0,
+    user_and_team=Depends(get_user_and_team),
+):
     """Get evaluation results for a job"""
-    job = await job_service.job_get(job_id, experiment_id=experimentId)
-    if job is None:
-        return Response("Job not found", status_code=404)
+    job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
     job_data = job.get("job_data", {})
     if not isinstance(job_data, dict):
         try:
@@ -908,11 +949,9 @@ async def get_eval_results(job_id: str, experimentId: str, task: str = "view", f
 
 
 @router.get("/{job_id}/get_eval_images")
-async def get_eval_images(job_id: str, experimentId: str):
+async def get_eval_images(job_id: str, experimentId: str, user_and_team=Depends(get_user_and_team)):
     """Get list of evaluation images for a job"""
-    job = await job_service.job_get(job_id, experiment_id=experimentId)
-    if job is None:
-        return Response("Job not found", status_code=404)
+    job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
     job_data = job["job_data"]
 
     # Check if the job has eval_images_dir
@@ -995,11 +1034,9 @@ async def get_eval_images(job_id: str, experimentId: str):
 
 
 @router.get("/{job_id}/image/{filename}")
-async def get_eval_image(job_id: str, filename: str, experimentId: str):
+async def get_eval_image(job_id: str, filename: str, experimentId: str, user_and_team=Depends(get_user_and_team)):
     """Serve individual evaluation image files"""
-    job = await job_service.job_get(job_id, experiment_id=experimentId)
-    if job is None:
-        return Response("Job not found", status_code=404)
+    job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
     job_data = job["job_data"]
 
     # Check if the job has eval_images_dir
@@ -1051,14 +1088,12 @@ async def get_eval_image(job_id: str, filename: str, experimentId: str):
 
 
 @router.get("/{job_id}/checkpoints")
-async def get_checkpoints(job_id: str, experimentId: str, request: Request):
+async def get_checkpoints(job_id: str, experimentId: str, request: Request, user_and_team=Depends(get_user_and_team)):
     if job_id is None or job_id == "" or job_id == "-1":
         return {"checkpoints": []}
 
     """Get list of checkpoints for a job"""
-    job = await job_service.job_get(job_id, experiment_id=experimentId)
-    if job is None:
-        return {"checkpoints": []}
+    job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
 
     experiment_id = job.get("experiment_id")
     job_data = job["job_data"]
@@ -1165,7 +1200,7 @@ async def get_checkpoints(job_id: str, experimentId: str, request: Request):
 
 
 @router.get("/{job_id}/artifacts")
-async def get_artifacts(job_id: str, experimentId: str, request: Request):
+async def get_artifacts(job_id: str, experimentId: str, request: Request, user_and_team=Depends(get_user_and_team)):
     """Get list of artifacts for a job"""
 
     # Validate job_id
@@ -1178,7 +1213,7 @@ async def get_artifacts(job_id: str, experimentId: str, request: Request):
     try:
         from lab.dirs import get_job_artifacts_dir
 
-        job_dict = await job_service.job_get_cached(job_id, experiment_id=experimentId)
+        job_dict = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
         experiment_id = job_dict.get("experiment_id") if job_dict else None
         if not experiment_id:
             return {"artifacts": []}
@@ -1196,10 +1231,11 @@ async def get_artifacts(job_id: str, experimentId: str, request: Request):
 
 
 @router.get("/{job_id}/artifacts/download_all")
-async def download_all_artifacts(job_id: str, experimentId: str):
+async def download_all_artifacts(job_id: str, experimentId: str, user_and_team=Depends(get_user_and_team)):
     """
     Download a zip file containing all artifacts for a job.
     """
+    await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
     # 1. Gather all artifact file paths using service
     all_file_paths = await job_service.get_all_artifact_paths(job_id, experimentId, storage)
 
@@ -1224,7 +1260,13 @@ async def download_all_artifacts(job_id: str, experimentId: str):
 
 
 @router.get("/{job_id}/artifact/{filename}")
-async def get_artifact(job_id: str, experimentId: str, filename: str, task: str = "view"):
+async def get_artifact(
+    job_id: str,
+    experimentId: str,
+    filename: str,
+    task: str = "view",
+    user_and_team=Depends(get_user_and_team),
+):
     """
     Serve individual artifact files for viewing or downloading.
 
@@ -1233,9 +1275,7 @@ async def get_artifact(job_id: str, experimentId: str, filename: str, task: str 
         filename: The artifact filename
         task: Either "view" or "download" (default: "view")
     """
-    job = await job_service.job_get(job_id, experiment_id=experimentId)
-    if job is None:
-        return Response("Job not found", status_code=404)
+    job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
 
     job_data = job["job_data"]
     experiment_id = job.get("experiment_id")
@@ -1356,17 +1396,12 @@ async def get_artifact(job_id: str, experimentId: str, filename: str, task: str 
     )
 
 
-@router.get("/{job_id}")
-async def get_training_job_by_path(job_id: str, experimentId: str):
-    return await job_service.job_get(job_id, experiment_id=experimentId)
-
-
 @router.get("/{job_id}/output")
-async def get_training_job_output_jobpath(job_id: str, experimentId: str, sweeps: bool = False):
+async def get_training_job_output_jobpath(
+    job_id: str, experimentId: str, sweeps: bool = False, user_and_team=Depends(get_user_and_team)
+):
     try:
-        job = await job_service.job_get(job_id, experiment_id=experimentId)
-        if job is None:
-            return "Job not found"
+        job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
 
         job_data = job.get("job_data", {})
 
@@ -1410,11 +1445,9 @@ async def get_training_job_output_jobpath(job_id: str, experimentId: str, sweeps
 
 
 @router.get("/{job_id}/sweep_results")
-async def sweep_results(job_id: str, experimentId: str):
+async def sweep_results(job_id: str, experimentId: str, user_and_team=Depends(get_user_and_team)):
     try:
-        job = await job_service.job_get(job_id, experiment_id=experimentId)
-        if job is None:
-            return {"status": "error", "message": "Job not found."}
+        job = await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
 
         job_data = job.get("job_data", {})
 
@@ -1446,11 +1479,13 @@ async def sweep_results(job_id: str, experimentId: str):
 
 
 @router.get("/{job_id}/datasets")
-async def get_job_datasets(job_id: str, experimentId: str, request: Request):
+async def get_job_datasets(job_id: str, experimentId: str, request: Request, user_and_team=Depends(get_user_and_team)):
     """Get list of datasets in the job's datasets directory"""
 
     if not job_id or job_id in ("", "-1"):
         return {"datasets": []}
+
+    await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
 
     try:
         from lab.dirs import get_job_datasets_dir
@@ -1467,11 +1502,13 @@ async def get_job_datasets(job_id: str, experimentId: str, request: Request):
 
 
 @router.get("/{job_id}/models")
-async def get_job_models(job_id: str, experimentId: str, request: Request):
+async def get_job_models(job_id: str, experimentId: str, request: Request, user_and_team=Depends(get_user_and_team)):
     """Get list of models in the job's models directory"""
 
     if not job_id or job_id in ("", "-1"):
         return {"models": []}
+
+    await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
 
     try:
         from lab.dirs import get_job_models_dir
@@ -1506,6 +1543,8 @@ async def save_dataset_to_registry(
     """Copy a dataset from job's datasets directory to the global datasets registry."""
 
     try:
+        await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
+
         dataset_name_secure = secure_filename(dataset_name)
 
         # Get source path (job's datasets directory)
@@ -1636,10 +1675,13 @@ async def save_model_to_registry(
     tag: str = Query("latest", description="Tag to assign to the new version"),
     version_label: str = Query("v1", description="Version label for this entry (e.g. 'v1', 'march-run')"),
     description: Optional[str] = Query(None, description="Human-readable description for the version"),
+    user_and_team=Depends(get_user_and_team),
 ):
     """Copy a model from job's models directory to the global models registry."""
 
     try:
+        await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
+
         model_name_secure = secure_filename(model_name)
 
         # Get source path (job's models directory)
@@ -1758,9 +1800,11 @@ async def _save_model_to_registry(
 
 
 @router.get("/{job_id}/files")
-async def list_job_files(job_id: str, experimentId: str, subpath: str = ""):
+async def list_job_files(job_id: str, experimentId: str, subpath: str = "", user_and_team=Depends(get_user_and_team)):
     """List files and directories in a job's directory."""
     from lab.dirs import get_job_dir
+
+    await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
 
     job_dir = await get_job_dir(job_id, experimentId)
     if not await storage.exists(job_dir):
@@ -1802,9 +1846,11 @@ async def list_job_files(job_id: str, experimentId: str, subpath: str = ""):
 
 
 @router.get("/{job_id}/file/{file_path:path}")
-async def get_job_file(job_id: str, file_path: str, experimentId: str):
+async def get_job_file(job_id: str, file_path: str, experimentId: str, user_and_team=Depends(get_user_and_team)):
     """Serve a file from a job's directory."""
     from lab.dirs import get_job_dir
+
+    await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
 
     job_dir = await get_job_dir(job_id, experimentId)
     target = storage.join(job_dir, file_path)
@@ -1903,6 +1949,8 @@ async def get_profiling_report(
     Returns 404 if profiling was not enabled or the report is not yet available.
     """
     from lab.dirs import get_job_profiling_dir
+
+    await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
 
     profiling_dir = await get_job_profiling_dir(job_id, experimentId)
     report_path = storage.join(profiling_dir, "profiling_report.json")
