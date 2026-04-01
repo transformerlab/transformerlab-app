@@ -39,6 +39,7 @@ from lab.dirs import (
 from transformerlab.services import asset_version_service
 from transformerlab.services.members_visibility_service import (
     ensure_job_accessible,
+    enforce_job_visibility_if_metadata_exists,
     filter_jobs_for_viewer,
     get_members_job_visibility,
 )
@@ -1485,7 +1486,9 @@ async def get_job_datasets(job_id: str, experimentId: str, request: Request, use
     if not job_id or job_id in ("", "-1"):
         return {"datasets": []}
 
-    await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
+    await enforce_job_visibility_if_metadata_exists(
+        experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team
+    )
 
     try:
         from lab.dirs import get_job_datasets_dir
@@ -1508,7 +1511,9 @@ async def get_job_models(job_id: str, experimentId: str, request: Request, user_
     if not job_id or job_id in ("", "-1"):
         return {"models": []}
 
-    await ensure_job_accessible(experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team)
+    await enforce_job_visibility_if_metadata_exists(
+        experiment_id=experimentId, job_id=job_id, user_and_team=user_and_team
+    )
 
     try:
         from lab.dirs import get_job_models_dir

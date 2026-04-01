@@ -131,6 +131,26 @@ async def ensure_job_accessible(*, experiment_id: str, job_id: str, user_and_tea
     return job
 
 
+async def enforce_job_visibility_if_metadata_exists(*, experiment_id: str, job_id: str, user_and_team: dict) -> None:
+    """
+    If the job has stored metadata, enforce team visibility. If there is no job record
+    (e.g. only on-disk paths), skip enforcement so list-style endpoints can return empty lists.
+    """
+    from transformerlab.services import job_service
+
+    job = await job_service.job_get_cached(job_id, experiment_id=experiment_id)
+    if job is None:
+        return
+    visibility = await get_members_job_visibility(user_and_team["team_id"])
+    if not viewer_may_see_job(
+        job=job,
+        viewer_user=user_and_team["user"],
+        role=user_and_team["role"],
+        visibility=visibility,
+    ):
+        raise HTTPException(status_code=403, detail="You do not have access to this job")
+
+
 async def ensure_task_accessible(*, task: dict[str, Any], user_and_team: dict) -> None:
     visibility = await get_members_job_visibility(user_and_team["team_id"])
     if viewer_may_see_task(

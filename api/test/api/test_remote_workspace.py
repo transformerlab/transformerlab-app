@@ -1,6 +1,7 @@
 import asyncio
 import io
 import sys
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
@@ -34,17 +35,32 @@ def test_download_all_artifacts_endpoint():
         create_zip_calls.append((file_paths, storage))
         return mock_zip_buffer
 
+    async def mock_ensure_job_accessible(**kwargs):
+        return {"experiment_id": "exp_1", "job_data": {}}
+
+    owner_ctx = {
+        "user": SimpleNamespace(id="u1", email="t@example.com"),
+        "team_id": "team-1",
+        "role": "owner",
+    }
+
     with (
         patch("transformerlab.routers.experiment.jobs.job_service", mock_job_service),
         patch("transformerlab.routers.experiment.jobs.zip_utils.create_zip_from_storage", mock_create_zip),
         patch("transformerlab.routers.experiment.jobs.storage", Mock()),
+        patch(
+            "transformerlab.routers.experiment.jobs.ensure_job_accessible",
+            mock_ensure_job_accessible,
+        ),
     ):
         from transformerlab.routers.experiment.jobs import download_all_artifacts
 
         # Test 1: Successful download
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        response = loop.run_until_complete(download_all_artifacts("test_job_id", "exp_1"))
+        response = loop.run_until_complete(
+            download_all_artifacts("test_job_id", "exp_1", owner_ctx),
+        )
         loop.close()
 
         assert response.status_code == 200
@@ -64,7 +80,9 @@ def test_download_all_artifacts_endpoint():
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        response_empty = loop.run_until_complete(download_all_artifacts("test_job_id_empty", "exp_1"))
+        response_empty = loop.run_until_complete(
+            download_all_artifacts("test_job_id_empty", "exp_1", owner_ctx),
+        )
         loop.close()
 
         assert response_empty.status_code == 404
