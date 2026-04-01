@@ -164,6 +164,23 @@ class TeamComputeProvider(Base):
     __table_args__ = (Index("idx_compute_provider_name", "team_id", "name"),)
 
 
+class TeamStorageProvider(Base):
+    """Per-team storage provider for job outputs (artifacts, checkpoints, logs)."""
+
+    __tablename__ = "team_storage_providers"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    team_id: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    type: Mapped[str] = mapped_column(String, nullable=False)  # StorageProviderType enum value
+    config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=False)
+    created_by_user_id: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 # User and OAuth Account models
 class User(SQLAlchemyBaseUserTableUUID, Base):
     """

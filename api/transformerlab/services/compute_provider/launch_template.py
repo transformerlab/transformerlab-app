@@ -363,19 +363,13 @@ async def launch_template_on_provider(
         if request.enable_profiling_torch:
             env_vars["_TFL_PROFILING_TORCH"] = "1"
 
-    # Get TFL_STORAGE_URI from storage context
-    tfl_storage_uri = None
+    # Resolve TFL_STORAGE_URI: prefer team's configured storage provider, fall back to env var
     try:
-        storage_root = await storage.root_uri()
-        if storage_root:
-            if storage.is_remote_path(storage_root):
-                # Remote cloud storage (S3/GCS/etc.)
-                tfl_storage_uri = storage_root
-            elif STORAGE_PROVIDER == "localfs":
-                # localfs: expose the local mount path to the remote worker
-                tfl_storage_uri = storage_root
+        from transformerlab.services.storage_provider_service import resolve_workspace_storage_uri
+
+        tfl_storage_uri = await resolve_workspace_storage_uri(team_id)
     except Exception:
-        pass
+        tfl_storage_uri = None
 
     if tfl_storage_uri:
         env_vars["TFL_STORAGE_URI"] = tfl_storage_uri

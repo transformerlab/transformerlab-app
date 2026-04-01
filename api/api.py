@@ -51,6 +51,7 @@ from transformerlab.routers import (  # noqa: E402
     ssh_keys,
     asset_versions,
     trackio,
+    storage_provider,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 
@@ -59,7 +60,6 @@ from transformerlab.routers.experiment import experiment  # noqa: E402
 from transformerlab.routers.experiment import jobs  # noqa: E402
 from transformerlab.shared import shared  # noqa: E402
 from transformerlab.shared import dirs  # noqa: E402
-from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
 from transformerlab.services.sweep_status_service import start_sweep_status_worker, stop_sweep_status_worker  # noqa: E402
 from transformerlab.services.cache_service import setup as setup_cache  # noqa: E402
@@ -267,14 +267,17 @@ async def set_org_context(request: Request, call_next):
                     # If determination fails, leave as None (will be handled by dependency)
                     pass
 
-        if lab_set_org_id is not None:
-            lab_set_org_id(org_id)
+        from transformerlab.services.storage_provider_service import set_org_context_with_storage
+
+        await set_org_context_with_storage(org_id)
+
         response = await call_next(request)
         return response
     finally:
         # Clear at end of request
-        if lab_set_org_id is not None:
-            lab_set_org_id(None)
+        from transformerlab.services.storage_provider_service import set_org_context_with_storage
+
+        await set_org_context_with_storage(None)
 
 
 def create_error_response(code: int, message: str) -> JSONResponse:
@@ -301,6 +304,7 @@ app.include_router(quota.router)
 app.include_router(ssh_keys.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(asset_versions.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(trackio.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(storage_provider.router, dependencies=[Depends(get_user_and_team)])
 
 
 async def install_all_plugins():

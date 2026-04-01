@@ -582,10 +582,8 @@ async def test_refresh_once_skips_non_launching_jobs(monkeypatch):
         "_handle_live_status",
         AsyncMock(return_value=True),
     )
-    monkeypatch.setattr(remote_job_status_service, "_set_org_context", MagicMock())
-    monkeypatch.setattr(remote_job_status_service, "_clear_org_context", MagicMock())
-
-    stats = await refresh_launching_remote_jobs_once()
+    with patch("transformerlab.services.storage_provider_service.set_org_context_with_storage", new=AsyncMock()):
+        stats = await refresh_launching_remote_jobs_once()
 
     assert stats["jobs_seen"] == 1  # only j3
     assert stats["jobs_updated"] == 1
@@ -624,10 +622,8 @@ async def test_refresh_once_circuit_breaker_skips_backed_off_provider(monkeypatc
         "_check_job_via_provider",
         AsyncMock(side_effect=AssertionError("provider should not be called during backoff")),
     )
-    monkeypatch.setattr(remote_job_status_service, "_set_org_context", MagicMock())
-    monkeypatch.setattr(remote_job_status_service, "_clear_org_context", MagicMock())
-
-    stats = await refresh_launching_remote_jobs_once()
+    with patch("transformerlab.services.storage_provider_service.set_org_context_with_storage", new=AsyncMock()):
+        stats = await refresh_launching_remote_jobs_once()
 
     assert stats["jobs_seen"] == 1
     assert stats["jobs_updated"] == 0
@@ -672,11 +668,9 @@ async def test_refresh_once_connection_error_trips_circuit_breaker(monkeypatch):
     async def fake_get_provider_instance(record):
         return fake_instance
 
-    monkeypatch.setattr(remote_job_status_service, "_set_org_context", MagicMock())
-    monkeypatch.setattr(remote_job_status_service, "_clear_org_context", MagicMock())
-
     # Patch the imports inside refresh_launching_remote_jobs_once
     with (
+        patch("transformerlab.services.storage_provider_service.set_org_context_with_storage", new=AsyncMock()),
         patch("transformerlab.db.session.async_session") as mock_session_ctx,
         patch(
             "transformerlab.services.provider_service.get_provider_by_id",

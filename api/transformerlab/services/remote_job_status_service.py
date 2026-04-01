@@ -18,7 +18,6 @@ import time
 from typing import Any, Dict, List, Optional
 
 from lab import Experiment
-from lab.dirs import set_organization_id as lab_set_org_id
 from lab.job_status import JobStatus
 
 from transformerlab.services import job_service, team_service
@@ -38,20 +37,6 @@ _provider_failures: Dict[str, Dict[str, int]] = {}
 _remote_job_status_worker_task: Optional[asyncio.Task] = None
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Org-context helpers (same pattern as sweep_status_service.py)
-# ---------------------------------------------------------------------------
-
-
-def _set_org_context(org_id: Optional[str]) -> None:
-    if lab_set_org_id is not None:
-        lab_set_org_id(org_id)
-
-
-def _clear_org_context() -> None:
-    _set_org_context(None)
 
 
 async def _list_all_org_ids() -> List[str]:
@@ -445,7 +430,9 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
 
     for org_id in org_ids:
         try:
-            _set_org_context(org_id)
+            from transformerlab.services.storage_provider_service import set_org_context_with_storage
+
+            await set_org_context_with_storage(org_id)
             cycle_stats["orgs"] += 1
             experiment_ids = await _list_experiment_ids_for_current_org()
             cycle_stats["experiments"] += len(experiment_ids)
@@ -550,7 +537,9 @@ async def refresh_launching_remote_jobs_once() -> Dict[str, int]:
                         cycle_stats["errors"] += 1
 
         finally:
-            _clear_org_context()
+            from transformerlab.services.storage_provider_service import set_org_context_with_storage
+
+            await set_org_context_with_storage(None)
 
     return cycle_stats
 
@@ -587,7 +576,9 @@ async def _remote_job_status_worker_loop() -> None:
         logger.info("Remote job status worker: stopping")
         raise
     finally:
-        _clear_org_context()
+        from transformerlab.services.storage_provider_service import set_org_context_with_storage
+
+        await set_org_context_with_storage(None)
 
 
 async def start_remote_job_status_worker() -> None:

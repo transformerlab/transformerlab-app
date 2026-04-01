@@ -64,6 +64,15 @@ def get_organization_id() -> str | None:
     return _current_org_id.get()
 
 
+def set_tfl_storage_uri(uri: str | None) -> None:
+    """Override the storage URI context var directly.
+
+    Call this after set_organization_id() to override the env-var-derived
+    storage URI with a team-configured one (e.g., from DB storage provider record).
+    """
+    _current_tfl_storage_uri.set(uri)
+
+
 def require_organization_id() -> str:
     """Return the current organization id, or raise if not set.
 
