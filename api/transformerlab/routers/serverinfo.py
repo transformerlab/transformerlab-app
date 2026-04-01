@@ -132,6 +132,19 @@ async def get_version():
     return await get_version_info()
 
 
+@router.get("/workspace_storage_check")
+async def workspace_storage_check():
+    """
+    Report resolved workspace paths for the current team and verify storage read/write.
+
+    Uses X-Team-Id (or API key team binding) for org-scoped roots. Does not return secrets;
+    `credential_hints` only indicates whether common env vars are set.
+    """
+    from transformerlab.services.workspace_storage_diagnostics_service import get_workspace_storage_diagnostics
+
+    return await get_workspace_storage_diagnostics()
+
+
 @router.get("/stream_log")
 async def watch_log():
     global_log_path = await get_global_log_path()

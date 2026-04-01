@@ -46,3 +46,19 @@ def test_healthz_localfs_mode(client, monkeypatch, tmp_path):
     data = response.json()
     assert data["message"] == "OK"
     assert data["mode"] == "multiuser"
+
+
+def test_workspace_storage_check(client, monkeypatch):
+    """Workspace storage diagnostics should resolve paths and pass RW probe in test env."""
+    monkeypatch.setenv("TFL_STORAGE_PROVIDER", "localfs")
+    response = client.get("/server/workspace_storage_check")
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("ok") is True
+    assert data.get("read_write_probe", {}).get("ok") is True
+    assert data.get("storage_provider") == "localfs"
+    assert data.get("credential_validation") is None
+    assert data.get("workspace_requires_cloud_credentials") is False
+    assert "workspace_dir" in data
+    assert "storage_root" in data
+    assert "credential_hints" in data
