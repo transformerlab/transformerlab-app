@@ -11,11 +11,12 @@ from lab import HOME_DIR, storage
 from lab.dirs import get_workspace_dir
 from lab.job import Job
 from transformerlab.services.job_service import job_get_cached
+from transformerlab.services.process_registry import get_registry
 
 from werkzeug.utils import secure_filename
 
 
-_TRACKIO_PROCESSES: Dict[str, Dict[str, Any]] = {}
+_TRACKIO_META: Dict[str, Dict[str, Any]] = {}
 
 
 async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: str | None) -> Dict[str, str]:
@@ -69,7 +70,7 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
         )
 
     # If there's already a Trackio process for this job, just return its URL
-    existing = _TRACKIO_PROCESSES.get(job_id)
+    existing = _TRACKIO_META.get(safe_job_id)
     if existing and isinstance(existing.get("url"), str):
         return {"url": existing["url"]}
 
@@ -224,9 +225,9 @@ async def start_trackio_for_job(job_id: str, org_id: str | None, experiment_id: 
             detail=f"Failed to start Trackio dashboard: {e}",
         ) from e
 
-    # Use sanitized job identifier as the key for tracking subprocess state.
-    safe_job_id = secure_filename(job_id) or job_id
-    _TRACKIO_PROCESSES[safe_job_id] = result
+    _reg_key = f"trackio:{safe_org_id}:{safe_experiment_id}:{safe_job_id}"
+    get_registry().register(_reg_key, result["proc"], workspace_dir=None)
+    _TRACKIO_META[safe_job_id] = {"url": result["url"], "cache_dir": result["cache_dir"], "reg_key": _reg_key}
     return {"url": result["url"]}
 
 
@@ -235,22 +236,16 @@ async def stop_trackio_for_job(job_id: str) -> None:
     Stop a Trackio dashboard subprocess for the given job, if one is running.
     """
     safe_job_id = secure_filename(job_id) or job_id
-    info = _TRACKIO_PROCESSES.pop(safe_job_id, None)
+    info = _TRACKIO_META.pop(safe_job_id, None)
     if not info:
         return
 
-    proc = info.get("proc")
+    reg_key = info.get("reg_key")
     cache_dir = info.get("cache_dir")
 
-    if isinstance(proc, subprocess.Popen):
-        try:
-            proc.terminate()
-        except Exception:
-            # Best-effort; ignore termination errors
-            pass
-    # Best-effort cleanup of the local cache directory for this job.
-    # This cache is always on the local filesystem (under HOME_DIR), so we use
-    # shutil.rmtree directly rather than going through the storage backend.
+    if reg_key:
+        get_registry().kill(reg_key)
+
     if isinstance(cache_dir, str) and cache_dir:
         try:
             if os.path.exists(cache_dir):

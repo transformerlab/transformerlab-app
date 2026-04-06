@@ -27,6 +27,7 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
   // OAuth Availability State
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
   const [githubOAuthEnabled, setGithubOAuthEnabled] = useState(false);
+  const [emailMethod, setEmailMethod] = useState('dev');
 
   useEffect(() => {
     const checkOAuthStatus = async () => {
@@ -51,6 +52,16 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
         }
       } catch (err) {
         console.warn('Failed to check GitHub OAuth status:', err);
+      }
+
+      try {
+        const response = await fetch(`${apiUrl}healthz`);
+        if (response.ok) {
+          const data = await response.json();
+          setEmailMethod(data.metadata?.email_method ?? 'smtp');
+        }
+      } catch (err) {
+        console.warn('Failed to check email method:', err);
       }
     };
 
@@ -117,7 +128,9 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
           Confirmation Sent!
         </Typography>
         <Typography level="body-md">
-          Please check your email to validate your account before logging in.
+          {emailMethod === 'dev'
+            ? 'Your verification link has been printed to the server logs. Please check the terminal where you started the server.'
+            : 'Please check your email to validate your account before logging in.'}
         </Typography>
         <Button
           onClick={onClose}

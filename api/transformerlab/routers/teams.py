@@ -13,6 +13,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
+import asyncio
 from os import getenv
 from PIL import Image
 import io
@@ -103,7 +104,7 @@ async def create_team(
     remote_storage_enabled = getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
     if remote_storage_enabled or (getenv("TFL_STORAGE_PROVIDER") == "localfs" and getenv("TFL_STORAGE_URI")):
         try:
-            create_bucket_for_team(team.id, profile_name="transformerlab-s3")
+            await asyncio.to_thread(create_bucket_for_team, team.id, "transformerlab-s3")
         except Exception as e:
             # Log error but don't fail team creation if storage creation fails
             print(f"Warning: Failed to create storage for team {team.id}: {e}")

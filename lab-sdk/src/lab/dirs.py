@@ -268,6 +268,17 @@ def get_galleries_cache_dir() -> str:
     return path
 
 
+def get_trackio_dir(job_id: str | int) -> str:
+    """
+    Return the isolated local Trackio directory for a specific job.
+
+    Layout:
+        /tmp/trackio/{job_id}/
+    """
+    job_id_safe = secure_filename(str(job_id))
+    return os.path.join("/tmp", "trackio", job_id_safe)
+
+
 async def get_job_dir(job_id: str | int, experiment_id: str) -> str:
     """
     Return the filesystem directory for a specific job inside an experiment.

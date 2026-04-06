@@ -139,6 +139,26 @@ install_local_provider_dependencies() {
   rm -rf "${TMP_PROJECT_DIR}"
 }
 
+install_sandbox_tool() {
+  # On Linux, install bubblewrap (bwrap) into the conda env so the local provider
+  # can use it for filesystem namespace sandboxing.  This is a best-effort step:
+  # if it fails (e.g. unsupported platform or network issue) we just warn and
+  # continue — the sandbox code in sandbox.py falls back to no-op when bwrap is
+  # not found.
+  #
+  # On macOS the kernel-level Seatbelt sandbox is used instead (via libSystem.dylib
+  # ctypes), which requires no installation at all.
+  if [ "$(uname -s)" = "Linux" ]; then
+    echo "Installing bubblewrap (bwrap) for process sandboxing..."
+    if "${CONDA_BIN}" install -y --prefix "${ENV_DIR}" -c conda-forge bubblewrap 2>/dev/null; then
+      echo "✅ bubblewrap installed."
+    else
+      echo "⚠️  Could not install bubblewrap via conda-forge. Sandbox will fall back to HOME-override isolation."
+    fi
+  fi
+}
+
 install_conda_if_needed
 create_conda_env_if_needed
 install_local_provider_dependencies
+install_sandbox_tool

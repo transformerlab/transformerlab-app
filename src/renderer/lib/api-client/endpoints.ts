@@ -115,40 +115,40 @@ Endpoints.Task = {
 };
 
 Endpoints.ComputeProvider = {
-  List: () => `${API_URL()}compute_provider/`,
+  List: () => `${API_URL()}compute_provider/providers/`,
   LaunchTemplate: (providerId: string) =>
-    `${API_URL()}compute_provider/${providerId}/task/launch`,
+    `${API_URL()}compute_provider/providers/${providerId}/launch/`,
   LaunchTask: (providerId: string) =>
-    `${API_URL()}compute_provider/${providerId}/task/launch`, // Deprecated: use LaunchTemplate
+    `${API_URL()}compute_provider/providers/${providerId}/launch/`, // Deprecated: use LaunchTemplate
   CheckJobStatus: (jobId: string, experimentId: string) => {
     const baseUrl = `${API_URL()}compute_provider/jobs/${jobId}/check-status`;
     return `${baseUrl}?experiment_id=${encodeURIComponent(String(experimentId))}`;
   },
   CheckSweepStatus: (experimentId?: string, jobId?: string) => {
     if (experimentId) {
-      return `${API_URL()}compute_provider/jobs/sweep-status?experiment_id=${experimentId}`;
+      return `${API_URL()}compute_provider/sweep/?experiment_id=${experimentId}`;
     }
     if (jobId) {
-      return `${API_URL()}compute_provider/jobs/${jobId}/sweep-status`;
+      return `${API_URL()}compute_provider/sweep/${jobId}/status`;
     }
     throw new Error('Either experimentId or jobId must be provided');
   },
   GetSweepResults: (jobId: string) =>
-    `${API_URL()}compute_provider/jobs/${jobId}/sweep-results`,
+    `${API_URL()}compute_provider/sweep/${jobId}/results`,
   StopCluster: (providerId: string, clusterName: string) =>
-    `${API_URL()}compute_provider/${providerId}/clusters/${clusterName}/stop`,
+    `${API_URL()}compute_provider/providers/${providerId}/clusters/${clusterName}/stop`,
   UploadTemplateFile: (providerId: string, taskId: string | number) =>
-    `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`,
+    `${API_URL()}compute_provider/providers/${providerId}/launch/${taskId}/file-upload`,
   UploadTaskFile: (providerId: string, taskId: string | number) =>
-    `${API_URL()}compute_provider/${providerId}/task/${taskId}/file-upload`, // Deprecated: use UploadTemplateFile
+    `${API_URL()}compute_provider/providers/${providerId}/launch/${taskId}/file-upload`, // Deprecated: use UploadTemplateFile
   Check: (providerId: string) =>
-    `${API_URL()}compute_provider/${providerId}/check`,
+    `${API_URL()}compute_provider/providers/${providerId}/check`,
   Setup: (providerId: string) =>
-    `${API_URL()}compute_provider/${providerId}/setup`,
+    `${API_URL()}compute_provider/providers/${providerId}/setup/`,
   SetupStatus: (providerId: string) =>
-    `${API_URL()}compute_provider/${providerId}/setup/status`,
+    `${API_URL()}compute_provider/providers/${providerId}/setup/status`,
   DetectLocalAccelerators: () =>
-    `${API_URL()}compute_provider/detect-accelerators`,
+    `${API_URL()}compute_provider/providers/detect-accelerators`,
   EnsureQuotaRecorded: (experimentId?: string, jobId?: string) => {
     if (jobId) {
       return `${API_URL()}compute_provider/jobs/ensure-quota-recorded?job_id=${jobId}`;
@@ -257,10 +257,6 @@ Endpoints.Documents = {
     }&folder=${folder}`,
   CreateFolder: (experimentId: string, folderName: string) =>
     `${API_URL()}experiment/${experimentId}/documents/create_folder?name=${
-      folderName
-    }`,
-  UploadLinks: (experimentId: string, folderName: string) =>
-    `${API_URL()}experiment/${experimentId}/documents/upload_links?folder=${
       folderName
     }`,
 };
@@ -479,6 +475,8 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/update/${jobId}?status=${status}`,
   GetEvalImages: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
+  UpdateJobData: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/job_data`,
 };
 
 Endpoints.Quota = {

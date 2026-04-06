@@ -25,6 +25,7 @@ import EditInteractiveTaskModal from '../Tasks/EditInteractiveTaskModal';
 import DeleteTaskConfirmModal from '../Tasks/DeleteTaskConfirmModal';
 import InteractiveJobCard from './InteractiveJobCard';
 import JobsList from '../Tasks/JobsList';
+import FileBrowserModal from '../Tasks/FileBrowserModal';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -67,6 +68,9 @@ export default function Interactive() {
   const [launchProgressByJobId, setLaunchProgressByJobId] = useState<
     Record<string, { phase?: string; percent?: number; message?: string }>
   >({});
+  const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState<
+    string | null
+  >(null);
 
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
@@ -1185,6 +1189,12 @@ export default function Interactive() {
         <JobsList
           jobs={historyJobs}
           loading={jobsIsLoading || !experimentInfo?.id}
+          onDeleteJob={handleDeleteJob}
+          hideOutputButton
+          onViewFileBrowser={(jobId) => {
+            if (jobId == null || jobId === '') return;
+            setViewFileBrowserFromJob(String(jobId));
+          }}
         />
         {/* TODO: remove TaskTemplateList once migration is complete
         <TaskTemplateList
@@ -1204,6 +1214,12 @@ export default function Interactive() {
         taskId={taskToDelete?.id ?? null}
         taskName={taskToDelete?.name ?? null}
         onConfirm={handleConfirmDeleteTask}
+      />
+      <FileBrowserModal
+        mode="job"
+        open={viewFileBrowserFromJob !== null}
+        onClose={() => setViewFileBrowserFromJob(null)}
+        jobId={viewFileBrowserFromJob ?? ''}
       />
     </Sheet>
   );

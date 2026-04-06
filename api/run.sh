@@ -17,6 +17,10 @@ PORT="8338"
 RELOAD=false
 HTTPS=false
 
+# Always execute from the api directory so relative paths and python modules resolve consistently.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
+
 # Load environment variables from .env files
 load_env_files() {
     # Load .env files in order of priority (later files override earlier ones)
@@ -124,6 +128,10 @@ fi
 export PYTHONUNBUFFERED=1
 
 UVICORN_WORKERS=${TFL_UVICORN_WORKERS:-1}
+
+echo "▶️ Running one-time startup tasks before workers"
+python -m scripts.on_server_start || { echo "❌ Prestart failed"; exit 1; }
+
 
 echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then

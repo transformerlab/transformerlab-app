@@ -7,7 +7,7 @@ COPY package*.json ./
 
 # Use a cache mount to persist npm's cache across builds
 RUN --mount=type=cache,target=/root/.npm \
-    npm install
+  npm install
 
 # Copy source files (these change often, so they are kept lower down)
 COPY .erb ./.erb
@@ -29,9 +29,9 @@ WORKDIR /app
 
 # Install system dependencies (High stability layer)
 RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && \
-    apt-get install -y --no-install-recommends curl git build-essential && \
-    rm -rf /var/lib/apt/lists/*
+  apt-get update && \
+  apt-get install -y --no-install-recommends curl git build-essential && \
+  rm -rf /var/lib/apt/lists/*
 
 # Install uv for faster package management
 RUN pip install uv
@@ -39,7 +39,7 @@ RUN pip install uv
 # 1. Install SDK (Assuming it's a local directory dependency)
 COPY lab-sdk ./lab-sdk
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system ./lab-sdk
+  uv pip install --system ./lab-sdk
 
 # 2. Install API dependencies (Brittle layer optimization)
 # We copy ONLY the requirements definition first.
@@ -47,17 +47,17 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY api/pyproject.toml ./api/
 WORKDIR /app/api
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system ".[cpu]" uvicorn
+  uv pip install --system . uvicorn
 
 # 3. Now copy the actual API source code (Changes every build)
 COPY api ./
 
 # Generate JWT secrets and setup environment with local-mode settings
 RUN mkdir -p /root/.transformerlab && \
-    JWT_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" && \
-    REFRESH_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" && \
-    printf "TRANSFORMERLAB_JWT_SECRET=%s\nTRANSFORMERLAB_REFRESH_SECRET=%s\nTFL_STORAGE_PROVIDER=localfs\nTFL_STORAGE_URI=/root/tlab_local_workspace\n" "$JWT_SECRET" "$REFRESH_SECRET" > /root/.transformerlab/.env && \
-    cp /root/.transformerlab/.env /app/api/.env
+  JWT_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" && \
+  REFRESH_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" && \
+  printf "TRANSFORMERLAB_JWT_SECRET=%s\nTRANSFORMERLAB_REFRESH_SECRET=%s\nTFL_STORAGE_PROVIDER=localfs\nTFL_STORAGE_URI=/root/tlab_local_workspace\n" "$JWT_SECRET" "$REFRESH_SECRET" > /root/.transformerlab/.env && \
+  cp /root/.transformerlab/.env /app/api/.env
 
 # Setup webapp directory and copy built frontend from Stage 1
 RUN mkdir -p /root/.transformerlab/webapp
@@ -68,6 +68,10 @@ ENV TFL_HOME_DIR=/root/.transformerlab
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8338
+
+# Run the prestart script with .env exported so seeding uses
+# the same storage provider/URI as runtime.
+RUN set -a && . /app/api/.env && set +a && python -m scripts.on_server_start
 
 # Run the API
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8338"]

@@ -255,8 +255,12 @@ def _get_fs_and_root():
 
 
 async def root_uri() -> str:
-    _, root = _get_fs_and_root()
-    return root
+    fs, root = _get_fs_and_root()
+    try:
+        return root
+    finally:
+        # Close filesystem even if exception raised.
+        await _close_filesystem(fs)
 
 
 async def filesystem():
@@ -269,15 +273,19 @@ async def debug_info() -> dict:
     context_uri = _current_tfl_storage_uri.get()
     env_uri = os.getenv("TFL_STORAGE_URI")
     fs, root = _get_fs_and_root()
-    return {
-        "TFL_STORAGE_URI_context": context_uri,
-        "TFL_STORAGE_URI_env": env_uri,
-        "AWS_PROFILE": _AWS_PROFILE,
-        "GCP_PROJECT": _GCP_PROJECT,
-        "STORAGE_PROVIDER": STORAGE_PROVIDER,
-        "root_uri": root,
-        "filesystem_type": type(fs).__name__,
-    }
+    try:
+        return {
+            "TFL_STORAGE_URI_context": context_uri,
+            "TFL_STORAGE_URI_env": env_uri,
+            "AWS_PROFILE": _AWS_PROFILE,
+            "GCP_PROJECT": _GCP_PROJECT,
+            "STORAGE_PROVIDER": STORAGE_PROVIDER,
+            "root_uri": root,
+            "filesystem_type": type(fs).__name__,
+        }
+    finally:
+        # Close filesystem even if exception raised.
+        await _close_filesystem(fs)
 
 
 def join(*parts: str) -> str:
@@ -291,23 +299,36 @@ async def root_join(*parts: str) -> str:
 
 async def exists(path: str) -> bool:
     fs = await filesystem()
-    return await asyncio.to_thread(fs.exists, path)
+    try:
+        return await asyncio.to_thread(fs.exists, path)
+    finally:
+        # Close filesystem even if exception raised.
+        await _close_filesystem(fs)
 
 
 async def isdir(path: str, fs=None) -> bool:
+    filesys = fs
     try:
         filesys = fs if fs is not None else await filesystem()
         return await asyncio.to_thread(filesys.isdir, path)
     except Exception:
         return False
+    finally:
+        if fs is None:
+            # Close filesystem even if exception raised.
+            await _close_filesystem(filesys)
 
 
 async def isfile(path: str) -> bool:
+    fs = None
     try:
         fs = await filesystem()
         return await asyncio.to_thread(fs.isfile, path)
     except Exception:
         return False
+    finally:
+        # Close filesystem even if exception raised.
+        await _close_filesystem(fs)
 
 
 async def makedirs(path: str, exist_ok: bool = True) -> None:
@@ -318,35 +339,47 @@ async def makedirs(path: str, exist_ok: bool = True) -> None:
         # Some filesystems don't support exist_ok parameter
         if not exist_ok or not await exists(path):
             await asyncio.to_thread(fs.makedirs, path)
+    finally:
+        # Close filesystem even if exception raised.
+        await _close_filesystem(fs)
 
 
 async def ls(path: str, detail: bool = False, fs=None):
     # Use provided filesystem or get default
     filesys = fs if fs is not None else await filesystem()
-    paths = await asyncio.to_thread(filesys.ls, path, detail=detail)
-    # When we enable detail, we return the raw list of paths from the filesystem as they don't contain the current path
-    # and using filesys.ls on any of those would add the prefix correctly
-    if detail:
+    try:
+        paths = await asyncio.to_thread(filesys.ls, path, detail=detail)
+        # When we enable detail, we return the raw list of paths from the filesystem as they don't contain the current path
+        # and using filesys.ls on any of those would add the prefix correctly
+        if detail:
+            return paths
+        # Ensure paths are full URIs for remote filesystems
+        if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+            full_paths = []
+            for p in paths:
+                if not p.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+                    # Convert relative path to full URI
+                    protocol = path.split("://")[0] + "://"
+                    full_path = protocol + p
+                    full_paths.append(full_path)
+                else:
+                    full_paths.append(p)
+            full_paths = [p for p in full_paths if p != path]
+            return full_paths
         return paths
-    # Ensure paths are full URIs for remote filesystems
-    if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
-        full_paths = []
-        for p in paths:
-            if not p.startswith(("s3://", "gs://", "abfs://", "gcs://")):
-                # Convert relative path to full URI
-                protocol = path.split("://")[0] + "://"
-                full_path = protocol + p
-                full_paths.append(full_path)
-            else:
-                full_paths.append(p)
-        full_paths = [p for p in full_paths if p != path]
-        return full_paths
-    return paths
+    finally:
+        if fs is None:
+            # Close filesystem even if exception raised.
+            await _close_filesystem(filesys)
 
 
 async def find(path: str) -> list[str]:
     fs = await filesystem()
-    return await asyncio.to_thread(fs.find, path)
+    try:
+        return await asyncio.to_thread(fs.find, path)
+    finally:
+        # Close filesystem even if exception raised.
+        await _close_filesystem(fs)
 
 
 async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
@@ -363,15 +396,25 @@ async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
         List of (root, dirs, files) tuples similar to os.walk()
     """
     fs = await filesystem()
-    # Materialise the generator in a thread so the blocking filesystem
-    # traversal never stalls the event loop.
-    return await asyncio.to_thread(lambda: list(fs.walk(path, maxdepth=maxdepth, topdown=topdown, on_error=on_error)))
+    try:
+        # Materialise the generator in a thread so the blocking filesystem
+        # traversal never stalls the event loop.
+        return await asyncio.to_thread(
+            lambda: list(fs.walk(path, maxdepth=maxdepth, topdown=topdown, on_error=on_error))
+        )
+    finally:
+        # Close filesystem even if exception raised.
+        await _close_filesystem(fs)
 
 
 async def rm(path: str) -> None:
     if await exists(path):
         fs = await filesystem()
-        await asyncio.to_thread(fs.rm, path)
+        try:
+            await asyncio.to_thread(fs.rm, path)
+        finally:
+            # Close filesystem even if exception raised.
+            await _close_filesystem(fs)
 
 
 async def rm_tree(path: str) -> None:
@@ -385,6 +428,9 @@ async def rm_tree(path: str) -> None:
             files = await find(path)
             for file_path in reversed(files):  # Remove files before directories
                 await asyncio.to_thread(fs.rm, file_path)
+        finally:
+            # Close filesystem even if exception raised.
+            await _close_filesystem(fs)
 
 
 async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kwargs):
@@ -536,6 +582,20 @@ def _get_fs_for_path(path: str):
     return fs, path
 
 
+async def _close_filesystem(fs) -> None:
+    """Best-effort close to release any underlying HTTP/session resources promptly."""
+    if fs is None:
+        return
+    close_fn = getattr(fs, "close", None)
+    if not callable(close_fn):
+        return
+    try:
+        await asyncio.to_thread(close_fn)
+    except Exception:
+        # Never fail user-facing storage operations because close failed.
+        pass
+
+
 async def copy_file(src: str, dest: str) -> None:
     """Copy a single file from src to dest across arbitrary filesystems."""
     # Run the entire streaming copy in a thread — src_fs.open() and dest_fs.open()
@@ -549,7 +609,14 @@ async def copy_file(src: str, dest: str) -> None:
                 for chunk in iter_chunks(r):
                     w.write(chunk)
 
-    await asyncio.to_thread(_do_copy)
+    try:
+        await asyncio.to_thread(_do_copy)
+    finally:
+        # Close filesystem even if exception raised.
+        await _close_filesystem(src_fs)
+        if dest_fs is not src_fs:
+            # Close filesystem even if exception raised.
+            await _close_filesystem(dest_fs)
 
 
 def iter_chunks(file_obj, chunk_size: int = 8 * 1024 * 1024):
@@ -573,28 +640,32 @@ async def copy_dir(src_dir: str, dest_dir: str) -> None:
         src_protocol = src_dir.split("://", 1)[0]
 
     try:
-        src_files = await asyncio.to_thread(src_fs.find, src_dir)
-    except Exception:
-        # If find is not available, fall back to listing via walk
-        src_files = []
-        walk_result = await asyncio.to_thread(lambda: list(src_fs.walk(src_dir)))
-        for _, _, files in walk_result:
-            for f in files:
-                src_files.append(f)
+        try:
+            src_files = await asyncio.to_thread(src_fs.find, src_dir)
+        except Exception:
+            # If find is not available, fall back to listing via walk
+            src_files = []
+            walk_result = await asyncio.to_thread(lambda: list(src_fs.walk(src_dir)))
+            for _, _, files in walk_result:
+                for f in files:
+                    src_files.append(f)
 
-    for raw_src_file in src_files:
-        # For remote filesystems, ensure we have a full URI (e.g., s3://bucket/...)
-        src_file = raw_src_file
-        if src_protocol is not None and not is_remote_path(raw_src_file):
-            src_file = f"{src_protocol}://{raw_src_file.lstrip('/')}"
+        for raw_src_file in src_files:
+            # For remote filesystems, ensure we have a full URI (e.g., s3://bucket/...)
+            src_file = raw_src_file
+            if src_protocol is not None and not is_remote_path(raw_src_file):
+                src_file = f"{src_protocol}://{raw_src_file.lstrip('/')}"
 
-        # Compute relative path with respect to the source dir using the
-        # normalized src_file URI/path.
-        rel_path = src_file[len(src_dir) :].lstrip("/")
-        dest_file = join(dest_dir, rel_path)
-        # Ensure destination directory exists
-        dest_parent = posixpath.dirname(dest_file)
-        if dest_parent:
-            await makedirs(dest_parent, exist_ok=True)
-        # Copy the file using streaming (robust across FSes)
-        await copy_file(src_file, dest_file)
+            # Compute relative path with respect to the source dir using the
+            # normalized src_file URI/path.
+            rel_path = src_file[len(src_dir) :].lstrip("/")
+            dest_file = join(dest_dir, rel_path)
+            # Ensure destination directory exists
+            dest_parent = posixpath.dirname(dest_file)
+            if dest_parent:
+                await makedirs(dest_parent, exist_ok=True)
+            # Copy the file using streaming (robust across FSes)
+            await copy_file(src_file, dest_file)
+    finally:
+        # Close filesystem even if exception raised.
+        await _close_filesystem(src_fs)

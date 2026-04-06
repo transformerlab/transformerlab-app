@@ -5,6 +5,7 @@ from sqlalchemy import select
 from fastapi_users.db import SQLAlchemyUserDatabase
 from sqlalchemy.dialects.sqlite import insert
 from fastapi import Depends
+import asyncio
 from os import getenv
 import uuid
 
@@ -115,7 +116,7 @@ async def create_personal_team(session: AsyncSession, user) -> Team:
     remote_storage_enabled = getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
     if remote_storage_enabled or (getenv("TFL_STORAGE_PROVIDER") == "localfs" and getenv("TFL_STORAGE_URI")):
         try:
-            create_bucket_for_team(team.id, profile_name="transformerlab-s3")
+            await asyncio.to_thread(create_bucket_for_team, team.id, "transformerlab-s3")
         except Exception as e:
             # Log error but don't fail team creation if storage creation fails
             print(f"Warning: Failed to create storage for team {team.id}: {e}")

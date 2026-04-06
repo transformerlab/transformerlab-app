@@ -81,7 +81,7 @@ async def run_alembic_migrations():
 
 async def init():
     """
-    Create the database, tables, and workspace folder if they don't exist.
+    Initialize the process-local DB connection and apply runtime PRAGMAs.
     """
     global db
     try:
@@ -110,10 +110,6 @@ async def init():
     await db.execute("PRAGMA journal_mode=WAL")
     await db.execute("PRAGMA synchronous=normal")
     await db.execute("PRAGMA busy_timeout = 30000")
-
-    # Run Alembic migrations to create/update tables
-    # This replaces the previous create_all() call
-    await run_alembic_migrations()
 
     # Check if workflow_runs table exists before checking/modifying columns
     cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workflow_runs'")

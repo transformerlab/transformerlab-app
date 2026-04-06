@@ -86,12 +86,12 @@ def test_server_install_dry_run_defaults(tmp_path):
     """Test a full dry-run with all defaults accepted."""
     fake_env = os.path.join(str(tmp_path), ".env")
 
-    # Flow: frontend URL -> storage type (aws) -> compute? (n) -> email? (n) -> auth? (n)
+    # Flow: frontend URL -> storage type (aws) -> compute (skip) -> email? (n) -> auth? (n)
     user_input = "\n".join(
         [
             "",  # frontend URL (accept default)
-            "1",  # storage type: aws
-            "n",  # skip compute provider
+            "2",  # storage type: aws
+            "5",  # compute: skip
             "n",  # skip email
             "n",  # skip auth
         ]
@@ -113,8 +113,8 @@ def test_server_install_writes_file(tmp_path):
     user_input = "\n".join(
         [
             "http://myserver.com:8338",  # frontend URL
-            "1",  # storage type: aws
-            "n",  # skip compute
+            "2",  # storage type: aws
+            "5",  # compute: skip
             "n",  # skip email
             "n",  # skip auth
             "n",  # skip running install script
@@ -150,8 +150,8 @@ def test_server_install_preserves_jwt_secrets(tmp_path):
     user_input = "\n".join(
         [
             "",  # frontend URL (accept existing default)
-            "1",  # storage: aws
-            "n",  # skip compute
+            "2",  # storage: aws
+            "5",  # compute: skip
             "n",  # skip email
             "n",  # skip auth
         ]
@@ -173,9 +173,9 @@ def test_server_install_storage_localfs(tmp_path):
     user_input = "\n".join(
         [
             "",  # frontend URL
-            "4",  # storage type: localfs
+            "1",  # storage type: localfs
             "/mnt/shared",  # storage path
-            "n",  # skip compute
+            "5",  # compute: skip
             "n",  # skip email
             "n",  # skip auth
         ]
@@ -197,8 +197,8 @@ def test_server_install_email_configured(tmp_path):
     user_input = "\n".join(
         [
             "",  # frontend URL
-            "1",  # storage: aws
-            "n",  # skip compute
+            "2",  # storage: aws
+            "5",  # compute: skip
             "y",  # configure email
             "smtp.gmail.com",  # smtp server
             "587",  # port
@@ -224,8 +224,8 @@ def test_server_install_email_skip(tmp_path):
     user_input = "\n".join(
         [
             "",  # frontend URL
-            "1",  # storage: aws
-            "n",  # skip compute
+            "2",  # storage: aws
+            "5",  # compute: skip
             "n",  # skip email
             "n",  # skip auth
         ]
@@ -245,8 +245,8 @@ def test_server_install_admin_info_displayed(tmp_path):
     user_input = "\n".join(
         [
             "",  # frontend URL
-            "1",  # storage: aws
-            "n",  # skip compute
+            "2",  # storage: aws
+            "5",  # compute: skip
             "n",  # skip email
             "n",  # skip auth
         ]
@@ -259,3 +259,125 @@ def test_server_install_admin_info_displayed(tmp_path):
     assert "admin@example.com" in result.output
     assert "admin123" in result.output
     assert "Change the default password" in result.output
+
+
+# ---------------------------------------------------------------------------
+# --config (non-interactive) tests
+# ---------------------------------------------------------------------------
+
+
+def test_server_install_config_dry_run(tmp_path):
+    """Test --config with --dry-run reads config and shows output without writing."""
+    config_file = os.path.join(str(tmp_path), "my-config.env")
+    target_env = os.path.join(str(tmp_path), "target.env")
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write(
+            'FRONTEND_URL="http://myhost.com:8338"\n'
+            'TL_API_URL="http://myhost.com:8338/"\n'
+            'TFL_STORAGE_PROVIDER="aws"\n'
+            'TFL_REMOTE_STORAGE_ENABLED="true"\n'
+            'MULTIUSER="true"\n'
+        )
+
+    with patch("transformerlab_cli.commands.server.ENV_FILE", target_env):
+        result = runner.invoke(app, ["server", "install", "--config", config_file, "--dry-run"])
+
+    assert result.exit_code == 0
+    assert "from config" in result.output
+    assert "Loaded configuration from" in result.output
+    assert 'FRONTEND_URL="http://myhost.com:8338"' in result.output
+    assert "JWT secrets: generated new" in result.output
+    assert "Dry run complete" in result.output
+    assert not os.path.exists(target_env)
+
+
+def test_server_install_config_writes_to_env_file(tmp_path):
+    """Test --config writes the config to ~/.transformerlab/.env and runs install."""
+    config_file = os.path.join(str(tmp_path), "my-config.env")
+    target_env = os.path.join(str(tmp_path), "target.env")
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write(
+            'FRONTEND_URL="http://myhost.com:8338"\n'
+            'TFL_STORAGE_PROVIDER="localfs"\n'
+            'TFL_STORAGE_URI="/data/transformerlab"\n'
+        )
+
+    with (
+        patch("transformerlab_cli.commands.server.ENV_FILE", target_env),
+        patch("transformerlab_cli.commands.server._run_install_script", return_value=0),
+    ):
+        result = runner.invoke(app, ["server", "install", "--config", config_file])
+
+    assert result.exit_code == 0
+    assert os.path.exists(target_env)
+
+    with open(target_env, "r", encoding="utf-8") as f:
+        content = f.read()
+    assert 'FRONTEND_URL="http://myhost.com:8338"' in content
+    assert 'TFL_STORAGE_PROVIDER="localfs"' in content
+    assert "TRANSFORMERLAB_JWT_SECRET=" in content
+    assert "TRANSFORMERLAB_REFRESH_SECRET=" in content
+    assert 'MULTIUSER="true"' in content
+
+
+def test_server_install_config_preserves_jwt_secrets(tmp_path):
+    """Test --config preserves JWT secrets when they exist in the config file."""
+    config_file = os.path.join(str(tmp_path), "my-config.env")
+    target_env = os.path.join(str(tmp_path), "target.env")
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write(
+            'FRONTEND_URL="http://myhost.com:8338"\n'
+            'TFL_STORAGE_PROVIDER="aws"\n'
+            'TRANSFORMERLAB_JWT_SECRET="my_existing_jwt"\n'
+            'TRANSFORMERLAB_REFRESH_SECRET="my_existing_refresh"\n'
+        )
+
+    with patch("transformerlab_cli.commands.server.ENV_FILE", target_env):
+        result = runner.invoke(app, ["server", "install", "--config", config_file, "--dry-run"])
+
+    assert result.exit_code == 0
+    assert "my_existing_jwt" in result.output
+    assert "my_existing_refresh" in result.output
+    assert "found in config" in result.output
+
+
+def test_server_install_config_missing_file():
+    """Test --config with a nonexistent file exits with error."""
+    result = runner.invoke(app, ["server", "install", "--config", "/nonexistent/path.env"])
+
+    assert result.exit_code == 1
+    assert "Config file not found" in result.output
+
+
+def test_server_install_config_empty_file(tmp_path):
+    """Test --config with an empty file exits with error."""
+    config_file = os.path.join(str(tmp_path), "empty.env")
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write("# only comments\n\n")
+
+    result = runner.invoke(app, ["server", "install", "--config", config_file])
+
+    assert result.exit_code == 1
+    assert "empty or has no valid" in result.output
+
+
+def test_server_install_config_shows_validation_warnings(tmp_path):
+    """Test --config shows validation warnings but does not block."""
+    config_file = os.path.join(str(tmp_path), "warn-config.env")
+    target_env = os.path.join(str(tmp_path), "target.env")
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write('FRONTEND_URL="http://myhost.com:8338"\nTFL_STORAGE_PROVIDER="azure"\n')
+
+    with patch("transformerlab_cli.commands.server.ENV_FILE", target_env):
+        result = runner.invoke(app, ["server", "install", "--config", config_file, "--dry-run"])
+
+    assert result.exit_code == 0
+    assert "Configuration warnings" in result.output
+    assert "Azure" in result.output
+
+
+def test_server_install_help_shows_config_option():
+    """Test that --config appears in help output."""
+    result = runner.invoke(app, ["server", "install", "--help"])
+    assert result.exit_code == 0
+    assert "--config" in strip_ansi(result.output)

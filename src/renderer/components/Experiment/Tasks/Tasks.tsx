@@ -1,9 +1,16 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
-import { Button, LinearProgress, Skeleton, Stack, Typography } from '@mui/joy';
+import {
+  Button,
+  IconButton,
+  LinearProgress,
+  Skeleton,
+  Stack,
+  Typography,
+} from '@mui/joy';
 
-import { PlusIcon, TerminalIcon } from 'lucide-react';
+import { PlusIcon, TerminalIcon, BookmarkIcon } from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -34,7 +41,7 @@ import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
 import TrackioModal from './TrackioModal';
-import { isTerminalJobStatus } from 'renderer/lib/utils';
+import { isDeletableJobRecordStatus } from 'renderer/lib/utils';
 
 const duration = require('dayjs/plugin/duration');
 const dayjs = require('dayjs');
@@ -90,6 +97,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [compareEvalJobIds, setCompareEvalJobIds] = useState<string[]>([]);
   const [isCompareSelectMode, setIsCompareSelectMode] = useState(false);
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [viewFileBrowserFromJob, setViewFileBrowserFromJob] = useState<
     string | null
   >(null);
@@ -450,6 +459,21 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     return combined;
   }, [getPendingJobIds, isInteractiveJob, jobs, pendingIdsTrigger, subtype]);
 
+  const filteredJobsForDisplay = useMemo(() => {
+    let result = jobsWithPlaceholders;
+    if (showFavoritesOnly) {
+      result = result.filter((j: any) => j?.job_data?.favorite);
+    }
+    if (!showHidden) {
+      result = result.filter((j: any) => !j?.job_data?.hidden);
+    }
+    return result;
+  }, [jobsWithPlaceholders, showFavoritesOnly, showHidden]);
+
+  const hiddenJobCount = useMemo(() => {
+    return jobsWithPlaceholders.filter((j: any) => j?.job_data?.hidden).length;
+  }, [jobsWithPlaceholders]);
+
   const handleDeleteTask = (taskId: string, taskName?: string) => {
     setTaskToDelete({ id: taskId, name: taskName });
   };
@@ -491,11 +515,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     if (!experimentInfo?.id) return;
 
     const target = jobs.find((j) => String(j.id) === String(jobId));
-    if (!target || !isTerminalJobStatus(target.status)) {
+    if (!target || !isDeletableJobRecordStatus(target.status)) {
       addNotification({
         type: 'warning',
         message:
-          'You can only delete jobs that have finished (complete, stopped, failed, or cancelled). Stop the job first if it is still running.',
+          'You can only delete jobs that have not started yet or have finished (complete, stopped, failed, or cancelled). Stop the job first if it is still running.',
       });
       return;
     }
@@ -532,6 +556,69 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         type: 'danger',
         message: 'Failed to delete job. Please try again.',
       });
+    }
+  };
+
+  const updateJobDataOptimistic = (
+    jobId: string,
+    field: string,
+    value: any,
+  ) => {
+    // Optimistically update local SWR data so the UI reflects the change instantly
+    jobsMutate(
+      (currentData: any) => {
+        if (!Array.isArray(currentData)) return currentData;
+        return currentData.map((job: any) => {
+          if (String(job.id) !== String(jobId)) return job;
+          const jobData =
+            typeof job.job_data === 'string'
+              ? JSON.parse(job.job_data)
+              : { ...job.job_data };
+          jobData[field] = value;
+          return { ...job, job_data: jobData };
+        });
+      },
+      { revalidate: false },
+    );
+  };
+
+  const handleToggleFavorite = async (jobId: string, currentValue: boolean) => {
+    if (!experimentInfo?.id) return;
+    const newValue = !currentValue;
+    updateJobDataOptimistic(jobId, 'favorite', newValue);
+    try {
+      await fetchWithAuth(
+        chatAPI.Endpoints.Jobs.UpdateJobData(experimentInfo.id, jobId),
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updates: { favorite: newValue } }),
+        },
+      );
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      // Revert on failure
+      updateJobDataOptimistic(jobId, 'favorite', currentValue);
+    }
+  };
+
+  const handleToggleHidden = async (jobId: string, currentValue: boolean) => {
+    if (!experimentInfo?.id) return;
+    const newValue = !currentValue;
+    updateJobDataOptimistic(jobId, 'hidden', newValue);
+    try {
+      await fetchWithAuth(
+        chatAPI.Endpoints.Jobs.UpdateJobData(experimentInfo.id, jobId),
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updates: { hidden: newValue } }),
+        },
+      );
+    } catch (error) {
+      console.error('Error toggling hidden:', error);
+      // Revert on failure
+      updateJobDataOptimistic(jobId, 'hidden', currentValue);
     }
   };
 
@@ -1268,11 +1355,32 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               Compare selected evals
             </Button>
           )}
+          <IconButton
+            size="sm"
+            variant={showFavoritesOnly ? 'solid' : 'outlined'}
+            color={showFavoritesOnly ? 'warning' : 'neutral'}
+            onClick={() => setShowFavoritesOnly((prev) => !prev)}
+            title={showFavoritesOnly ? 'Show all jobs' : 'Show favorites only'}
+          >
+            <BookmarkIcon
+              size={16}
+              fill={showFavoritesOnly ? 'currentColor' : 'none'}
+            />
+          </IconButton>
+          {hiddenJobCount > 0 && (
+            <Button
+              size="sm"
+              variant={showHidden ? 'solid' : 'outlined'}
+              onClick={() => setShowHidden((prev) => !prev)}
+            >
+              {showHidden ? 'Hide hidden' : `Show hidden (${hiddenJobCount})`}
+            </Button>
+          )}
         </Stack>
       </Stack>
       <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
         <JobsList
-          jobs={jobsWithPlaceholders as any}
+          jobs={filteredJobsForDisplay as any}
           launchProgressByJobId={launchProgressByJobId}
           onDeleteJob={handleDeleteJob}
           onViewOutput={(jobId) => {
@@ -1341,6 +1449,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               return [prev[1], id];
             });
           }}
+          onToggleFavorite={handleToggleFavorite}
+          onToggleHidden={handleToggleHidden}
         />
       </Sheet>
       <ViewSweepResultsModal

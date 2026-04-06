@@ -1,6 +1,5 @@
 """Local compute provider: runs tasks in a uv venv synced with the base environment."""
 
-import contextlib
 import json
 import os
 import re
@@ -15,6 +14,7 @@ import shutil
 from typing import Any, Dict, List, Optional, Union, Callable
 
 from lab.dirs import HOME_DIR, get_local_provider_config_path, get_local_provider_root
+from transformerlab.services.process_registry import _terminate_process_tree, get_registry
 
 from .base import ComputeProvider
 from .models import (
@@ -26,6 +26,7 @@ from .models import (
     ClusterState,
     JobState,
 )
+from .sandbox import make_seatbelt_preexec, wrap_command_with_bwrap, get_backend_name
 
 
 def _read_local_provider_config() -> Optional[Dict[str, Any]]:
@@ -204,48 +205,6 @@ def _run_local_provider_conda_install(source_code_dir: str) -> None:
         log_file.flush()
     if result.returncode != 0:
         raise RuntimeError(f"local_provider_conda_install.sh failed with exit code {result.returncode}")
-
-
-def _terminate_process_tree(pid: int, sig: int = signal.SIGTERM) -> None:
-    """
-    Best-effort termination of a process and all of its descendants.
-
-    Uses psutil when available to walk the full process tree and then force-kill
-    any survivors; otherwise falls back to killing the process group (if possible)
-    and then the single pid.
-    """
-    try:
-        import psutil  # type: ignore[import-not-found]
-    except Exception:
-        psutil = None  # type: ignore[assignment]
-
-    if psutil is not None:
-        try:
-            parent = psutil.Process(pid)
-        except psutil.NoSuchProcess:
-            parent = None
-
-        if parent is not None:
-            procs = [parent] + parent.children(recursive=True)
-
-            # First try graceful termination
-            for proc in procs:
-                with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error):
-                    proc.send_signal(sig)
-
-            # Give processes a short window to exit, then force kill survivors
-            gone, alive = psutil.wait_procs(procs, timeout=3)  # type: ignore[assignment]
-            for proc in alive:
-                with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error):
-                    proc.kill()
-            return
-
-    # Fallback path when psutil is unavailable or parent no longer exists
-    try:
-        pgid = os.getpgid(pid)
-        os.killpg(pgid, sig)
-    except Exception:
-        os.kill(pid, sig)
 
 
 def _is_process_zombie(pid: int) -> bool:
@@ -489,6 +448,52 @@ class LocalProvider(ComputeProvider):
         env.setdefault("HF_HOME", os.path.join(real_home, ".cache", "huggingface"))
         env.setdefault("XDG_CACHE_HOME", os.path.join(real_home, ".cache"))
 
+        # Build sandbox helpers for this job.
+        # extra_read_paths: shared caches that need to be visible inside the sandbox.
+        _lab_sdk_dir = _resolve_lab_sdk_dir(localprovider_pyproject)
+        _source_code_dir = os.environ.get("_TFL_SOURCE_CODE_DIR", "")
+        _sandbox_read_paths = [
+            env.get("HF_HOME", ""),
+            env.get("XDG_CACHE_HOME", ""),
+            env["UV_CACHE_DIR"],
+            _CONDA_ENV_DIR,
+            venv_path,
+            # uv manages its own Python installations here; the dylib must be readable.
+            os.path.join(real_home, ".local", "share", "uv"),
+            # lab-sdk is installed as an editable install; the .pth file points back to
+            # this source tree, so the sandbox must be able to read it at import time.
+            _lab_sdk_dir or "",
+            _source_code_dir,
+        ]
+        _sandbox_backend = get_backend_name()
+        if _sandbox_backend != "none":
+            print(f"[LocalProvider] Sandbox backend: {_sandbox_backend} (job_dir={job_dir})")
+        else:
+            print("[LocalProvider] Sandbox backend: none (falling back to HOME-override isolation)")
+
+        # The lab SDK writes job/experiment data under ~/.transformerlab (org workspace).
+        # This path must be writable in both sandbox backends.
+        _sandbox_rw_paths = [job_dir, env["UV_CACHE_DIR"], _TLAB_DIR]
+
+        # macOS: preexec_fn applies Seatbelt policy inside the child before exec.
+        # job_dir is the subprocess CWD (getcwd must succeed there), so grant rw access.
+        # UV_CACHE_DIR needs rw (uv pip install writes to it) even though it's also in
+        # _sandbox_read_paths (which is used for bwrap ro-bind on Linux).
+        _sandbox_preexec = make_seatbelt_preexec(
+            workspace_home,
+            _sandbox_read_paths,
+            extra_rw_paths=_sandbox_rw_paths,
+        )
+
+        def _wrap(base_cmd: list[str]) -> list[str]:
+            """Wrap command with bwrap on Linux; on macOS preexec_fn handles it."""
+            return wrap_command_with_bwrap(
+                base_cmd,
+                workspace_dir=workspace_home,
+                extra_read_paths=_sandbox_read_paths,
+                extra_rw_paths=_sandbox_rw_paths,
+            )
+
         # Open log files early so setup output is visible to get_job_logs / tunnel_info
         # while packages are still being installed.
         stdout_log = open(os.path.join(job_dir, "stdout.log"), "w")
@@ -498,14 +503,18 @@ class LocalProvider(ComputeProvider):
                 _status("Running setup")
                 print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
                 strict_setup_script = f"set -e -o pipefail; {config.setup}"
+                setup_cmd = _wrap(["/bin/bash", "-c", strict_setup_script])
+                if setup_cmd[0] != "/bin/bash":
+                    print(f"[LocalProvider] Setup sandboxed via {_sandbox_backend}: {setup_cmd[0]}")
                 setup_result = subprocess.run(
-                    ["/bin/bash", "-c", strict_setup_script],
+                    setup_cmd,
                     cwd=job_dir,
                     env=env,
                     stdout=stdout_log,
                     stderr=stderr_log,
                     text=True,
                     timeout=600,
+                    preexec_fn=_sandbox_preexec,
                 )
 
                 # Flush so tunnel_info can see the output immediately
@@ -526,13 +535,17 @@ class LocalProvider(ComputeProvider):
             # Start main run command in background (detached subprocess)
             _status("Starting service")
             print(f"[LocalProvider] Launching run in {job_dir}: {config.run!r}")
+            run_cmd = _wrap(["/bin/bash", "-c", config.run or "true"])
+            if run_cmd[0] != "/bin/bash":
+                print(f"[LocalProvider] Run sandboxed via {_sandbox_backend}: {run_cmd[0]}")
             proc = subprocess.Popen(
-                ["/bin/bash", "-c", config.run or "true"],
+                run_cmd,
                 cwd=str(job_dir),
                 env=env,
                 stdout=stdout_log,
                 stderr=stderr_log,
                 start_new_session=True,
+                preexec_fn=_sandbox_preexec,
             )
         finally:
             # Close parent-side file descriptors after setup/launch. The child
@@ -544,6 +557,14 @@ class LocalProvider(ComputeProvider):
         with open(os.path.join(job_dir, "pid"), "w") as f:
             f.write(str(pid))
         print(f"[LocalProvider] Process started with pid={pid}, logs at {job_dir}/stdout.log")
+        _org_id = (config.provider_config or {}).get("org_id", "")
+        _exp_id = (config.provider_config or {}).get("experiment_id", "")
+        _job_id = (config.provider_config or {}).get("job_id", "")
+        if _org_id and _exp_id and _job_id:
+            _reg_key = f"local:{_org_id}:{_exp_id}:{_job_id}"
+            get_registry().register(_reg_key, proc, workspace_dir=job_dir)
+        else:
+            get_registry().register(f"local:{job_dir}", proc, workspace_dir=job_dir)
 
         return {
             "cluster_name": cluster_name,
@@ -572,6 +593,7 @@ class LocalProvider(ComputeProvider):
         try:
             with open(pid_file, "r", encoding="utf-8") as f:
                 pid = int(f.read().strip())
+            get_registry().kill_by_workspace(job_dir)
             _terminate_process_tree(pid, signal.SIGTERM)
             return {"cluster_name": cluster_name, "status": "stopped", "message": "Sent SIGTERM to process tree"}
         except (ValueError, ProcessLookupError, OSError) as e:

@@ -663,7 +663,7 @@ def build_report(prs: list[dict], commits: list[dict]) -> str:
 
     for commit in commits:
         author = commit["author"]
-        dt = datetime.fromisoformat(commit["date"])
+        dt = datetime.fromisoformat(commit["date"].replace("Z", "+00:00"))
         year, week, _ = dt.isocalendar()
         key = f"{year}-W{week:02d}"
         commit_weekly[key][author] += 1

@@ -133,6 +133,25 @@ class SkyPilotProvider(ComputeProvider):
                 error_msg += "\nTry: pip install --upgrade skypilot"
             raise ImportError(error_msg)
 
+    def _prepend_distributed_env_setup(self, run_command: Optional[str], num_nodes: Optional[int]) -> Optional[str]:
+        """Prepend a portable distributed env bootstrap for multi-node jobs."""
+        if not run_command:
+            return run_command
+        if not num_nodes or num_nodes <= 1:
+            return run_command
+
+        distributed_env_setup = "; ".join(
+            [
+                'export MASTER_ADDR="${MASTER_ADDR:-$(echo "$SKYPILOT_NODE_IPS" | head -n1)}"',
+                'export MASTER_PORT="${MASTER_PORT:-29500}"',
+                'export NODE_RANK="${NODE_RANK:-${SKYPILOT_NODE_RANK:-0}}"',
+                'export RANK="${RANK:-$NODE_RANK}"',
+                'export LOCAL_RANK="${LOCAL_RANK:-0}"',
+                'export WORLD_SIZE="${WORLD_SIZE:-$(( ${SKYPILOT_NUM_NODES:-1} * ${SKYPILOT_NUM_GPUS_PER_NODE:-1} ))}"',
+            ]
+        )
+        return f"{distributed_env_setup};{run_command}"
+
     def _make_authenticated_request(
         self,
         method: str,
@@ -300,7 +319,7 @@ class SkyPilotProvider(ComputeProvider):
 
         # Set run command
         if config.run:
-            task.run = config.run
+            task.run = self._prepend_distributed_env_setup(config.run, config.num_nodes)
 
         # Set setup commands
         if config.setup:
@@ -969,7 +988,7 @@ class SkyPilotProvider(ComputeProvider):
         """Submit a job to an existing cluster."""
         # Build sky.Task object from JobConfig
         task = sky.Task()
-        task.run = job_config.run
+        task.run = self._prepend_distributed_env_setup(job_config.run, job_config.num_nodes)
 
         # Set num_nodes if specified
         if job_config.num_nodes and job_config.num_nodes > 1:

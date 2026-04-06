@@ -5,6 +5,7 @@ This module provides functions to create buckets for teams when
 TFL_REMOTE_STORAGE_ENABLED is enabled. Supports both S3 and GCS.
 """
 
+import asyncio
 import logging
 import os
 import re
@@ -524,7 +525,7 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
                 finally:
                     set_organization_id(None)
             else:
-                success = create_bucket_for_team(team.id, profile_name=profile_name)
+                success = await asyncio.to_thread(create_bucket_for_team, team.id, profile_name)
                 if success:
                     success_count += 1
                     print(f"✅ Created/verified bucket for team '{team.name}' (id={team.id})")

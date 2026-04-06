@@ -50,3 +50,13 @@ async def test_get_job_checkpoints_dir(tmp_path, monkeypatch):
     result = await get_job_checkpoints_dir("abc-123", "my_exp")
     assert result.endswith("experiments/my_exp/jobs/abc-123/checkpoints")
     assert os.path.isdir(result)
+
+
+def test_get_trackio_dir_sanitizes_job_id():
+    import lab.dirs
+
+    importlib.reload(lab.dirs)
+    from lab.dirs import get_trackio_dir
+
+    result = get_trackio_dir("../abc 123")
+    assert result == "/tmp/trackio/abc_123"

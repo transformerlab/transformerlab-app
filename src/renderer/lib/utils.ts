@@ -233,6 +233,16 @@ export function isTerminalJobStatus(
   return TERMINAL_JOB_STATUSES.has(status);
 }
 
+/** Jobs the user may remove from the experiment list: terminal, or queued but never dispatched. */
+export function isDeletableJobRecordStatus(
+  status: string | undefined | null,
+): boolean {
+  if (status == null || status === '') {
+    return false;
+  }
+  return isTerminalJobStatus(status) || status === 'NOT_STARTED';
+}
+
 export const colorArray = [
   '#e8c1a0',
   '#C7DFF7',

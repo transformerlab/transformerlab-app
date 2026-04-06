@@ -130,7 +130,11 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
         try:
             send_email_verification_link(to_email=user.email, verification_url=verification_url)
-            print(f"✅ Verification email sent to {user.email}")
+            email_method = os.getenv("EMAIL_METHOD", "dev").lower()
+            if email_method == "dev":
+                print("📋 Verification link logged to console above (as you're in dev mode)")
+            else:
+                print(f"✅ Verification email sent to {user.email}")
         except Exception as e:
             print(f"❌ Failed to send verification email to {user.email}: {str(e)}")
 

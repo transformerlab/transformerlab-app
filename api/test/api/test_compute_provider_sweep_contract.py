@@ -1,7 +1,8 @@
 import pytest
 from fastapi import HTTPException
 
-from transformerlab.routers import compute_provider
+from transformerlab.routers.compute_provider import sweep
+from transformerlab.services.compute_provider import sweep_job_service
 
 
 @pytest.mark.asyncio
@@ -14,9 +15,9 @@ async def test_check_sweep_status_all_contract(monkeypatch):
             {"id": "102", "type": "SWEEP", "status": "COMPLETE", "job_data": {}},
         ]
 
-    monkeypatch.setattr(compute_provider.job_service, "jobs_get_all", fake_jobs_get_all)
+    monkeypatch.setattr(sweep_job_service.job_service, "jobs_get_all", fake_jobs_get_all)
 
-    response = await compute_provider.check_sweep_status_all(
+    response = await sweep.check_sweep_status_all(
         experiment_id="exp-1",
         user_and_team={"team_id": "team-1"},
         session=None,
@@ -49,9 +50,9 @@ async def test_check_sweep_status_contract(monkeypatch):
             },
         }
 
-    monkeypatch.setattr(compute_provider.job_service, "job_get", fake_job_get)
+    monkeypatch.setattr(sweep_job_service.job_service, "job_get", fake_job_get)
 
-    response = await compute_provider.check_sweep_status(
+    response = await sweep.check_sweep_status(
         job_id="123",
         experiment_id="exp-1",
         user_and_team={"team_id": "team-1"},
@@ -82,10 +83,10 @@ async def test_check_sweep_status_non_sweep_raises(monkeypatch):
             "job_data": {},
         }
 
-    monkeypatch.setattr(compute_provider.job_service, "job_get", fake_job_get)
+    monkeypatch.setattr(sweep_job_service.job_service, "job_get", fake_job_get)
 
     with pytest.raises(HTTPException) as exc_info:
-        await compute_provider.check_sweep_status(
+        await sweep.check_sweep_status(
             job_id="456",
             experiment_id="exp-1",
             user_and_team={"team_id": "team-1"},
@@ -117,9 +118,9 @@ async def test_check_sweep_status_all_complete_true(monkeypatch):
             },
         }
 
-    monkeypatch.setattr(compute_provider.job_service, "job_get", fake_job_get)
+    monkeypatch.setattr(sweep_job_service.job_service, "job_get", fake_job_get)
 
-    response = await compute_provider.check_sweep_status(
+    response = await sweep.check_sweep_status(
         job_id="789",
         experiment_id="exp-1",
         user_and_team={"team_id": "team-1"},

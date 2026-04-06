@@ -34,10 +34,6 @@ from fastchat.protocol.openai_api_protocol import (  # noqa: E402
     ErrorResponse,
 )
 
-from transformerlab.services.experiment_init import (  # noqa: E402
-    seed_default_experiments,
-    seed_default_admin_user,
-)
 import transformerlab.db.session as db  # noqa: E402
 
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert  # noqa: E402
@@ -62,7 +58,6 @@ from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 from transformerlab.routers.experiment import experiment  # noqa: E402
 from transformerlab.routers.experiment import jobs  # noqa: E402
 from transformerlab.shared import shared  # noqa: E402
-from transformerlab.shared import galleries  # noqa: E402
 from transformerlab.shared import dirs  # noqa: E402
 from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
@@ -112,69 +107,57 @@ async def lifespan(app: FastAPI):
     setup_cache()
     print("✅ CACHE ENABLED")
 
-    # Validate cloud credentials early - fail fast if missing
-    validate_cloud_credentials()
-    await galleries.update_gallery_cache()
-    await db.init()  # This now runs Alembic migrations internally
-    print("✅ SEED DATA")
-    # Seed default admin user
-    await seed_default_admin_user()
-    # Initialize default experiments (requires org/team context)
-    await seed_default_experiments()
+    # Validate cloud credentials early - fail fast if missing (blocking boto3 off the event loop)
+    await asyncio.to_thread(validate_cloud_credentials)
+    await db.init()
 
-    # One-time migration: legacy workspace/jobs -> workspace/experiments/<exp_id>/jobs
-    # Runs in the background so it doesn't delay the API startup.
-    from transformerlab.services.migrate_jobs_to_experiment_dirs import start_jobs_migration_worker
+    # --- Leader election ------------------------------------------------
+    from transformerlab.shared.worker_leader import try_acquire_leadership, is_leader
 
-    await start_jobs_migration_worker()
+    try_acquire_leadership()
+    if is_leader():
+        print("[leader] This process acquired worker leadership")
+    else:
+        print("[worker] This process is not the leader; background workers will not start")
 
-    # Create buckets/folders for all existing teams if cloud or localfs storage is enabled
-    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
-    if tfl_remote_storage_enabled or (os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")):
-        print("✅ CHECKING STORAGE FOR EXISTING TEAMS")
-        try:
-            from transformerlab.db.session import async_session
-            from transformerlab.shared.remote_workspace import create_buckets_for_all_teams
+    # --- Background workers (leader only) --------------------------------
+    if is_leader():
+        # One-time migration: legacy workspace/jobs -> workspace/experiments/<exp_id>/jobs
+        # Runs in the background so it doesn't delay the API startup.
+        from transformerlab.services.migrate_jobs_to_experiment_dirs import start_jobs_migration_worker
 
-            async with async_session() as session:
-                success_count, failure_count, error_messages = await create_buckets_for_all_teams(
-                    session, profile_name="transformerlab-s3"
-                )
-                if success_count > 0:
-                    print(f"✅ Created/verified storage for {success_count} team(s)")
-                if failure_count > 0:
-                    print(f"⚠️  Failed to create storage for {failure_count} team(s)")
-                    for error in error_messages:
-                        print(f"   - {error}")
-        except Exception as e:
-            print(f"⚠️  Error creating storage for existing teams: {e}")
+        await start_jobs_migration_worker()
 
-    if "--reload" in sys.argv:
-        await install_all_plugins()
+        if "--reload" in sys.argv:
+            await install_all_plugins()
 
-    # Start background sweep status updater after all startup steps succeed.
-    await start_sweep_status_worker()
-    # Start background remote job status poller (replaces inline provider polling in check-status).
-    from transformerlab.services.remote_job_status_service import (
-        start_remote_job_status_worker,
-        stop_remote_job_status_worker,
-    )
-    from transformerlab.services.notification_service import (
-        start_notification_worker,
-        stop_notification_worker,
-    )
+        # Start background sweep status updater after all startup steps succeed.
+        await start_sweep_status_worker()
+        # Start background remote job status poller (replaces inline provider polling in check-status).
+        from transformerlab.services.remote_job_status_service import (
+            start_remote_job_status_worker,
+            stop_remote_job_status_worker,
+        )
+        from transformerlab.services.notification_service import (
+            start_notification_worker,
+            stop_notification_worker,
+        )
 
-    await start_remote_job_status_worker()
-    await start_notification_worker()
+        await start_remote_job_status_worker()
+        await start_notification_worker()
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
-    await stop_sweep_status_worker()
-    await stop_remote_job_status_worker()
-    await stop_notification_worker()
-    from transformerlab.services.migrate_jobs_to_experiment_dirs import stop_jobs_migration_worker
+    if is_leader():
+        from transformerlab.services.migrate_jobs_to_experiment_dirs import stop_jobs_migration_worker
 
-    await stop_jobs_migration_worker()
+        await stop_sweep_status_worker()
+        await stop_remote_job_status_worker()
+        await stop_notification_worker()
+        await stop_jobs_migration_worker()
+    from transformerlab.services.process_registry import get_registry
+
+    get_registry().kill_all()
     await db.close()
     # Run the clean up function
     cleanup_at_exit()
@@ -360,11 +343,15 @@ async def healthz():
     mode = "multiuser" if IS_MULTIUSER else "local"
 
     version_info = await get_version_info()
+    email_method = os.getenv("EMAIL_METHOD", "dev").lower()
 
     return {
         "message": "OK",
         "mode": mode,
         "version": version_info,
+        "metadata": {
+            "email_method": email_method,
+        },
     }
 
 

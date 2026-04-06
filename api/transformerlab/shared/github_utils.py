@@ -88,22 +88,33 @@ def generate_github_clone_setup(
     escaped_directory = escape_bash(directory) if directory else None
     escaped_branch = escape_bash(branch) if branch else None
 
-    # Build the base clone command. Use --depth 1 for a shallow clone (faster).
-    # When a subdirectory is requested, use --sparse --filter=blob:none to avoid
-    # downloading blobs outside the target directory.
-    branch_flag = f"-b {escaped_branch} " if branch else ""
-
     if directory:
+        if branch:
+            # Use specified branch
+            pull_command = f"git pull origin {escaped_branch}"
+        else:
+            # Fall back to trying main, master, or HEAD
+            pull_command = "git pull origin main || git pull origin master || git pull origin HEAD"
+
         setup_script = (
-            f"git clone --depth 1 --sparse --filter=blob:none -q {branch_flag}{repo_url_with_auth} {clone_dir} && "
-            f"cd {clone_dir} && "
-            f"git sparse-checkout set '{escaped_directory}' && "
-            f"if [ -d '{escaped_directory}' ]; then "
-            f"cp -r '{escaped_directory}' $HOME/ && cd $HOME && rm -rf {clone_dir}; "
-            f"else echo 'Warning: Directory {escaped_directory} not found in repository'; cd $HOME; rm -rf {clone_dir}; exit 1; fi"
+            f"TEMP_CLONE_DIR={clone_dir}; "
+            f"CURRENT_DIR=$HOME; "
+            f"mkdir -p $TEMP_CLONE_DIR; "
+            f"cd $TEMP_CLONE_DIR; "
+            f"git init -q; "
+            f"git remote add origin {repo_url_with_auth}; "
+            f"git config core.sparseCheckout true; "
+            f"echo '{escaped_directory}/' > .git/info/sparse-checkout; "
+            f"{pull_command}; "
+            f"if [ -d '{escaped_directory}' ]; then cp -r {escaped_directory} $CURRENT_DIR/; cd $CURRENT_DIR; rm -rf $TEMP_CLONE_DIR; else echo 'Warning: Directory {escaped_directory} not found in repository'; cd $CURRENT_DIR; rm -rf $TEMP_CLONE_DIR; fi"
         )
     else:
-        setup_script = f"git clone --depth 1 -q {branch_flag}{repo_url_with_auth} {clone_dir} && cp -r {clone_dir}/* . && rm -rf {clone_dir}"
+        if branch:
+            # Use specified branch
+            setup_script = f"git clone -b {escaped_branch} {repo_url_with_auth} {clone_dir}; cp -r {clone_dir}/* .; rm -rf {clone_dir}"
+        else:
+            # Default behavior - clone default branch
+            setup_script = f"git clone {repo_url_with_auth} {clone_dir}; cp -r {clone_dir}/* .; rm -rf {clone_dir}"
 
     return setup_script
 

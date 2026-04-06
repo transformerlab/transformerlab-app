@@ -310,19 +310,19 @@
   "compute_provider": {
     "list": {
       "method": "GET",
-      "path": "compute_provider/"
+      "path": "compute_provider/providers/"
     },
     "listAll": {
       "method": "GET",
-      "path": "compute_provider/?include_disabled=true"
+      "path": "compute_provider/providers/?include_disabled=true"
     },
     "create": {
       "method": "POST",
-      "path": "compute_provider/"
+      "path": "compute_provider/providers/"
     },
     "get": {
       "method": "GET",
-      "path": "compute_provider/{providerId}"
+      "path": "compute_provider/providers/{providerId}"
     },
     "resumeFromCheckpoint": {
       "method": "POST",
@@ -330,19 +330,19 @@
     },
     "update": {
       "method": "PATCH",
-      "path": "compute_provider/{providerId}"
+      "path": "compute_provider/providers/{providerId}"
     },
     "delete": {
       "method": "DELETE",
-      "path": "compute_provider/{providerId}"
+      "path": "compute_provider/providers/{providerId}"
     },
     "launchTask": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/task/launch"
+      "path": "compute_provider/providers/{providerId}/launch/"
     },
     "launchTemplate": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/task/launch"
+      "path": "compute_provider/providers/{providerId}/launch/"
     },
     "checkJobStatus": {
       "method": "GET",
@@ -350,39 +350,39 @@
     },
     "providerClusters": {
       "method": "GET",
-      "path": "compute_provider/{providerId}/clusters"
+      "path": "compute_provider/providers/{providerId}/clusters/"
     },
     "stopCluster": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/clusters/{clusterName}/stop"
+      "path": "compute_provider/providers/{providerId}/clusters/{clusterName}/stop"
     },
     "uploadTaskFile": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/task/{taskId}/file-upload"
+      "path": "compute_provider/providers/{providerId}/launch/{taskId}/file-upload"
     },
     "uploadTemplateFile": {
       "method": "POST",
-      "path": "compute_provider/{providerId}/task/{taskId}/file-upload"
+      "path": "compute_provider/providers/{providerId}/launch/{taskId}/file-upload"
     },
     "usage-report": {
       "method": "GET",
-      "path": "compute_provider/usage-report"
+      "path": "compute_provider/usage/report"
     },
     "user-settings": {
       "method": "GET",
-      "path": "compute_provider/user-settings/{providerId}"
+      "path": "compute_provider/settings/{providerId}"
     },
     "user-settings-update": {
       "method": "PUT",
-      "path": "compute_provider/user-settings/{providerId}"
+      "path": "compute_provider/settings/{providerId}"
     },
     "user-settings-ssh-key": {
       "method": "POST",
-      "path": "compute_provider/user-settings/{providerId}/ssh-key"
+      "path": "compute_provider/settings/{providerId}/ssh-key"
     },
     "user-settings-ssh-key-delete": {
       "method": "DELETE",
-      "path": "compute_provider/user-settings/{providerId}/ssh-key"
+      "path": "compute_provider/settings/{providerId}/ssh-key"
     },
     "downloadSshKey": {
       "method": "GET",

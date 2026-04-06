@@ -528,12 +528,17 @@ install_general_dependencies_uv() {
   echo "Installing minimal API dependencies in a uv venv (no global conda env)."
   echo "🌘 Step 4: START"
 
+  # Clear any accidentally active conda/venv so bootstrap tools come from base shell.
+  unset_conda_for_sure
+
   # Ensure uv is available
   if ! command -v uv &> /dev/null; then
-    if command -v pip &> /dev/null; then
+    if command -v python &> /dev/null; then
+      python -m pip install uv
+    elif command -v pip &> /dev/null; then
       pip install uv
     else
-      abort "❌ uv is not installed and pip is unavailable to install it."
+      abort "❌ uv is not installed and neither python nor pip is available to install it."
     fi
   fi
 
@@ -576,7 +581,13 @@ multiuser_setup() {
 
   # Install uv if not already installed
   if ! command -v uv &> /dev/null; then
-    pip install uv
+    if command -v python &> /dev/null; then
+      python -m pip install uv
+    elif command -v pip &> /dev/null; then
+      pip install uv
+    else
+      abort "❌ uv is not installed and neither python nor pip is available to install it."
+    fi
   fi
 
   echo "Installing SkyPilot with Kubernetes support..."

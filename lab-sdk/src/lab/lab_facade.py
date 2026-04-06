@@ -44,18 +44,21 @@ def _run_async(coro):
         # Check if this is our custom error or a "no running loop" error
         if "Cannot use sync method" in str(e):
             raise
-        # No running loop - we can safely create/use one
+        # No running loop - we can safely create/use one.
+        # IMPORTANT: only catch get_event_loop() errors here; runtime errors raised
+        # by the coroutine itself must propagate and should not trigger a retry with
+        # the same coroutine object.
         try:
             loop = asyncio.get_event_loop()
-            if loop.is_closed():
-                # Loop is closed, create a new one
-                return asyncio.run(coro)
-            else:
-                # Loop exists but not running, use it
-                return loop.run_until_complete(coro)
         except RuntimeError:
-            # No event loop at all, create one
             return asyncio.run(coro)
+
+        if loop.is_closed():
+            # Loop is closed, create a new one
+            return asyncio.run(coro)
+
+        # Loop exists but not running, use it
+        return loop.run_until_complete(coro)
 
 
 class Lab:
@@ -150,14 +153,17 @@ class Lab:
                 existing_run = context_vars.current_run.get()
                 if existing_run is None:
                     if trackio_project_name_env:
-                        # Shared project: use temp dir, seed from shared path, init with project + run name
+                        # Shared project: metrics dir should be set by compute launch (TRACKIO_DIR) before
+                        # trackio is imported; fall back for local/scripts without a provider.
                         job_id_env = os.environ.get("_TFL_JOB_ID", "unknown")
-                        temp_dir = f"/tmp/trackio/{job_id_env}"
-                        os.makedirs(temp_dir, exist_ok=True)
-                        os.environ["TRACKIO_DIR"] = temp_dir
+                        trackio_dir = (os.environ.get("TRACKIO_DIR") or "").strip()
+                        if not trackio_dir:
+                            trackio_dir = dirs.get_trackio_dir(job_id_env)
+                        os.makedirs(trackio_dir, exist_ok=True)
+                        os.environ.setdefault("TRACKIO_DIR", trackio_dir)
                         _run_async(
                             self._seed_trackio_shared_path_async(
-                                experiment_id or "", trackio_project_name_env, temp_dir
+                                experiment_id or "", trackio_project_name_env, trackio_dir
                             )
                         )
                         trackio.init(
@@ -167,7 +173,13 @@ class Lab:
                         self._trackio_managed = True
                         logger.info(f"📊 Trackio auto-init enabled for shared project '{trackio_project_name_env}'")
                     else:
-                        # Legacy: per-job project name
+                        # Legacy: per-job project name (still avoid Trackio default under HF cache).
+                        job_id_env = os.environ.get("_TFL_JOB_ID", "unknown")
+                        trackio_dir = (os.environ.get("TRACKIO_DIR") or "").strip()
+                        if not trackio_dir:
+                            trackio_dir = dirs.get_trackio_dir(job_id_env)
+                        os.makedirs(trackio_dir, exist_ok=True)
+                        os.environ.setdefault("TRACKIO_DIR", trackio_dir)
                         project_name = str(experiment_id or "TransformerLab")
                         trackio.init(project=project_name)
                         self._trackio_managed = True
@@ -823,7 +835,7 @@ class Lab:
                 return dest
 
         # Handle DataFrame input when type="evals"
-        if type == "eval" and hasattr(source_path, "to_csv"):
+        if type == "evals" and hasattr(source_path, "to_csv"):
             # Normalize input: convert Hugging Face datasets.Dataset to pandas DataFrame
             df = source_path
             try:
@@ -1070,7 +1082,8 @@ class Lab:
                 )
                 await self._job.log_info(f"Model saved to '{dest}'")  # type: ignore[union-attr]
             except Exception as e:
-                self.log(f"Warning: Model saved but metadata creation failed: {str(e)}")
+                # This branch runs inside async code, so log directly with the async API.
+                await self._job.log_info(f"Warning: Model saved but metadata creation failed: {str(e)}")  # type: ignore[union-attr]
 
             # Track in job_data
             try:
@@ -1752,6 +1765,16 @@ class Lab:
         if self._experiment is None or self._job is None:
             raise RuntimeError("lab not initialized. Call lab.init(experiment_id=...) first.")
 
+    def _resolve_experiment_id(self, experiment_id: Optional[str] = None) -> str:
+        if isinstance(experiment_id, str) and experiment_id.strip() != "":
+            return secure_filename(experiment_id)
+        if self._experiment is not None:
+            return str(self._experiment.id)
+        raise RuntimeError(
+            "No experiment_id provided and lab is not initialized. "
+            "Call lab.init(experiment_id=...) or pass experiment_id explicitly."
+        )
+
     @property
     def job(self) -> Job:
         self._ensure_initialized()
@@ -1834,6 +1857,132 @@ class Lab:
             - json_data: Additional dataset metadata
         """
         return _run_async(Dataset.list_all())
+
+    def list_documents(self, folder: Optional[str] = None, experiment_id: Optional[str] = None) -> list[Dict[str, Any]]:
+        """
+        List documents for an experiment folder (sync version).
+        """
+        return _run_async(self.async_list_documents(folder=folder, experiment_id=experiment_id))
+
+    async def async_list_documents(
+        self, folder: Optional[str] = None, experiment_id: Optional[str] = None
+    ) -> list[Dict[str, Any]]:
+        """
+        List documents for an experiment folder (async version).
+        """
+        resolved_experiment_id = self._resolve_experiment_id(experiment_id)
+        exp = Experiment(resolved_experiment_id)
+        experiment_dir = await exp.get_dir()
+        documents_dir = storage.join(experiment_dir, "documents")
+
+        safe_folder = secure_filename(folder) if folder else ""
+        if safe_folder:
+            documents_dir = storage.join(documents_dir, safe_folder)
+
+        if not await storage.exists(documents_dir):
+            return []
+
+        entries = await storage.ls(documents_dir, detail=False)
+        results: list[Dict[str, Any]] = []
+        for full_path in entries:
+            name = os.path.basename(str(full_path).rstrip("/"))
+            if name in {".tlab_markitdown", ".keep"}:
+                continue
+            is_dir = await storage.isdir(full_path)
+            results.append(
+                {
+                    "name": name,
+                    "path": full_path,
+                    "type": "folder" if is_dir else os.path.splitext(name)[1].lower(),
+                }
+            )
+        return sorted(results, key=lambda item: item["name"])
+
+    def get_document_contents(
+        self,
+        document_name: str,
+        folder: Optional[str] = None,
+        experiment_id: Optional[str] = None,
+        encoding: str = "utf-8",
+        errors: str = "strict",
+    ) -> str:
+        """
+        Read a document as text (sync version).
+        """
+        return _run_async(
+            self.async_get_document_contents(
+                document_name=document_name,
+                folder=folder,
+                experiment_id=experiment_id,
+                encoding=encoding,
+                errors=errors,
+            )
+        )
+
+    async def async_get_document_contents(
+        self,
+        document_name: str,
+        folder: Optional[str] = None,
+        experiment_id: Optional[str] = None,
+        encoding: str = "utf-8",
+        errors: str = "strict",
+    ) -> str:
+        """
+        Read a document as text (async version).
+        """
+        document_bytes = await self.async_get_document_bytes(
+            document_name=document_name,
+            folder=folder,
+            experiment_id=experiment_id,
+        )
+        return document_bytes.decode(encoding, errors=errors)
+
+    def get_document_bytes(
+        self,
+        document_name: str,
+        folder: Optional[str] = None,
+        experiment_id: Optional[str] = None,
+    ) -> bytes:
+        """
+        Read a document as bytes (sync version).
+        """
+        return _run_async(
+            self.async_get_document_bytes(
+                document_name=document_name,
+                folder=folder,
+                experiment_id=experiment_id,
+            )
+        )
+
+    async def async_get_document_bytes(
+        self,
+        document_name: str,
+        folder: Optional[str] = None,
+        experiment_id: Optional[str] = None,
+    ) -> bytes:
+        """
+        Read a document as bytes (async version).
+        """
+        resolved_experiment_id = self._resolve_experiment_id(experiment_id)
+        exp = Experiment(resolved_experiment_id)
+        experiment_dir = await exp.get_dir()
+
+        safe_name = secure_filename(document_name)
+        if not safe_name:
+            raise ValueError("document_name must be a non-empty filename")
+
+        documents_dir = storage.join(experiment_dir, "documents")
+        safe_folder = secure_filename(folder) if folder else ""
+        if safe_folder:
+            document_path = storage.join(documents_dir, safe_folder, safe_name)
+        else:
+            document_path = storage.join(documents_dir, safe_name)
+
+        if not await storage.exists(document_path):
+            raise FileNotFoundError(f"Document not found: {document_path}")
+
+        async with await storage.open(document_path, "rb") as f:
+            return await f.read()
 
     def get_dataset(self, dataset_id: str, job_id: Optional[str] = None) -> Dataset:
         """

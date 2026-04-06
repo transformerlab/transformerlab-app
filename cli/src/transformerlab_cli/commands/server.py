@@ -13,8 +13,16 @@ app = typer.Typer()
 ENV_DIR = os.path.join(os.path.expanduser("~"), ".transformerlab")
 ENV_FILE = os.path.join(ENV_DIR, ".env")
 
-STORAGE_TYPES = ["aws", "gcp", "azure", "localfs"]
-COMPUTE_TYPES = ["skypilot", "slurm", "runpod", "local"]
+STORAGE_TYPES = ["Use local filesystem (localfs)", "aws", "gcp", "azure"]
+STORAGE_TYPE_VALUES = ["localfs", "aws", "gcp", "azure"]
+COMPUTE_TYPES = [
+    "Local – run jobs directly on this machine",
+    "SkyPilot – connect to a SkyPilot server",
+    "Slurm – submit jobs to an HPC/Slurm cluster",
+    "RunPod – launch serverless GPU pods on RunPod",
+    "Skip – don't configure a compute provider now",
+]
+COMPUTE_TYPE_VALUES = ["local", "skypilot", "slurm", "runpod", None]
 
 
 # ---------------------------------------------------------------------------
@@ -107,13 +115,27 @@ def _prompt_frontend(existing: dict[str, str]) -> dict[str, str]:
 def _prompt_storage(existing: dict[str, str]) -> dict[str, str]:
     """Prompt for storage backend configuration."""
     console.print("\n[bold header]2. Storage Backend[/bold header]")
-    console.print("[dim]Where model files and workspace data will be stored.[/dim]")
+    console.print(
+        "[dim]The storage backend is central to how Transformer Lab works — it holds\n"
+        "model files, workspace data, job status, logs, and artifacts.[/dim]\n"
+        "\n"
+        "  • [bold]Single machine[/bold]: choose [bold]local filesystem[/bold]. All data stays on this host.\n"
+        "    If you have a shared drive (e.g. NFS), you can also choose local filesystem\n"
+        "    and point it to the shared mount — but every node must mount that drive at\n"
+        "    the [bold]same path[/bold].\n"
+        "  • [bold]Multi-node (cloud storage)[/bold]: choose a cloud backend (AWS S3, GCP, Azure).\n"
+        "    Every node (controller + workers) must see the same storage so that\n"
+        "    job status, logs, and artifacts stay in sync.\n"
+        "\n"
+        "[dim]More info: [bold]https://lab.cloud/for-teams/advanced-install/cloud-storage[/bold][/dim]"
+    )
 
     # Determine default selection from existing config
-    current_provider = existing.get("TFL_STORAGE_PROVIDER", "aws")
-    default_idx = STORAGE_TYPES.index(current_provider) + 1 if current_provider in STORAGE_TYPES else 1
+    current_provider = existing.get("TFL_STORAGE_PROVIDER", "localfs")
+    default_idx = STORAGE_TYPE_VALUES.index(current_provider) + 1 if current_provider in STORAGE_TYPE_VALUES else 1
 
-    provider = _numbered_choice("Storage type", STORAGE_TYPES, default=default_idx)
+    label = _numbered_choice("Storage type", STORAGE_TYPES, default=default_idx)
+    provider = STORAGE_TYPE_VALUES[STORAGE_TYPES.index(label)]
 
     env: dict[str, str] = {
         "TFL_STORAGE_PROVIDER": provider,
@@ -186,15 +208,22 @@ def _prompt_admin() -> dict[str, str]:
 
 
 def _prompt_compute(existing: dict[str, str]) -> dict[str, str]:
-    """Prompt for compute provider configuration (stub — prints guidance)."""
+    """Prompt for compute provider configuration."""
     console.print("\n[bold header]4. Compute Provider[/bold header]")
-    console.print("[dim]Configure how jobs are dispatched to GPU workers.[/dim]")
+    console.print(
+        "[dim]A compute provider tells Transformer Lab where to run training and\n"
+        "inference jobs. Pick the option that matches your hardware setup:[/dim]"
+    )
 
-    if not typer.confirm("Configure a default compute provider?", default=False):
+    current = existing.get("DEFAULT_COMPUTE_PROVIDER", "")
+    default_idx = (COMPUTE_TYPE_VALUES.index(current) + 1) if current in COMPUTE_TYPE_VALUES else 1
+
+    label = _numbered_choice("Compute provider", COMPUTE_TYPES, default=default_idx)
+    provider = COMPUTE_TYPE_VALUES[COMPUTE_TYPES.index(label)]
+
+    if provider is None:
         console.print("[dim]Skipped. You can add providers later with: lab provider add[/dim]")
         return {}
-
-    provider = _numbered_choice("Compute provider", COMPUTE_TYPES, default=1)
 
     console.print(
         f"\n[info]Selected [bold]{provider}[/bold] as the default compute provider.[/info]"
@@ -505,15 +534,96 @@ def _write_env_file(path: str, env_vars: dict[str, str]) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _print_next_steps(env_vars: dict[str, str]) -> None:
+    """Print post-install guidance."""
+    frontend_url = env_vars.get("FRONTEND_URL", "http://localhost:8338")
+    console.print("\n[bold header]Next Steps[/bold header]")
+    console.print("  1. Start the server:")
+    console.print("     [bold]cd ~/.transformerlab/src && ./run.sh[/bold]")
+    console.print(f"  2. Open {frontend_url} in your browser")
+    console.print("  3. Log in with [bold]admin@example.com[/bold] / [bold]admin123[/bold]")
+    console.print("     [warning]Change the default password immediately![/warning]")
+
+
 @app.command("install")
 def server_install(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show configuration without writing any files"),
+    config: str = typer.Option(
+        "",
+        "--config",
+        help="Path to a .env config file. Skips interactive prompts and installs using the provided config.",
+    ),
 ) -> None:
-    """Interactive installer for Transformer Lab Teams edition.
+    """Installer for Transformer Lab Teams edition.
 
     Generates the configuration file at ~/.transformerlab/.env.
     Use --dry-run to preview the configuration without writing.
+    Use --config <path> to skip prompts and install from a pre-written .env file.
     """
+    if config:
+        _install_from_config(config_path=config, dry_run=dry_run)
+    else:
+        _install_interactive(dry_run=dry_run)
+
+
+def _install_from_config(config_path: str, dry_run: bool) -> None:
+    """Install using a pre-written .env config file (no prompts)."""
+    console.print("\n[bold header]Transformer Lab Server Setup (from config)[/bold header]")
+    console.print("=" * 52)
+
+    if not os.path.exists(config_path):
+        console.print(f"\n[error]Config file not found: {config_path}[/error]")
+        raise typer.Exit(1)
+
+    env_vars = _load_existing_env(config_path)
+    if not env_vars:
+        console.print(f"\n[error]Config file is empty or has no valid key=value pairs: {config_path}[/error]")
+        raise typer.Exit(1)
+
+    console.print(f"\n[info]Loaded configuration from {config_path}[/info]")
+
+    # Generate JWT secrets if not provided in the config
+    if env_vars.get("TRANSFORMERLAB_JWT_SECRET") and env_vars.get("TRANSFORMERLAB_REFRESH_SECRET"):
+        console.print("[dim]JWT secrets: found in config[/dim]")
+    else:
+        env_vars["TRANSFORMERLAB_JWT_SECRET"] = _generate_secret()
+        env_vars["TRANSFORMERLAB_REFRESH_SECRET"] = _generate_secret()
+        console.print("[dim]JWT secrets: generated new[/dim]")
+
+    # Ensure MULTIUSER is always set
+    env_vars.setdefault("MULTIUSER", "true")
+
+    # Validate
+    config_warnings = _validate_config(env_vars)
+    if config_warnings:
+        console.print("\n[bold warning]Configuration warnings:[/bold warning]")
+        for w in config_warnings:
+            console.print(f"  [warning]• {w}[/warning]")
+
+    # Display or write
+    if dry_run:
+        from rich.panel import Panel
+        from rich.syntax import Syntax
+
+        content = _build_env_content(env_vars)
+        syntax = Syntax(content, "ini", theme="monokai", line_numbers=True)
+        console.print(Panel(syntax, title=f"{ENV_FILE} (dry run)", border_style="dim"))
+        console.print("\n[warning]Dry run complete. No files were written.[/warning]")
+        raise typer.Exit(0)
+
+    _write_env_file(ENV_FILE, env_vars)
+    console.print(f"\n[success]Configuration written to {ENV_FILE}[/success]")
+
+    # Run install script automatically (no prompt in config mode)
+    exit_code = _run_install_script()
+    if exit_code != 0:
+        raise typer.Exit(exit_code)
+
+    _print_next_steps(env_vars)
+
+
+def _install_interactive(dry_run: bool) -> None:
+    """Run the installer with interactive prompts."""
     console.print("\n[bold header]Transformer Lab Server Setup[/bold header]")
     console.print("=" * 42)
 
@@ -577,14 +687,7 @@ def server_install(
     # Run install script
     _offer_install_script()
 
-    # Next steps
-    frontend_url = env_vars.get("FRONTEND_URL", "http://localhost:8338")
-    console.print("\n[bold header]Next Steps[/bold header]")
-    console.print("  1. Start the server:")
-    console.print("     [bold]cd ~/.transformerlab/src && ./run.sh[/bold]")
-    console.print(f"  2. Open {frontend_url} in your browser")
-    console.print("  3. Log in with [bold]admin@example.com[/bold] / [bold]admin123[/bold]")
-    console.print("     [warning]Change the default password immediately![/warning]")
+    _print_next_steps(env_vars)
 
 
 LATEST_VERSION_FILE = os.path.join(ENV_DIR, "src", "LATEST_VERSION")

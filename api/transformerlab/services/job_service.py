@@ -377,8 +377,18 @@ async def job_update_job_data_insert_key_values(job_id, updates: Dict[str, Any],
         if not isinstance(updates, dict):
             raise TypeError("updates must be a dict")
 
-        job = await Job.get(job_id, experiment_id)
+        # Resolve the full job ID first so we can invalidate the correct cache entry
+        resolved_id = await _resolve_full_job_id(str(job_id), str(experiment_id))
+        actual_id = resolved_id or str(job_id)
+
+        job = await Job.get(actual_id, experiment_id)
         await job.update_job_data_field(updates, multiple=True)
+
+        # Invalidate the cache so the updated job_data is visible immediately.
+        # Use both tag-based invalidation and direct key deletion for robustness.
+        await cache.invalidate(f"job:{actual_id}")
+        key = _job_cache_key(actual_id)
+        await cache.delete(key)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
 
