@@ -1,35 +1,145 @@
 ---
 name: transformerlab-cli
-description: Use the Transformer Lab CLI to check job status, stream logs, download artifacts, list tasks, manage providers, and query backend state. Use when you need structured data from the Transformer Lab API without going through the browser UI.
+description: Transformer Lab CLI for managing ML training tasks, jobs, and compute providers. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, manage compute providers, or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "list providers", "stream logs", "what's running", "monitor training", "add a task", "check provider health".
+allowed-tools: Bash(lab *)
 ---
 
 # Transformer Lab CLI
 
-Use the Transformer Lab CLI to interact with the backend programmatically. This complements the `agent-browser` skill — use the browser for UI interactions (creating experiments, configuring tasks, visual verification) and the CLI for structured data queries (job status, logs, artifacts, task lists).
+Use the `lab` CLI to interact with Transformer Lab programmatically — managing tasks, jobs, compute providers, and server configuration from the terminal.
 
-## Invocation
-
-All commands run from the repo root:
+## Installation
 
 ```bash
-uv run cli/src/transformerlab_cli/main.py <command> [subcommand] [options]
+uv tool install transformerlab-cli
+# or
+pip install transformerlab-cli
 ```
 
-Global option: `--format json` produces machine-readable JSON output. Default is `pretty` with Rich-formatted tables and panels.
+Verify: `lab version`
 
-## Prerequisites
+## First-Time Setup
 
-- `uv` must be installed
-- A running Transformer Lab server (default: `http://localhost:8338`)
-- **Required for most commands:** `server`, `team_id`, and `user_email` must be configured. Run `login` to set all three automatically.
-- **Required for `task` and `job` commands:** a current experiment must also be set
-
-Quick setup:
 ```bash
-uv run cli/src/transformerlab_cli/main.py status
-uv run cli/src/transformerlab_cli/main.py login
-uv run cli/src/transformerlab_cli/main.py config set current_experiment <experiment_id>
+lab login --server https://your-server:8338 --api-key YOUR_KEY
+lab config set current_experiment your_experiment_name
+lab status   # verify connectivity
 ```
+
+`login` automatically configures `server`, `team_id`, `user_email`, and `team_name`.
+
+## Critical: `--format` Flag Placement
+
+The `--format` flag is a **root-level option** and MUST come immediately after `lab`, before any subcommand:
+
+```bash
+# CORRECT
+lab --format json job list
+lab --format json task info 42
+
+# WRONG — will be ignored or cause an error
+lab job list --format json
+```
+
+**Always use `--format json` when you need to parse output.** The default `pretty` format uses Rich tables that are not machine-parseable.
+
+## Core Workflow
+
+The standard pattern for working with Transformer Lab:
+
+```bash
+# 1. Check server is up
+lab status
+
+# 2. List available tasks
+lab --format json task list
+
+# 3. Queue a task on a compute provider
+lab --format json task queue TASK_ID --no-interactive
+
+# 4. Monitor the job
+lab --format json job list --running
+lab job logs JOB_ID --follow
+
+# 5. Download results
+lab --format json job artifacts JOB_ID
+lab job download JOB_ID --file "*.csv" -o ./results
+```
+
+## Agent-Specific Rules
+
+1. **Always use `--format json`** for any command whose output you need to parse
+2. **Use `--no-interactive`** on `task queue` and `provider add` to avoid blocking prompts
+3. **Use `--yes` / `-y`** on destructive commands (`provider delete`) to skip confirmation
+4. **Never use `job monitor`** — it launches a TUI that blocks; use `job list` + `job logs` instead
+5. **Never use `task interactive`** unless the user specifically requests an interactive session
+6. **`job logs --follow`** streams continuously and blocks until the job finishes — use when the user wants real-time monitoring
+
+## Command Overview
+
+| Command | Description | Requires Experiment |
+|---|---|---|
+| `lab status` | Check server connectivity | No |
+| `lab config` | View/set CLI configuration | No |
+| `lab login` | Authenticate (sets server, team, user) | No |
+| `lab logout` | Remove stored API key | No |
+| `lab whoami` | Show current user and team | No |
+| `lab version` | Show CLI version | No |
+| `lab task list` | List tasks in current experiment | Yes |
+| `lab task info <id>` | Get task details | Yes |
+| `lab task add [dir]` | Add task from directory or `--from-git` URL | Yes |
+| `lab task delete <id>` | Delete a task | Yes |
+| `lab task queue <id>` | Queue task on compute provider | Yes |
+| `lab task gallery` | Browse/import from task gallery | Yes |
+| `lab job list` | List jobs (`--running` for active only) | Yes |
+| `lab job info <id>` | Get detailed job information | Yes |
+| `lab job logs <id>` | Fetch logs (`--follow` to stream) | Yes |
+| `lab job artifacts <id>` | List job artifacts | Yes |
+| `lab job download <id>` | Download artifacts (`--file` for glob) | Yes |
+| `lab job stop <id>` | Stop a running job | Yes |
+| `lab provider list` | List compute providers | No |
+| `lab provider info <id>` | Show provider details | No |
+| `lab provider add` | Add a new provider | No |
+| `lab provider update <id>` | Update provider config | No |
+| `lab provider delete <id>` | Delete a provider (`--yes` to skip prompt) | No |
+| `lab provider check <id>` | Check provider health | No |
+| `lab provider enable <id>` | Enable a provider | No |
+| `lab provider disable <id>` | Disable a provider | No |
+| `lab server install` | Interactive server setup wizard | No |
+| `lab server version` | Show installed server version | No |
+| `lab server update` | Update server to latest | No |
+
+## JSON Output Shapes
+
+**`lab --format json job list`** returns an array:
+```json
+[{"id": 1, "status": "COMPLETE", "progress": 100, "job_data": {...}, "created_at": "..."}]
+```
+
+**`lab --format json task list`** returns an array:
+```json
+[{"id": 1, "name": "my-task", "type": "TRAINING", ...}]
+```
+
+**`lab --format json task queue <id>`** returns the created job:
+```json
+{"id": 42, "status": "WAITING", ...}
+```
+
+**Errors** return:
+```json
+{"error": "error message here"}
+```
+
+With non-zero exit code.
+
+## Error Handling
+
+- Commands exit with non-zero status on failure
+- With `--format json`, errors return `{"error": "<message>"}`
+- "config not set" errors → run `lab login` first
+- "current_experiment not set" → run `lab config set current_experiment <id>`
+- Connection refused → check server URL with `lab config`, verify server is running
 
 ## When to Use CLI vs Browser
 
@@ -38,103 +148,19 @@ uv run cli/src/transformerlab_cli/main.py config set current_experiment <experim
 | Checking job/task status | Creating experiments |
 | Streaming job logs | Configuring tasks via forms |
 | Downloading artifacts | Visual UI verification |
-| Listing providers | Navigating the app |
+| Listing/managing providers | Navigating the app |
 | Querying structured data | Anything requiring UI interaction |
 
-Typical flow: use `agent-browser` to create and configure a task in the UI, then switch to CLI to queue it, monitor the job, and download results.
+Typical flow: use the browser to create and configure a task in the UI, then switch to CLI to queue it, monitor the job, and download results.
 
-## Common Workflow Patterns
+## Deep-Dive References
 
-**Monitor a running job:**
-```bash
-uv run cli/src/transformerlab_cli/main.py job list --format json
-uv run cli/src/transformerlab_cli/main.py job logs <job_id> --follow
-```
+- `references/commands.md` — Full command reference with all options
+- `references/workflows.md` — End-to-end workflow patterns
+- `references/troubleshooting.md` — Error patterns and recovery
 
-**Queue a task and track it:**
-```bash
-uv run cli/src/transformerlab_cli/main.py task list --format json
-uv run cli/src/transformerlab_cli/main.py task queue <task_id> --no-interactive
-uv run cli/src/transformerlab_cli/main.py job list --running --format json
-uv run cli/src/transformerlab_cli/main.py job logs <job_id> --follow
-```
+## Ready-to-Use Templates
 
-**Check system state:**
-```bash
-uv run cli/src/transformerlab_cli/main.py status
-uv run cli/src/transformerlab_cli/main.py provider list
-uv run cli/src/transformerlab_cli/main.py job list
-```
-
-**Download job results:**
-```bash
-uv run cli/src/transformerlab_cli/main.py job artifacts <job_id>
-uv run cli/src/transformerlab_cli/main.py job download <job_id> --file "*.csv" -o ./results
-uv run cli/src/transformerlab_cli/main.py job download <job_id> -o ./results
-```
-
-**Complement browser testing:**
-```bash
-# After creating a job via the browser UI...
-uv run cli/src/transformerlab_cli/main.py job list --running --format json
-uv run cli/src/transformerlab_cli/main.py job info <job_id>
-uv run cli/src/transformerlab_cli/main.py job logs <job_id>
-```
-
-## Command Overview
-
-See `references/commands.md` for full details on every option.
-
-| Command | Description |
-|---|---|
-| `status` | Check server connectivity |
-| `config` | View/set CLI configuration |
-| `login` | Authenticate (also sets server, team_id, user_email, team_name) |
-| `logout` | Remove stored API key |
-| `whoami` | Show current user and team |
-| `version` | Show CLI version |
-| `task list` | List tasks in current experiment |
-| `task info <id>` | Get task details |
-| `task add [dir]` | Add task from local directory or `--from-git` URL |
-| `task delete <id>` | Delete a task |
-| `task queue <id>` | Queue task on a compute provider |
-| `task gallery` | Browse and import from task gallery |
-| `task interactive` | Launch interactive task (Jupyter, vLLM, etc.) |
-| `job list` | List jobs (optionally `--running` only) |
-| `job info <id>` | Get detailed job information |
-| `job logs <id>` | Fetch logs (`--follow` to stream) |
-| `job artifacts <id>` | List job artifacts |
-| `job download <id>` | Download artifacts (`--file` for specific files) |
-| `job stop <id>` | Stop a running job |
-| `job monitor` | Launch interactive TUI monitor |
-| `provider list` | List compute providers |
-| `provider info <id>` | Show provider details |
-| `provider add` | Add a new compute provider |
-| `provider update <id>` | Update provider config |
-| `provider delete <id>` | Delete a provider |
-| `provider check <id>` | Check provider health |
-| `provider enable <id>` | Enable a provider |
-| `provider disable <id>` | Disable a provider |
-
-## Tips
-
-- **`--format` must come before the subcommand.** It is a root-level Typer callback option, not a per-command option. Place it immediately after the script path:
-  ```bash
-  # Correct
-  uv run cli/src/transformerlab_cli/main.py --format json task add /path/to/dir
-
-  # Wrong — will be ignored or cause an error
-  uv run cli/src/transformerlab_cli/main.py task add /path/to/dir --format json
-  ```
-- Use `--format json` when you need to parse output (e.g., extracting a job ID from `job list`)
-- `job logs --follow` streams continuously until the job exits an active state (RUNNING, LAUNCHING, INTERACTIVE, WAITING)
-- `task queue --no-interactive` skips all prompts and uses defaults — ideal for automated workflows
-- `job monitor` launches a full TUI — avoid in non-interactive contexts
-- Config keys: `server`, `current_experiment`, `user_email`, `team_id`, `team_name`
-
-## Error Handling
-
-- Commands exit with a non-zero status code on failure
-- With `--format json`, errors return `{"error": "<message>"}`
-- With `--format pretty`, errors print with `[error]Error:[/error]` styling
-- If you get "config not set" errors, run `login` first to configure `server`, `team_id`, and `user_email`
+- `templates/setup-and-login.sh` — First-time setup
+- `templates/queue-and-monitor.sh` — Queue a task and monitor until completion
+- `templates/provider-health-check.sh` — Check health of all providers
