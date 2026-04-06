@@ -94,6 +94,28 @@ lab --format json provider check PROVIDER_ID
 
 ---
 
+## Job Shows COMPLETE But Task Never Ran
+
+**Symptom:** Job status is COMPLETE, but `completion_status` is N/A, progress is 0%, and there are no artifacts or logs.
+
+**Cause:** The cluster failed to provision (e.g., requested GPU type doesn't exist on the provider) but the job was marked complete by the orchestrator.
+
+**Diagnosis:**
+```bash
+# Check cluster status
+curl -s -H "Authorization: Bearer API_KEY" -H "X-Team-Id: TEAM_ID" \
+  "https://SERVER/compute_provider/providers/PROVIDER_ID/clusters/CLUSTER_NAME/status"
+# If state is "unknown" or "Cluster not found" — the cluster never started
+
+# Check provider logs — may be empty if cluster never ran
+curl -s -H "Authorization: Bearer API_KEY" -H "X-Team-Id: TEAM_ID" \
+  "https://SERVER/experiment/EXPERIMENT/jobs/JOB_ID/provider_logs"
+```
+
+**Fix:** Verify the accelerator type matches what's available on the provider. E.g., if you request `A100:1` but the provider only has `RTX3090`, the cluster will fail silently.
+
+---
+
 ## Command Hangs / Blocks
 
 **Symptom:** A command seems to hang and waits for input.
