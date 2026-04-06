@@ -149,7 +149,8 @@ export default function JobProgress({
   const showCircularLaunchProgress =
     clampedLaunchPercent != null &&
     (hideCircularLaunchProgressAtOrAbove == null ||
-      clampedLaunchPercent < hideCircularLaunchProgressAtOrAbove);
+      clampedLaunchPercent < hideCircularLaunchProgressAtOrAbove) &&
+    job?.status !== 'INTERACTIVE';
 
   // Format provider launch result for display
   const formatProviderLaunchResult = (launchResult: any): string => {
@@ -187,7 +188,6 @@ export default function JobProgress({
     return String(launchResult);
   };
 
-  /* eslint-disable no-nested-ternary */
   return (
     <Stack>
       {job?.placeholder ? (
@@ -286,47 +286,51 @@ export default function JobProgress({
                   </IconButton>
                 </Tooltip>
               )}
-            <IconButton
-              color="danger"
-              onClick={handleStopJob}
-              disabled={stopping}
-            >
-              {stopping ? (
-                <CircularProgress size="sm" thickness={2} />
-              ) : (
-                <StopCircleIcon size="20px" />
-              )}
-            </IconButton>
-            {stopping && (
-              <Typography level="body-xs" color="warning">
-                Stopping&hellip;
-              </Typography>
+            {(job?.status === 'LAUNCHING' || job?.status === 'WAITING') && (
+              <IconButton
+                color="danger"
+                onClick={handleStopJob}
+                disabled={stopping}
+              >
+                {stopping ? (
+                  <CircularProgress size="sm" thickness={2} />
+                ) : (
+                  <StopCircleIcon size="20px" />
+                )}
+              </IconButton>
             )}
-          </Stack>
-          {(effectiveLaunchProgress?.message ||
-            effectiveLaunchProgress?.percent != null) && (
-            <Stack
-              direction="column"
-              sx={{ width: '100%', mt: 0.5 }}
-              spacing={0.5}
-            >
-              {effectiveLaunchProgress?.message && (
-                <Typography level="body-sm" textColor="neutral.600">
-                  {effectiveLaunchProgress.message}
+            {(job?.status === 'LAUNCHING' || job?.status === 'WAITING') &&
+              stopping && (
+                <Typography level="body-xs" color="warning">
+                  Stopping&hellip;
                 </Typography>
               )}
-              {effectiveLaunchProgress?.percent != null && (
-                <LinearProgress
-                  determinate
-                  value={Math.min(
-                    100,
-                    Math.max(0, effectiveLaunchProgress.percent),
-                  )}
-                  sx={{ maxWidth: 240, height: 6, borderRadius: 'sm' }}
-                />
-              )}
-            </Stack>
-          )}
+          </Stack>
+          {(effectiveLaunchProgress?.message ||
+            effectiveLaunchProgress?.percent != null) &&
+            job?.status !== 'INTERACTIVE' && (
+              <Stack
+                direction="column"
+                sx={{ width: '100%', mt: 0.5 }}
+                spacing={0.5}
+              >
+                {effectiveLaunchProgress?.message && (
+                  <Typography level="body-sm" textColor="neutral.600">
+                    {effectiveLaunchProgress.message}
+                  </Typography>
+                )}
+                {effectiveLaunchProgress?.percent != null && (
+                  <LinearProgress
+                    determinate
+                    value={Math.min(
+                      100,
+                      Math.max(0, effectiveLaunchProgress.percent),
+                    )}
+                    sx={{ maxWidth: 240, height: 6, borderRadius: 'sm' }}
+                  />
+                )}
+              </Stack>
+            )}
           {job?.job_data?.start_time && (
             <>
               Started:{' '}
