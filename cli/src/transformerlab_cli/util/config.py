@@ -160,10 +160,13 @@ def check_configs(output_format: str = "pretty") -> None:
     config = load_config()
     missing_keys = [key for key in REQUIRED_CONFIG_KEYS if key not in config]
     if missing_keys:
-        console.print(
-            "[warning]Warning:[/warning] The following configuration keys are missing: " + ", ".join(missing_keys)
-        )
-        console.print("Use the 'lab config' command to set them.")
+        if output_format == "json":
+            print(json.dumps({"error": "Missing required configuration keys: " + ", ".join(missing_keys)}))
+        else:
+            console.print(
+                "[warning]Warning:[/warning] The following configuration keys are missing: " + ", ".join(missing_keys)
+            )
+            console.print("Use the 'lab config' command to set them.")
         raise typer.Exit(1)
 
     set_base_url(config.get("server"))

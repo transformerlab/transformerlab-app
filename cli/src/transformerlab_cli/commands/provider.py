@@ -86,7 +86,7 @@ def command_provider_list(
     include_disabled: bool = typer.Option(False, "--include-disabled", help="Include disabled providers"),
 ):
     """List all compute providers."""
-    check_configs()
+    check_configs(output_format=cli_state.output_format)
 
     with console.status("[bold success]Fetching providers...[/bold success]", spinner="dots"):
         response = api.get(f"/compute_provider/providers/?include_disabled={str(include_disabled).lower()}")
@@ -110,7 +110,7 @@ def command_provider_add(
     interactive: bool = typer.Option(True, "--interactive/--no-interactive", help="Use interactive prompts"),
 ):
     """Add a new compute provider."""
-    check_configs()
+    check_configs(output_format=cli_state.output_format)
 
     if not interactive:
         if not name or not provider_type or config is None:
@@ -164,7 +164,7 @@ def command_provider_info(
     provider_id: str = typer.Argument(..., help="Provider ID"),
 ):
     """Show details for a compute provider."""
-    check_configs()
+    check_configs(output_format=cli_state.output_format)
 
     with console.status(f"[bold success]Fetching provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.get(f"/compute_provider/providers/{provider_id}")
@@ -187,7 +187,7 @@ def command_provider_update(
     disabled: bool = typer.Option(None, "--disabled/--enabled", help="Disable or enable the provider"),
 ):
     """Update a compute provider."""
-    check_configs()
+    check_configs(output_format=cli_state.output_format)
 
     payload: dict = {}
     if name is not None:
@@ -226,7 +226,7 @@ def command_provider_delete(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
 ):
     """Delete a compute provider."""
-    check_configs()
+    check_configs(output_format=cli_state.output_format)
 
     if not yes:
         typer.confirm(f"Delete provider {provider_id}?", abort=True)
@@ -249,7 +249,7 @@ def command_provider_check(
     provider_id: str = typer.Argument(..., help="Provider ID to check"),
 ):
     """Check connectivity and health of a compute provider."""
-    check_configs()
+    check_configs(output_format=cli_state.output_format)
 
     with console.status(f"[bold success]Checking provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.get(f"/compute_provider/providers/{provider_id}/check", timeout=60.0)
@@ -270,7 +270,7 @@ def command_provider_enable(
     provider_id: str = typer.Argument(..., help="Provider ID to enable"),
 ):
     """Enable a compute provider."""
-    check_configs()
+    check_configs(output_format=cli_state.output_format)
 
     with console.status(f"[bold success]Enabling provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.patch(f"/compute_provider/providers/{provider_id}", json_data={"disabled": False})
@@ -290,7 +290,7 @@ def command_provider_disable(
     provider_id: str = typer.Argument(..., help="Provider ID to disable"),
 ):
     """Disable a compute provider."""
-    check_configs()
+    check_configs(output_format=cli_state.output_format)
 
     with console.status(f"[bold success]Disabling provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.patch(f"/compute_provider/providers/{provider_id}", json_data={"disabled": True})

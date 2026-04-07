@@ -108,8 +108,6 @@ def _build_seatbelt_profile(
         "(allow sysctl*)",
         # Metal / Apple Silicon GPU: framework dylibs and private frameworks
         '(allow file-read* (subpath "/System"))',
-        # Unified memory mapping (Metal + PyTorch mmap model loading)
-        "(allow vm-map)",
         # POSIX shared memory (PyTorch DataLoader workers, multiprocessing, Metal IPC)
         "(allow ipc-posix-shm)",
         # Timezone data (Python datetime / zoneinfo)

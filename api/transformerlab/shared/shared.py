@@ -106,6 +106,41 @@ async def get_job_output_file_name(job_id: str, plugin_name: str = None, experim
 reset = "\033[0m"
 
 
+def get_media_type(filename: str) -> str:
+    """
+    Determine the media type from a file extension.
+
+    Args:
+        filename (str): The filename or path to determine media type for.
+
+    Returns:
+        str: The media type string (e.g., 'application/pdf', 'text/plain'),
+             defaults to 'application/octet-stream' for unknown types.
+    """
+    _, ext = os.path.splitext(filename.lower())
+
+    media_type_map = {
+        ".pdf": "application/pdf",
+        ".txt": "text/plain",
+        ".md": "text/plain",
+        ".csv": "text/csv",
+        ".json": "application/json",
+        ".jsonl": "application/json",
+        ".xml": "text/xml",
+        ".html": "text/html",
+        ".epub": "application/epub+zip",
+        ".ipynb": "application/json",
+        ".mbox": "text/plain",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".ppt": "application/vnd.ms-powerpoint",
+        ".pptm": "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+        ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ".zip": "application/zip",
+    }
+
+    return media_type_map.get(ext, "application/octet-stream")
+
+
 def print_in_rainbow(text):
     # Generate rainbow colors for the text
     rainbow_colors = generate_rainbow_colors(text, time_step=0.1)
