@@ -1,20 +1,4 @@
 """Storage proxy router.
-
-Provides endpoints that let authenticated callers (remote GPU nodes, users)
-perform cloud-storage operations without ever receiving cloud credentials.
-The API server performs the real operations using its own credentials via
-the ``lab.storage`` abstraction (supports S3, GCS, Azure, local).
-
-Authentication follows the same ``Depends(get_user_and_team)`` pattern used
-on all other protected routes (see docs/Auth.md).
-
-Two groups of endpoints:
-
-1. **Object endpoints** — read / write / list objects by full cloud path
-   (e.g. ``s3://bucket/key``).
-2. **Filesystem metadata endpoints** — exists, isdir, isfile, makedirs, rm,
-   find — matching the operations that ``lab.storage`` exposes and that the
-   SDK calls from remote nodes.
 """
 
 import logging
