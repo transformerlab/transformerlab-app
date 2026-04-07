@@ -226,3 +226,44 @@ def test_config_get_missing_key_json_format(tmp_config_dir):
         assert result.exit_code == 1
         output = json.loads(result.output.strip())
         assert "error" in output
+
+
+# --- check_configs behavior ---
+
+
+def test_check_configs_missing_keys_json(tmp_config_dir):
+    """check_configs with missing required keys outputs JSON error in json mode."""
+    config_dir, config_file = tmp_config_dir
+    with _patch_config_paths(config_dir, config_file):
+        # No config file written — all required keys missing
+        result = runner.invoke(app, ["--format=json", "job", "list"])
+        assert result.exit_code == 1
+        output = json.loads(result.output.strip())
+        assert "error" in output
+        assert "server" in output["error"]
+
+
+def test_check_configs_no_banner_in_json_mode(tmp_config_dir):
+    """check_configs with all required keys set prints no banner in json mode."""
+    from unittest.mock import patch as mock_patch
+
+    config_dir, config_file = tmp_config_dir
+    config_data = {
+        "server": "http://localhost:8338",
+        "team_id": "abc-123",
+        "user_email": "user@example.com",
+        "current_experiment": "alpha",
+    }
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write(json.dumps(config_data))
+    with _patch_config_paths(config_dir, config_file):
+        with mock_patch("transformerlab_cli.util.api.get") as mock_api:
+            mock_resp = __import__("unittest.mock", fromlist=["MagicMock"]).MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = []
+            mock_api.return_value = mock_resp
+            result = runner.invoke(app, ["--format=json", "job", "list"])
+        assert result.exit_code == 0
+        # Output must be valid JSON with no banner text mixed in
+        output = json.loads(result.output.strip())
+        assert isinstance(output, list)

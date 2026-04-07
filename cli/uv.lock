@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 
 [[package]]
@@ -371,7 +371,7 @@ wheels = [
 
 [[package]]
 name = "transformerlab-cli"
-version = "0.0.1"
+version = "0.0.9"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
