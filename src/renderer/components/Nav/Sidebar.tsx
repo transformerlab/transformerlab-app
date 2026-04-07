@@ -10,6 +10,7 @@ import {
   GithubIcon,
   FileIcon,
   StretchHorizontalIcon,
+  HashIcon,
 } from 'lucide-react';
 
 import {
@@ -101,6 +102,11 @@ function GlobalMenuItems({ experimentInfo }: GlobalMenuItemsProps) {
 
       <SubNavItem title="Model Registry" path="/zoo" icon={<BoxesIcon />} />
       <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
+      <SubNavItem
+        title="Tokenization"
+        path="/tokenization"
+        icon={<HashIcon />}
+      />
       <SubNavItem
         title="Tasks Gallery"
         path="/tasks-gallery"

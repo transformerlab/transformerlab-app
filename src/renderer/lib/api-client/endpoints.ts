@@ -499,6 +499,8 @@ Endpoints.Users = {
   SetSecrets: () => `${API_URL()}users/me/secrets`,
 };
 
+Endpoints.Tokenize = () => `${API_URL()}tokenize`;
+
 Endpoints.AssetVersions = {
   ListGroups: (assetType: string) =>
     `${API_URL()}asset_versions/groups?asset_type=${assetType}`,

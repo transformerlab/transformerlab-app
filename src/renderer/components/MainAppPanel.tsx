@@ -32,6 +32,7 @@ import Interactive from './Experiment/Interactive/Interactive';
 import Team from './Team/Team';
 import UsageReport from './Team/UsageReport';
 import TasksGallery from './TasksGallery/TasksGallery';
+import Tokenization from './Tokenization/Tokenization';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -247,6 +248,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/data/store" element={<Data tab="store" />} />
         <Route path="/data/registry" element={<Data tab="registry" />} />
         <Route path="/tasks-gallery" element={<TasksGallery />} />
+        <Route path="/tokenization" element={<Tokenization />} />
         <Route path="/compute" element={<Compute />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/user" element={<UserSettings tab="profile" />} />
