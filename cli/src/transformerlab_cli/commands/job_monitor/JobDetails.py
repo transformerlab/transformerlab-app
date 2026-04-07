@@ -199,7 +199,7 @@ class JobDetails(Vertical):
         try:
             # Check configs first
             try:
-                check_configs()
+                check_configs(output_format="json")
             except SystemExit:
                 self.notify("Configuration error: missing required config keys", severity="error")
                 return

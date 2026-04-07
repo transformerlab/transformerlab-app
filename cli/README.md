@@ -36,6 +36,16 @@ uv tool install transformerlab-cli
 
 For a full list of all commands with detailed options and example usage, see [COMMANDS.md](https://github.com/transformerlab/transformerlab-app/blob/main/cli/COMMANDS.md).
 
+## Claude Code Skill
+
+Want Claude Code (or other AI coding agents) to manage Transformer Lab for you? Install the skill:
+
+```bash
+npx skills add transformerlab/transformerlab-app
+```
+
+This teaches your AI agent how to use the `lab` CLI to check job status, stream logs, download artifacts, queue tasks, manage providers, and more. See [.agents/skills/transformerlab-cli/](https://github.com/transformerlab/transformerlab-app/tree/main/.agents/skills/transformerlab-cli) for the full skill definition.
+
 ## Development
 
 ### Run (DEV)

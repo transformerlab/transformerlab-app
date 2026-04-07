@@ -245,7 +245,7 @@ def command_task_info(
 def fetch_providers() -> list[dict]:
     """Fetch available compute providers."""
     try:
-        response = api.get("/compute_provider/")
+        response = api.get("/compute_provider/providers/")
         if response.status_code == 200:
             return response.json()
     except httpx.HTTPError:
@@ -357,7 +357,7 @@ def _prompt_resource_overrides(current: dict) -> dict:
 
 def launch_task_on_provider(provider_id: str, payload: dict) -> dict:
     """Launch a task on a provider. Returns the response JSON or raises."""
-    response = api.post_json(f"/compute_provider/{provider_id}/task/launch", payload)
+    response = api.post_json(f"/compute_provider/providers/{provider_id}/launch/", payload)
     if response.status_code == 200:
         return response.json()
     try:

@@ -21,7 +21,7 @@ def _get_experiment_id() -> str:
 def _select_provider() -> dict:
     """Fetch providers and prompt user to select one."""
     with console.status("[bold success]Fetching providers...[/bold success]", spinner="dots"):
-        response = api.get("/compute_provider/")
+        response = api.get("/compute_provider/providers/")
 
     if response.status_code != 200:
         console.print("[error]Error:[/error] Failed to fetch providers.")
@@ -256,7 +256,7 @@ def _build_interactive_launch_payload(
 def _launch(provider: dict, payload: dict) -> int:
     """Launch the task on a provider. Returns job ID."""
     provider_id = provider.get("id")
-    response = api.post_json(f"/compute_provider/{provider_id}/task/launch", payload)
+    response = api.post_json(f"/compute_provider/providers/{provider_id}/launch/", payload)
 
     if response.status_code != 200:
         try:
