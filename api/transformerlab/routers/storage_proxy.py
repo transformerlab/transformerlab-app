@@ -1,5 +1,4 @@
-"""Storage proxy router.
-"""
+"""Storage proxy router."""
 
 import logging
 

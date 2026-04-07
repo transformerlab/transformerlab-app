@@ -208,8 +208,6 @@ async def launch_template_on_provider(
     # Build setup script - add cloud credential helpers first, then file_mounts and other setup.
     setup_commands: list[str] = []
 
-
-
     if request.file_mounts is True and request.task_id:
         setup_commands.append(COPY_FILE_MOUNTS_SETUP)
     # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
@@ -302,7 +300,6 @@ async def launch_template_on_provider(
     env_vars["_TFL_JOB_ID"] = str(job_id)
     env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
     env_vars["_TFL_USER_ID"] = user_id
-
 
     tfl_api_url = os.getenv("TFL_API_URL", "")
     if tfl_api_url:

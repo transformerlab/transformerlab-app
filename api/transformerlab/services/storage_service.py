@@ -1,5 +1,4 @@
-"""Storage proxy service — filesystem operations on behalf of authenticated callers.
-"""
+"""Storage proxy service — filesystem operations on behalf of authenticated callers."""
 
 import logging
 from typing import AsyncIterator
