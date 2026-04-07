@@ -14,10 +14,6 @@ from transformerlab.schemas.secrets import SPECIAL_SECRET_TYPES
 from transformerlab.services import job_service, quota_service
 from transformerlab.services.compute_provider.launch_credentials import (
     COPY_FILE_MOUNTS_SETUP,
-    RUNPOD_AWS_CREDENTIALS_DIR,
-    generate_aws_credentials_setup,
-    generate_azure_credentials_setup,
-    get_aws_credentials_from_file,
 )
 from transformerlab.services.compute_provider.launch_secrets import find_missing_secrets_for_template_launch
 from transformerlab.services.compute_provider.launch_sweep import create_sweep_parent_job, launch_sweep_jobs
@@ -212,39 +208,7 @@ async def launch_template_on_provider(
     # Build setup script - add cloud credential helpers first, then file_mounts and other setup.
     setup_commands: list[str] = []
 
-    if os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true":
-        if STORAGE_PROVIDER == "aws":
-            # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
-            aws_profile = "transformerlab-s3"
-            aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
-                get_aws_credentials_from_file, aws_profile
-            )
-            if aws_access_key_id and aws_secret_access_key:
-                aws_credentials_dir = RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
-                aws_setup = generate_aws_credentials_setup(
-                    aws_access_key_id, aws_secret_access_key, aws_profile, aws_credentials_dir=aws_credentials_dir
-                )
-                setup_commands.append(aws_setup)
-                if aws_credentials_dir:
-                    env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
-        elif STORAGE_PROVIDER == "azure":
-            azure_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-            azure_account = os.getenv("AZURE_STORAGE_ACCOUNT")
-            azure_key = os.getenv("AZURE_STORAGE_KEY")
-            azure_sas = os.getenv("AZURE_STORAGE_SAS_TOKEN")
-            if azure_connection_string or azure_account:
-                azure_setup = generate_azure_credentials_setup(
-                    azure_connection_string, azure_account, azure_key, azure_sas
-                )
-                setup_commands.append(azure_setup)
-                if azure_connection_string:
-                    env_vars["AZURE_STORAGE_CONNECTION_STRING"] = azure_connection_string
-                if azure_account:
-                    env_vars["AZURE_STORAGE_ACCOUNT"] = azure_account
-                if azure_key:
-                    env_vars["AZURE_STORAGE_KEY"] = azure_key
-                if azure_sas:
-                    env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
+
 
     if request.file_mounts is True and request.task_id:
         setup_commands.append(COPY_FILE_MOUNTS_SETUP)
@@ -338,6 +302,15 @@ async def launch_template_on_provider(
     env_vars["_TFL_JOB_ID"] = str(job_id)
     env_vars["_TFL_EXPERIMENT_ID"] = request.experiment_id
     env_vars["_TFL_USER_ID"] = user_id
+
+
+    tfl_api_url = os.getenv("TFL_API_URL", "")
+    if tfl_api_url:
+        env_vars["_TFL_API_URL"] = tfl_api_url
+    tfl_api_key = os.getenv("TFL_API_KEY", "")
+    if tfl_api_key:
+        env_vars["_TFL_API_KEY"] = tfl_api_key
+    env_vars["_TFL_TEAM_ID"] = str(team_id)
 
     # Enable Trackio auto-init for this job if requested. When set, the lab SDK
     # running inside the remote script can automatically initialize Trackio
