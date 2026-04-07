@@ -278,7 +278,7 @@ def command_job_artifacts(
     job_id: str = typer.Argument(..., help="Job ID to list artifacts for"),
 ):
     """List artifacts for a job."""
-    check_configs()
+    check_configs(output_format=cli_state.output_format)
     list_artifacts(job_id, output_format=cli_state.output_format)
 
 
@@ -295,7 +295,7 @@ def command_job_download(
     ),
 ):
     """Download artifacts for a job. Use --file to download specific files."""
-    check_configs()
+    check_configs(output_format=cli_state.output_format)
     out = os.path.abspath(output_dir) if output_dir else os.getcwd()
     output_format = cli_state.output_format
 
@@ -475,7 +475,6 @@ def command_job_list(
     ),
 ):
     """List all jobs."""
-    check_configs()
     current_experiment = require_current_experiment()
     list_jobs(current_experiment, running_only=running)
 

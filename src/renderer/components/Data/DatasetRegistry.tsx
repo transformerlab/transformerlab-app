@@ -10,6 +10,8 @@
  */
 
 import { useState } from 'react';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import {
   Accordion,
   AccordionDetails,
@@ -18,14 +20,10 @@ import {
   Box,
   Chip,
   CircularProgress,
-  Divider,
-  Drawer,
-  DialogTitle,
   FormControl,
   FormLabel,
   IconButton,
   Input,
-  ModalClose,
   Option,
   Select,
   Sheet,
@@ -36,20 +34,19 @@ import {
   Typography,
 } from '@mui/joy';
 import {
-  BriefcaseIcon,
   ChevronDownIcon,
   DatabaseIcon,
-  InfoIcon,
   RotateCcwIcon,
   SearchIcon,
   Trash2Icon,
   XIcon,
 } from 'lucide-react';
-import Markdown from 'react-markdown';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../lib/transformerlab-api-sdk';
+
+dayjs.extend(relativeTime);
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -89,41 +86,6 @@ const TAG_COLORS: Record<
   production: 'success',
   draft: 'warning',
 };
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatDate(isoString: string | null): string {
-  if (!isoString) return '—';
-  try {
-    const d = new Date(isoString);
-    return d.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return isoString;
-  }
-}
-
-function formatRelativeDate(isoString: string | null): string {
-  if (!isoString) return '—';
-  try {
-    const d = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 30) return `${diffDays}d ago`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
-    return `${Math.floor(diffDays / 365)}y ago`;
-  } catch {
-    return isoString;
-  }
-}
 
 // ─── Skeleton loader (matches LocalModelsTable pattern) ──────────────────────
 
@@ -176,236 +138,6 @@ function RegistrySkeleton() {
   );
 }
 
-// ─── Version Info Drawer ─────────────────────────────────────────────────────
-
-function VersionInfoDrawer({
-  open,
-  onClose,
-  entry,
-}: {
-  open: boolean;
-  onClose: () => void;
-  entry: VersionEntry | null;
-}) {
-  if (!entry) return null;
-
-  return (
-    <Drawer
-      anchor="right"
-      open={open}
-      onClose={onClose}
-      size="lg"
-      slotProps={{
-        content: {
-          sx: {
-            width: { xs: '100vw', sm: 540 },
-            display: 'flex',
-            flexDirection: 'column',
-          },
-        },
-      }}
-    >
-      <Sheet sx={{ p: 2.5, pb: 1.5 }}>
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <DialogTitle>
-            <Typography level="title-lg">
-              Version Details: <b>{entry.version_label}</b>
-            </Typography>
-          </DialogTitle>
-          <ModalClose />
-        </Stack>
-      </Sheet>
-      <Divider />
-      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-        <Stack spacing={2}>
-          {/* Title */}
-          {entry.title && (
-            <Box>
-              <Typography
-                level="body-xs"
-                textTransform="uppercase"
-                fontWeight="lg"
-                sx={{ mb: 0.5 }}
-              >
-                Title
-              </Typography>
-              <Typography level="body-md">{entry.title}</Typography>
-            </Box>
-          )}
-
-          {/* Description */}
-          {entry.description && (
-            <Box>
-              <Typography
-                level="body-xs"
-                textTransform="uppercase"
-                fontWeight="lg"
-                sx={{ mb: 0.5 }}
-              >
-                Description
-              </Typography>
-              <Typography level="body-sm">{entry.description}</Typography>
-            </Box>
-          )}
-
-          {/* Long description (markdown) */}
-          {entry.long_description && (
-            <Box>
-              <Typography
-                level="body-xs"
-                textTransform="uppercase"
-                fontWeight="lg"
-                sx={{ mb: 0.5 }}
-              >
-                Details
-              </Typography>
-              <Box sx={{ '& p': { margin: 0 }, '& img': { maxWidth: '100%' } }}>
-                <Markdown>{entry.long_description}</Markdown>
-              </Box>
-            </Box>
-          )}
-
-          {/* Cover image */}
-          {entry.cover_image && (
-            <Box>
-              <Typography
-                level="body-xs"
-                textTransform="uppercase"
-                fontWeight="lg"
-                sx={{ mb: 0.5 }}
-              >
-                Cover Image
-              </Typography>
-              <img
-                src={entry.cover_image}
-                alt="Cover"
-                style={{ maxWidth: '100%', borderRadius: 8 }}
-              />
-            </Box>
-          )}
-
-          {/* Dataset ID */}
-          <Box>
-            <Typography
-              level="body-xs"
-              textTransform="uppercase"
-              fontWeight="lg"
-              sx={{ mb: 0.5 }}
-            >
-              Dataset ID
-            </Typography>
-            <Typography level="body-sm" fontFamily="monospace">
-              {entry.asset_id}
-            </Typography>
-          </Box>
-
-          {/* Tag */}
-          <Box>
-            <Typography
-              level="body-xs"
-              textTransform="uppercase"
-              fontWeight="lg"
-              sx={{ mb: 0.5 }}
-            >
-              Tag
-            </Typography>
-            {entry.tag ? (
-              <Chip
-                size="sm"
-                color={TAG_COLORS[entry.tag] || 'neutral'}
-                variant="soft"
-              >
-                {entry.tag}
-              </Chip>
-            ) : (
-              <Typography level="body-sm" color="neutral">
-                —
-              </Typography>
-            )}
-          </Box>
-
-          {/* Created */}
-          <Box>
-            <Typography
-              level="body-xs"
-              textTransform="uppercase"
-              fontWeight="lg"
-              sx={{ mb: 0.5 }}
-            >
-              Created
-            </Typography>
-            <Typography level="body-sm">
-              {formatDate(entry.created_at)}
-            </Typography>
-          </Box>
-
-          {/* Source Job */}
-          <Box>
-            <Typography
-              level="body-xs"
-              textTransform="uppercase"
-              fontWeight="lg"
-              sx={{ mb: 0.5 }}
-            >
-              Source Job
-            </Typography>
-            {entry.job_id ? (
-              <Chip size="sm" variant="outlined" color="neutral">
-                <BriefcaseIcon size={12} />
-                &nbsp;Job {entry.job_id}
-              </Chip>
-            ) : (
-              <Typography level="body-sm" color="neutral">
-                —
-              </Typography>
-            )}
-          </Box>
-
-          {/* Evals */}
-          {entry.evals && Object.keys(entry.evals).length > 0 && (
-            <Box>
-              <Typography
-                level="body-xs"
-                textTransform="uppercase"
-                fontWeight="lg"
-                sx={{ mb: 0.5 }}
-              >
-                Evaluations
-              </Typography>
-              <Table size="sm" sx={{ '& td, & th': { py: 0.5 } }}>
-                <thead>
-                  <tr>
-                    <th>Metric</th>
-                    <th>Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(entry.evals).map(([key, val]) => (
-                    <tr key={key}>
-                      <td>
-                        <Typography level="body-sm" fontFamily="monospace">
-                          {key}
-                        </Typography>
-                      </td>
-                      <td>
-                        <Typography level="body-sm">{String(val)}</Typography>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </Box>
-          )}
-        </Stack>
-      </Box>
-    </Drawer>
-  );
-}
-
 // ─── Version row (inline in the accordion) ───────────────────────────────────
 
 function VersionRow({
@@ -414,14 +146,12 @@ function VersionRow({
   onSetTag,
   onClearTag,
   onDelete,
-  onInfo,
 }: {
   v: VersionEntry;
   updatingVersion: string | null;
   onSetTag: (versionLabel: string, tag: string) => void;
   onClearTag: (versionLabel: string) => void;
   onDelete: (versionLabel: string) => void;
-  onInfo: (version: VersionEntry) => void;
 }) {
   return (
     <tr key={v.id}>
@@ -460,15 +190,14 @@ function VersionRow({
             color={TAG_COLORS[v.tag] || 'neutral'}
             variant="soft"
             endDecorator={
-              <IconButton
+              <a
                 size="sm"
                 variant="plain"
                 color="neutral"
                 onClick={() => onClearTag(v.version_label)}
-                sx={{ '--IconButton-size': '18px', ml: 0.5 }}
               >
                 <XIcon size={12} />
-              </IconButton>
+              </a>
             }
           >
             {v.tag}
@@ -494,7 +223,6 @@ function VersionRow({
         {v.job_id ? (
           <Tooltip title={`Job ${v.job_id}`}>
             <Chip size="sm" variant="outlined" color="neutral">
-              <BriefcaseIcon size={12} />
               &nbsp;{String(v.job_id).slice(0, 6)}
             </Chip>
           </Tooltip>
@@ -507,17 +235,11 @@ function VersionRow({
       {/* Created */}
       <td>
         <Typography level="body-xs">
-          {formatRelativeDate(v.created_at)}
+          {v.created_at ? dayjs(v.created_at).fromNow() : '—'}
         </Typography>
       </td>
-      {/* Info + Delete (inline, no Actions header) */}
+      {/* Delete */}
       <td style={{ textAlign: 'right' }}>
-        <InfoIcon
-          size={18}
-          style={{ cursor: 'pointer', verticalAlign: 'middle' }}
-          onClick={() => onInfo(v)}
-        />
-        &nbsp;
         <Trash2Icon
           size={18}
           color="var(--joy-palette-danger-600)"
@@ -534,11 +256,9 @@ function VersionRow({
 function GroupVersionsTable({
   groupName,
   mutateGroups,
-  onOpenInfo,
 }: {
   groupName: string;
   mutateGroups: () => void;
-  onOpenInfo: (v: VersionEntry) => void;
 }) {
   const [updatingVersion, setUpdatingVersion] = useState<string | null>(null);
   const assetType = 'dataset';
@@ -646,29 +366,16 @@ function GroupVersionsTable({
   }
 
   return (
-    <Table
-      size="sm"
-      stickyHeader
-      hoverRow
-      sx={{
-        '--TableCell-headBackground': (theme: any) =>
-          theme.vars.palette.background.level1,
-        '--Table-headerUnderlineThickness': '1px',
-        '--TableRow-hoverBackground': (theme: any) =>
-          theme.vars.palette.background.level1,
-        '& thead th': { textAlign: 'left' },
-        '& tbody td': { verticalAlign: 'middle' },
-      }}
-    >
+    <Table size="sm" stickyHeader hoverRow>
       <thead>
         <tr>
-          <th style={{ width: 200, padding: 12 }}>Name</th>
-          <th style={{ width: 200, padding: 12 }}>Dataset ID</th>
-          <th style={{ width: 70, padding: 12 }}>Version</th>
-          <th style={{ width: 120, padding: 12 }}>Tag</th>
-          <th style={{ width: 80, padding: 12 }}>Job</th>
-          <th style={{ width: 90, padding: 12 }}>Created</th>
-          <th style={{ width: 60, padding: 12 }}> </th>
+          <th style={{ width: 200 }}>Name</th>
+          <th style={{ width: 200 }}>Dataset ID</th>
+          <th style={{ width: 70 }}>Version</th>
+          <th style={{ width: 120 }}>Tag</th>
+          <th style={{ width: 80 }}>Job</th>
+          <th style={{ width: 90 }}>Created</th>
+          <th style={{ width: 60 }}>&nbsp;</th>
         </tr>
       </thead>
       <tbody>
@@ -680,7 +387,6 @@ function GroupVersionsTable({
             onSetTag={handleSetTag}
             onClearTag={handleClearTag}
             onDelete={handleDeleteVersion}
-            onInfo={onOpenInfo}
           />
         ))}
       </tbody>
@@ -693,10 +399,6 @@ function GroupVersionsTable({
 export default function DatasetRegistry() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [searchText, setSearchText] = useState('');
-  const [infoDrawerEntry, setInfoDrawerEntry] = useState<VersionEntry | null>(
-    null,
-  );
-
   const {
     data: groups,
     isLoading,
@@ -891,9 +593,9 @@ export default function DatasetRegistry() {
                       </Stack>
 
                       {/* Right side: last updated */}
-                      <Typography level="body-xs" color="neutral">
+                      {/* <Typography level="body-xs" color="neutral">
                         {formatRelativeDate(group.latest_created_at)}
-                      </Typography>
+                      </Typography> */}
                     </Box>
                   </AccordionSummary>
 
@@ -902,7 +604,6 @@ export default function DatasetRegistry() {
                       <GroupVersionsTable
                         groupName={group.group_name}
                         mutateGroups={mutateGroups}
-                        onOpenInfo={(v) => setInfoDrawerEntry(v)}
                       />
                     )}
                   </AccordionDetails>
@@ -912,13 +613,6 @@ export default function DatasetRegistry() {
           </AccordionGroup>
         )}
       </Box>
-
-      {/* ── Version Info Drawer ── */}
-      <VersionInfoDrawer
-        open={infoDrawerEntry !== null}
-        onClose={() => setInfoDrawerEntry(null)}
-        entry={infoDrawerEntry}
-      />
     </Sheet>
   );
 }

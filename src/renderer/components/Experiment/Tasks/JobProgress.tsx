@@ -70,48 +70,37 @@ export default function JobProgress({
       return;
     }
 
-    if (job.type === 'REMOTE') {
-      // For REMOTE jobs, check if they have provider_id (new provider-based jobs)
-      const providerId = job.job_data?.provider_id;
-      const clusterName = job.job_data?.cluster_name;
+    // Check if job has provider metadata (works for both remote and local providers)
+    const providerId = job.job_data?.provider_id;
+    const clusterName = job.job_data?.cluster_name;
 
-      if (providerId && clusterName) {
-        try {
-          // Let the backend handle STOPPING status transition
-          if (experimentInfo?.id && job?.id) {
-            await chatAPI.authenticatedFetch(
-              chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, job.id),
-            );
-          }
-          await fetchWithAuth(
-            chatAPI.Endpoints.ComputeProvider.StopCluster(
-              providerId,
-              clusterName,
-            ),
-            { method: 'POST' },
+    if (providerId && clusterName) {
+      try {
+        // Let the backend handle STOPPING status transition
+        if (experimentInfo?.id && job?.id) {
+          await chatAPI.authenticatedFetch(
+            chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, job.id),
           );
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error('Failed to stop provider cluster:', error);
-          // Roll back from STOPPING so the user can retry
-          if (experimentInfo?.id && job?.id) {
-            await chatAPI.authenticatedFetch(
-              chatAPI.Endpoints.Jobs.Update(
-                experimentInfo.id,
-                job.id,
-                'RUNNING',
-              ),
-            );
-          }
         }
-      } else {
-        // eslint-disable-next-line no-console
-        console.error(
-          'No cluster_name or provider_id found in REMOTE job data',
+        await fetchWithAuth(
+          chatAPI.Endpoints.ComputeProvider.StopCluster(
+            providerId,
+            clusterName,
+          ),
+          { method: 'POST' },
         );
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to stop provider cluster:', error);
+        // Roll back from STOPPING so the user can retry
+        if (experimentInfo?.id && job?.id) {
+          await chatAPI.authenticatedFetch(
+            chatAPI.Endpoints.Jobs.Update(experimentInfo.id, job.id, 'RUNNING'),
+          );
+        }
       }
     } else if (experimentInfo?.id && job?.id) {
-      // For other job types, use the regular stop endpoint
+      // For jobs without provider metadata, use the regular stop endpoint
       await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, job.id),
       );

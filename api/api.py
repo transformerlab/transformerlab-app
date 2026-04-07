@@ -423,6 +423,12 @@ def run():
         import asyncio
 
         cert_path, key_path = asyncio.run(ensure_persistent_self_signed_cert())
+        # With uvloop, peers that reset during TLS handshake can produce asyncio ERROR logs:
+        # "Future exception was never retrieved" / ConnectionResetError from sslproto. Harmless but
+        # noisy. Default HTTPS to the stdlib loop; set TFL_UVICORN_LOOP=auto or uvloop to override.
+        _ssl_loop = os.getenv("TFL_UVICORN_LOOP", "asyncio")
+        if _ssl_loop not in ("none", "auto", "asyncio", "uvloop"):
+            _ssl_loop = "asyncio"
         uvicorn.run(
             "api:app",
             host=args.host,
@@ -430,6 +436,7 @@ def run():
             log_level=uvicorn_log_level,
             ssl_certfile=cert_path,
             ssl_keyfile=key_path,
+            loop=_ssl_loop,  # type: ignore[arg-type]
         )
     else:
         uvicorn.run("api:app", host=args.host, port=args.port, log_level=uvicorn_log_level)

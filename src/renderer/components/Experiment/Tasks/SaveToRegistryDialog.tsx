@@ -117,6 +117,21 @@ export default function SaveToRegistryDialog({
       : null;
   const latestVersionLabel = selectedGroup?.latest_version_label ?? null;
 
+  const getNextVersionLabel = (latestLabel: string | null): string => {
+    if (!latestLabel) {
+      return 'v1';
+    }
+
+    const match = latestLabel.match(/^(.*?)(\d+)$/);
+    if (!match) {
+      return `${latestLabel}-2`;
+    }
+
+    const prefix = match[1];
+    const numericSuffix = Number(match[2]);
+    return `${prefix}${numericSuffix + 1}`;
+  };
+
   // Reset state when opening
   useEffect(() => {
     if (open) {
@@ -130,6 +145,21 @@ export default function SaveToRegistryDialog({
       setDescription('');
     }
   }, [open, sourceName]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    if (mode === 'new') {
+      setVersionLabel('v1');
+      return;
+    }
+
+    if (mode === 'existing' && selectedGroup) {
+      setVersionLabel(getNextVersionLabel(latestVersionLabel));
+    }
+  }, [open, mode, selectedGroup, latestVersionLabel]);
 
   // Sync external asset name error from parent (e.g. 409 conflict response)
   useEffect(() => {
@@ -182,19 +212,16 @@ export default function SaveToRegistryDialog({
         >
           {/* Option 1: Create new group */}
           <Box>
-            <Radio value="new" label="Create new group" />
+            <Radio value="new" label={`Create new ${typeLabel}`} />
             {mode === 'new' && (
               <FormControl sx={{ ml: 4, mt: 1 }}>
-                <FormLabel>Group name</FormLabel>
+                <FormLabel>Name</FormLabel>
                 <Input
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder={`e.g. my-${typeLabel.toLowerCase()}`}
                   autoFocus
                 />
-                <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
-                  This will be version <strong>1</strong> in the new group.
-                </Typography>
               </FormControl>
             )}
           </Box>
@@ -203,17 +230,16 @@ export default function SaveToRegistryDialog({
           <Box>
             <Radio
               value="existing"
-              label={`Add version to existing group`}
+              label={`Add as version to existing ${typeLabel}`}
               disabled={groupNames.length === 0}
             />
             {mode === 'existing' && (
               <FormControl sx={{ ml: 4, mt: 1 }}>
-                <FormLabel>Select group</FormLabel>
                 <Autocomplete
                   options={groupNames}
                   value={existingTarget}
                   onChange={(_e, value) => setExistingTarget(value)}
-                  placeholder={`Search groups…`}
+                  placeholder={`Search ${typeLabel.toLowerCase()}s…`}
                   autoFocus
                 />
                 {selectedGroup && (
@@ -246,7 +272,7 @@ export default function SaveToRegistryDialog({
         <Stack spacing={2}>
           {/* Asset name (unique folder name in the registry) */}
           <FormControl error={!!assetNameError}>
-            <FormLabel>{typeLabel} Name</FormLabel>
+            <FormLabel>Version Name</FormLabel>
             <Input
               size="sm"
               value={assetName}
@@ -275,11 +301,13 @@ export default function SaveToRegistryDialog({
             <Input
               size="sm"
               value={versionLabel}
-              onChange={(e) => setVersionLabel(e.target.value)}
-              placeholder="e.g. v1, v1.2.3, march-run"
+              readOnly
+              disabled
+              placeholder="Auto-generated version label"
+              sx={{ cursor: 'not-allowed' }}
             />
             <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
-              A human-readable label for this version.
+              A system-generated label for this version.
             </Typography>
           </FormControl>
 
@@ -320,7 +348,8 @@ export default function SaveToRegistryDialog({
               ))}
             </Select>
             <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
-              The tag will be moved from any version that currently holds it.
+              Selecting this tag will move it from any version that currently
+              has it.
             </Typography>
           </FormControl>
 

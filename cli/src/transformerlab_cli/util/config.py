@@ -160,10 +160,13 @@ def check_configs(output_format: str = "pretty") -> None:
     config = load_config()
     missing_keys = [key for key in REQUIRED_CONFIG_KEYS if key not in config]
     if missing_keys:
-        console.print(
-            "[warning]Warning:[/warning] The following configuration keys are missing: " + ", ".join(missing_keys)
-        )
-        console.print("Use the 'lab config' command to set them.")
+        if output_format == "json":
+            print(json.dumps({"error": "Missing required configuration keys: " + ", ".join(missing_keys)}))
+        else:
+            console.print(
+                "[warning]Warning:[/warning] The following configuration keys are missing: " + ", ".join(missing_keys)
+            )
+            console.print("Use the 'lab config' command to set them.")
         raise typer.Exit(1)
 
     set_base_url(config.get("server"))
@@ -201,7 +204,9 @@ def get_current_experiment() -> str | None:
 
 def require_current_experiment() -> str:
     """Get the current experiment ID from config, or exit with a helpful message."""
-    check_configs()
+    from transformerlab_cli.state import cli_state
+
+    check_configs(output_format=cli_state.output_format)
     current_experiment = get_config("current_experiment")
     if not current_experiment or not str(current_experiment).strip():
         console.print(
