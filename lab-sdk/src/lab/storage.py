@@ -14,6 +14,21 @@ import logging
 logging.getLogger("aiobotocore").setLevel(logging.CRITICAL)
 logging.getLogger("s3fs").setLevel(logging.CRITICAL)
 
+# ---------------------------------------------------------------------------
+# Proxy-mode detection
+# ---------------------------------------------------------------------------
+# When _TFL_API_URL is set the SDK is running on a remote GPU node and must
+# NOT access cloud storage directly (it has no credentials).  All remote-path
+# operations are routed through the API server's storage proxy instead.
+# Import lazily to avoid circular import at module load time.
+
+
+def _use_proxy_for(path: str) -> bool:
+    """Return True when *path* should be served through the HTTP proxy."""
+    from . import storage_proxy
+
+    return storage_proxy.is_proxy_mode() and is_remote_path(path)
+
 
 class AsyncFileWrapper:
     """
@@ -298,6 +313,10 @@ async def root_join(*parts: str) -> str:
 
 
 async def exists(path: str) -> bool:
+    if _use_proxy_for(path):
+        from . import storage_proxy
+
+        return await asyncio.to_thread(storage_proxy.exists, path)
     fs = await filesystem()
     try:
         return await asyncio.to_thread(fs.exists, path)
@@ -307,6 +326,10 @@ async def exists(path: str) -> bool:
 
 
 async def isdir(path: str, fs=None) -> bool:
+    if _use_proxy_for(path):
+        from . import storage_proxy
+
+        return await asyncio.to_thread(storage_proxy.isdir, path)
     filesys = fs
     try:
         filesys = fs if fs is not None else await filesystem()
@@ -320,6 +343,10 @@ async def isdir(path: str, fs=None) -> bool:
 
 
 async def isfile(path: str) -> bool:
+    if _use_proxy_for(path):
+        from . import storage_proxy
+
+        return await asyncio.to_thread(storage_proxy.isfile, path)
     fs = None
     try:
         fs = await filesystem()
@@ -332,6 +359,11 @@ async def isfile(path: str) -> bool:
 
 
 async def makedirs(path: str, exist_ok: bool = True) -> None:
+    if _use_proxy_for(path):
+        from . import storage_proxy
+
+        await asyncio.to_thread(storage_proxy.makedirs, path, exist_ok)
+        return
     fs = await filesystem()
     try:
         await asyncio.to_thread(fs.makedirs, path, exist_ok=exist_ok)
@@ -345,6 +377,10 @@ async def makedirs(path: str, exist_ok: bool = True) -> None:
 
 
 async def ls(path: str, detail: bool = False, fs=None):
+    if _use_proxy_for(path):
+        from . import storage_proxy
+
+        return await asyncio.to_thread(storage_proxy.ls, path, detail)
     # Use provided filesystem or get default
     filesys = fs if fs is not None else await filesystem()
     try:
@@ -374,6 +410,10 @@ async def ls(path: str, detail: bool = False, fs=None):
 
 
 async def find(path: str) -> list[str]:
+    if _use_proxy_for(path):
+        from . import storage_proxy
+
+        return await asyncio.to_thread(storage_proxy.find, path)
     fs = await filesystem()
     try:
         return await asyncio.to_thread(fs.find, path)
@@ -386,6 +426,9 @@ async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
     """
     Walk directory tree, returning a list of (root, dirs, files) tuples.
 
+    In proxy mode, ``walk`` is not directly supported by the HTTP proxy.
+    We approximate it by using ``find`` + ``ls`` to reconstruct the tree.
+
     Args:
         path: Root directory to start the walk
         maxdepth: Maximum recursion depth (None for no limit)
@@ -395,6 +438,38 @@ async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
     Returns:
         List of (root, dirs, files) tuples similar to os.walk()
     """
+    if _use_proxy_for(path):
+        # Approximate walk via find (returns flat list of all files)
+        from . import storage_proxy
+
+        all_files = await asyncio.to_thread(storage_proxy.find, path)
+        # Build a dir→files mapping
+        dir_files: dict[str, list[str]] = {}
+        dir_subdirs: dict[str, set[str]] = {}
+        path_stripped = path.rstrip("/")
+        for f in all_files:
+            parent = posixpath.dirname(f)
+            fname = posixpath.basename(f)
+            dir_files.setdefault(parent, []).append(fname)
+            # Register all intermediate directories
+            rel = parent[len(path_stripped) :].lstrip("/")
+            parts = rel.split("/") if rel else []
+            cur = path_stripped
+            for part in parts:
+                dir_subdirs.setdefault(cur, set()).add(part)
+                cur = posixpath.join(cur, part)
+            dir_subdirs.setdefault(cur, set())
+        # Collect all directories
+        all_dirs = sorted(set(list(dir_files.keys()) + [path_stripped] + [k for k in dir_subdirs]))
+        result = []
+        for d in all_dirs:
+            subdirs = sorted(dir_subdirs.get(d, set()))
+            files = dir_files.get(d, [])
+            result.append((d, subdirs, files))
+        if not topdown:
+            result.reverse()
+        return result
+
     fs = await filesystem()
     try:
         # Materialise the generator in a thread so the blocking filesystem
@@ -408,6 +483,11 @@ async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
 
 
 async def rm(path: str) -> None:
+    if _use_proxy_for(path):
+        from . import storage_proxy
+
+        await asyncio.to_thread(storage_proxy.rm, path)
+        return
     if await exists(path):
         fs = await filesystem()
         try:
@@ -418,6 +498,11 @@ async def rm(path: str) -> None:
 
 
 async def rm_tree(path: str) -> None:
+    if _use_proxy_for(path):
+        from . import storage_proxy
+
+        await asyncio.to_thread(storage_proxy.rm_tree, path)
+        return
     if await exists(path):
         fs = await filesystem()
         try:
@@ -437,6 +522,10 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
     """
     Open a file for reading or writing.
 
+    When proxy mode is active and the path is remote, uses the HTTP storage
+    proxy (``storage_proxy.ProxyFile``) wrapped in ``AsyncFileWrapper`` so the
+    async context-manager protocol works identically to the fsspec path.
+
     For local files, uses aiofiles for truly async file I/O.
     For remote files (S3, GCS, etc.), dispatches the blocking open() call to a
     thread pool and wraps the result in AsyncFileWrapper whose I/O methods are
@@ -452,6 +541,14 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
     Returns:
         Async context manager wrapping the file object.
     """
+    # Proxy mode: route remote-path I/O through the API server
+    if _use_proxy_for(path):
+        from . import storage_proxy
+
+        encoding = kwargs.get("encoding")
+        proxy_file = await asyncio.to_thread(storage_proxy.open_file, path, mode, encoding)
+        return AsyncFileWrapper(proxy_file)
+
     if uncached:
         # Create an uncached filesystem instance
         # If fs is provided, use it to infer protocol/storage options, otherwise infer from path
@@ -597,9 +694,40 @@ async def _close_filesystem(fs) -> None:
 
 
 async def copy_file(src: str, dest: str) -> None:
-    """Copy a single file from src to dest across arbitrary filesystems."""
-    # Run the entire streaming copy in a thread — src_fs.open() and dest_fs.open()
-    # both make blocking network calls for remote filesystems.
+    """Copy a single file from src to dest across arbitrary filesystems.
+
+    In proxy mode, both source and destination remote paths are handled via
+    the HTTP proxy — the data is streamed through the SDK process.
+    """
+    src_proxy = _use_proxy_for(src)
+    dest_proxy = _use_proxy_for(dest)
+
+    # If either end needs the proxy, do a proxy-aware copy
+    if src_proxy or dest_proxy:
+        from . import storage_proxy
+
+        # Read source
+        if src_proxy:
+            data = await asyncio.to_thread(storage_proxy.read_bytes, src)
+        else:
+            # Local source — read directly
+            import aiofiles as _aio
+
+            async with _aio.open(src, "rb") as f:
+                data = await f.read()
+
+        # Write destination
+        if dest_proxy:
+            await asyncio.to_thread(storage_proxy.write_bytes, dest, data)
+        else:
+            # Local destination — write directly
+            import aiofiles as _aio
+
+            async with _aio.open(dest, "wb") as f:
+                await f.write(data)
+        return
+
+    # Original fsspec path (no proxy needed)
     src_fs, _ = _get_fs_for_path(src)
     dest_fs, _ = _get_fs_for_path(dest)
 
@@ -629,8 +757,38 @@ def iter_chunks(file_obj, chunk_size: int = 8 * 1024 * 1024):
 
 
 async def copy_dir(src_dir: str, dest_dir: str) -> None:
-    """Recursively copy a directory tree across arbitrary filesystems."""
+    """Recursively copy a directory tree across arbitrary filesystems.
+
+    In proxy mode, uses proxy-aware ``find`` + ``copy_file``.
+    """
     await makedirs(dest_dir, exist_ok=True)
+
+    src_proxy = _use_proxy_for(src_dir)
+    dest_proxy = _use_proxy_for(dest_dir)
+
+    if src_proxy or dest_proxy:
+        # Proxy-aware copy: use find to list all source files, then copy each
+        if src_proxy:
+            from . import storage_proxy
+
+            src_files = await asyncio.to_thread(storage_proxy.find, src_dir)
+        else:
+            src_fs_local, _ = _get_fs_for_path(src_dir)
+            try:
+                src_files = await asyncio.to_thread(src_fs_local.find, src_dir)
+            finally:
+                await _close_filesystem(src_fs_local)
+
+        for src_file in src_files:
+            rel_path = src_file[len(src_dir) :].lstrip("/")
+            dest_file = join(dest_dir, rel_path)
+            dest_parent = posixpath.dirname(dest_file)
+            if dest_parent:
+                await makedirs(dest_parent, exist_ok=True)
+            await copy_file(src_file, dest_file)
+        return
+
+    # Original fsspec path (no proxy involved)
     # Determine the source filesystem independently of destination
     src_fs, _ = _get_fs_for_path(src_dir)
     # Remember protocol for remote paths so that we can reconstruct full URIs
