@@ -61,6 +61,25 @@ export default function Chat({}: ChatProps) {
     scrollToBottom();
   }, [messages]);
 
+  // Sync model load status on mount
+  useEffect(() => {
+    const checkModelStatus = async () => {
+      try {
+        const response = await fetchWithAuth(chatAPI.API_URL() + 'chat/status');
+        if (response.ok) {
+          const status = await response.json();
+          if (status.loaded_model) {
+            setSelectedModel(status.loaded_model);
+            setModelLoadStatus('loaded');
+          }
+        }
+      } catch (e) {
+        console.error('Failed to check model status:', e);
+      }
+    };
+    checkModelStatus();
+  }, []);
+
   // Load available models (local + HF cache)
   useEffect(() => {
     const loadModels = async () => {
@@ -249,13 +268,46 @@ export default function Chat({}: ChatProps) {
                     }),
                   },
                 );
-                if (response.ok) {
-                  setModelLoadStatus('loaded');
-                } else {
+                if (!response.ok) {
                   const errorData = await response.json();
                   setModelLoadError(errorData.detail || 'Failed to load model');
                   setModelLoadStatus('error');
+                  return;
                 }
+
+                // Poll status until model is actually loaded
+                const pollInterval = 2000;
+                const maxAttempts = 180; // 6 minutes max
+                let attempts = 0;
+
+                while (attempts < maxAttempts) {
+                  await new Promise((r) => setTimeout(r, pollInterval));
+                  attempts++;
+
+                  const statusResponse = await fetchWithAuth(
+                    chatAPI.API_URL() + 'chat/status',
+                  );
+                  if (statusResponse.ok) {
+                    const status = await statusResponse.json();
+                    if (status.loaded_model === selectedModel) {
+                      setModelLoadStatus('loaded');
+                      return;
+                    }
+                    if (
+                      status.loaded_model &&
+                      status.loaded_model !== selectedModel
+                    ) {
+                      setModelLoadError(
+                        `A different model (${status.loaded_model}) is already loaded`,
+                      );
+                      setModelLoadStatus('error');
+                      return;
+                    }
+                  }
+                }
+
+                setModelLoadError('Model loading timed out after 6 minutes');
+                setModelLoadStatus('error');
               } catch (error) {
                 console.error('Failed to load model:', error);
                 setModelLoadError(
