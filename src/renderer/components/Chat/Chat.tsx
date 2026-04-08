@@ -25,12 +25,18 @@ interface Message {
 
 interface ChatProps {}
 
+interface LocalModel {
+  model_id: string;
+}
+
 export default function Chat({}: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState('');
   const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [showHistoryWarning, setShowHistoryWarning] = useState(false);
+  const [modelLoadError, setModelLoadError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { authenticatedFetch } = useAuth();
 
@@ -46,23 +52,35 @@ export default function Chat({}: ChatProps) {
   // Load available models
   useEffect(() => {
     const loadModels = async () => {
+      setModelLoadError(null);
       try {
         const response = await authenticatedFetch(
           chatAPI.Endpoints.Models.LocalList(),
         );
-        const models = await response.json();
-        const modelIds = models.map((model: any) => model.model_id);
+        if (!response.ok) {
+          setModelLoadError(`Failed to load models (${response.status})`);
+          return;
+        }
+        const models: LocalModel[] = await response.json();
+        if (!Array.isArray(models)) {
+          setModelLoadError(
+            'Invalid response format: expected array of models',
+          );
+          return;
+        }
+        const modelIds = models.map((model) => model.model_id);
         setAvailableModels(modelIds);
         if (modelIds.length > 0 && !selectedModel) {
           setSelectedModel(modelIds[0]);
         }
       } catch (error) {
         console.error('Failed to load models:', error);
+        setModelLoadError('Failed to load models: ' + (error as Error).message);
       }
     };
 
     loadModels();
-  }, [authenticatedFetch, selectedModel]);
+  }, [authenticatedFetch]);
 
   const sendMessage = async () => {
     if (!input.trim() || !selectedModel || isLoading) return;
@@ -79,7 +97,11 @@ export default function Chat({}: ChatProps) {
     setIsLoading(true);
 
     try {
-      const chatMessages = messages.concat(userMessage).map((msg) => ({
+      const recentMessages = [...messages, userMessage].slice(-20);
+      if ([...messages, userMessage].length > 20) {
+        setShowHistoryWarning(true);
+      }
+      const chatMessages = recentMessages.map((msg) => ({
         role: msg.role,
         content: msg.content,
       }));
@@ -106,7 +128,7 @@ export default function Chat({}: ChatProps) {
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: data.choices[0].message.content,
+          content: data.choices[0].message?.content ?? '',
           timestamp: new Date(),
         };
 
@@ -147,19 +169,32 @@ export default function Chat({}: ChatProps) {
       </Typography>
 
       {/* Model Selection */}
-      <FormControl sx={{ mb: 2 }}>
-        <FormLabel>Select Model</FormLabel>
-        <Select
-          value={selectedModel}
-          onChange={(_, value) => setSelectedModel(value || '')}
-        >
-          {availableModels.map((model) => (
-            <Option key={model} value={model}>
-              {model}
-            </Option>
-          ))}
-        </Select>
-      </FormControl>
+      {modelLoadError ? (
+        <Typography level="body-sm" sx={{ color: 'error.main', mb: 2 }}>
+          {modelLoadError}
+        </Typography>
+      ) : (
+        <FormControl sx={{ mb: 2 }}>
+          <FormLabel>Select Model</FormLabel>
+          <Select
+            value={selectedModel}
+            onChange={(_, value) => setSelectedModel(value || '')}
+          >
+            {availableModels.map((model) => (
+              <Option key={model} value={model}>
+                {model}
+              </Option>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+
+      {showHistoryWarning && (
+        <Typography level="body-sm" sx={{ color: 'warning.main', mb: 1 }}>
+          Note: Long conversations are truncated to recent messages for model
+          context limits.
+        </Typography>
+      )}
 
       {/* Messages Area */}
       <Sheet
@@ -236,7 +271,7 @@ export default function Chat({}: ChatProps) {
           placeholder="Type your message..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyPress}
           minRows={2}
           maxRows={4}
           sx={{ flex: 1 }}
