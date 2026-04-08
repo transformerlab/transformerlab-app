@@ -27,6 +27,7 @@ ALLOWED_JOB_TYPES = [
     "DIFFUSION",
     "REMOTE",
     "SWEEP",
+    "INFERENCE",
 ]
 
 SHORT_JOB_ID_LEN = 8
