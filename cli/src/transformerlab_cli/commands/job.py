@@ -3,7 +3,7 @@ import json
 import os
 import zipfile
 from fnmatch import fnmatch
-from urllib.parse import urlparse
+from urllib.parse import quote, urlencode, urlparse
 
 import httpx
 import typer
@@ -25,8 +25,172 @@ from transformerlab_cli.util.config import check_configs, require_current_experi
 from transformerlab_cli.util.ui import console, exit_with_no_results
 
 app = typer.Typer()
+publish_app = typer.Typer()
 
 ACTIVE_JOB_STATUSES = {"RUNNING", "LAUNCHING", "INTERACTIVE", "WAITING"}
+
+
+def _publish_job_asset(
+    asset_type: str,
+    endpoint_collection: str,
+    job_id: str,
+    asset_name: str,
+    experiment_id: str,
+    group: str | None,
+    registry_asset_name: str | None,
+    mode: str,
+    tag: str,
+    version_label: str,
+    description: str | None,
+) -> None:
+    """Publish a job-produced model/dataset to the registry."""
+    if mode not in {"new", "existing"}:
+        console.print("[error]Error:[/error] --mode must be either 'new' or 'existing'.")
+        raise typer.Exit(1)
+    if mode == "existing" and not group:
+        console.print("[error]Error:[/error] --group is required when --mode=existing.")
+        raise typer.Exit(1)
+
+    params: dict[str, str] = {
+        "mode": mode,
+        "tag": tag,
+        "version_label": version_label,
+    }
+    if group:
+        params["target_name"] = group
+    if registry_asset_name:
+        params["asset_name"] = registry_asset_name
+    if description:
+        params["description"] = description
+
+    encoded_asset_name = quote(asset_name, safe="")
+    endpoint = (
+        f"/experiment/{experiment_id}/jobs/{job_id}/{endpoint_collection}/{encoded_asset_name}/save_to_registry"
+        f"?{urlencode(params)}"
+    )
+
+    if cli_state.output_format != "json":
+        with console.status(
+            f"[bold success]Publishing {asset_type} '{asset_name}' to registry...[/bold success]",
+            spinner="dots",
+        ):
+            response = api.post(endpoint)
+    else:
+        response = api.post(endpoint)
+
+    if response.status_code == 200:
+        payload = response.json()
+        if cli_state.output_format == "json":
+            print(json.dumps(payload))
+        else:
+            console.print(
+                f"[success]✓[/success] Started publishing {asset_type} [bold]{asset_name}[/bold] to registry."
+            )
+        return
+
+    try:
+        detail = response.json().get("detail", response.text)
+    except Exception:
+        detail = response.text
+
+    if cli_state.output_format == "json":
+        print(json.dumps({"error": detail or f"Failed to publish {asset_type}.", "status_code": response.status_code}))
+    else:
+        console.print(f"[error]Error:[/error] Failed to publish {asset_type}. Status code: {response.status_code}")
+        if detail:
+            console.print(f"[error]Detail:[/error] {detail}")
+    raise typer.Exit(1)
+
+
+def _prompt_publish_options(
+    *,
+    asset_type: str,
+    job_id: str,
+    mode: str,
+    group: str | None,
+    registry_asset_name: str | None,
+    tag: str,
+    version_label: str,
+    description: str | None,
+) -> tuple[str, str | None, str | None, str, str, str | None]:
+    """Prompt for publish metadata in pretty mode."""
+    console.print(f"\n[bold label]Publish {asset_type} from job {job_id}[/bold label]")
+    mode = typer.prompt("Mode (new/existing)", default=mode).strip().lower()
+    if mode not in {"new", "existing"}:
+        console.print("[error]Error:[/error] Mode must be 'new' or 'existing'.")
+        raise typer.Exit(1)
+
+    if mode == "existing":
+        group_default = group or ""
+        group_value = typer.prompt("Registry group", default=group_default, show_default=bool(group_default)).strip()
+        if not group_value:
+            console.print("[error]Error:[/error] Registry group is required for mode 'existing'.")
+            raise typer.Exit(1)
+        group = group_value
+
+    default_asset_name = registry_asset_name or ""
+    resolved_asset_name = typer.prompt(
+        "Registry asset name (optional)",
+        default=default_asset_name,
+        show_default=bool(default_asset_name),
+    ).strip()
+    registry_asset_name = resolved_asset_name or None
+
+    tag = typer.prompt("Tag", default=tag).strip()
+    version_label = typer.prompt("Version label", default=version_label).strip()
+
+    default_description = description or ""
+    resolved_description = typer.prompt(
+        "Description (optional)",
+        default=default_description,
+        show_default=bool(default_description),
+    ).strip()
+    description = resolved_description or None
+
+    return mode, group, registry_asset_name, tag, version_label, description
+
+
+def _prompt_asset_from_job(asset_type: str, endpoint_collection: str, experiment_id: str, job_id: str) -> str:
+    """List assets from a job and let user choose one."""
+    endpoint = f"/experiment/{experiment_id}/jobs/{job_id}/{endpoint_collection}"
+    with console.status(
+        f"[bold success]Fetching {endpoint_collection} from job {job_id}...[/bold success]",
+        spinner="dots",
+    ):
+        response = api.get(endpoint)
+
+    if response.status_code != 200:
+        console.print(
+            f"[error]Error:[/error] Failed to fetch {endpoint_collection}. Status code: {response.status_code}"
+        )
+        raise typer.Exit(1)
+
+    payload = response.json()
+    assets = payload.get(endpoint_collection, []) if isinstance(payload, dict) else []
+
+    if endpoint_collection == "models":
+        names = [str(item.get("name")) for item in assets if isinstance(item, dict) and item.get("name")]
+    else:
+        names = [str(item.get("name")) for item in assets if isinstance(item, dict) and item.get("name")]
+
+    if not names:
+        console.print(f"[error]Error:[/error] No {endpoint_collection} found for job {job_id}.")
+        raise typer.Exit(1)
+
+    console.print(f"\n[bold label]Select {asset_type} to publish:[/bold label]")
+    for idx, name in enumerate(names, start=1):
+        console.print(f"  [bold]{idx}[/bold]. {name}")
+
+    while True:
+        choice = typer.prompt("Enter number", default="1").strip()
+        try:
+            selected_index = int(choice) - 1
+        except ValueError:
+            console.print("[error]Please enter a valid number.[/error]")
+            continue
+        if 0 <= selected_index < len(names):
+            return names[selected_index]
+        console.print(f"[error]Please enter a number between 1 and {len(names)}.[/error]")
 
 
 def _fetch_all_jobs(experiment_id: str) -> list[dict]:
@@ -516,3 +680,108 @@ def command_job_monitor():
     from transformerlab_cli.commands.job_monitor.job_monitor import run_monitor
 
     run_monitor()
+
+
+@publish_app.command("dataset")
+def command_job_publish_dataset(
+    job_id: str = typer.Argument(..., help="Job ID that contains the dataset"),
+    dataset_name: str | None = typer.Argument(None, help="Dataset name in the job's datasets output"),
+    group: str | None = typer.Option(None, "--group", "-g", help="Registry group name (target_name)"),
+    registry_asset_name: str | None = typer.Option(
+        None, "--asset-name", help="Unique folder name for this version in the dataset registry"
+    ),
+    mode: str = typer.Option("new", "--mode", help="Publish mode: new or existing"),
+    tag: str = typer.Option("latest", "--tag", help="Version tag"),
+    version_label: str = typer.Option("v1", "--version-label", help="Version label"),
+    description: str | None = typer.Option(None, "--description", "-d", help="Version description"),
+):
+    """Publish a dataset from a job to the registry."""
+    current_experiment = require_current_experiment()
+    if not dataset_name:
+        if cli_state.output_format == "json":
+            print(json.dumps({"error": "dataset_name is required in --format json mode", "status_code": 1}))
+            raise typer.Exit(1)
+        dataset_name = _prompt_asset_from_job(
+            asset_type="dataset",
+            endpoint_collection="datasets",
+            experiment_id=current_experiment,
+            job_id=job_id,
+        )
+    if cli_state.output_format != "json":
+        mode, group, registry_asset_name, tag, version_label, description = _prompt_publish_options(
+            asset_type="dataset",
+            job_id=job_id,
+            mode=mode,
+            group=group,
+            registry_asset_name=registry_asset_name,
+            tag=tag,
+            version_label=version_label,
+            description=description,
+        )
+    _publish_job_asset(
+        asset_type="dataset",
+        endpoint_collection="datasets",
+        job_id=job_id,
+        asset_name=dataset_name,
+        experiment_id=current_experiment,
+        group=group,
+        registry_asset_name=registry_asset_name,
+        mode=mode,
+        tag=tag,
+        version_label=version_label,
+        description=description,
+    )
+
+
+@publish_app.command("model")
+def command_job_publish_model(
+    job_id: str = typer.Argument(..., help="Job ID that contains the model"),
+    model_name: str | None = typer.Argument(None, help="Model name in the job's models output"),
+    group: str | None = typer.Option(None, "--group", "-g", help="Registry group name (target_name)"),
+    registry_asset_name: str | None = typer.Option(
+        None, "--asset-name", help="Unique folder name for this version in the model registry"
+    ),
+    mode: str = typer.Option("new", "--mode", help="Publish mode: new or existing"),
+    tag: str = typer.Option("latest", "--tag", help="Version tag"),
+    version_label: str = typer.Option("v1", "--version-label", help="Version label"),
+    description: str | None = typer.Option(None, "--description", "-d", help="Version description"),
+):
+    """Publish a model from a job to the registry."""
+    current_experiment = require_current_experiment()
+    if not model_name:
+        if cli_state.output_format == "json":
+            print(json.dumps({"error": "model_name is required in --format json mode", "status_code": 1}))
+            raise typer.Exit(1)
+        model_name = _prompt_asset_from_job(
+            asset_type="model",
+            endpoint_collection="models",
+            experiment_id=current_experiment,
+            job_id=job_id,
+        )
+    if cli_state.output_format != "json":
+        mode, group, registry_asset_name, tag, version_label, description = _prompt_publish_options(
+            asset_type="model",
+            job_id=job_id,
+            mode=mode,
+            group=group,
+            registry_asset_name=registry_asset_name,
+            tag=tag,
+            version_label=version_label,
+            description=description,
+        )
+    _publish_job_asset(
+        asset_type="model",
+        endpoint_collection="models",
+        job_id=job_id,
+        asset_name=model_name,
+        experiment_id=current_experiment,
+        group=group,
+        registry_asset_name=registry_asset_name,
+        mode=mode,
+        tag=tag,
+        version_label=version_label,
+        description=description,
+    )
+
+
+app.add_typer(publish_app, name="publish", help="Publish job outputs to model/dataset registry", no_args_is_help=True)
