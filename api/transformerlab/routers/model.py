@@ -1,6 +1,6 @@
 from typing import Annotated
 from fastapi import APIRouter, Body
-from huggingface_hub import HfApi
+from huggingface_hub import HfApi, scan_cache_dir
 
 from transformerlab.services import model_service
 from transformerlab.services.cache_service import cached
@@ -150,6 +150,31 @@ async def model_delete_peft(model_id: str, peft: str):
     await storage.rm_tree(peft_path)
 
     return {"message": "success"}
+
+
+@router.get("/model/hf_cache_list")
+async def model_hf_cache_list():
+    """
+    List models from the HuggingFace cache.
+    Returns model IDs and their cache paths.
+    """
+    try:
+        hf_cache_info = scan_cache_dir()
+        cached_models = []
+        for repo in hf_cache_info.repos:
+            if repo.repo_type == "model":
+                cached_models.append(
+                    {
+                        "model_id": repo.repo_id,
+                        "local_path": str(repo.repo_path),
+                        "size_on_disk": repo.size_on_disk,
+                        "nb_files": repo.nb_files,
+                    }
+                )
+        return cached_models
+    except Exception as e:
+        print(f"Error scanning HF cache: {e}")
+        return []
 
 
 @router.get("/model/pipeline_tag")

@@ -29,6 +29,13 @@ interface LocalModel {
   model_id: string;
 }
 
+interface HFCacheModel {
+  model_id: string;
+  local_path: string;
+  size_on_disk: number;
+  nb_files: number;
+}
+
 export default function Chat({}: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -38,7 +45,7 @@ export default function Chat({}: ChatProps) {
   const [showHistoryWarning, setShowHistoryWarning] = useState(false);
   const [modelLoadError, setModelLoadError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { authenticatedFetch } = useAuth();
+  const { fetchWithAuth } = useAuth();
 
   // Scroll to bottom when new messages are added
   const scrollToBottom = () => {
@@ -49,29 +56,49 @@ export default function Chat({}: ChatProps) {
     scrollToBottom();
   }, [messages]);
 
-  // Load available models
+  // Load available models (local + HF cache)
   useEffect(() => {
     const loadModels = async () => {
       setModelLoadError(null);
       try {
-        const response = await authenticatedFetch(
+        const localResponse = await fetchWithAuth(
           chatAPI.Endpoints.Models.LocalList(),
         );
-        if (!response.ok) {
-          setModelLoadError(`Failed to load models (${response.status})`);
-          return;
+        let localModelIds: string[] = [];
+        if (localResponse.ok) {
+          const models: LocalModel[] = await localResponse.json();
+          if (Array.isArray(models)) {
+            localModelIds = models.map((model) => model.model_id);
+          }
         }
-        const models: LocalModel[] = await response.json();
-        if (!Array.isArray(models)) {
-          setModelLoadError(
-            'Invalid response format: expected array of models',
+
+        // Also fetch models from HF cache
+        let hfCacheModelIds: string[] = [];
+        try {
+          const cacheResponse = await fetchWithAuth(
+            chatAPI.Endpoints.Models.HFCacheList(),
           );
-          return;
+          if (cacheResponse.ok) {
+            const cacheModels: HFCacheModel[] = await cacheResponse.json();
+            if (Array.isArray(cacheModels)) {
+              hfCacheModelIds = cacheModels.map((model) => model.model_id);
+            }
+          }
+        } catch (cacheError) {
+          console.warn('Failed to load HF cache models:', cacheError);
         }
-        const modelIds = models.map((model) => model.model_id);
-        setAvailableModels(modelIds);
-        if (modelIds.length > 0 && !selectedModel) {
-          setSelectedModel(modelIds[0]);
+
+        // Combine local models and HF cache models, avoiding duplicates
+        const allModelIds = [...localModelIds];
+        for (const modelId of hfCacheModelIds) {
+          if (!allModelIds.includes(modelId)) {
+            allModelIds.push(modelId);
+          }
+        }
+
+        setAvailableModels(allModelIds);
+        if (allModelIds.length > 0 && !selectedModel) {
+          setSelectedModel(allModelIds[0]);
         }
       } catch (error) {
         console.error('Failed to load models:', error);
@@ -80,7 +107,7 @@ export default function Chat({}: ChatProps) {
     };
 
     loadModels();
-  }, [authenticatedFetch]);
+  }, [fetchWithAuth]);
 
   const sendMessage = async () => {
     if (!input.trim() || !selectedModel || isLoading) return;
@@ -106,7 +133,7 @@ export default function Chat({}: ChatProps) {
         content: msg.content,
       }));
 
-      const response = await authenticatedFetch(
+      const response = await fetchWithAuth(
         chatAPI.API_URL() + 'v1/chat/completions',
         {
           method: 'POST',

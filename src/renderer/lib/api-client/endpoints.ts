@@ -205,6 +205,7 @@ Endpoints.Dataset = {
 
 Endpoints.Models = {
   LocalList: () => `${API_URL()}model/list`,
+  HFCacheList: () => `${API_URL()}model/hf_cache_list`,
   ModelGroups: () => `${API_URL()}model/model_groups_list`,
   GetPeftsForModel: () => `${API_URL()}model/pefts`,
   DeletePeft: (modelId: string, peft: string) =>
