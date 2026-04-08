@@ -4,14 +4,21 @@ This replaces the database-based task operations with filesystem-based ones.
 """
 
 import uuid
+import os
+import tempfile
+import zipfile
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from lab.task_template import TaskTemplate as TaskTemplateService
+from lab import storage
+from fastapi import HTTPException
+from werkzeug.utils import secure_filename
 
 # Keys that are never removed when syncing from task.yaml (system-owned).
 # Any other key in stored metadata that is not in the parsed task_data is
 # removed, so we don't need to maintain a list of YAML field names.
 _PROTECTED_METADATA_KEYS = frozenset({"id", "experiment_id", "type", "plugin", "created_at"})
+DEFAULT_TASK_YAML = 'name: my-task\nresources:\n  cpus: 2\n  memory: 4\nrun: "echo hello"'
 
 
 def _normalize_legacy_command(task: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -159,6 +166,126 @@ class TaskService:
     async def task_delete_all(self) -> None:
         """Delete all tasks"""
         await self.task_service.delete_all()
+
+    async def get_task_dir(self, task_id: str) -> str:
+        task = await self.task_service.get(str(task_id))
+        return await task.get_dir()
+
+    async def write_task_yaml(self, task_id: str, content: str) -> None:
+        task_dir = await self.get_task_dir(task_id)
+        await storage.makedirs(task_dir, exist_ok=True)
+        yaml_path = storage.join(task_dir, "task.yaml")
+        async with await storage.open(yaml_path, "w", encoding="utf-8") as f:
+            await f.write(content)
+
+    async def read_task_yaml(self, task_id: str) -> str:
+        task_dir = await self.get_task_dir(task_id)
+        yaml_path = storage.join(task_dir, "task.yaml")
+        if not await storage.exists(yaml_path):
+            raise HTTPException(status_code=404, detail="task.yaml not found for this task")
+        async with await storage.open(yaml_path, "r", encoding="utf-8") as f:
+            return await f.read()
+
+    async def create_task_from_blank(
+        self,
+        experiment_id: str,
+        user_and_team: dict,
+        session: Any,
+        resolve_provider: Any,
+    ) -> str:
+        task_data = {
+            "experiment_id": experiment_id,
+            "type": "REMOTE",
+            "plugin": "remote_orchestrator",
+            "name": "my-task",
+        }
+        await resolve_provider(task_data, user_and_team, session)
+        task_id = await self.add_task(task_data)
+        await self.write_task_yaml(task_id, DEFAULT_TASK_YAML)
+        return task_id
+
+    async def create_task_from_github(
+        self,
+        experiment_id: str,
+        github_repo_url: str,
+        github_repo_dir: Optional[str],
+        github_repo_branch: Optional[str],
+        create_if_missing: bool,
+        user_and_team: dict,
+        session: Any,
+        resolve_provider: Any,
+        fetch_task_yaml: Any,
+        parse_yaml: Any,
+    ) -> str:
+        try:
+            task_yaml_content = await fetch_task_yaml(
+                github_repo_url, directory=github_repo_dir, ref=github_repo_branch
+            )
+        except HTTPException as e:
+            if e.status_code == 404 and create_if_missing:
+                default_yaml_lines = DEFAULT_TASK_YAML.split("\n")
+                default_yaml_lines.append(f'github_repo_url: "{github_repo_url}"')
+                if github_repo_dir:
+                    default_yaml_lines.append(f'github_repo_dir: "{github_repo_dir}"')
+                if github_repo_branch:
+                    default_yaml_lines.append(f'github_repo_branch: "{github_repo_branch}"')
+                task_yaml_content = "\n".join(default_yaml_lines)
+            else:
+                raise
+
+        task_data = parse_yaml(task_yaml_content)
+        task_data["experiment_id"] = experiment_id
+        task_data.setdefault("type", "REMOTE")
+        task_data.setdefault("plugin", "remote_orchestrator")
+        await resolve_provider(task_data, user_and_team, session)
+        if "name" in task_data:
+            task_data["name"] = secure_filename(task_data["name"])
+        task_id = await self.add_task(task_data)
+        await self.write_task_yaml(task_id, task_yaml_content)
+        return task_id
+
+    async def create_task_from_directory_zip(
+        self,
+        experiment_id: str,
+        zip_content: bytes,
+        user_and_team: dict,
+        session: Any,
+        resolve_provider: Any,
+        parse_yaml: Any,
+    ) -> str:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            zip_path = os.path.join(tmpdir, "upload.zip")
+            with open(zip_path, "wb") as f:
+                f.write(zip_content)
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                zf.extractall(tmpdir)
+
+            yaml_candidates = []
+            for root, _dirs, files in os.walk(tmpdir):
+                for name in files:
+                    if name == "task.yaml":
+                        yaml_candidates.append(os.path.join(root, name))
+            if not yaml_candidates:
+                raise HTTPException(status_code=400, detail="ZIP must contain a task.yaml file.")
+
+            task_yaml_path = yaml_candidates[0]
+            task_root = os.path.dirname(task_yaml_path)
+            with open(task_yaml_path, "r", encoding="utf-8") as f:
+                task_yaml_content = f.read()
+
+            task_data = parse_yaml(task_yaml_content)
+            task_data["experiment_id"] = experiment_id
+            task_data.setdefault("type", "REMOTE")
+            task_data.setdefault("plugin", "remote_orchestrator")
+            await resolve_provider(task_data, user_and_team, session)
+            if "name" in task_data:
+                task_data["name"] = secure_filename(task_data["name"])
+            task_id = await self.add_task(task_data)
+            task_dir = await self.get_task_dir(task_id)
+            await storage.makedirs(task_dir, exist_ok=True)
+            await storage.copy_dir(task_root, task_dir)
+            await self.update_task(task_id, {"file_mounts": True})
+            return task_id
 
 
 # Create a singleton instance

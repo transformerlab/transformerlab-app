@@ -18,24 +18,31 @@ import {
   AccordionGroup,
   AccordionSummary,
   Box,
+  Button,
   Chip,
   CircularProgress,
+  DialogTitle,
   FormControl,
   FormLabel,
   IconButton,
   Input,
+  Modal,
+  ModalClose,
+  ModalDialog,
   Option,
   Select,
   Sheet,
   Skeleton,
   Stack,
   Table,
+  Textarea,
   Tooltip,
   Typography,
 } from '@mui/joy';
 import {
   ChevronDownIcon,
   DatabaseIcon,
+  PencilIcon,
   RotateCcwIcon,
   SearchIcon,
   Trash2Icon,
@@ -68,8 +75,10 @@ interface VersionEntry {
 }
 
 interface GroupSummary {
+  group_id: string;
   group_name: string;
   asset_type: string;
+  description: string;
   version_count: number;
   latest_version_label: string | null;
   latest_tag: string | null;
@@ -254,10 +263,10 @@ function VersionRow({
 // ─── Expanded group versions table ───────────────────────────────────────────
 
 function GroupVersionsTable({
-  groupName,
+  groupId,
   mutateGroups,
 }: {
-  groupName: string;
+  groupId: string;
   mutateGroups: () => void;
 }) {
   const [updatingVersion, setUpdatingVersion] = useState<string | null>(null);
@@ -268,7 +277,7 @@ function GroupVersionsTable({
     isLoading,
     mutate,
   } = useSWR(
-    chatAPI.Endpoints.AssetVersions.ListVersions(assetType, groupName),
+    chatAPI.Endpoints.AssetVersions.ListVersions(assetType, groupId),
     fetcher,
   );
 
@@ -278,7 +287,7 @@ function GroupVersionsTable({
       await fetchWithAuth(
         chatAPI.Endpoints.AssetVersions.SetTag(
           assetType,
-          groupName,
+          groupId,
           versionLabel,
         ),
         {
@@ -302,7 +311,7 @@ function GroupVersionsTable({
       await fetchWithAuth(
         chatAPI.Endpoints.AssetVersions.ClearTag(
           assetType,
-          groupName,
+          groupId,
           versionLabel,
         ),
         { method: 'DELETE' },
@@ -319,7 +328,7 @@ function GroupVersionsTable({
   const handleDeleteVersion = async (versionLabel: string) => {
     if (
       !window.confirm(
-        `Delete version ${versionLabel} from group "${groupName}"? This will not delete the underlying dataset.`,
+        `Delete version ${versionLabel} from this group? This will not delete the underlying dataset.`,
       )
     ) {
       return;
@@ -329,7 +338,7 @@ function GroupVersionsTable({
       await fetchWithAuth(
         chatAPI.Endpoints.AssetVersions.DeleteVersion(
           assetType,
-          groupName,
+          groupId,
           versionLabel,
         ),
         { method: 'DELETE' },
@@ -394,11 +403,77 @@ function GroupVersionsTable({
   );
 }
 
+// ─── Edit Group Modal ───────────────────────────────────────────────────────
+
+function EditGroupModal({
+  open,
+  onClose,
+  group,
+  mutateGroups,
+}: {
+  open: boolean;
+  onClose: () => void;
+  group: GroupSummary;
+  mutateGroups: () => void;
+}) {
+  const [name, setName] = useState(group.group_name);
+  const [description, setDescription] = useState(group.description || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await fetchWithAuth(
+        chatAPI.Endpoints.AssetVersions.UpdateGroup('dataset', group.group_id),
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, description }),
+        },
+      );
+      await mutateGroups();
+      onClose();
+    } catch (err) {
+      console.error('Failed to update group:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <ModalDialog sx={{ width: 480 }}>
+        <ModalClose />
+        <DialogTitle>Edit Dataset Group</DialogTitle>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <FormControl>
+            <FormLabel>Name</FormLabel>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </FormControl>
+          <FormControl>
+            <FormLabel>Description</FormLabel>
+            <Textarea
+              minRows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe this dataset group…"
+            />
+          </FormControl>
+          <Button loading={saving} onClick={handleSave}>
+            Save
+          </Button>
+        </Stack>
+      </ModalDialog>
+    </Modal>
+  );
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export default function DatasetRegistry() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [searchText, setSearchText] = useState('');
+  const [editingGroup, setEditingGroup] = useState<GroupSummary | null>(null);
   const {
     data: groups,
     isLoading,
@@ -406,17 +481,17 @@ export default function DatasetRegistry() {
     mutate: mutateGroups,
   } = useSWR(chatAPI.Endpoints.AssetVersions.ListGroups('dataset'), fetcher);
 
-  const handleDeleteGroup = async (groupName: string) => {
+  const handleDeleteGroup = async (groupId: string, displayName: string) => {
     if (
       !window.confirm(
-        `Delete group "${groupName}" and ALL its versions? The underlying datasets will not be deleted.`,
+        `Delete group "${displayName}" and ALL its versions? The underlying datasets will not be deleted.`,
       )
     ) {
       return;
     }
     try {
       await fetchWithAuth(
-        chatAPI.Endpoints.AssetVersions.DeleteGroup('dataset', groupName),
+        chatAPI.Endpoints.AssetVersions.DeleteGroup('dataset', groupId),
         { method: 'DELETE' },
       );
       mutateGroups();
@@ -425,13 +500,13 @@ export default function DatasetRegistry() {
     }
   };
 
-  const toggleGroup = (groupName: string) => {
+  const toggleGroup = (groupId: string) => {
     setExpandedGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(groupName)) {
-        next.delete(groupName);
+      if (next.has(groupId)) {
+        next.delete(groupId);
       } else {
-        next.add(groupName);
+        next.add(groupId);
       }
       return next;
     });
@@ -546,12 +621,12 @@ export default function DatasetRegistry() {
             }}
           >
             {filteredGroups.map((group) => {
-              const isExpanded = expandedGroups.has(group.group_name);
+              const isExpanded = expandedGroups.has(group.group_id);
               return (
                 <Accordion
-                  key={group.group_name}
+                  key={group.group_id}
                   expanded={isExpanded}
-                  onChange={() => toggleGroup(group.group_name)}
+                  onChange={() => toggleGroup(group.group_id)}
                   sx={{
                     borderRadius: 'md',
                     border: '1px solid',
@@ -562,47 +637,76 @@ export default function DatasetRegistry() {
                     indicator={<ChevronDownIcon size={18} />}
                     sx={{ px: 2, py: 1.5 }}
                   >
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        width: '100%',
-                        pr: 1,
-                      }}
+                    <Stack
+                      direction="row"
+                      alignItems="flex-start"
+                      gap={1.5}
+                      sx={{ width: '100%', pr: 1 }}
                     >
-                      {/* Left side: Name + badges */}
-                      <Stack direction="row" alignItems="center" gap={1.5}>
-                        <DatabaseIcon size={18} />
-                        <Typography level="title-md" fontWeight="lg">
-                          {group.group_name}
-                        </Typography>
-                        <Chip size="sm" variant="soft" color="neutral">
-                          {group.version_count} version
-                          {group.version_count !== 1 ? 's' : ''}
-                        </Chip>
-                        {group.latest_tag && (
-                          <Chip
-                            size="sm"
-                            variant="soft"
-                            color={TAG_COLORS[group.latest_tag] || 'neutral'}
-                          >
-                            {group.latest_tag}
+                      <DatabaseIcon
+                        size={18}
+                        style={{ marginTop: 3, flexShrink: 0 }}
+                      />
+
+                      {/* Title + description */}
+                      <Stack gap={0.25} sx={{ flex: 1, minWidth: 0 }}>
+                        <Stack direction="row" alignItems="center" gap={1.5}>
+                          <Typography level="title-md" fontWeight="lg">
+                            {group.group_name}
+                          </Typography>
+                          <Chip size="sm" variant="soft" color="neutral">
+                            {group.version_count} version
+                            {group.version_count !== 1 ? 's' : ''}
                           </Chip>
+                          {group.latest_tag && (
+                            <Chip
+                              size="sm"
+                              variant="soft"
+                              color={TAG_COLORS[group.latest_tag] || 'neutral'}
+                            >
+                              {group.latest_tag}
+                            </Chip>
+                          )}
+                        </Stack>
+                        {group.description && (
+                          <Typography level="body-xs" color="neutral">
+                            {group.description}
+                          </Typography>
                         )}
                       </Stack>
 
-                      {/* Right side: last updated */}
-                      {/* <Typography level="body-xs" color="neutral">
-                        {formatRelativeDate(group.latest_created_at)}
-                      </Typography> */}
-                    </Box>
+                      {/* Edit + Delete icons */}
+                      <Stack direction="row" gap={0.5} sx={{ flexShrink: 0 }}>
+                        <IconButton
+                          size="sm"
+                          variant="plain"
+                          color="neutral"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingGroup(group);
+                          }}
+                        >
+                          <PencilIcon size={16} />
+                        </IconButton>
+                        <IconButton
+                          size="sm"
+                          variant="plain"
+                          color="danger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteGroup(group.group_id, group.group_name);
+                          }}
+                        >
+                          <Trash2Icon size={16} />
+                        </IconButton>
+                      </Stack>
+                    </Stack>
                   </AccordionSummary>
 
                   <AccordionDetails sx={{ px: 2, pb: 2 }}>
                     {isExpanded && (
                       <GroupVersionsTable
-                        groupName={group.group_name}
+                        groupId={group.group_id}
                         mutateGroups={mutateGroups}
                       />
                     )}
@@ -613,6 +717,16 @@ export default function DatasetRegistry() {
           </AccordionGroup>
         )}
       </Box>
+
+      {editingGroup && (
+        <EditGroupModal
+          key={editingGroup.group_id}
+          open
+          onClose={() => setEditingGroup(null)}
+          group={editingGroup}
+          mutateGroups={mutateGroups}
+        />
+      )}
     </Sheet>
   );
 }

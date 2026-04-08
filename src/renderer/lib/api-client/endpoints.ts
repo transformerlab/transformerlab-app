@@ -26,7 +26,6 @@ Endpoints.Tasks = {
   Queue: (id: string) => `${API_URL()}tasks/${id}/queue`,
   GetByID: (id: string) => `${API_URL()}tasks/${id}/get`,
   UpdateTask: (id: string) => `${API_URL()}tasks/${id}/update`,
-  NewTask: () => `${API_URL()}tasks/new_task`,
   DeleteTask: (id: string) => `${API_URL()}tasks/${id}/delete`,
   Gallery: () => `${API_URL()}tasks/gallery`,
   ImportFromGallery: (experimentId: string) =>
@@ -58,8 +57,8 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task/${id}/get`,
   UpdateTemplate: (experimentId: string, id: string) =>
     `${API_URL()}experiment/${experimentId}/task/${id}/update`,
-  NewTemplate: (experimentId: string) =>
-    `${API_URL()}experiment/${experimentId}/task/new_task`,
+  CreateTemplate: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/create`,
   DeleteTemplate: (experimentId: string, id: string) =>
     `${API_URL()}experiment/${experimentId}/task/${id}/delete`,
   Gallery: (experimentId: string) =>
@@ -93,15 +92,15 @@ Endpoints.Task = {
   FetchTaskJson: (experimentId: string, url: string) =>
     `${API_URL()}experiment/${experimentId}/task/fetch_task_json?url=${encodeURIComponent(url)}`,
   FromDirectory: (experimentId: string) =>
-    `${API_URL()}experiment/${experimentId}/task2/from_directory`,
+    `${API_URL()}experiment/${experimentId}/task/create`,
   BlankFromYaml: (experimentId: string) =>
-    `${API_URL()}experiment/${experimentId}/task2/blank`,
+    `${API_URL()}experiment/${experimentId}/task/create`,
   GetYaml: (experimentId: string, taskId: string) =>
-    `${API_URL()}experiment/${experimentId}/task2/${taskId}/yaml`,
+    `${API_URL()}experiment/${experimentId}/task/${taskId}/yaml`,
   UpdateYaml: (experimentId: string, taskId: string) =>
-    `${API_URL()}experiment/${experimentId}/task2/${taskId}/yaml`,
+    `${API_URL()}experiment/${experimentId}/task/${taskId}/yaml`,
   ValidateYaml: (experimentId: string) =>
-    `${API_URL()}experiment/${experimentId}/task2/validate`,
+    `${API_URL()}experiment/${experimentId}/task/validate`,
   ListFiles: (experimentId: string, taskId: string) =>
     `${API_URL()}experiment/${experimentId}/task/${taskId}/files`,
   GetFile: (experimentId: string, taskId: string, filePath: string) =>
@@ -435,28 +434,30 @@ Endpoints.Users = {
 Endpoints.AssetVersions = {
   ListGroups: (assetType: string) =>
     `${API_URL()}asset_versions/groups?asset_type=${assetType}`,
-  DeleteGroup: (assetType: string, groupName: string) =>
-    `${API_URL()}asset_versions/groups/${assetType}/${groupName}`,
+  DeleteGroup: (assetType: string, groupId: string) =>
+    `${API_URL()}asset_versions/groups/${assetType}/${groupId}`,
+  UpdateGroup: (assetType: string, groupId: string) =>
+    `${API_URL()}asset_versions/groups/${assetType}/${groupId}`,
   CreateVersion: () => `${API_URL()}asset_versions/versions`,
-  ListVersions: (assetType: string, groupName: string) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}`,
-  GetVersion: (assetType: string, groupName: string, versionLabel: string) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
-  DeleteVersion: (assetType: string, groupName: string, versionLabel: string) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
-  UpdateVersion: (assetType: string, groupName: string, versionLabel: string) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
-  SetTag: (assetType: string, groupName: string, versionLabel: string) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}/tag`,
-  ClearTag: (assetType: string, groupName: string, versionLabel: string) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}/tag`,
+  ListVersions: (assetType: string, groupId: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupId}`,
+  GetVersion: (assetType: string, groupId: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupId}/${versionLabel}`,
+  DeleteVersion: (assetType: string, groupId: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupId}/${versionLabel}`,
+  UpdateVersion: (assetType: string, groupId: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupId}/${versionLabel}`,
+  SetTag: (assetType: string, groupId: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupId}/${versionLabel}/tag`,
+  ClearTag: (assetType: string, groupId: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupId}/${versionLabel}/tag`,
   Resolve: (
     assetType: string,
-    groupName: string,
+    groupId: string,
     tag?: string,
     versionLabel?: string,
   ) => {
-    let url = `${API_URL()}asset_versions/resolve/${assetType}/${groupName}`;
+    let url = `${API_URL()}asset_versions/resolve/${assetType}/${groupId}`;
     const params: string[] = [];
     if (tag) params.push(`tag=${tag}`);
     if (versionLabel !== undefined)

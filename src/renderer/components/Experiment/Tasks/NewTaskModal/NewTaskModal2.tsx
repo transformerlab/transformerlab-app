@@ -68,6 +68,8 @@ export default function NewTaskModal2({
           chatAPI.Endpoints.Task.BlankFromYaml(experimentId),
           {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source: 'blank' }),
           },
         );
         if (!response.ok) {

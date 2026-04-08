@@ -122,12 +122,13 @@ export default function ViewJobDatasetsModal({
         experimentId: experimentInfo?.id,
         jobId: jobId.toString(),
         datasetName,
-        targetName: info.groupName,
+        targetName: info.groupId || info.groupName,
         assetName: info.assetName,
         mode: info.mode,
         tag: info.tag,
         versionLabel: info.versionLabel,
         description: info.description,
+        groupName: info.groupName,
       });
 
       const response = await fetchWithAuth(url, {

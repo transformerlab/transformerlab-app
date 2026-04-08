@@ -25,6 +25,11 @@ class ComputeProvider(ABC):
 
         Returns:
             Dictionary with launch result (e.g., request_id, cluster_name)
+
+        Raises:
+            Exception: If the launch fails for any reason (connection error,
+                authentication failure, etc.). Raise an exception rather than
+                returning an error dict so callers can handle failures uniformly.
         """
         raise NotImplementedError
 

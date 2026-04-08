@@ -47,8 +47,8 @@ export default function DatasetCard({
   const [editDatasetModalOpen, setEditDatasetModalOpen] = useState(false);
   const [versionDrawer, setVersionDrawer] = useState<{
     open: boolean;
-    groupName: string;
-  }>({ open: false, groupName: '' });
+    groupId: string;
+  }>({ open: false, groupId: '' });
 
   const { data: datasetInfo } = useAPI('datasets', ['info'], {
     datasetId: name,
@@ -100,8 +100,8 @@ export default function DatasetCard({
               <div style={{ marginBottom: 8 }}>
                 <VersionGroupChip
                   versionGroups={versionGroups}
-                  onClick={(groupName) =>
-                    setVersionDrawer({ open: true, groupName })
+                  onClick={(groupId) =>
+                    setVersionDrawer({ open: true, groupId })
                   }
                 />
               </div>
@@ -254,9 +254,9 @@ export default function DatasetCard({
       </Card>
       <AssetVersionsDrawer
         open={versionDrawer.open}
-        onClose={() => setVersionDrawer({ open: false, groupName: '' })}
+        onClose={() => setVersionDrawer({ open: false, groupId: '' })}
         assetType="dataset"
-        groupName={versionDrawer.groupName}
+        groupId={versionDrawer.groupId}
       />
     </>
   );

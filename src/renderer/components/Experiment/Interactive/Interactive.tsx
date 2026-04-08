@@ -611,7 +611,7 @@ export default function Interactive() {
         };
 
         response = await chatAPI.authenticatedFetch(
-          chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
+          chatAPI.Endpoints.Task.CreateTemplate(experimentInfo?.id || ''),
           {
             method: 'POST',
             headers: {

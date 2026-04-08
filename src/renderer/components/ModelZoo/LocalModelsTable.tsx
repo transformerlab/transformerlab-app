@@ -52,8 +52,8 @@ const LocalModelsTable = ({
   const [filters, setFilters] = useState({});
   const [versionDrawer, setVersionDrawer] = useState<{
     open: boolean;
-    groupName: string;
-  }>({ open: false, groupName: '' });
+    groupId: string;
+  }>({ open: false, groupId: '' });
 
   const navigate = useNavigate();
 
@@ -350,8 +350,8 @@ const LocalModelsTable = ({
                       <td>
                         <VersionGroupChip
                           versionGroups={row.version_groups || []}
-                          onClick={(groupName) =>
-                            setVersionDrawer({ open: true, groupName })
+                          onClick={(groupId) =>
+                            setVersionDrawer({ open: true, groupId })
                           }
                         />
                       </td>
@@ -483,9 +483,9 @@ const LocalModelsTable = ({
       </Sheet>
       <AssetVersionsDrawer
         open={versionDrawer.open}
-        onClose={() => setVersionDrawer({ open: false, groupName: '' })}
+        onClose={() => setVersionDrawer({ open: false, groupId: '' })}
         assetType="model"
-        groupName={versionDrawer.groupName}
+        groupId={versionDrawer.groupId}
       />
     </>
   );

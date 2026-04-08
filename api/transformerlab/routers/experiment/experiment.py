@@ -13,7 +13,6 @@ from transformerlab.routers.experiment import (
     documents,
     jobs,
     task as task_router,
-    tasks2 as tasks2_router,
 )
 from lab.dirs import get_workspace_dir
 
@@ -23,7 +22,6 @@ router = APIRouter(prefix="/experiment")
 
 router.include_router(router=documents.router, prefix="/{experimentId}", tags=["documents"])
 router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])
-router.include_router(router=tasks2_router.router, prefix="/{experimentId}", tags=["task2"])
 router.include_router(router=task_router.router, prefix="/{experimentId}", tags=["task"])
 
 

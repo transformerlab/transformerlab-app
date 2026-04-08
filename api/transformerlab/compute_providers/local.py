@@ -1,5 +1,7 @@
 """Local compute provider: runs tasks in a uv venv synced with the base environment."""
 
+import contextlib
+import fcntl
 import json
 import os
 import re
@@ -7,7 +9,6 @@ import signal
 import shlex
 import subprocess
 import sys
-import threading
 import time
 import tempfile
 import shutil
@@ -113,8 +114,8 @@ def _get_uv_pip_install_flags() -> str:
 
 
 _PYTHON_VERSION = "3.11"
-_BASE_SETUP_LOCK = threading.Lock()
 _BASE_STATE_FILE = "local_provider_base_state.json"
+_BASE_SETUP_LOCK_FILE = "local_provider_base_setup.lock"
 _LOCAL_PROVIDER_PYPROJECT = "localprovider_pyproject.toml"
 _TLAB_DIR = os.path.join(os.path.expanduser("~"), ".transformerlab")
 _MINIFORGE_ROOT = os.path.join(_TLAB_DIR, "miniforge3")
@@ -125,6 +126,18 @@ _INSTALL_LOG_FILE = "local_provider_install.log"
 
 def _get_base_state_path() -> str:
     return os.path.join(get_local_provider_root(), _BASE_STATE_FILE)
+
+
+@contextlib.contextmanager
+def _base_setup_lock() -> Any:
+    lock_path = os.path.join(get_local_provider_root(), _BASE_SETUP_LOCK_FILE)
+    os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+    with open(lock_path, "w", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _read_base_state() -> Optional[Dict[str, Any]]:
@@ -812,7 +825,7 @@ def ensure_base_venv_and_requirements(
     if not os.path.exists(source_code_dir):
         raise FileNotFoundError(f"Source code directory not found at {source_code_dir}")
 
-    with _BASE_SETUP_LOCK:
+    with _base_setup_lock():
         base_state = _read_base_state()
         if not force_refresh and base_state and base_state.get("ready"):
             if progress_callback is not None:

@@ -93,7 +93,7 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
     # Validate against server-side task.yaml schema (run, resources, etc.)
     with console.status("[bold success]Validating task.yaml...[/bold success]", spinner="dots"):
         response = api.post_text(
-            f"/experiment/{experiment_id}/task2/validate",
+            f"/experiment/{experiment_id}/task/validate",
             text=task_yaml_content,
         )
     if response.status_code != 200:
@@ -147,7 +147,7 @@ def add_task_from_directory(task_directory_path: str, experiment_id: str, dry_ru
 
     with console.status("[bold success]Creating task...[/bold success]", spinner="dots"):
         response = api.post(
-            f"/experiment/{experiment_id}/task2/from_directory",
+            f"/experiment/{experiment_id}/task/create",
             files={"directory_zip": ("task.zip", zip_buffer, "application/zip")},
         )
 
@@ -169,9 +169,35 @@ def add_task_from_github(repo_url: str, experiment_id: str) -> None:
     """Add a task from a GitHub repository URL."""
     with console.status("[bold success]Creating task from GitHub...[/bold success]", spinner="dots"):
         response = api.post_json(
-            f"/experiment/{experiment_id}/task2/from_directory",
-            json_data={"git_url": repo_url},
+            f"/experiment/{experiment_id}/task/create",
+            json_data={"github_repo_url": repo_url},
         )
+
+    if response.status_code == 404:
+        # Unified backend returns 404 when task.yaml is missing in the repo/path.
+        # Mirror the UI behavior by offering to create a default task.yaml.
+        try:
+            detail = response.json().get("detail", "")
+        except Exception:
+            detail = response.text
+        if "task.yaml" in str(detail).lower():
+            if cli_state.output_format != "json":
+                console.print(
+                    "[warning]task.yaml was not found in the repository.[/warning]\n"
+                    "You can create a task using a default task.yaml template."
+                )
+                should_retry = typer.confirm("Create task with default task.yaml?", default=True)
+            else:
+                should_retry = True
+            if should_retry:
+                with console.status(
+                    "[bold success]Creating task with default task.yaml...[/bold success]",
+                    spinner="dots",
+                ):
+                    response = api.post_json(
+                        f"/experiment/{experiment_id}/task/create",
+                        json_data={"github_repo_url": repo_url, "create_if_missing": True},
+                    )
 
     if response.status_code == 200:
         result = response.json()

@@ -725,7 +725,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
 
       const response = await fetchWithAuth(
-        chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
+        chatAPI.Endpoints.Task.CreateTemplate(experimentInfo?.id || ''),
         {
           method: 'POST',
           headers: {
@@ -882,7 +882,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         };
 
         response = await fetchWithAuth(
-          chatAPI.Endpoints.Task.NewTemplate(experimentInfo?.id || ''),
+          chatAPI.Endpoints.Task.CreateTemplate(experimentInfo?.id || ''),
           {
             method: 'POST',
             headers: {

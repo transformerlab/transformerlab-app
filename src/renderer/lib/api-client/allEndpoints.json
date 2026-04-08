@@ -20,10 +20,6 @@
       "method": "GET",
       "path": "tasks/{id}/anystring/{anything}"
     },
-    "create": {
-      "method": "POST",
-      "path": "tasks/new_task"
-    },
     "delete": {
       "method": "DELETE",
       "path": "tasks/{id}/delete"
@@ -80,7 +76,7 @@
     },
     "create": {
       "method": "POST",
-      "path": "experiment/{experimentId}/task/new_task"
+      "path": "experiment/{experimentId}/task/create"
     },
     "delete": {
       "method": "GET",

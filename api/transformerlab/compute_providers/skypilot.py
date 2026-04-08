@@ -451,7 +451,7 @@ class SkyPilotProvider(ComputeProvider):
             response = self._make_authenticated_request("POST", "/launch", json_data=body_json, timeout=5)
         except ConnectionError as e:
             print(f"Failed to launch cluster {cluster_name}: {e}")
-            return {"status": "error", "message": str(e)}
+            raise
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         if self._server_common:
@@ -496,7 +496,7 @@ class SkyPilotProvider(ComputeProvider):
             response = self._make_authenticated_request("POST", "/down", json_data=body_json, timeout=30)
         except ConnectionError as e:
             print(f"Failed to stop cluster {cluster_name}: {e}")
-            return {"status": "error", "message": str(e)}
+            raise
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         request_id = None
@@ -1066,7 +1066,7 @@ class SkyPilotProvider(ComputeProvider):
             response = self._make_authenticated_request("POST", "/exec", json_data=body_json, timeout=5)
         except ConnectionError as e:
             print(f"Failed to exec on cluster {cluster_name}: {e}")
-            return {"status": "error", "message": str(e)}
+            raise
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         if self._server_common:
@@ -1248,7 +1248,7 @@ class SkyPilotProvider(ComputeProvider):
             response = self._make_authenticated_request("POST", "/cancel", json_data=body_json, timeout=5)
         except ConnectionError as e:
             print(f"Failed to cancel job on cluster {cluster_name}: {e}")
-            return {"status": "error", "message": str(e)}
+            raise
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         if self._server_common:

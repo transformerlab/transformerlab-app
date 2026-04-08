@@ -131,7 +131,21 @@ async def _process_launch_item(item: RemoteLaunchWorkItem) -> None:
                     return provider_instance.launch_cluster(item.cluster_name, item.cluster_config)
 
                 try:
+                    # Fail fast if the provider is unreachable before attempting launch.
+                    if hasattr(provider_instance, "check"):
+                        is_healthy = await loop.run_in_executor(None, provider_instance.check)
+                        if not is_healthy:
+                            raise RuntimeError(
+                                f"Provider '{provider.name}' is not reachable. "
+                                "Verify that the provider is running and accessible."
+                            )
+
                     launch_result = await loop.run_in_executor(None, _launch_with_org_context)
+
+                    # Defensive: treat error dicts from providers as failures.
+                    if isinstance(launch_result, dict) and launch_result.get("status") == "error":
+                        raise RuntimeError(launch_result.get("message", "Provider returned an error"))
+
                 except Exception as exc:  # noqa: BLE001
                     await job_service.job_update_launch_progress(
                         item.job_id,
