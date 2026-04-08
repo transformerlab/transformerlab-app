@@ -15,7 +15,7 @@ import sys
 import fastapi
 
 import uvicorn
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, HTTPException, Body
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -63,6 +63,7 @@ from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
 from transformerlab.shared.remote_workspace import validate_cloud_credentials  # noqa: E402
 from transformerlab.services.sweep_status_service import start_sweep_status_worker, stop_sweep_status_worker  # noqa: E402
 from transformerlab.services.cache_service import setup as setup_cache  # noqa: E402
+from transformers import AutoTokenizer  # noqa: E402
 
 
 # The following environment variable can be used by other scripts
@@ -353,6 +354,23 @@ async def healthz():
             "email_method": email_method,
         },
     }
+
+
+@app.post("/tokenize", dependencies=[Depends(get_user_and_team)])
+async def tokenize_endpoint(body: dict = Body(...)):
+    text = body.get("text")
+    model_name = body.get("model_name")
+
+    if not text or not model_name:
+        raise HTTPException(status_code=400, detail="text and model_name are required")
+
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        tokens = tokenizer.tokenize(text)
+        input_ids = tokenizer.encode(text)
+        return {"input_ids": input_ids, "tokens": tokens}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Tokenization failed: {str(e)}")
 
 
 # Middleware to set cache-control headers for static frontend assets.

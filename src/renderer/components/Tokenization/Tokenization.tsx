@@ -8,6 +8,7 @@ import {
   Alert,
   CircularProgress,
   Divider,
+  TextField,
 } from '@mui/joy';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -15,12 +16,15 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 export default function Tokenization() {
   const { experimentInfo } = useExperimentInfo();
   const [inputText, setInputText] = useState('');
+  const [modelName, setModelName] = useState(
+    experimentInfo?.config?.model_name || '',
+  );
   const [tokenizedResult, setTokenizedResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const handleTokenize = async () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || !modelName.trim()) return;
 
     setLoading(true);
     setError(null);
@@ -37,7 +41,7 @@ export default function Tokenization() {
           },
           body: JSON.stringify({
             text: inputText,
-            experiment_id: experimentInfo?.id,
+            model_name: modelName,
           }),
         },
       );
@@ -75,9 +79,18 @@ export default function Tokenization() {
     >
       <Typography level="h4">Tokenization Preview</Typography>
       <Typography level="body-sm" color="neutral">
-        Enter text below to see how it gets tokenized by the current
-        experiment's model.
+        Enter a Hugging Face model name and text below to see how it gets
+        tokenized. You can use any model from Hugging Face or specify a custom
+        tokenizer.
       </Typography>
+
+      <TextField
+        label="Model Name"
+        placeholder="e.g., microsoft/DialoGPT-small"
+        value={modelName}
+        onChange={(e) => setModelName(e.target.value)}
+        required
+      />
 
       <Textarea
         placeholder="Enter text to tokenize..."
@@ -89,7 +102,7 @@ export default function Tokenization() {
 
       <Button
         onClick={handleTokenize}
-        disabled={!inputText.trim() || loading}
+        disabled={!inputText.trim() || !modelName.trim() || loading}
         loading={loading}
       >
         Tokenize
