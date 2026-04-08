@@ -68,7 +68,7 @@ async def _start_inference_server(model_name: str):
             )
 
             providers_result = await session.execute(
-                text("SELECT id FROM team_compute_providers WHERE type = 'local' LIMIT 1")
+                text("SELECT id FROM compute_providers WHERE type = 'local' LIMIT 1")
             )
             provider_row = providers_result.fetchone()
 
