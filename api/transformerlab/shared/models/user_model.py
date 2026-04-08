@@ -12,6 +12,7 @@ import uuid
 from transformerlab.db.session import async_session as AsyncSessionLocal
 from transformerlab.shared.models.models import Team, User, OAuthAccount
 from transformerlab.shared.remote_workspace import create_bucket_for_team
+from transformerlab.services import juicefs_service
 
 
 # 5. Database session dependency
@@ -112,9 +113,15 @@ async def create_personal_team(session: AsyncSession, user) -> Team:
     await session.commit()
     await session.refresh(team)
 
-    # Create storage (cloud bucket or local folder) for the new team
+    # Create storage (cloud bucket, local folder, or JuiceFS path) for the new team
     remote_storage_enabled = getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
-    if remote_storage_enabled or (getenv("TFL_STORAGE_PROVIDER") == "localfs" and getenv("TFL_STORAGE_URI")):
+    storage_provider = getenv("TFL_STORAGE_PROVIDER", "").lower()
+    if storage_provider == "juicefs" and juicefs_service._is_configured():
+        try:
+            await juicefs_service.create_org_storage(team.id, session)
+        except Exception as e:
+            print(f"Warning: Failed to create JuiceFS storage for team {team.id}: {e}")
+    elif remote_storage_enabled or (storage_provider == "localfs" and getenv("TFL_STORAGE_URI")):
         try:
             await asyncio.to_thread(create_bucket_for_team, team.id, "transformerlab-s3")
         except Exception as e:

@@ -246,6 +246,26 @@ async def launch_template_on_provider(
                 if azure_sas:
                     env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
 
+    if STORAGE_PROVIDER == "juicefs":
+        # Inject org-scoped JuiceFS token and AWS object storage credentials.
+        # This runs unconditionally (not gated on TFL_REMOTE_STORAGE_ENABLED).
+        from transformerlab.services import juicefs_service
+
+        storage_config = await juicefs_service.get_org_storage(team_id, session)
+        if storage_config:
+            env_vars["TFL_JUICEFS_ACCESS_KEY"] = storage_config.access_key
+            env_vars["TFL_JUICEFS_SECRET_KEY"] = storage_config.secret_key
+        env_vars["TFL_STORAGE_PROVIDER"] = "juicefs"
+        env_vars["JUICEFS_VOLUME"] = os.getenv("JUICEFS_VOLUME", "tfl-workspace")
+
+        aws_profile = "transformerlab-s3"
+        aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
+            get_aws_credentials_from_file, aws_profile
+        )
+        if aws_access_key_id and aws_secret_access_key:
+            env_vars["AWS_ACCESS_KEY_ID"] = aws_access_key_id
+            env_vars["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
+
     if request.file_mounts is True and request.task_id:
         setup_commands.append(COPY_FILE_MOUNTS_SETUP)
     # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.

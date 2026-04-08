@@ -480,7 +480,14 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
     from transformerlab.shared.models.models import Team
 
     # Check if storage is configured
-    if STORAGE_PROVIDER == "localfs":
+    if STORAGE_PROVIDER == "juicefs":
+        from transformerlab.services import juicefs_service
+
+        if not juicefs_service._is_configured():
+            print("JUICEFS_API_ACCESS_KEY, JUICEFS_API_SECRET_KEY, or JUICEFS_VOLUME_ID not set, skipping JuiceFS storage init")
+            return (0, 0, ["JUICEFS_API_ACCESS_KEY, JUICEFS_API_SECRET_KEY, or JUICEFS_VOLUME_ID not set"])
+        print("Creating JuiceFS tokens/quotas for all teams (juicefs mode)")
+    elif STORAGE_PROVIDER == "localfs":
         if not os.getenv("TFL_STORAGE_URI"):
             print("TFL_STORAGE_PROVIDER=localfs but TFL_STORAGE_URI is not set, skipping")
             return (0, 0, ["TFL_STORAGE_URI is not set"])
@@ -511,7 +518,19 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
 
     for team in teams:
         try:
-            if STORAGE_PROVIDER == "localfs":
+            if STORAGE_PROVIDER == "juicefs":
+                from transformerlab.services import juicefs_service
+
+                # Skip teams that already have a token provisioned (idempotent)
+                existing = await juicefs_service.get_org_storage(team.id, session)
+                if existing is not None:
+                    success_count += 1
+                    print(f"✅ JuiceFS storage already exists for team '{team.name}' (id={team.id}), skipping")
+                    continue
+                await juicefs_service.create_org_storage(team.id, session)
+                success_count += 1
+                print(f"✅ Created JuiceFS token/quota for team '{team.name}' (id={team.id})")
+            elif STORAGE_PROVIDER == "localfs":
                 # In localfs mode, set org context and seed default experiments
                 # which also creates the workspace directory structure.
                 from lab.dirs import set_organization_id
@@ -540,6 +559,6 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
             error_messages.append(error_msg)
             print(f"❌ {error_msg}")
 
-    storage_type = "workspace" if STORAGE_PROVIDER == "localfs" else "bucket"
+    storage_type = "token" if STORAGE_PROVIDER == "juicefs" else ("workspace" if STORAGE_PROVIDER == "localfs" else "bucket")
     print(f"Storage init summary: {success_count} {storage_type}(s) succeeded, {failure_count} failed")
     return (success_count, failure_count, error_messages)

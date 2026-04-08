@@ -28,7 +28,8 @@ async def main() -> None:
     # Buckets/containers/local workspace dirs must exist before seed_default_experiments(),
     # which writes experiment metadata to remote storage (e.g. Azure block upload).
     tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
-    if tfl_remote_storage_enabled or (os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")):
+    storage_provider = os.getenv("TFL_STORAGE_PROVIDER", "").lower()
+    if tfl_remote_storage_enabled or (storage_provider == "localfs" and os.getenv("TFL_STORAGE_URI")) or storage_provider == "juicefs":
         print("✅ CHECKING STORAGE FOR EXISTING TEAMS")
         try:
             async with async_session() as session:

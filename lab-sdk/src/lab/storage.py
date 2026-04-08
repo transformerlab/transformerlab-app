@@ -131,13 +131,40 @@ _AZURE_ACCOUNT_KEY = os.getenv("AZURE_STORAGE_KEY")
 _AZURE_SAS_TOKEN = os.getenv("AZURE_STORAGE_SAS_TOKEN")
 
 # Common prefixes that represent remote storage locations handled by this module
-_REMOTE_PATH_PREFIXES: tuple[str, ...] = ("s3://", "gs://", "gcs://", "abfs://")
+_REMOTE_PATH_PREFIXES: tuple[str, ...] = ("s3://", "gs://", "gcs://", "abfs://", "juicefs://", "jfs://")
 
 # Module-level cache for "uncached" filesystem instances.
 # Keyed by (protocol, normalized credential/storage options), so we avoid
 # mixing auth contexts while still reusing long-lived connection pools.
 _uncached_fs_cache: dict[tuple[str, tuple[tuple[str, str], ...]], "fsspec.AbstractFileSystem"] = {}
 _uncached_fs_lock = threading.Lock()
+
+
+def _resolve_aws_credentials() -> tuple[str | None, str | None]:
+    """Return (access_key, secret_key) for object storage access.
+
+    Prefers explicit env vars (reliable on remote/ephemeral nodes where
+    credentials are injected at job launch).  Falls back to the configured
+    AWS profile on the API server where ~/.aws/credentials is present.
+    """
+    access_key = os.getenv("AWS_ACCESS_KEY_ID")
+    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    if access_key and secret_key:
+        return access_key, secret_key
+
+    if _AWS_PROFILE:
+        try:
+            import boto3
+
+            session = boto3.Session(profile_name=_AWS_PROFILE)
+            creds = session.get_credentials()
+            if creds:
+                resolved = creds.resolve_credentials()
+                return resolved.access_key, resolved.secret_key
+        except Exception:
+            pass
+
+    return None, None
 
 
 def is_remote_path(path: str) -> bool:
@@ -197,6 +224,34 @@ def _get_fs_for_uri(uri: str):
         protocol = "gcs"
     elif uri.startswith("abfs://"):
         protocol = "abfs"
+    elif uri.startswith("juicefs://"):
+        # Use juicefs.Client directly — the fsspec "jfs" integration is unreliable.
+        # NOTE: juicefs ships a Linux-only native library (libjfs.so). On macOS this
+        # will raise OSError at import time. Remote job nodes run Linux so this is
+        # only a local dev limitation.
+        try:
+            import juicefs as juicefs_sdk
+        except OSError as e:
+            raise RuntimeError(
+                "JuiceFS Python SDK could not load its native library (libjfs.so). "
+                "This is expected on macOS — the SDK only supports Linux. "
+                "For local development use TFL_STORAGE_PROVIDER=localfs instead."
+            ) from e
+
+        volume = uri[len("juicefs://"):].split("/")[0]
+        root_path = "/" + "/".join(uri[len("juicefs://"):].split("/")[1:])
+
+        juicefs_access_key = os.getenv("TFL_JUICEFS_ACCESS_KEY")
+        juicefs_secret_key = os.getenv("TFL_JUICEFS_SECRET_KEY")
+        if not juicefs_access_key or not juicefs_secret_key:
+            juicefs_access_key, juicefs_secret_key = _resolve_aws_credentials()
+
+        fs = juicefs_sdk.Client(
+            volume,
+            access_key=juicefs_access_key,
+            secret_key=juicefs_secret_key,
+        )
+        return fs, root_path.rstrip("/")
     else:
         # Local filesystem or unknown protocol - use fsspec's default handling
         fs = fsspec.filesystem("file", asynchronous=False)
@@ -251,7 +306,13 @@ def _get_fs_and_root():
     # "not found" errors for org-specific resources (jobs, models, etc.).
     tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
     uses_localfs_multi_org = STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI")
-    if (tfl_remote_storage_enabled or uses_localfs_multi_org) and _current_tfl_storage_uri.get() is None:
+    # On remote nodes TFL_STORAGE_URI is injected as env var (org-scoped URI), so no
+    # context var is needed. Only require the context var on the API server side where
+    # TFL_STORAGE_URI is not set and middleware is expected to call set_organization_id().
+    uses_juicefs = STORAGE_PROVIDER == "juicefs" and not os.getenv("TFL_STORAGE_URI")
+    if (
+        tfl_remote_storage_enabled or uses_localfs_multi_org or uses_juicefs
+    ) and _current_tfl_storage_uri.get() is None:
         raise RuntimeError(
             "Organization context is required but not set. "
             "Ensure set_organization_id() is called before accessing storage "
@@ -361,10 +422,10 @@ async def ls(path: str, detail: bool = False, fs=None):
         if detail:
             return paths
         # Ensure paths are full URIs for remote filesystems
-        if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+        if path.startswith(("s3://", "gs://", "abfs://", "gcs://", "juicefs://")):
             full_paths = []
             for p in paths:
-                if not p.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+                if not p.startswith(("s3://", "gs://", "abfs://", "gcs://", "juicefs://")):
                     # Convert relative path to full URI
                     protocol = path.split("://")[0] + "://"
                     full_path = protocol + p
@@ -466,8 +527,8 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
     else:
         filesys = fs if fs is not None else await filesystem()
 
-    # Check if this is a local filesystem
-    is_local = isinstance(filesys, fsspec.implementations.local.LocalFileSystem)
+    # Check if this is a local filesystem (juicefs.Client is also non-local)
+    is_local = isinstance(filesys, fsspec.implementations.local.LocalFileSystem) and not is_remote_path(path)
 
     if is_local:
         # Use aiofiles for local files — already truly async, no change needed
@@ -495,12 +556,14 @@ def _resolve_protocol(path: str, fs=None) -> Optional[str]:
         if "abfs" in fs_type or "azure" in fs_type:
             return "abfs"
 
-    if path.startswith(("s3://",)):
+    if path.startswith("s3://"):
         return "s3"
     if path.startswith(("gs://", "gcs://")):
         return "gcs"
-    if path.startswith(("abfs://",)):
+    if path.startswith("abfs://"):
         return "abfs"
+    if path.startswith("juicefs://") or path.startswith("jfs://"):
+        return "jfs"
 
     # Path looks local but the workspace may be remote.
     tfl_uri = _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")

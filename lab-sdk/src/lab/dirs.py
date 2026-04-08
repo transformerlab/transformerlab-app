@@ -39,7 +39,10 @@ def set_organization_id(organization_id: str | None) -> None:
     if organization_id is not None:
         # If TFL_REMOTE_STORAGE_ENABLED is true, use <cloud_protocol>://workspace_<team_id> instead of the value itself
         tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
-        if tfl_remote_storage_enabled:
+        if STORAGE_PROVIDER == "juicefs":
+            volume = os.getenv("JUICEFS_VOLUME", "tfl-workspace")
+            _current_tfl_storage_uri.set(f"juicefs://{volume}/{organization_id}")
+        elif tfl_remote_storage_enabled:
             # Determine protocol based on TFL_STORAGE_PROVIDER (aws | gcp | azure)
             if STORAGE_PROVIDER == "gcp":
                 protocol = "gs://"
