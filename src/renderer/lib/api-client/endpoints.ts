@@ -499,7 +499,7 @@ Endpoints.Users = {
   SetSecrets: () => `${API_URL()}users/me/secrets`,
 };
 
-Endpoints.Tokenize = () => `${INFERENCE_SERVER_URL()}tokenize`;
+Endpoints.Tokenize = () => `${API_URL()}tokenize`;
 
 Endpoints.AssetVersions = {
   ListGroups: (assetType: string) =>
