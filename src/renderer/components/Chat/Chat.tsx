@@ -11,10 +11,13 @@ import {
   Option,
   FormControl,
   FormLabel,
+  Chip,
 } from '@mui/joy';
-import { SendIcon } from 'lucide-react';
+import { SendIcon, PlayCircle, Loader2, CheckCircle } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
+
+type ModelLoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 interface Message {
   id: string;
@@ -44,6 +47,8 @@ export default function Chat({}: ChatProps) {
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [showHistoryWarning, setShowHistoryWarning] = useState(false);
   const [modelLoadError, setModelLoadError] = useState<string | null>(null);
+  const [modelLoadStatus, setModelLoadStatus] =
+    useState<ModelLoadStatus>('idle');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { fetchWithAuth } = useAuth();
 
@@ -201,19 +206,89 @@ export default function Chat({}: ChatProps) {
           {modelLoadError}
         </Typography>
       ) : (
-        <FormControl sx={{ mb: 2 }}>
-          <FormLabel>Select Model</FormLabel>
-          <Select
-            value={selectedModel}
-            onChange={(_, value) => setSelectedModel(value || '')}
+        <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+          <FormControl sx={{ flex: 1 }}>
+            <FormLabel>Select Model</FormLabel>
+            <Select
+              value={selectedModel}
+              onChange={(_, value) => setSelectedModel(value || '')}
+              disabled={modelLoadStatus === 'loading'}
+            >
+              {availableModels.map((model) => (
+                <Option key={model} value={model}>
+                  {model}
+                </Option>
+              ))}
+            </Select>
+          </FormControl>
+          <Button
+            onClick={async () => {
+              if (!selectedModel) {
+                setModelLoadError('Please select a model first');
+                return;
+              }
+              setModelLoadStatus('loading');
+              setModelLoadError(null);
+              try {
+                const response = await fetchWithAuth(
+                  chatAPI.API_URL() + 'chat/load_model',
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      model: selectedModel,
+                    }),
+                  },
+                );
+                if (response.ok) {
+                  setModelLoadStatus('loaded');
+                } else {
+                  const errorData = await response.json();
+                  setModelLoadError(errorData.detail || 'Failed to load model');
+                  setModelLoadStatus('error');
+                }
+              } catch (error) {
+                console.error('Failed to load model:', error);
+                setModelLoadError(
+                  'Failed to load model: ' + (error as Error).message,
+                );
+                setModelLoadStatus('error');
+              }
+            }}
+            startDecorator={
+              modelLoadStatus === 'loading' ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : modelLoadStatus === 'loaded' ? (
+                <CheckCircle size={16} />
+              ) : (
+                <PlayCircle size={16} />
+              )
+            }
+            disabled={modelLoadStatus === 'loading' || !selectedModel}
+            variant={modelLoadStatus === 'loaded' ? 'soft' : 'solid'}
+            color={
+              modelLoadStatus === 'loaded'
+                ? 'success'
+                : modelLoadStatus === 'error'
+                  ? 'danger'
+                  : 'primary'
+            }
+            sx={{ mt: 3 }}
           >
-            {availableModels.map((model) => (
-              <Option key={model} value={model}>
-                {model}
-              </Option>
-            ))}
-          </Select>
-        </FormControl>
+            {modelLoadStatus === 'loading'
+              ? 'Loading...'
+              : modelLoadStatus === 'loaded'
+                ? 'Model Loaded'
+                : 'Load Model'}
+          </Button>
+          {modelLoadStatus === 'loaded' && (
+            <Chip color="success" variant="soft" size="sm">
+              Ready to chat
+            </Chip>
+          )}
+        </Box>
       )}
 
       {showHistoryWarning && (
@@ -240,7 +315,9 @@ export default function Chat({}: ChatProps) {
               level="body-sm"
               sx={{ textAlign: 'center', color: 'text.tertiary' }}
             >
-              Start a conversation by typing a message below.
+              {modelLoadStatus === 'loaded'
+                ? 'Start a conversation by typing a message below.'
+                : 'Select a model and click "Load Model" to start chatting.'}
             </Typography>
           ) : (
             messages.map((message) => (
@@ -254,14 +331,18 @@ export default function Chat({}: ChatProps) {
               >
                 <Sheet
                   variant={message.role === 'user' ? 'solid' : 'soft'}
-                  color={message.role === 'user' ? 'primary' : 'neutral'}
+                  color={message.role === 'user' ? 'primary' : 'warning'}
                   sx={{
                     maxWidth: '70%',
                     p: 2,
                     borderRadius: 2,
+                    color: message.role === 'user' ? 'white' : 'text.primary',
                   }}
                 >
-                  <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap' }}>
+                  <Typography
+                    level="body-sm"
+                    sx={{ whiteSpace: 'pre-wrap', color: 'inherit' }}
+                  >
                     {message.content}
                   </Typography>
                   <Typography level="body-xs" sx={{ mt: 1, opacity: 0.7 }}>
@@ -295,18 +376,27 @@ export default function Chat({}: ChatProps) {
       {/* Input Area */}
       <Box sx={{ display: 'flex', gap: 1 }}>
         <Textarea
-          placeholder="Type your message..."
+          placeholder={
+            modelLoadStatus === 'loaded'
+              ? 'Type your message...'
+              : 'Load a model first to start chatting'
+          }
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyPress}
           minRows={2}
           maxRows={4}
           sx={{ flex: 1 }}
-          disabled={isLoading}
+          disabled={isLoading || modelLoadStatus !== 'loaded'}
         />
         <Button
           onClick={sendMessage}
-          disabled={!input.trim() || !selectedModel || isLoading}
+          disabled={
+            !input.trim() ||
+            !selectedModel ||
+            isLoading ||
+            modelLoadStatus !== 'loaded'
+          }
           startDecorator={<SendIcon />}
           sx={{ alignSelf: 'flex-end' }}
         >
