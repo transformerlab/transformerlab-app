@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import { API_URL, FULL_PATH } from './urls';
+import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
 
 export const Endpoints: any = {};
 
@@ -499,7 +499,7 @@ Endpoints.Users = {
   SetSecrets: () => `${API_URL()}users/me/secrets`,
 };
 
-Endpoints.Tokenize = () => `${API_URL()}tokenize`;
+Endpoints.Tokenize = () => `${INFERENCE_SERVER_URL()}tokenize`;
 
 Endpoints.AssetVersions = {
   ListGroups: (assetType: string) =>

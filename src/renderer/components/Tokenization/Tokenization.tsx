@@ -43,7 +43,15 @@ export default function Tokenization() {
       );
 
       if (!response.ok) {
-        throw new Error(`Tokenization failed: ${response.statusText}`);
+        let errorMessage = `Tokenization failed: ${response.statusText}`;
+        if (response.status === 404) {
+          errorMessage =
+            'Tokenization is not available for the current model or inference server.';
+        } else if (response.status === 405) {
+          errorMessage =
+            'Tokenization endpoint does not support the requested method.';
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
