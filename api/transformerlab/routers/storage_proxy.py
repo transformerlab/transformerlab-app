@@ -48,7 +48,7 @@ async def get_object(
         return JSONResponse(status_code=404, content={"detail": f"Not found: {body.path}"})
     except RuntimeError as exc:
         logger.error("Storage proxy GET failed: %s", exc)
-        return JSONResponse(status_code=502, content={"detail": str(exc)})
+        return JSONResponse(status_code=502, content={"detail": "Storage backend error"})
 
 
 @router.post("/proxy/put")
@@ -64,7 +64,7 @@ async def put_object(
         return JSONResponse(status_code=200, content={"status": "ok"})
     except RuntimeError as exc:
         logger.error("Storage proxy PUT failed: %s", exc)
-        return JSONResponse(status_code=502, content={"detail": str(exc)})
+        return JSONResponse(status_code=502, content={"detail": "Storage backend error"})
 
 
 @router.post("/proxy/ls")
@@ -78,7 +78,7 @@ async def list_objects(
         return JSONResponse(status_code=200, content={"paths": paths})
     except RuntimeError as exc:
         logger.error("Storage proxy LS failed: %s", exc)
-        return JSONResponse(status_code=502, content={"detail": str(exc)})
+        return JSONResponse(status_code=502, content={"detail": "Storage backend error"})
 
 
 # ---------------------------------------------------------------------------
@@ -147,4 +147,4 @@ async def fs_find(
         return JSONResponse(content={"paths": paths})
     except RuntimeError as exc:
         logger.error("Storage proxy FIND failed: %s", exc)
-        return JSONResponse(status_code=502, content={"detail": str(exc)})
+        return JSONResponse(status_code=502, content={"detail": "Storage backend error"})
