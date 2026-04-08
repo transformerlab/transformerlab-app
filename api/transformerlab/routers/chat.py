@@ -1,8 +1,10 @@
 import uuid
 from typing import Optional
 import asyncio
+import json
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 
@@ -22,7 +24,7 @@ class ChatCompletionsRequest(BaseModel):
 
 _loaded_model: Optional[str] = None
 _loaded_job_id: Optional[str] = None
-_inference_server_url: Optional[str] = "http://localhost:8000"
+_inference_server_url: Optional[str] = "http://localhost:21002"
 _model_loading = False
 
 
@@ -167,6 +169,9 @@ async def chat_completions(request: ChatCompletionsRequest):
     """
     global _loaded_model, _inference_server_url
 
+    print(f"[chat] chat_completions called with model: {request.model}")
+    print(f"[chat] _loaded_model: {_loaded_model}")
+
     if not _loaded_model:
         raise HTTPException(
             status_code=400,
@@ -240,3 +245,46 @@ async def unload_model():
         "status": "success",
         "message": f"Model {model_name} has been unloaded (job {job_id} still running in background)",
     }
+
+
+@router.api_route("/v1/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def catch_all_v1(path: str, request: Request):
+    """Catch-all route to handle /v1/* requests and guide them to correct endpoint."""
+    print(f"[chat] catch-all called for /v1/{path}")
+    print(f"[chat] method: {request.method}")
+    print(f"[chat] _loaded_model: {_loaded_model}")
+    print(f"[chat] full path: {path}")
+
+    if request.method == "OPTIONS":
+        return JSONResponse(content={"status": "ok"})
+
+    body = await request.body()
+    print(f"[chat] body length: {len(body)}")
+
+    # Instead of returning 405, let's try to forward the request to the actual handler
+    # This is a workaround - the frontend is calling /v1/chat/completions but we need /chat/v1/chat/completions
+    if path == "chat/completions" and request.method == "POST":
+        print(f"[chat] Forwarding /v1/chat/completions to internal handler")
+        # Parse the body and call our handler directly
+        try:
+            body_json = json.loads(body.decode("utf-8")) if body else {}
+            # Create a mock request for our handler
+            chat_req = ChatCompletionsRequest(
+                model=body_json.get("model", ""),
+                messages=body_json.get("messages", []),
+                max_tokens=body_json.get("max_tokens", 1024),
+                temperature=body_json.get("temperature", 0.7),
+            )
+            return await chat_completions(chat_req)
+        except Exception as e:
+            print(f"[chat] Error forwarding request: {e}")
+            return JSONResponse(status_code=500, content={"detail": f"Error processing request: {str(e)}"})
+
+    return JSONResponse(
+        status_code=405,
+        content={
+            "detail": f"Method {request.method} not allowed on /v1/{path}",
+            "hint": "Use /chat/v1/chat/completions instead",
+            "current_path": f"/v1/{path}",
+        },
+    )

@@ -139,7 +139,7 @@ export default function Chat({}: ChatProps) {
       }));
 
       const response = await fetchWithAuth(
-        chatAPI.API_URL() + 'v1/chat/completions',
+        chatAPI.API_URL() + 'chat/v1/chat/completions',
         {
           method: 'POST',
           headers: {
@@ -153,6 +153,13 @@ export default function Chat({}: ChatProps) {
           }),
         },
       );
+      console.log('[Chat] Response status:', response.status);
+      console.log('[Chat] Response URL:', response.url);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to get response');
+      }
 
       const data = await response.json();
 

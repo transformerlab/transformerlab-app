@@ -300,6 +300,7 @@ async def validation_exception_handler(request, exc):
 
 
 app.include_router(model.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(chat.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(serverinfo.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(data.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(experiment.router, dependencies=[Depends(get_user_and_team)])
@@ -314,7 +315,6 @@ app.include_router(quota.router)
 app.include_router(ssh_keys.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(asset_versions.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(trackio.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(chat.router, dependencies=[Depends(get_user_and_team)])
 
 
 async def install_all_plugins():
