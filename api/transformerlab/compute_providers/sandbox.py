@@ -83,7 +83,12 @@ def _build_seatbelt_profile(
             rules.append(f'(allow file-read* (subpath "{p}"))')
     # macOS system libraries and developer tools (needed by git, xcrun, etc.)
     rules += [
+        # Some toolchains (e.g. Xcode app bundle installs) resolve assets here.
+        '(allow file-read* (subpath "/Applications"))',
         '(allow file-read* (subpath "/Library"))',
+        # Homebrew on Apple Silicon and other third-party toolchains
+        # are commonly installed under /opt.
+        '(allow file-read* (subpath "/opt"))',
         '(allow file-read* (subpath "/usr"))',
         '(allow file-read* (subpath "/bin"))',
         '(allow file-read* (subpath "/sbin"))',
@@ -91,6 +96,8 @@ def _build_seatbelt_profile(
         '(allow file-read* (subpath "/private/etc"))',
         # xcrun writes temp cache files under /private/var/folders
         '(allow file* (subpath "/private/var/folders"))',
+        # Some build/setup tools use the global temp dir explicitly.
+        '(allow file* (subpath "/private/tmp"))',
     ]
     # GPU device files (CUDA / Metal)
     rules += [
