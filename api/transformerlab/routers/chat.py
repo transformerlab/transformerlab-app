@@ -91,7 +91,7 @@ async def _start_inference_server(model_name: str):
                 experiment_name="chat",
                 plugin_id="fastchat_server",
                 plugin_params={"model": model_name},
-                workspace_dir=job_dir,
+                provider_config={"workspace_dir": job_dir},
                 local_model_path=None,
                 dataset_id=None,
                 dataset_path=None,
