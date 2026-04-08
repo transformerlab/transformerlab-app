@@ -67,8 +67,9 @@ async def stop_cluster(
 ):
     """Stop a running cluster."""
     team_id = user_and_team["team_id"]
-    user_id_str = str(user_and_team["user"].id)
-    return await cluster_management_service.stop_cluster(session, team_id, user_id_str, provider_id, cluster_name)
+    user = user_and_team["user"]
+    user_id_str = str(user.id)
+    return await cluster_management_service.stop_cluster(session, team_id, user, provider_id, cluster_name)
 
 
 @router.post("/{cluster_name}/jobs")

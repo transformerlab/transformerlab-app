@@ -24,8 +24,8 @@ import { useAPI, useAuth } from 'renderer/lib/authContext';
 import {
   authenticatedFetch,
   getAPIFullPath,
+  Endpoints,
 } from 'renderer/lib/transformerlab-api-sdk';
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { RotateCcw } from 'lucide-react';
 import FixedComputeClusterVisualization from './FixedComputeClusterVisualization';
 import LocalMachineSummary from './LocalMachineSummary';
@@ -157,7 +157,7 @@ const Resources = () => {
   const handleTerminateCluster = async (clusterName: string) => {
     if (!selectedProvider) return;
 
-    const isAdmin = authContext.user?.email === 'admin@example.com';
+    const isAdmin = authContext.user?.is_superuser;
     const isOwner = members?.members?.some(
       (m: any) => m.user_id === authContext.user?.id && m.role === 'owner',
     );
@@ -174,10 +174,7 @@ const Resources = () => {
 
     try {
       const response = await authenticatedFetch(
-        chatAPI.Endpoints.ComputeProvider.StopCluster(
-          selectedProvider,
-          clusterName,
-        ),
+        Endpoints.ComputeProvider.StopCluster(selectedProvider, clusterName),
         {
           method: 'POST',
         },

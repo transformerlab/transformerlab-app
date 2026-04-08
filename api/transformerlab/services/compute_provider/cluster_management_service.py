@@ -6,10 +6,11 @@ from typing import Any, Dict, List, Optional, Union
 
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from transformerlab.compute_providers.models import ClusterStatus, JobConfig, JobInfo, JobState, ResourceInfo
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
-from transformerlab.shared.models.models import ProviderType
+from transformerlab.shared.models.models import ProviderType, User, UserTeam, TeamRole
 from lab.dirs import get_local_provider_job_dir, resolve_local_provider_job_dir
 
 logger = logging.getLogger(__name__)
@@ -58,15 +59,27 @@ async def get_cluster_resources(
         raise HTTPException(status_code=500, detail="Failed to get cluster resources") from e
 
 
-async def stop_cluster(
-    session: AsyncSession, team_id: str, user_id_str: str, provider_id: str, cluster_name: str
-) -> Any:
+async def stop_cluster(session: AsyncSession, team_id: str, user: User, provider_id: str, cluster_name: str) -> Any:
+    # Check permissions: user must be superuser or team owner
+    if not user.is_superuser:
+        # Check if user is team owner
+        stmt = select(UserTeam).where(
+            UserTeam.user_id == str(user.id),
+            UserTeam.team_id == team_id,
+            UserTeam.role == TeamRole.OWNER.value,
+        )
+        result = await session.execute(stmt)
+        user_team = result.scalar_one_or_none()
+
+        if not user_team:
+            raise HTTPException(status_code=403, detail="Only team owners or administrators can stop clusters")
+
     provider = await get_team_provider(session, team_id, provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
+        provider_instance = await get_provider_instance(provider, user_id=str(user.id), team_id=team_id)
 
         if provider.type == ProviderType.LOCAL.value and hasattr(provider_instance, "extra_config"):
             job_id_segment = None
