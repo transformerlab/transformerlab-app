@@ -14,6 +14,7 @@ import {
 } from '@mui/joy';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { INFERENCE_SERVER_URL } from 'renderer/lib/api-client/urls';
 
 export default function Tokenization() {
   const { experimentInfo } = useExperimentInfo();
@@ -34,7 +35,7 @@ export default function Tokenization() {
 
     try {
       const response = await chatAPI.authenticatedFetch(
-        `${chatAPI.Endpoints.Tokenize}`,
+        `${INFERENCE_SERVER_URL()}tokenize`,
         {
           method: 'POST',
           headers: {
