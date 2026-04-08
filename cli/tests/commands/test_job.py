@@ -135,3 +135,124 @@ def test_job_list_json_no_spinner_text(mock_check, mock_get_config, mock_api):
     result = runner.invoke(app, ["--format", "json", "job", "list"])
     assert result.exit_code == 0
     json.loads(result.output.strip())
+
+
+@patch("transformerlab_cli.commands.job.api.post")
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_job_publish_dataset_success(mock_require, mock_post):
+    """job publish dataset should call the dataset save endpoint."""
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"status": "started"}
+    mock_post.return_value = mock_resp
+
+    result = runner.invoke(
+        app,
+        [
+            "--format",
+            "json",
+            "job",
+            "publish",
+            "dataset",
+            "42",
+            "my dataset",
+            "--mode",
+            "existing",
+            "--group",
+            "base-dataset",
+            "--asset-name",
+            "my-dataset-v2",
+            "--tag",
+            "production",
+            "--version-label",
+            "v2",
+            "--description",
+            "new run",
+        ],
+    )
+
+    assert result.exit_code == 0
+    called_endpoint = mock_post.call_args.args[0]
+    assert "/experiment/exp1/jobs/42/datasets/my%20dataset/save_to_registry?" in called_endpoint
+    assert "mode=existing" in called_endpoint
+    assert "target_name=base-dataset" in called_endpoint
+    assert "asset_name=my-dataset-v2" in called_endpoint
+    assert "tag=production" in called_endpoint
+    assert "version_label=v2" in called_endpoint
+    assert "description=new+run" in called_endpoint
+
+
+@patch("transformerlab_cli.commands.job.api.post")
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_job_publish_model_existing_requires_group(mock_require, mock_post):
+    """job publish model --mode existing should require --group in json mode (non-interactive)."""
+    result = runner.invoke(
+        app,
+        [
+            "--format",
+            "json",
+            "job",
+            "publish",
+            "model",
+            "99",
+            "llama-adapter",
+            "--mode",
+            "existing",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "--group is required when --mode=existing" in strip_ansi(result.output)
+    mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.commands.job.api.post")
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_job_publish_model_interactive_prompts(mock_require, mock_post):
+    """job publish model should prompt for metadata in pretty mode."""
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"status": "started"}
+    mock_post.return_value = mock_resp
+
+    result = runner.invoke(
+        app,
+        ["job", "publish", "model", "10", "adapterA"],
+        input="\n\nproduction\nv9\nPromoted build\n",
+    )
+
+    assert result.exit_code == 0
+    called_endpoint = mock_post.call_args.args[0]
+    assert "/experiment/exp1/jobs/10/models/adapterA/save_to_registry?" in called_endpoint
+    assert "mode=new" in called_endpoint
+    assert "tag=production" in called_endpoint
+    assert "version_label=v9" in called_endpoint
+    assert "description=Promoted+build" in called_endpoint
+
+
+@patch("transformerlab_cli.commands.job.api.post")
+@patch("transformerlab_cli.commands.job.api.get")
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_job_publish_model_interactive_selects_model_from_job(mock_require, mock_get, mock_post):
+    """job publish model without model name should list job models and let user pick one."""
+    list_resp = MagicMock()
+    list_resp.status_code = 200
+    list_resp.json.return_value = {"models": [{"name": "adapter-a"}, {"name": "adapter-b"}]}
+
+    publish_resp = MagicMock()
+    publish_resp.status_code = 200
+    publish_resp.json.return_value = {"status": "started"}
+
+    mock_get.return_value = list_resp
+    mock_post.return_value = publish_resp
+
+    result = runner.invoke(
+        app,
+        ["job", "publish", "model", "10"],
+        input="2\n\n\nlatest\nv1\n\n",
+    )
+
+    assert result.exit_code == 0
+    mock_get.assert_called_once_with("/experiment/exp1/jobs/10/models")
+    called_endpoint = mock_post.call_args.args[0]
+    assert "/experiment/exp1/jobs/10/models/adapter-b/save_to_registry?" in called_endpoint
