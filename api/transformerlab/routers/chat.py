@@ -2,6 +2,7 @@ import uuid
 from typing import Optional
 import asyncio
 import json
+import logging
 
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -277,8 +278,8 @@ async def catch_all_v1(path: str, request: Request):
             )
             return await chat_completions(chat_req)
         except Exception as e:
-            print(f"[chat] Error forwarding request: {e}")
-            return JSONResponse(status_code=500, content={"detail": f"Error processing request: {str(e)}"})
+            logging.exception("[chat] Error forwarding request")
+            return JSONResponse(status_code=500, content={"detail": "Error processing request"})
 
     return JSONResponse(
         status_code=405,
