@@ -2,6 +2,7 @@ import asyncio
 import os
 import posixpath
 import contextvars
+import threading
 from types import TracebackType
 from typing import Optional, Type
 
@@ -131,6 +132,12 @@ _AZURE_SAS_TOKEN = os.getenv("AZURE_STORAGE_SAS_TOKEN")
 
 # Common prefixes that represent remote storage locations handled by this module
 _REMOTE_PATH_PREFIXES: tuple[str, ...] = ("s3://", "gs://", "gcs://", "abfs://")
+
+# Module-level cache for "uncached" filesystem instances.
+# Keyed by (protocol, normalized credential/storage options), so we avoid
+# mixing auth contexts while still reusing long-lived connection pools.
+_uncached_fs_cache: dict[tuple[str, tuple[tuple[str, str], ...]], "fsspec.AbstractFileSystem"] = {}
+_uncached_fs_lock = threading.Lock()
 
 
 def is_remote_path(path: str) -> bool:
@@ -473,102 +480,146 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
         return AsyncFileWrapper(sync_file)
 
 
-async def _get_uncached_filesystem(path: str, fs=None):
-    """
-    Get a filesystem instance without caching for reading files.
-    This prevents Etag caching issues when files are being modified concurrently.
+def _resolve_protocol(path: str, fs=None) -> Optional[str]:
+    """Determine the remote storage protocol from a filesystem or path.
 
-    Args:
-        path: Path to the file
-        fs: Optional existing filesystem instance to extract protocol/storage options from
+    Returns the protocol string (``"s3"``, ``"gcs"``, ``"abfs"``) or ``None``
+    if the path/filesystem is local.
     """
-    # If fs is provided, try to extract protocol and storage options from it
     if fs is not None:
-        try:
-            # Get the protocol from the filesystem type or class name
-            fs_type = type(fs).__name__.lower()
-            protocol = None
-            if "s3" in fs_type or "s3filesystem" in fs_type:
-                protocol = "s3"
-            elif "gcs" in fs_type or "google" in fs_type or "gcsfilesystem" in fs_type:
-                protocol = "gcs"
-            elif "abfs" in fs_type or "azure" in fs_type or "abfsfilesystem" in fs_type:
-                protocol = "abfs"
+        fs_type = type(fs).__name__.lower()
+        if "s3" in fs_type:
+            return "s3"
+        if "gcs" in fs_type or "google" in fs_type:
+            return "gcs"
+        if "abfs" in fs_type or "azure" in fs_type:
+            return "abfs"
 
-            # Extract storage options from filesystem if possible
-            storage_options = {}
-            if protocol == "s3":
-                # For S3, try to get profile from filesystem config
-                if hasattr(fs, "config_kwargs") and fs.config_kwargs:
-                    config = fs.config_kwargs
-                    if "profile" in config:
-                        storage_options["profile"] = config["profile"]
-                    elif "aws_access_key_id" in config:
-                        # If explicit credentials, don't use profile
-                        pass
-                    elif _AWS_PROFILE:
-                        storage_options["profile"] = _AWS_PROFILE
-                elif hasattr(fs, "anon") and not fs.anon:
-                    # Non-anonymous S3, use default profile if available
-                    if _AWS_PROFILE:
-                        storage_options["profile"] = _AWS_PROFILE
-                elif _AWS_PROFILE:
+    if path.startswith(("s3://",)):
+        return "s3"
+    if path.startswith(("gs://", "gcs://")):
+        return "gcs"
+    if path.startswith(("abfs://",)):
+        return "abfs"
+
+    # Path looks local but the workspace may be remote.
+    tfl_uri = _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")
+    if tfl_uri and tfl_uri.startswith(_REMOTE_PATH_PREFIXES):
+        raw = tfl_uri.split("://", 1)[0]
+        # Normalize "gs" → "gcs" so we don't create duplicate cache entries
+        return "gcs" if raw == "gs" else raw
+
+    return None
+
+
+def _extract_storage_options(protocol: str, fs=None) -> dict:
+    """Extract storage options from an existing filesystem or fall back to module-level env vars.
+
+    When *fs* is provided, attempts to read credentials (e.g. AWS profile)
+    from the filesystem's own config so that the uncached instance
+    authenticates identically.  Falls back to module-level defaults
+    (_AWS_PROFILE, _GCP_PROJECT, etc.) when *fs* is None or when its
+    config cannot be inspected.
+    """
+    storage_options: dict = {}
+    if protocol == "s3":
+        if fs is not None:
+            # Try to reuse explicit settings from filesystem config first.
+            if hasattr(fs, "config_kwargs") and fs.config_kwargs:
+                config = fs.config_kwargs
+                if "profile" in config:
+                    storage_options["profile"] = config["profile"]
+                # Preserve explicit credential/session settings when present.
+                for key in (
+                    "aws_access_key_id",
+                    "aws_secret_access_key",
+                    "aws_session_token",
+                    "token",
+                    "endpoint_url",
+                    "region_name",
+                    "client_kwargs",
+                    "config_kwargs",
+                    "requester_pays",
+                ):
+                    if key in config:
+                        storage_options[key] = config[key]
+                if "profile" not in storage_options and "aws_access_key_id" not in storage_options and _AWS_PROFILE:
                     storage_options["profile"] = _AWS_PROFILE
-            elif protocol:
-                storage_options = _get_storage_options()
+            elif hasattr(fs, "anon") and not fs.anon:
+                if _AWS_PROFILE:
+                    storage_options["profile"] = _AWS_PROFILE
+            elif _AWS_PROFILE:
+                storage_options["profile"] = _AWS_PROFILE
+        elif _AWS_PROFILE:
+            storage_options["profile"] = _AWS_PROFILE
+    elif protocol in ("gcs", "gs"):
+        if _GCP_PROJECT:
+            storage_options["project"] = _GCP_PROJECT
+    elif protocol == "abfs" and STORAGE_PROVIDER == "azure":
+        storage_options.update(_get_storage_options())
+    return storage_options
 
-            if protocol:
-                # Create a new uncached filesystem with the same protocol and options
-                fs_kwargs = {
-                    "asynchronous": False,  # Explicitly force sync mode
-                    "skip_instance_cache": True,
-                    "default_fill_cache": False,
-                    "use_listings_cache": False,
-                }
-                fs_kwargs.update(storage_options)
-                fs_uncached = fsspec.filesystem(protocol, **fs_kwargs)
-                return fs_uncached
-        except Exception:
-            # If extraction fails, fall through to path-based inference
-            pass
 
-    # Check if this is a remote path (full URI)
-    if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
-        # Extract protocol from the path
-        protocol = path.split("://")[0]
+def _normalize_options_for_cache_key(storage_options: dict) -> tuple[tuple[str, str], ...]:
+    """Build a hashable, deterministic representation of storage options."""
+    normalized: list[tuple[str, str]] = []
+    for key in sorted(storage_options.keys()):
+        value = storage_options[key]
+        normalized.append((str(key), repr(value)))
+    return tuple(normalized)
 
-        # Build storage options
-        storage_options = _get_storage_options()
 
-        # Create a new filesystem instance with caching disabled
-        fs_kwargs = {
-            "asynchronous": False,  # Explicitly force sync mode
-            "skip_instance_cache": True,
-            "default_fill_cache": False,
-            "use_listings_cache": False,
-        }
-        fs_kwargs.update(storage_options)
-        fs_uncached = fsspec.filesystem(protocol, **fs_kwargs)
-        return fs_uncached
-    else:
-        # For local filesystems, check if we're using a remote workspace
-        tfl_uri = _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")
-        if tfl_uri and tfl_uri.startswith(("s3://", "gs://", "abfs://", "gcs://")):
-            # Path is relative but we're using remote storage
-            protocol = tfl_uri.split("://")[0]
-            storage_options = _get_storage_options()
-            fs_kwargs = {
-                "asynchronous": False,  # Explicitly force sync mode
-                "skip_instance_cache": True,
-                "default_fill_cache": False,
-                "use_listings_cache": False,
-            }
-            fs_kwargs.update(storage_options)
-            fs_uncached = fsspec.filesystem(protocol, **fs_kwargs)
-            return fs_uncached
-        else:
-            # For local filesystems, just use the default
-            return await filesystem()
+def _build_uncached_fs(protocol: str, storage_options: dict) -> "fsspec.AbstractFileSystem":
+    """Create a single uncached filesystem for *protocol*.
+
+    File-level and listing caches are disabled so every read hits the remote
+    store, but the instance itself (and its connection pool) is meant to be
+    long-lived and reused via ``_uncached_fs_cache``.
+    """
+    fs_kwargs: dict = {
+        "asynchronous": False,
+        "skip_instance_cache": True,
+        "default_fill_cache": False,
+        "use_listings_cache": False,
+    }
+    fs_kwargs.update(storage_options)
+
+    return fsspec.filesystem(protocol, **fs_kwargs)
+
+
+async def _get_uncached_filesystem(path: str, fs=None):
+    """Return a filesystem with file/listing caches disabled.
+
+    Instead of creating a **new** ``S3FileSystem`` on every call (which
+    accumulates orphaned boto3 sessions / connection pools), we maintain a
+    single instance per protocol in ``_uncached_fs_cache``.  The instance
+    has ``default_fill_cache=False`` and ``use_listings_cache=False`` so
+    every read goes to the remote store, but the underlying HTTP pool is
+    reused.
+
+    For local filesystems the regular cached instance is returned.
+    """
+    protocol = _resolve_protocol(path, fs=fs)
+    if protocol is None:
+        # Local filesystem — just return the regular cached instance.
+        return await filesystem()
+
+    storage_options = _extract_storage_options(protocol, fs=fs)
+    cache_key = (protocol, _normalize_options_for_cache_key(storage_options))
+
+    # Fast path: already cached (no lock needed for reads of a built-in dict).
+    cached = _uncached_fs_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    with _uncached_fs_lock:
+        # Double-check after acquiring the lock.
+        cached = _uncached_fs_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        uncached = _build_uncached_fs(protocol, storage_options=storage_options)
+        _uncached_fs_cache[cache_key] = uncached
+        return uncached
 
 
 def _get_fs_for_path(path: str):
@@ -583,17 +634,24 @@ def _get_fs_for_path(path: str):
 
 
 async def _close_filesystem(fs) -> None:
-    """Best-effort close to release any underlying HTTP/session resources promptly."""
-    if fs is None:
-        return
-    close_fn = getattr(fs, "close", None)
-    if not callable(close_fn):
-        return
-    try:
-        await asyncio.to_thread(close_fn)
-    except Exception:
-        # Never fail user-facing storage operations because close failed.
-        pass
+    """No-op — intentionally does NOT close the filesystem.
+
+    ``_get_fs_for_uri`` uses fsspec's instance cache (``skip_instance_cache``
+    is not set), so every caller receives a **shared** instance.  Closing it
+    here would corrupt connection pools for concurrent callers.
+
+    More critically, ``s3fs.S3FileSystem`` (even with ``asynchronous=False``)
+    uses ``aiobotocore`` internally, which creates ``aiohttp`` connectors
+    bound to the event loop that was running at creation time.  Calling
+    ``fs.close()`` via ``asyncio.to_thread`` runs the teardown in a worker
+    thread whose loop differs from the original, producing:
+
+        RuntimeError: Future attached to a different loop
+
+    fsspec manages the lifecycle of cached filesystem instances; we should
+    not interfere.
+    """
+    pass
 
 
 async def copy_file(src: str, dest: str) -> None:
