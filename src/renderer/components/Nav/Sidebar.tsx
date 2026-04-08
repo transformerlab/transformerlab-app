@@ -10,6 +10,7 @@ import {
   GithubIcon,
   FileIcon,
   StretchHorizontalIcon,
+  MessageCircleIcon,
 } from 'lucide-react';
 
 import {
@@ -107,6 +108,7 @@ function GlobalMenuItems({ experimentInfo }: GlobalMenuItemsProps) {
         icon={<StretchHorizontalIcon />}
       />
       <SubNavItem title="Compute" path="/compute" icon={<MonitorIcon />} />
+      <SubNavItem title="Chat" path="/chat" icon={<MessageCircleIcon />} />
     </List>
   );
 }
