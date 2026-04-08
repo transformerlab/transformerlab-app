@@ -60,6 +60,11 @@ const DEFAULT_CONFIGS = {
   "api_key": "<Your Runpod API key>",
   "api_base_url": "https://rest.runpod.io/v1"
 }`,
+  dstack: `{
+  "server_url": "<Your dstack server URL e.g. http://0.0.0.0:3000>",
+  "api_token": "<Your dstack API token>",
+  "dstack_project": "<Your dstack project name e.g. main>"
+}`,
   local: `{}`,
 } as const;
 
@@ -67,6 +72,7 @@ const DEFAULT_SUPPORTED_ACCELERATORS: Record<string, string[]> = {
   skypilot: ['NVIDIA'],
   slurm: ['NVIDIA'],
   runpod: ['NVIDIA'],
+  dstack: ['NVIDIA'],
   local: ['AppleSilicon', 'cpu'],
 };
 
@@ -104,6 +110,7 @@ export default function ProviderDetailsModal({
   const [slurmSshKeyPath, setSlurmSshKeyPath] = useState('');
   const [slurmRestUrl, setSlurmRestUrl] = useState('');
   const [slurmApiToken, setSlurmApiToken] = useState('');
+  const [slurmApiTokenChanged, setSlurmApiTokenChanged] = useState(false);
 
   // SkyPilot-specific form fields
   const [skypilotServerUrl, setSkypilotServerUrl] = useState('');
@@ -113,6 +120,10 @@ export default function ProviderDetailsModal({
   const [skypilotDefaultRegion, setSkypilotDefaultRegion] = useState('');
   const [skypilotDefaultZone, setSkypilotDefaultZone] = useState('');
   const [skypilotUseSpot, setSkypilotUseSpot] = useState(false);
+  const [dstackServerUrl, setDstackServerUrl] = useState('');
+  const [dstackApiToken, setDstackApiToken] = useState('');
+  const [dstackApiTokenChanged, setDstackApiTokenChanged] = useState(false);
+  const [dstackProjectName, setDstackProjectName] = useState('');
 
   const { fetchWithAuth } = useAuth();
   const { data: providerData, isLoading: providerDataLoading } = useAPI(
@@ -191,7 +202,10 @@ export default function ProviderDetailsModal({
       setSlurmSshPort(String(configObj.ssh_port || 22));
       setSlurmSshKeyPath(configObj.ssh_key_path || '');
       setSlurmRestUrl(configObj.rest_url || '');
-      setSlurmApiToken(configObj.api_token || '');
+      setSlurmApiToken(
+        configObj.api_token === '***' ? '' : configObj.api_token || '',
+      );
+      setSlurmApiTokenChanged(false);
       if (configObj.supported_accelerators) {
         setSupportedAccelerators(configObj.supported_accelerators);
       }
@@ -213,7 +227,7 @@ export default function ProviderDetailsModal({
       }
     } else {
       configObj.rest_url = slurmRestUrl;
-      if (slurmApiToken) {
+      if (!providerId || slurmApiTokenChanged) {
         configObj.api_token = slurmApiToken;
       }
       // REST mode still uses ssh_user for X-SLURM-USER-NAME header
@@ -235,7 +249,44 @@ export default function ProviderDetailsModal({
     slurmSshKeyPath,
     slurmRestUrl,
     slurmApiToken,
+    slurmApiTokenChanged,
     supportedAccelerators,
+    providerId,
+  ]);
+
+  const parseDstackConfig = (configObj: any) => {
+    if (configObj && typeof configObj === 'object') {
+      setDstackServerUrl(configObj.server_url || '');
+      setDstackApiToken(
+        configObj.api_token === '***' ? '' : configObj.api_token || '',
+      );
+      setDstackApiTokenChanged(false);
+      setDstackProjectName(configObj.dstack_project || '');
+      if (configObj.supported_accelerators) {
+        setSupportedAccelerators(configObj.supported_accelerators);
+      }
+    }
+  };
+
+  const buildDstackConfig = useCallback(() => {
+    const configObj: any = {
+      server_url: dstackServerUrl,
+      dstack_project: dstackProjectName,
+    };
+    if (!providerId || dstackApiTokenChanged) {
+      configObj.api_token = dstackApiToken;
+    }
+    if (supportedAccelerators && supportedAccelerators.length > 0) {
+      configObj.supported_accelerators = supportedAccelerators;
+    }
+    return configObj;
+  }, [
+    dstackServerUrl,
+    dstackApiToken,
+    dstackApiTokenChanged,
+    dstackProjectName,
+    supportedAccelerators,
+    providerId,
   ]);
 
   // if a providerId is passed then we are editing an existing provider
@@ -281,6 +332,9 @@ export default function ProviderDetailsModal({
       if (providerData.type === 'skypilot') {
         parseSkypilotConfig(rawConfigObj);
       }
+      if (providerData.type === 'dstack') {
+        parseDstackConfig(rawConfigObj);
+      }
       setConfig(JSON.stringify(rawConfigObj, null, 2));
     } else if (!providerId) {
       // Reset form when in "add" mode (no providerId)
@@ -300,6 +354,7 @@ export default function ProviderDetailsModal({
       setSlurmSshKeyPath('');
       setSlurmRestUrl('');
       setSlurmApiToken('');
+      setSlurmApiTokenChanged(false);
       setSkypilotServerUrl('');
       setSkypilotUserId('');
       setSkypilotUserName('');
@@ -307,6 +362,10 @@ export default function ProviderDetailsModal({
       setSkypilotDefaultRegion('');
       setSkypilotDefaultZone('');
       setSkypilotUseSpot(false);
+      setDstackServerUrl('');
+      setDstackApiToken('');
+      setDstackApiTokenChanged(false);
+      setDstackProjectName('');
     }
   }, [providerId, providerData]);
 
@@ -329,6 +388,7 @@ export default function ProviderDetailsModal({
       setSlurmSshKeyPath('');
       setSlurmRestUrl('');
       setSlurmApiToken('');
+      setSlurmApiTokenChanged(false);
       setSkypilotServerUrl('');
       setSkypilotUserId('');
       setSkypilotUserName('');
@@ -336,6 +396,10 @@ export default function ProviderDetailsModal({
       setSkypilotDefaultRegion('');
       setSkypilotDefaultZone('');
       setSkypilotUseSpot(false);
+      setDstackServerUrl('');
+      setDstackApiToken('');
+      setDstackApiTokenChanged(false);
+      setDstackProjectName('');
     }
   }, [open]);
 
@@ -403,6 +467,14 @@ export default function ProviderDetailsModal({
           // Ignore parse errors
         }
       }
+      if (type === 'dstack') {
+        try {
+          const configObj = JSON.parse(defaultConfig);
+          parseDstackConfig(configObj);
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
     }
   }, [type, providerId]);
 
@@ -418,8 +490,18 @@ export default function ProviderDetailsModal({
         const configObj = buildSkypilotConfig();
         setConfig(JSON.stringify(configObj, null, 2));
       }
+      if (type === 'dstack') {
+        const configObj = buildDstackConfig();
+        setConfig(JSON.stringify(configObj, null, 2));
+      }
     }
-  }, [buildSlurmConfig, buildSkypilotConfig, type, providerId]);
+  }, [
+    buildSlurmConfig,
+    buildSkypilotConfig,
+    buildDstackConfig,
+    type,
+    providerId,
+  ]);
 
   // Local provider setup: poll background setup status and keep modal open until done.
   const pollLocalSetupStatus = (providerIdForSetup: string) => {
@@ -544,6 +626,8 @@ export default function ProviderDetailsModal({
         parsedConfig = buildSlurmConfig();
       } else if (type === 'skypilot') {
         parsedConfig = buildSkypilotConfig();
+      } else if (type === 'dstack') {
+        parsedConfig = buildDstackConfig();
       } else if (type === 'local') {
         // Local providers are configured via supported accelerators only
         parsedConfig = {};
@@ -700,6 +784,7 @@ export default function ProviderDetailsModal({
                   <Option value="skypilot">Skypilot</Option>
                   <Option value="slurm">SLURM</Option>
                   <Option value="runpod">Runpod</Option>
+                  <Option value="dstack">dstack (beta) </Option>
                   {!hasLocalProvider && !providerId && (
                     <Option value="local">Local (beta)</Option>
                   )}
@@ -898,10 +983,15 @@ export default function ProviderDetailsModal({
                         <FormLabel>API Token (Optional)</FormLabel>
                         <Input
                           value={slurmApiToken}
-                          onChange={(event) =>
-                            setSlurmApiToken(event.currentTarget.value)
+                          onChange={(event) => {
+                            setSlurmApiTokenChanged(true);
+                            setSlurmApiToken(event.currentTarget.value);
+                          }}
+                          placeholder={
+                            providerId
+                              ? 'Leave blank to keep existing token'
+                              : 'Your SLURM REST API token'
                           }
-                          placeholder="Your SLURM REST API token"
                           type="password"
                           fullWidth
                         />
@@ -1006,61 +1096,113 @@ export default function ProviderDetailsModal({
                 </>
               )}
 
-              {/* Generic JSON config for non-structured providers or advanced editing */}
-              {type !== 'slurm' && type !== 'skypilot' && type !== 'local' && (
-                <FormControl sx={{ mt: 1 }}>
-                  <FormLabel>Configuration</FormLabel>
-                  <Textarea
-                    value={
-                      typeof config === 'string'
-                        ? config
-                        : JSON.stringify(config)
-                    }
-                    onChange={(event) => setConfig(event.currentTarget.value)}
-                    placeholder="JSON sent to provider"
-                    minRows={5}
-                    maxRows={10}
-                  />
-                </FormControl>
+              {type === 'dstack' && (
+                <>
+                  <FormControl sx={{ mt: 2 }}>
+                    <FormLabel>dstack Server URL *</FormLabel>
+                    <Input
+                      value={dstackServerUrl}
+                      onChange={(event) =>
+                        setDstackServerUrl(event.currentTarget.value)
+                      }
+                      placeholder="http://0.0.0.0:3000"
+                      fullWidth
+                    />
+                  </FormControl>
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>dstack API Token *</FormLabel>
+                    <Input
+                      value={dstackApiToken}
+                      onChange={(event) => {
+                        setDstackApiTokenChanged(true);
+                        setDstackApiToken(event.currentTarget.value);
+                      }}
+                      placeholder={
+                        providerId
+                          ? 'Leave blank to keep existing token'
+                          : 'Your dstack API token'
+                      }
+                      type="password"
+                      fullWidth
+                    />
+                  </FormControl>
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>dstack Project Name *</FormLabel>
+                    <Input
+                      value={dstackProjectName}
+                      onChange={(event) =>
+                        setDstackProjectName(event.currentTarget.value)
+                      }
+                      placeholder="main"
+                      fullWidth
+                    />
+                  </FormControl>
+                </>
               )}
 
-              {/* Show JSON for SLURM or SkyPilot providers in edit mode for advanced users */}
-              {(type === 'slurm' || type === 'skypilot') && providerId && (
-                <FormControl sx={{ mt: 1 }}>
-                  <FormLabel>Advanced: Raw Configuration (JSON)</FormLabel>
-                  <Textarea
-                    value={
-                      typeof config === 'string'
-                        ? config
-                        : JSON.stringify(config)
-                    }
-                    onChange={(event) => {
-                      setConfig(event.currentTarget.value);
-                      // Try to parse and update form fields
-                      try {
-                        const configObj = JSON.parse(event.currentTarget.value);
-                        if (type === 'slurm') {
-                          parseSlurmConfig(configObj);
-                        } else if (type === 'skypilot') {
-                          parseSkypilotConfig(configObj);
-                        }
-                      } catch (e) {
-                        // Ignore parse errors
+              {/* Generic JSON config for non-structured providers or advanced editing */}
+              {type !== 'slurm' &&
+                type !== 'skypilot' &&
+                type !== 'dstack' &&
+                type !== 'local' && (
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>Configuration</FormLabel>
+                    <Textarea
+                      value={
+                        typeof config === 'string'
+                          ? config
+                          : JSON.stringify(config)
                       }
-                    }}
-                    placeholder="JSON sent to provider"
-                    minRows={3}
-                    maxRows={5}
-                  />
-                  <Typography
-                    level="body-sm"
-                    sx={{ mt: 0.5, color: 'text.tertiary' }}
-                  >
-                    Edit JSON directly for advanced configuration. Changes will
-                    sync to form fields above.
-                  </Typography>
-                </FormControl>
-              )}
+                      onChange={(event) => setConfig(event.currentTarget.value)}
+                      placeholder="JSON sent to provider"
+                      minRows={5}
+                      maxRows={10}
+                    />
+                  </FormControl>
+                )}
+
+              {/* Show JSON for SLURM or SkyPilot providers in edit mode for advanced users */}
+              {(type === 'slurm' || type === 'skypilot' || type === 'dstack') &&
+                providerId && (
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>Advanced: Raw Configuration (JSON)</FormLabel>
+                    <Textarea
+                      value={
+                        typeof config === 'string'
+                          ? config
+                          : JSON.stringify(config)
+                      }
+                      onChange={(event) => {
+                        setConfig(event.currentTarget.value);
+                        // Try to parse and update form fields
+                        try {
+                          const configObj = JSON.parse(
+                            event.currentTarget.value,
+                          );
+                          if (type === 'slurm') {
+                            parseSlurmConfig(configObj);
+                          } else if (type === 'skypilot') {
+                            parseSkypilotConfig(configObj);
+                          } else if (type === 'dstack') {
+                            parseDstackConfig(configObj);
+                          }
+                        } catch (e) {
+                          // Ignore parse errors
+                        }
+                      }}
+                      placeholder="JSON sent to provider"
+                      minRows={3}
+                      maxRows={5}
+                    />
+                    <Typography
+                      level="body-sm"
+                      sx={{ mt: 0.5, color: 'text.tertiary' }}
+                    >
+                      Edit JSON directly for advanced configuration. Changes
+                      will sync to form fields above.
+                    </Typography>
+                  </FormControl>
+                )}
             </>
           )}
         </DialogContent>

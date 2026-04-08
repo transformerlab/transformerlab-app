@@ -651,6 +651,9 @@ def _parse_yaml_to_task_data(yaml_content: str) -> dict:
             task_data["accelerators"] = str(resources.accelerators)
         if resources.num_nodes is not None:
             task_data["num_nodes"] = int(resources.num_nodes)
+        if resources.fleet_name is not None:
+            task_data["config"] = task_data.get("config", {})
+            task_data["config"]["fleet_name"] = str(resources.fleet_name)
 
     # Environment variables
     if validated.envs is not None:

@@ -484,6 +484,28 @@ async def launch_template_on_provider(
         provider_config_dict["org_id"] = team_id
         provider_config_dict["experiment_id"] = request.experiment_id
         provider_config_dict["job_id"] = str(job_id)
+    if provider.type == ProviderType.DSTACK.value:
+        # dstack scheduling can target a named fleet. Support both:
+        # - request.config.fleet_name
+        # - request.config.resources.fleet_name
+        # If absent in the request, fall back to provider-level config.
+        per_run_fleet_name = None
+        if request.config:
+            if request.config.get("fleet_name"):
+                per_run_fleet_name = str(request.config.get("fleet_name")).strip()
+            elif isinstance(request.config.get("resources"), dict):
+                nested_fleet_name = request.config.get("resources", {}).get("fleet_name")
+                if nested_fleet_name:
+                    per_run_fleet_name = str(nested_fleet_name).strip()
+
+        provider_level_fleet_name = None
+        provider_cfg_dict = provider.config if isinstance(provider.config, dict) else {}
+        if provider_cfg_dict.get("fleet_name"):
+            provider_level_fleet_name = str(provider_cfg_dict.get("fleet_name")).strip()
+
+        fleet_name = per_run_fleet_name or provider_level_fleet_name
+        if fleet_name:
+            provider_config_dict["fleet_name"] = fleet_name
 
     # Copy task files (task.yaml and any attachments) into the job directory
     # so they are available to the running command on any provider.
@@ -593,6 +615,10 @@ async def launch_template_on_provider(
     #   - sets job_data.live_status="crashed" on failure
     wrapped_run = f"tfl-remote-trap -- {command_with_hooks}"
 
+    # For dstack fleet-based runs, do not pass explicit resource requirements.
+    # The provider will schedule by fleet and build resources accordingly.
+    dstack_fleet_selected = provider.type == ProviderType.DSTACK.value and bool(provider_config_dict.get("fleet_name"))
+
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
@@ -600,11 +626,11 @@ async def launch_template_on_provider(
         run=wrapped_run,
         setup=setup_with_hooks,
         env_vars=env_vars,
-        cpus=request.cpus,
-        memory=request.memory,
-        accelerators=request.accelerators,
+        cpus=None if dstack_fleet_selected else request.cpus,
+        memory=None if dstack_fleet_selected else request.memory,
+        accelerators=None if dstack_fleet_selected else request.accelerators,
         num_nodes=request.num_nodes,
-        disk_size=disk_size,
+        disk_size=None if dstack_fleet_selected else disk_size,
         file_mounts=file_mounts_for_provider,
         provider_config=provider_config_dict,
         image_id=skypilot_image_id,

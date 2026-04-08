@@ -131,6 +131,7 @@ class ProviderType(str, enum.Enum):
     SKYPILOT = "skypilot"
     RUNPOD = "runpod"
     LOCAL = "local"
+    DSTACK = "dstack"
 
 
 class AcceleratorType(str, enum.Enum):
