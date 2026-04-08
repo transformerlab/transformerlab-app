@@ -36,7 +36,7 @@ async def _start_inference_server(model_name: str):
 
     try:
         from transformerlab.services.task_service import task_service
-        from transformerlab.services.compute_provider.local_provider_queue import enqueue_local_launch
+        from transformerlab.services.local_provider_queue import enqueue_local_launch
         from transformerlab.db.session import async_session
         from transformerlab.services.provider_service import get_provider_by_id, get_provider_instance
         from lab.dirs import get_local_provider_job_dir
