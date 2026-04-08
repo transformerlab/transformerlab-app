@@ -8,7 +8,9 @@ import {
   Alert,
   CircularProgress,
   Divider,
-  TextField,
+  Input,
+  FormControl,
+  FormLabel,
 } from '@mui/joy';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -83,15 +85,14 @@ export default function Tokenization() {
         tokenized. You can use any model from Hugging Face or specify a custom
         tokenizer.
       </Typography>
-
-      <TextField
-        label="Model Name"
-        placeholder="e.g., microsoft/DialoGPT-small"
-        value={modelName}
-        onChange={(e) => setModelName(e.target.value)}
-        required
-      />
-
+      <FormControl required>
+        <FormLabel>Model Name</FormLabel>
+        <Input
+          placeholder="e.g., microsoft/DialoGPT-small"
+          value={modelName}
+          onChange={(e) => setModelName(e.target.value)}
+        />
+      </FormControl>
       <Textarea
         placeholder="Enter text to tokenize..."
         value={inputText}
@@ -99,7 +100,6 @@ export default function Tokenization() {
         minRows={4}
         maxRows={10}
       />
-
       <Button
         onClick={handleTokenize}
         disabled={!inputText.trim() || !modelName.trim() || loading}
@@ -107,13 +107,11 @@ export default function Tokenization() {
       >
         Tokenize
       </Button>
-
       {error && (
         <Alert color="danger">
           <Typography level="body-sm">{error}</Typography>
         </Alert>
       )}
-
       {tokenizedResult && (
         <>
           <Divider />
