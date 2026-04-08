@@ -85,16 +85,15 @@ async def _start_inference_server(model_name: str):
 
             job_dir = get_local_provider_job_dir(job_id, org_id="default")
 
+            from lab.dirs import plugin_dir_by_name
+
+            plugin_dir = await plugin_dir_by_name("fastchat_server")
+
+            run_command = f'python -m transformerlab.plugins.fastchat_server.main --model-path {model_name} --plugin_dir {plugin_dir} --parameters \'{{"model_name": "{model_name}"}}\''
+
             cluster_config = ClusterConfig(
-                job_id=job_id,
-                experiment_id="chat",
-                experiment_name="chat",
-                plugin_id="fastchat_server",
-                plugin_params={"model": model_name},
+                run=run_command,
                 provider_config={"workspace_dir": job_dir},
-                local_model_path=None,
-                dataset_id=None,
-                dataset_path=None,
                 file_mounts={},
             )
 
