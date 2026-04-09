@@ -17,7 +17,6 @@ import {
   ArchiveIcon,
   LogsIcon,
   FileTextIcon,
-  DatabaseIcon,
   FolderOpenIcon,
   BookmarkIcon,
   MoreVerticalIcon,
@@ -43,16 +42,13 @@ interface JobsListProps {
   onDeleteJob?: (jobId: string) => void;
   onViewOutput?: (jobId: string) => void;
   onViewCheckpoints?: (jobId: string) => void;
-  onViewArtifacts?: (jobId: string) => void;
+  onViewAllArtifacts?: (jobId: string) => void;
   onViewEvalImages?: (jobId: string) => void;
   onViewSweepOutput?: (jobId: string) => void;
   onViewSweepResults?: (jobId: string) => void;
   onViewEvalResults?: (jobId: string) => void;
   onViewGeneratedDataset?: (jobId: string, datasetId: string) => void;
   onViewInteractive?: (jobId: string) => void;
-  onViewJobDatasets?: (jobId: string) => void;
-  onViewJobModels?: (jobId: string) => void;
-  onViewProfiling?: (jobId: string) => void;
   onViewFileBrowser?: (jobId: string) => void;
   loading: boolean;
   onViewTrackio?: (jobId: string) => void;
@@ -70,16 +66,13 @@ const JobsList: React.FC<JobsListProps> = ({
   onDeleteJob,
   onViewOutput,
   onViewCheckpoints,
-  onViewArtifacts,
+  onViewAllArtifacts,
   onViewEvalImages,
   onViewSweepOutput,
   onViewSweepResults,
   onViewEvalResults,
   onViewGeneratedDataset,
   onViewInteractive,
-  onViewJobDatasets,
-  onViewJobModels,
-  onViewProfiling,
   onViewFileBrowser,
   loading,
   onViewTrackio,
@@ -376,56 +369,24 @@ const JobsList: React.FC<JobsListProps> = ({
                       job?.job_data?.generated_datasets ||
                       job?.job_data?.models ||
                       job?.job_data?.has_profiling) && (
-                      <Dropdown>
-                        <MenuButton
-                          size="sm"
-                          variant="plain"
-                          startDecorator={<ArchiveIcon />}
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewAllArtifacts?.(String(job?.id))}
+                        startDecorator={<ArchiveIcon />}
+                      >
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
                         >
-                          <Box
-                            sx={{
-                              display: {
-                                xs: 'none',
-                                sm: 'none',
-                                md: 'inline-flex',
-                              },
-                            }}
-                          >
-                            Artifacts
-                          </Box>
-                        </MenuButton>
-                        <Menu>
-                          {(job?.job_data?.artifacts ||
-                            job?.job_data?.artifacts_dir) && (
-                            <MenuItem
-                              onClick={() => onViewArtifacts?.(job?.id)}
-                            >
-                              View Artifacts
-                            </MenuItem>
-                          )}
-                          {job?.job_data?.has_profiling && (
-                            <MenuItem
-                              onClick={() => onViewProfiling?.(job?.id)}
-                            >
-                              View Profiling
-                            </MenuItem>
-                          )}
-                          {job?.job_data?.generated_datasets && (
-                            <MenuItem
-                              onClick={() => onViewJobDatasets?.(job?.id)}
-                            >
-                              View Datasets
-                            </MenuItem>
-                          )}
-                          {job?.job_data?.models && (
-                            <MenuItem
-                              onClick={() => onViewJobModels?.(job?.id)}
-                            >
-                              View Models
-                            </MenuItem>
-                          )}
-                        </Menu>
-                      </Dropdown>
+                          Artifacts
+                        </Box>
+                      </Button>
                     )}
                     {(job?.type === 'SWEEP' || job?.job_data?.sweep_parent) &&
                       job?.status === 'COMPLETE' && (

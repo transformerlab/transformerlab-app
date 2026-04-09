@@ -203,23 +203,31 @@ async def task_list_files(task_id: str) -> TaskFilesResponse:
                     local_files.append(str(src))
                 elif tgt:
                     local_files.append(str(tgt))
-    elif isinstance(file_mounts, bool) and file_mounts:
-        # For upload-from-directory tasks, files are materialized in the
-        # per-task workspace directory: workspace/task/{task_id}. List all
-        # entries in that directory so the UI can show what will be mounted.
-        try:
-            workspace_dir = await get_workspace_dir()
-            if workspace_dir:
-                task_dir = storage.join(workspace_dir, "task", str(task_id))
-                if await storage.exists(task_dir):
-                    entries = await storage.ls(task_dir)
-                    for entry in entries:
-                        # storage.ls returns full paths; strip the task_dir prefix
-                        name = entry.replace(task_dir, "").lstrip("/").lstrip("\\")
-                        if name:
-                            local_files.append(name)
-        except Exception as e:  # pragma: no cover - defensive logging
-            print(f"Error listing local files for task {task_id} from task dir: {e}")
+
+    # Always list files from the per-task workspace directory (workspace/task/{task_id}).
+    # This directory contains at minimum the task.yaml, and for upload-from-directory
+    # tasks it also contains user-uploaded files.
+    try:
+        workspace_dir = await get_workspace_dir()
+        if workspace_dir:
+            task_dir = storage.join(workspace_dir, "task", str(task_id))
+            if await storage.exists(task_dir):
+                entries = await storage.ls(task_dir)
+                # Build a set of basenames already in local_files for dedup.
+                existing_basenames = {os.path.basename(f.split(" -> ")[-1].strip()) for f in local_files}
+                for entry in entries:
+                    # storage.ls returns full paths; compute relative path safely
+                    try:
+                        name = os.path.relpath(entry, task_dir)
+                    except ValueError:
+                        continue  # entry is not under task_dir; skip it
+                    if not name or name == "." or name == "index.json":
+                        continue
+                    if name not in existing_basenames:
+                        local_files.append(name)
+                        existing_basenames.add(name)
+    except Exception as e:  # pragma: no cover - defensive logging
+        print(f"Error listing local files for task {task_id} from task dir: {e}")
 
     # Return None instead of empty list when there is no data for a source.
     return TaskFilesResponse(

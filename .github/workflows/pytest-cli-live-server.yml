@@ -104,4 +104,4 @@ jobs:
           TLAB_LIVE_SERVER_URL: "http://127.0.0.1:8338"
         run: |
           cd ../cli
-          uv run pytest tests/integration/test_live_compute_provider_routes.py -v
+          uv run pytest tests/integration/test_live_cli_routes.py -v

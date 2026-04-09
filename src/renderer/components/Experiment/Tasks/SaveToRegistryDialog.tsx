@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import {
   Modal,
   ModalDialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Typography,
   ModalClose,
   Button,
@@ -58,14 +61,16 @@ interface SaveToRegistryDialogProps {
   sourceName: string;
   /** 'dataset' or 'model' — used for labels */
   type: 'dataset' | 'model';
+  /** List of existing registry entry names for the "Add to existing" option */
+  existingNames: string[];
   /** Whether the save is in progress */
   saving: boolean;
   /** Called when the user confirms the save */
   onSave: (info: SaveVersionInfo) => void;
-  /** Job ID that produced this asset (for display) */
-  jobId: string | number | null;
-  /** External error message for the asset name field */
-  assetNameError: string | null;
+  /** Job ID that produced this asset (optional, for display) */
+  jobId?: string | number;
+  /** External error message to display on the asset name field (e.g. name already exists) */
+  assetNameError?: string | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -88,6 +93,7 @@ export default function SaveToRegistryDialog({
   onClose,
   sourceName,
   type,
+  existingNames,
   saving,
   onSave,
   jobId,
@@ -209,193 +215,201 @@ export default function SaveToRegistryDialog({
         }}
       >
         <ModalClose />
-        <Stack direction="row" alignItems="center" gap={1}>
-          <LayersIcon size={20} />
-          <Typography level="h4">Publish {typeLabel} to Registry</Typography>
-        </Stack>
-        <Typography level="body-sm" sx={{ mb: 2 }}>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <LayersIcon size={20} />
+            Publish {typeLabel} to Registry
+          </Stack>
+        </DialogTitle>
+        <Typography level="body-sm">
           Publish <strong>{sourceName}</strong> as a new versioned entry in the{' '}
           {typeLabel.toLowerCase()} registry.
         </Typography>
-
-        {/* ── Group selection ── */}
-        <RadioGroup
-          value={mode}
-          onChange={(e) => setMode(e.target.value as 'new' | 'existing')}
-          sx={{ gap: 2 }}
-        >
-          {/* Option 1: Create new group */}
-          <Box>
-            <Radio value="new" label={`Create new ${typeLabel}`} />
-            {mode === 'new' && (
-              <FormControl sx={{ ml: 4, mt: 1 }}>
-                <FormLabel>Name</FormLabel>
-                <Input
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder={`e.g. my-${typeLabel.toLowerCase()}`}
-                  autoFocus
-                />
-              </FormControl>
-            )}
-          </Box>
-
-          {/* Option 2: Add version to existing group */}
-          <Box>
-            <Radio
-              value="existing"
-              label={`Add as version to existing ${typeLabel}`}
-              disabled={groupNames.length === 0}
-            />
-            {mode === 'existing' && (
-              <FormControl sx={{ ml: 4, mt: 1 }}>
-                <Autocomplete
-                  options={groups}
-                  getOptionLabel={(option) =>
-                    typeof option === 'string' ? option : option.group_name
-                  }
-                  isOptionEqualToValue={(option, value) =>
-                    option.group_id === value.group_id
-                  }
-                  value={selectedGroup ?? null}
-                  onChange={(_e, value) =>
-                    setExistingTarget(value ? value.group_id : null)
-                  }
-                  placeholder={`Search ${typeLabel.toLowerCase()}s…`}
-                  autoFocus
-                />
-                {selectedGroup && (
-                  <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
-                    Currently has {selectedGroup.version_count} version
-                    {selectedGroup.version_count !== 1 ? 's' : ''}
-                    {latestVersionLabel
-                      ? ` (latest: ${latestVersionLabel})`
-                      : ''}
-                    .
-                  </Typography>
-                )}
-              </FormControl>
-            )}
-          </Box>
-        </RadioGroup>
-
-        <Divider sx={{ my: 2 }} />
-
-        {/* ── Version metadata ── */}
-        <Typography
-          level="body-xs"
-          textTransform="uppercase"
-          fontWeight="lg"
-          sx={{ mb: 1 }}
-        >
-          Version Details
-        </Typography>
-
-        <Stack spacing={2}>
-          {/* Asset name (unique folder name in the registry) */}
-          <FormControl error={!!assetNameError}>
-            <FormLabel>Version Name</FormLabel>
-            <Input
-              size="sm"
-              value={assetName}
-              onChange={(e) => {
-                setAssetName(e.target.value);
-                setAssetNameError(null);
-              }}
-              placeholder={`Unique name for this ${typeLabel.toLowerCase()}`}
-              color={assetNameError ? 'danger' : undefined}
-            />
-            {assetNameError ? (
-              <Typography level="body-xs" color="danger" sx={{ mt: 0.5 }}>
-                {assetNameError}
-              </Typography>
-            ) : (
-              <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
-                The unique folder name used to store the{' '}
-                {typeLabel.toLowerCase()} in the registry.
-              </Typography>
-            )}
-          </FormControl>
-
-          {/* Version label */}
-          <FormControl>
-            <FormLabel>Version Label</FormLabel>
-            <Input
-              size="sm"
-              value={versionLabel}
-              readOnly
-              disabled
-              placeholder="Auto-generated version label"
-              sx={{ cursor: 'not-allowed' }}
-            />
-            <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
-              A system-generated label for this version.
-            </Typography>
-          </FormControl>
-
-          {/* Tag selector */}
-          <FormControl>
-            <FormLabel>
-              <Stack direction="row" alignItems="center" gap={0.5}>
-                <TagIcon size={14} />
-                Tag
-              </Stack>
-            </FormLabel>
-            <Select
-              size="sm"
-              value={tag}
-              onChange={(_e, val) => {
-                if (val) setTag(val);
-              }}
-              renderValue={(selected) => (
-                <Chip
-                  size="sm"
-                  variant="soft"
-                  color={TAG_COLORS[selected?.value ?? ''] || 'neutral'}
-                >
-                  {selected?.label}
-                </Chip>
+        <DialogContent sx={{ overflow: 'auto' }}>
+          {/* ── Group selection ── */}
+          <RadioGroup
+            value={mode}
+            onChange={(e) => setMode(e.target.value as 'new' | 'existing')}
+            sx={{ gap: 2 }}
+          >
+            {/* Option 1: Create new group */}
+            <Box>
+              <Radio value="new" label={`Create new ${typeLabel}`} />
+              {mode === 'new' && (
+                <FormControl sx={{ ml: 4, mt: 1 }}>
+                  <FormLabel>Name</FormLabel>
+                  <Input
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder={`e.g. my-${typeLabel.toLowerCase()}`}
+                    autoFocus
+                  />
+                </FormControl>
               )}
-            >
-              {TAG_OPTIONS.map((t) => (
-                <Option key={t} value={t}>
+            </Box>
+
+            {/* Option 2: Add version to existing group */}
+            <Box>
+              <Radio
+                value="existing"
+                label={`Add as version to existing ${typeLabel}`}
+                disabled={groupNames.length === 0}
+              />
+              {mode === 'existing' && (
+                <FormControl sx={{ ml: 4, mt: 1 }}>
+                  <Autocomplete
+                    options={groups}
+                    getOptionLabel={(option) =>
+                      typeof option === 'string' ? option : option.group_name
+                    }
+                    isOptionEqualToValue={(option, value) =>
+                      option.group_id === value.group_id
+                    }
+                    value={selectedGroup ?? null}
+                    onChange={(_e, value) =>
+                      setExistingTarget(value ? value.group_id : null)
+                    }
+                    placeholder={`Search ${typeLabel.toLowerCase()}s…`}
+                    autoFocus
+                  />
+                  {selectedGroup && (
+                    <Typography
+                      level="body-xs"
+                      color="neutral"
+                      sx={{ mt: 0.5 }}
+                    >
+                      Currently has {selectedGroup.version_count} version
+                      {selectedGroup.version_count !== 1 ? 's' : ''}
+                      {latestVersionLabel
+                        ? ` (latest: ${latestVersionLabel})`
+                        : ''}
+                      .
+                    </Typography>
+                  )}
+                </FormControl>
+              )}
+            </Box>
+          </RadioGroup>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* ── Version metadata ── */}
+          <Typography
+            level="body-xs"
+            textTransform="uppercase"
+            fontWeight="lg"
+            sx={{ mb: 1 }}
+          >
+            Version Details
+          </Typography>
+
+          <Stack spacing={2}>
+            {/* Asset name (unique folder name in the registry) */}
+            <FormControl error={!!assetNameError}>
+              <FormLabel>Version Name</FormLabel>
+              <Input
+                size="sm"
+                value={assetName}
+                onChange={(e) => {
+                  setAssetName(e.target.value);
+                  setAssetNameError(null);
+                }}
+                placeholder={`Unique name for this ${typeLabel.toLowerCase()}`}
+                color={assetNameError ? 'danger' : undefined}
+              />
+              {assetNameError ? (
+                <Typography level="body-xs" color="danger" sx={{ mt: 0.5 }}>
+                  {assetNameError}
+                </Typography>
+              ) : (
+                <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
+                  The unique folder name used to store the{' '}
+                  {typeLabel.toLowerCase()} in the registry.
+                </Typography>
+              )}
+            </FormControl>
+
+            {/* Version label */}
+            <FormControl>
+              <FormLabel>Version Label</FormLabel>
+              <Input
+                size="sm"
+                value={versionLabel}
+                readOnly
+                disabled
+                placeholder="Auto-generated version label"
+                sx={{ cursor: 'not-allowed' }}
+              />
+              <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
+                A system-generated label for this version.
+              </Typography>
+            </FormControl>
+
+            {/* Tag selector */}
+            <FormControl>
+              <FormLabel>
+                <Stack direction="row" alignItems="center" gap={0.5}>
+                  <TagIcon size={14} />
+                  Tag
+                </Stack>
+              </FormLabel>
+              <Select
+                size="sm"
+                value={tag}
+                onChange={(_e, val) => {
+                  if (val) setTag(val);
+                }}
+                renderValue={(selected) => (
                   <Chip
                     size="sm"
                     variant="soft"
-                    color={TAG_COLORS[t] || 'neutral'}
+                    color={TAG_COLORS[selected?.value ?? ''] || 'neutral'}
                   >
-                    {t}
+                    {selected?.label}
                   </Chip>
-                </Option>
-              ))}
-            </Select>
-            <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
-              Selecting this tag will move it from any version that currently
-              has it.
-            </Typography>
-          </FormControl>
+                )}
+              >
+                {TAG_OPTIONS.map((t) => (
+                  <Option key={t} value={t}>
+                    <Chip
+                      size="sm"
+                      variant="soft"
+                      color={TAG_COLORS[t] || 'neutral'}
+                    >
+                      {t}
+                    </Chip>
+                  </Option>
+                ))}
+              </Select>
+              <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
+                Selecting this tag will move it from any version that currently
+                has it.
+              </Typography>
+            </FormControl>
 
-          {/* Description */}
-          <FormControl>
-            <FormLabel>Description</FormLabel>
-            <Textarea
-              size="sm"
-              minRows={2}
-              maxRows={4}
-              placeholder="What changed in this version?"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </FormControl>
-        </Stack>
-
-        {/* ── Actions ── */}
-        <Stack
-          direction="row"
-          justifyContent="flex-end"
-          spacing={1}
-          sx={{ mt: 3 }}
-        >
+            {/* Description */}
+            <FormControl>
+              <FormLabel>Description</FormLabel>
+              <Textarea
+                size="sm"
+                minRows={2}
+                maxRows={4}
+                placeholder="What changed in this version?"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </FormControl>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            startDecorator={<Save size={16} />}
+            onClick={handleSubmit}
+            loading={saving}
+            disabled={!canSave}
+          >
+            Publish as {versionLabel || 'v1'}
+          </Button>
           <Button
             variant="plain"
             color="neutral"
@@ -404,17 +418,7 @@ export default function SaveToRegistryDialog({
           >
             Cancel
           </Button>
-          <Button
-            startDecorator={<Save size={16} />}
-            onClick={handleSubmit}
-            loading={saving}
-            disabled={!canSave}
-          >
-            {mode === 'new'
-              ? `Publish as ${versionLabel || 'v1'}`
-              : `Publish as ${versionLabel || 'v1'}`}
-          </Button>
-        </Stack>
+        </DialogActions>
       </ModalDialog>
     </Modal>
   );
