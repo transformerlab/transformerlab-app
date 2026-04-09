@@ -260,9 +260,10 @@ export default function EmbeddableStreamingOutput({
 }: EmbeddableStreamingOutputProps) {
   const { experimentInfo } = useExperimentInfo();
   const { fetchWithAuth } = useAuth();
-  const tabs = tabsProp.length > 0 ? tabsProp : ['output', 'provider'];
+  const visibleTabs =
+    tabsProp.length > 0 ? tabsProp : (['output', 'provider'] as TabValue[]);
   const [activeTab, setActiveTab] = useState<TabValue>(
-    () => (tabs[0] ?? 'output') as TabValue,
+    () => (visibleTabs[0] ?? 'output') as TabValue,
   );
   const [viewLiveProviderLogs, setViewLiveProviderLogs] =
     useState<boolean>(false);
@@ -270,17 +271,19 @@ export default function EmbeddableStreamingOutput({
   const [requestLogsLoading, setRequestLogsLoading] = useState(false);
   const [requestLogsError, setRequestLogsError] = useState<string>('');
 
-  const showTabList = tabs.length > 1;
-  const tabsKey = tabs.join(',');
+  const showTabList = visibleTabs.length > 1;
+  const tabsKey = visibleTabs.join(',');
 
   useEffect(() => {
     setActiveTab((current) =>
-      tabs.includes(current) ? current : ((tabs[0] ?? 'output') as TabValue),
+      visibleTabs.includes(current)
+        ? current
+        : ((visibleTabs[0] ?? 'output') as TabValue),
     );
     setViewLiveProviderLogs(false);
     setRequestLogs('');
     setRequestLogsError('');
-    // tabsKey is a stable serialization of tabs to avoid array reference churn
+    // tabsKey is a stable serialization of visibleTabs to avoid array reference churn
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId, tabsKey]);
 
@@ -421,7 +424,7 @@ export default function EmbeddableStreamingOutput({
           }}
         >
           <TabList>
-            {tabs.map((tabValue) => {
+            {visibleTabs.map((tabValue) => {
               const option = TAB_OPTIONS.find((t) => t.value === tabValue);
               return option ? (
                 <Tab key={tabValue} value={tabValue}>
