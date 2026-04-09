@@ -450,9 +450,18 @@ class LocalProvider(ComputeProvider):
 
         # Ensure shared local-provider base environment exists (one-time for all orgs),
         # then create a per-job venv from the pinned local-provider manifest.
+        _t_launch_start = time.time()
+        print(f"[LocalProvider][TIMING] launch_cluster start for {cluster_name}")
+
+        _t = time.time()
         ensure_base_venv_and_requirements()
+        print(f"[LocalProvider][TIMING] ensure_base_venv_and_requirements: {time.time() - _t:.2f}s")
+
         localprovider_pyproject = self._get_source_code_and_pyproject()
+
+        _t = time.time()
         self._ensure_job_venv_from_base(venv_path, localprovider_pyproject)
+        print(f"[LocalProvider][TIMING] _ensure_job_venv_from_base total: {time.time() - _t:.2f}s")
 
         venv_bin = os.path.join(venv_path, "bin")
         env = os.environ.copy()
@@ -525,6 +534,7 @@ class LocalProvider(ComputeProvider):
                 setup_cmd = _wrap(["/bin/bash", "-c", strict_setup_script])
                 if setup_cmd[0] != "/bin/bash":
                     print(f"[LocalProvider] Setup sandboxed via {_sandbox_backend}: {setup_cmd[0]}")
+                _t = time.time()
                 setup_result = subprocess.run(
                     setup_cmd,
                     cwd=job_dir,
@@ -535,6 +545,7 @@ class LocalProvider(ComputeProvider):
                     timeout=600,
                     preexec_fn=_sandbox_preexec,
                 )
+                print(f"[LocalProvider][TIMING] setup script: {time.time() - _t:.2f}s (exit={setup_result.returncode})")
 
                 # Flush so tunnel_info can see the output immediately
                 stdout_log.flush()
@@ -553,6 +564,7 @@ class LocalProvider(ComputeProvider):
 
             # Start main run command in background (detached subprocess)
             _status("Starting service")
+            _t = time.time()
             print(f"[LocalProvider] Launching run in {job_dir}: {config.run!r}")
             run_cmd = _wrap(["/bin/bash", "-c", config.run or "true"])
             if run_cmd[0] != "/bin/bash":
@@ -566,6 +578,7 @@ class LocalProvider(ComputeProvider):
                 start_new_session=True,
                 preexec_fn=_sandbox_preexec,
             )
+            print(f"[LocalProvider][TIMING] Popen (run command launched): {time.time() - _t:.2f}s")
         finally:
             # Close parent-side file descriptors after setup/launch. The child
             # process keeps its own inherited descriptors for log streaming.
@@ -576,6 +589,7 @@ class LocalProvider(ComputeProvider):
         with open(os.path.join(job_dir, "pid"), "w") as f:
             f.write(str(pid))
         print(f"[LocalProvider] Process started with pid={pid}, logs at {job_dir}/stdout.log")
+        print(f"[LocalProvider][TIMING] launch_cluster total: {time.time() - _t_launch_start:.2f}s")
         _org_id = (config.provider_config or {}).get("org_id", "")
         _exp_id = (config.provider_config or {}).get("experiment_id", "")
         _job_id = (config.provider_config or {}).get("job_id", "")
