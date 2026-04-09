@@ -34,12 +34,23 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddon = useRef(new FitAddon());
+  const termOpenedRef = useRef(false);
   const [lastLineCount, setLastLineCount] = useState<number>(0);
   const [hasReceivedData, setHasReceivedData] = useState(false);
 
+  // Helper: safely call a terminal method, ignoring errors if render service isn't ready
+  const safeTerm = useCallback((fn: (term: Terminal) => void) => {
+    if (!termRef.current) return;
+    try {
+      fn(termRef.current);
+    } catch {
+      // ignore — render service may not be initialized (zero-dimension container)
+    }
+  }, []);
+
   const handleResize = useCallback(
     debounce(() => {
-      if (termRef.current) {
+      if (termRef.current && termOpenedRef.current) {
         try {
           fitAddon.current.fit();
         } catch {
@@ -91,18 +102,18 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
   useEffect(() => {
     setLastLineCount(0);
     setHasReceivedData(false);
-    if (termRef.current) {
+    safeTerm((term) => {
       requestAnimationFrame(() => {
         if (termRef.current) {
           termRef.current.reset();
         }
       });
-    }
-  }, [jobId]);
+    });
+  }, [jobId, safeTerm]);
 
   // Terminal initialization (only once)
   useEffect(() => {
-    termRef.current = new Terminal({
+    const term = new Terminal({
       smoothScrollDuration: 0,
       convertEol: true,
       cursorBlink: false,
@@ -112,20 +123,35 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
         foreground: '#ffffff',
       },
     });
-    termRef.current.loadAddon(fitAddon.current);
+    term.loadAddon(fitAddon.current);
+    termRef.current = term;
 
-    if (terminalRef.current) {
-      termRef.current.open(terminalRef.current);
-      termRef.current.reset();
-    }
+    // Defer open() until the container has non-zero dimensions.
+    // Opening xterm on a zero-dimension element (e.g. inside a modal that
+    // hasn't animated in yet) leaves the render service uninitialized and
+    // causes "Cannot read properties of undefined (reading 'dimensions')"
+    // on any subsequent write/reset/scroll operation.
+    const tryOpen = () => {
+      if (!terminalRef.current || termOpenedRef.current) return;
+      const rect = terminalRef.current.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        term.open(terminalRef.current);
+        termOpenedRef.current = true;
+        try {
+          fitAddon.current.fit();
+        } catch {
+          // ignore
+        }
+      }
+    };
 
-    try {
-      fitAddon.current.fit();
-    } catch {
-      // ignore — render service may not be ready yet (e.g. container has zero dimensions in a modal)
-    }
+    tryOpen();
 
     const resizeObserver = new ResizeObserver(() => {
+      // If terminal hasn't been opened yet, try now that container may have dimensions
+      if (!termOpenedRef.current) {
+        tryOpen();
+      }
       handleResize();
     });
 
@@ -134,8 +160,9 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
     }
 
     return () => {
-      termRef.current?.dispose();
+      term.dispose();
       termRef.current = null;
+      termOpenedRef.current = false;
       if (terminalRef.current) {
         resizeObserver.unobserve(terminalRef.current);
       }
@@ -145,12 +172,14 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
 
   // Data processing (separate useEffect)
   useEffect(() => {
-    if (!termRef.current) return;
+    if (!termRef.current || !termOpenedRef.current) return;
 
     // Show loading message only if we don't have data yet and haven't shown anything
     if (!outputData && !error && !hasReceivedData && initialMessage) {
-      termRef.current.reset();
-      termRef.current.write(initialMessage + '\r\n');
+      safeTerm((term) => {
+        term.reset();
+        term.write(initialMessage + '\r\n');
+      });
       return;
     }
 
@@ -159,10 +188,10 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
       // Handle case where API returns a string instead of array
       if (typeof outputData === 'string') {
         if (!hasReceivedData) {
-          termRef.current.reset();
+          safeTerm((term) => term.reset());
           setHasReceivedData(true);
         }
-        termRef.current.write(outputData + '\r\n');
+        safeTerm((term) => term.write(outputData + '\r\n'));
         setLastLineCount(1);
         return;
       }
@@ -175,10 +204,12 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
             outputData[0] === 'Output file not found');
 
         if (isEmptyOutput && !hasReceivedData) {
-          termRef.current.reset();
-          termRef.current.write(
-            'No output found, make sure your script ran correctly and made use of the transformerlab package for the output to be visible.\r\n',
-          );
+          safeTerm((term) => {
+            term.reset();
+            term.write(
+              'No output found, make sure your script ran correctly and made use of the transformerlab package for the output to be visible.\r\n',
+            );
+          });
           setHasReceivedData(true);
           setLastLineCount(0);
           return;
@@ -191,24 +222,27 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
         if (currentLineCount !== lastLineCount) {
           if (!hasReceivedData || lastLineCount === 0) {
             // First data or transitioning from empty — write everything at once
-            termRef.current.reset();
+            safeTerm((term) => {
+              term.reset();
+              const batch = outputData.join('\r\n') + '\r\n';
+              term.write(batch);
+            });
             setHasReceivedData(true);
-            // Batch all lines into a single write for performance
-            const batch = outputData.join('\r\n') + '\r\n';
-            termRef.current.write(batch);
           } else if (currentLineCount > lastLineCount) {
             // Incremental update — only write new lines
             const newLines = outputData.slice(lastLineCount);
             const batch = newLines.join('\r\n') + '\r\n';
-            termRef.current.write(batch);
+            safeTerm((term) => term.write(batch));
           } else {
             // Content changed in a non-append way (e.g. file was rewritten)
-            termRef.current.reset();
-            const batch = outputData.join('\r\n') + '\r\n';
-            termRef.current.write(batch);
+            safeTerm((term) => {
+              term.reset();
+              const batch = outputData.join('\r\n') + '\r\n';
+              term.write(batch);
+            });
           }
 
-          termRef.current.scrollToBottom();
+          safeTerm((term) => term.scrollToBottom());
           setLastLineCount(currentLineCount);
         }
       }
@@ -217,12 +251,21 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
     // Handle errors
     if (error) {
       if (!hasReceivedData) {
-        termRef.current.reset();
+        safeTerm((term) => term.reset());
         setHasReceivedData(true);
       }
-      termRef.current.write(`Error fetching output: ${error.message}\r\n`);
+      safeTerm((term) =>
+        term.write(`Error fetching output: ${error.message}\r\n`),
+      );
     }
-  }, [outputData, lastLineCount, error, hasReceivedData, initialMessage]);
+  }, [
+    outputData,
+    lastLineCount,
+    error,
+    hasReceivedData,
+    initialMessage,
+    safeTerm,
+  ]);
 
   return (
     <Sheet
