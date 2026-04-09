@@ -40,7 +40,11 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
   const handleResize = useCallback(
     debounce(() => {
       if (termRef.current) {
-        fitAddon.current.fit();
+        try {
+          fitAddon.current.fit();
+        } catch {
+          // ignore — render service may not be ready yet
+        }
       }
     }, 300),
     [],
@@ -115,7 +119,11 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
       termRef.current.reset();
     }
 
-    fitAddon.current.fit();
+    try {
+      fitAddon.current.fit();
+    } catch {
+      // ignore — render service may not be ready yet (e.g. container has zero dimensions in a modal)
+    }
 
     const resizeObserver = new ResizeObserver(() => {
       handleResize();
