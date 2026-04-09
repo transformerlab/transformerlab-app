@@ -122,6 +122,8 @@ _MINIFORGE_ROOT = os.path.join(_TLAB_DIR, "miniforge3")
 _CONDA_BIN = os.path.join(_MINIFORGE_ROOT, "bin", "conda")
 _CONDA_ENV_DIR = os.path.join(_TLAB_DIR, "envs", "transformerlab")
 _INSTALL_LOG_FILE = "local_provider_install.log"
+_SEED_VENV_STATE_FILE = "seed_venv_state.json"
+_SEED_VENV_DIR_NAME = "seed_venv"
 
 
 def _get_base_state_path() -> str:
@@ -166,6 +168,46 @@ def _get_install_log_path() -> str:
     root = get_local_provider_root()
     os.makedirs(root, exist_ok=True)
     return os.path.join(root, _INSTALL_LOG_FILE)
+
+
+def _get_seed_venv_dir() -> str:
+    """Return the path to the shared seed venv that has all localprovider deps pre-installed."""
+    return os.path.join(get_local_provider_root(), _SEED_VENV_DIR_NAME)
+
+
+def _get_seed_venv_state_path() -> str:
+    return os.path.join(get_local_provider_root(), _SEED_VENV_STATE_FILE)
+
+
+def _read_seed_venv_state() -> Optional[Dict[str, Any]]:
+    state_path = _get_seed_venv_state_path()
+    if not os.path.exists(state_path):
+        return None
+    try:
+        with open(state_path, "r", encoding="utf-8") as f:
+            return json.loads(f.read())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _write_seed_venv_state(*, ready: bool, pyproject_hash: str) -> None:
+    payload = {
+        "ready": ready,
+        "pyproject_hash": pyproject_hash,
+        "updated_at": time.time(),
+        "python_version": _PYTHON_VERSION,
+    }
+    state_path = _get_seed_venv_state_path()
+    os.makedirs(os.path.dirname(state_path), exist_ok=True)
+    with open(state_path, "w", encoding="utf-8") as f:
+        f.write(json.dumps(payload))
+
+
+def _hash_pyproject(pyproject_path: str) -> str:
+    """Compute a hash of the pyproject file to detect when deps change."""
+    import hashlib
+    with open(pyproject_path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()[:16]
 
 
 def _resolve_lab_sdk_dir(localprovider_pyproject: str) -> Optional[str]:
@@ -307,14 +349,35 @@ class LocalProvider(ComputeProvider):
             raise FileNotFoundError(f"{_LOCAL_PROVIDER_PYPROJECT} not found at {pyproject_path}")
         return pyproject_path
 
-    def _ensure_job_venv_from_base(self, venv_path: str, localprovider_pyproject: str) -> None:
-        """Create or refresh a per-job venv using the local-provider pinned manifest."""
-        os.makedirs(venv_path, exist_ok=True)
+    def _ensure_seed_venv(self, localprovider_pyproject: str) -> str:
+        """
+        Ensure a shared "seed" venv exists with all localprovider deps pre-installed.
+        This is built once and reused by copying into per-job venvs, avoiding the
+        expensive uv pip install of ~40+ packages on every launch.
+
+        Returns the path to the seed venv.
+        """
+        seed_venv_path = _get_seed_venv_dir()
+        pyproject_hash = _hash_pyproject(localprovider_pyproject)
+
+        # Check if seed venv is already up to date
+        seed_state = _read_seed_venv_state()
+        if (
+            seed_state
+            and seed_state.get("ready")
+            and seed_state.get("pyproject_hash") == pyproject_hash
+            and os.path.exists(os.path.join(seed_venv_path, "bin", "python"))
+        ):
+            return seed_venv_path
+
+        print(f"[LocalProvider] Building seed venv at {seed_venv_path} (pyproject hash: {pyproject_hash})")
 
         if not os.path.exists(_CONDA_BIN):
             raise FileNotFoundError(f"Conda executable not found at {_CONDA_BIN}")
 
-        # Create per-job uv venv while running under the local-provider conda env.
+        os.makedirs(seed_venv_path, exist_ok=True)
+
+        # Create the seed venv
         subprocess.run(
             [
                 str(_CONDA_BIN),
@@ -323,12 +386,12 @@ class LocalProvider(ComputeProvider):
                 str(_CONDA_ENV_DIR),
                 "uv",
                 "venv",
-                venv_path,
+                seed_venv_path,
                 "--python",
                 _PYTHON_VERSION,
                 "--clear",
             ],
-            cwd=os.path.dirname(venv_path),
+            cwd=os.path.dirname(seed_venv_path),
             check=True,
             capture_output=True,
             timeout=300,
@@ -336,12 +399,10 @@ class LocalProvider(ComputeProvider):
 
         additional_flags = _get_uv_pip_install_flags()
         extra = _get_pyproject_extra()
-
-        # Use uv pip with an explicit --python target so installs go into this venv.
-        python_bin = os.path.join(venv_path, "bin", "python")
+        python_bin = os.path.join(seed_venv_path, "bin", "python")
         env = os.environ.copy()
 
-        tmp_project_dir = tempfile.mkdtemp(prefix="tfl-local-provider-job-")
+        tmp_project_dir = tempfile.mkdtemp(prefix="tfl-local-provider-seed-")
         try:
             shutil.copy2(localprovider_pyproject, os.path.join(tmp_project_dir, "pyproject.toml"))
             shutil.copytree(
@@ -380,7 +441,7 @@ class LocalProvider(ComputeProvider):
             if ed_result.returncode != 0:
                 shutil.rmtree(tmp_project_dir, ignore_errors=True)
                 raise RuntimeError(
-                    "uv pip install -e lab-sdk failed for job venv: "
+                    "uv pip install -e lab-sdk failed for seed venv: "
                     f"{ed_result.stderr or ed_result.stdout or 'unknown error'}"
                 )
 
@@ -400,7 +461,66 @@ class LocalProvider(ComputeProvider):
         shutil.rmtree(tmp_project_dir, ignore_errors=True)
         if result.returncode != 0:
             raise RuntimeError(
-                f"uv pip install failed for job venv: {result.stderr or result.stdout or 'unknown error'}"
+                f"uv pip install failed for seed venv: {result.stderr or result.stdout or 'unknown error'}"
+            )
+
+        _write_seed_venv_state(ready=True, pyproject_hash=pyproject_hash)
+        print(f"[LocalProvider] Seed venv ready at {seed_venv_path}")
+        return seed_venv_path
+
+    def _ensure_job_venv_from_base(self, venv_path: str, localprovider_pyproject: str) -> None:
+        """
+        Create a per-job venv by copying from the shared seed venv.
+
+        On first run, the seed venv is built with all localprovider dependencies.
+        Subsequent launches copy the seed (fast filesystem operation) instead of
+        running uv pip install for the full dependency set every time.
+        """
+        seed_venv_path = self._ensure_seed_venv(localprovider_pyproject)
+
+        # Fast path: copy the seed venv into the per-job location.
+        # shutil.copytree with dirs_exist_ok=True handles the case where the
+        # target directory may already exist (e.g. from a prior failed launch).
+        if os.path.exists(venv_path):
+            shutil.rmtree(venv_path, ignore_errors=True)
+        print(f"[LocalProvider] Copying seed venv to job venv: {venv_path}")
+        shutil.copytree(seed_venv_path, venv_path, symlinks=True)
+
+        # Fix up the venv paths: the pyvenv.cfg and scripts reference the seed
+        # path; we need to update them to point to the new location.
+        pyvenv_cfg = os.path.join(venv_path, "pyvenv.cfg")
+        if os.path.exists(pyvenv_cfg):
+            with open(pyvenv_cfg, "r", encoding="utf-8") as f:
+                cfg_text = f.read()
+            cfg_text = cfg_text.replace(seed_venv_path, venv_path)
+            with open(pyvenv_cfg, "w", encoding="utf-8") as f:
+                f.write(cfg_text)
+
+        # Re-install lab-sdk in editable mode pointing to the new venv, since
+        # editable installs use absolute paths in .pth files.
+        lab_sdk_dir = _resolve_lab_sdk_dir(localprovider_pyproject)
+        if lab_sdk_dir is not None:
+            python_bin = os.path.join(venv_path, "bin", "python")
+            env = os.environ.copy()
+            ed_cmd = [
+                str(_CONDA_BIN),
+                "run",
+                "--prefix",
+                str(_CONDA_ENV_DIR),
+                "uv",
+                "pip",
+                "install",
+                "--python",
+                python_bin,
+                "-e",
+                str(lab_sdk_dir),
+            ]
+            subprocess.run(
+                ed_cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=120,
             )
 
     def launch_cluster(
@@ -846,6 +966,16 @@ def ensure_base_venv_and_requirements(
             # Delete the conda environment directory so the install starts from scratch.
             if os.path.exists(_CONDA_ENV_DIR):
                 shutil.rmtree(_CONDA_ENV_DIR, ignore_errors=True)
+            # Delete the seed venv so it will be rebuilt from the new base.
+            seed_venv = _get_seed_venv_dir()
+            if os.path.exists(seed_venv):
+                shutil.rmtree(seed_venv, ignore_errors=True)
+            seed_state = _get_seed_venv_state_path()
+            if os.path.exists(seed_state):
+                try:
+                    os.unlink(seed_state)
+                except OSError:
+                    pass
             # Delete the install log so it reflects only the fresh install.
             install_log = _get_install_log_path()
             if os.path.exists(install_log):
