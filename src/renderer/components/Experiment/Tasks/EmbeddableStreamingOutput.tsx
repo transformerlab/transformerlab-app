@@ -39,6 +39,33 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const termOpenedRef = useRef(false);
+  const logsTextRef = useRef(logsText);
+  logsTextRef.current = logsText;
+
+  const safeFit = useCallback(() => {
+    const fit = fitAddonRef.current;
+    if (!fit || !termOpenedRef.current) return;
+    try {
+      fit.fit();
+    } catch {
+      // ignore — render service may not be ready yet
+    }
+  }, []);
+
+  const applyLogs = useCallback((term: Terminal, text: string) => {
+    try {
+      const body = text || 'No provider log data yet.';
+      term.write('\x1b[2J\x1b[H');
+      const normalized = body.replace(/\r\n/g, '\n');
+      const lines = normalized.split('\n');
+      lines.forEach((line) => {
+        term.writeln(line);
+      });
+    } catch {
+      // ignore — xterm viewport not ready
+    }
+  }, []);
 
   useEffect(() => {
     const term = new Terminal({
@@ -48,28 +75,36 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
       theme: {
         background: '#000000',
       },
-      smoothScrollDuration: 150,
+      smoothScrollDuration: 0,
+      cursorBlink: false,
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
     fitAddonRef.current = fit;
-
-    if (containerRef.current) {
-      term.open(containerRef.current);
-      try {
-        fit.fit();
-      } catch {
-        // ignore — render service may not be ready yet (e.g. container has zero dimensions in a modal)
-      }
-    }
-
     termRef.current = term;
 
+    const tryOpen = () => {
+      if (!containerRef.current || termOpenedRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        term.open(containerRef.current);
+        termOpenedRef.current = true;
+        try {
+          fit.fit();
+        } catch {
+          // ignore
+        }
+        applyLogs(term, logsTextRef.current);
+      }
+    };
+
+    tryOpen();
+
     const resizeObserver = new ResizeObserver(() => {
-      try {
-        fit.fit();
-      } catch {
-        // ignore resize errors
+      if (!termOpenedRef.current) {
+        tryOpen();
+      } else {
+        safeFit();
       }
     });
 
@@ -82,26 +117,21 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
       term.dispose();
       termRef.current = null;
       fitAddonRef.current = null;
+      termOpenedRef.current = false;
     };
-  }, []);
+  }, [applyLogs, safeFit]);
 
   useEffect(() => {
-    if (!termRef.current) return;
-
-    const text = logsText || 'No provider log data yet.';
-    // Clear screen and move cursor to home
-    termRef.current.write('\x1b[2J\x1b[H');
-    const normalized = text.replace(/\r\n/g, '\n');
-    const lines = normalized.split('\n');
-    lines.forEach((line) => {
-      termRef.current!.writeln(line);
-    });
-  }, [logsText]);
+    const term = termRef.current;
+    if (!term || !termOpenedRef.current) return;
+    applyLogs(term, logsText);
+  }, [logsText, applyLogs]);
 
   return (
     <Box
       sx={{
         flex: 1,
+        minHeight: 0,
         borderRadius: '8px',
         border: '1px solid #333',
         backgroundColor: '#000000',
@@ -230,14 +260,16 @@ export default function EmbeddableStreamingOutput({
 }: EmbeddableStreamingOutputProps) {
   const { experimentInfo } = useExperimentInfo();
   const { fetchWithAuth } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabValue>('output');
+  const tabs = tabsProp.length > 0 ? tabsProp : ['output', 'provider'];
+  const [activeTab, setActiveTab] = useState<TabValue>(
+    () => (tabs[0] ?? 'output') as TabValue,
+  );
   const [viewLiveProviderLogs, setViewLiveProviderLogs] =
     useState<boolean>(false);
   const [requestLogs, setRequestLogs] = useState<string>('');
   const [requestLogsLoading, setRequestLogsLoading] = useState(false);
   const [requestLogsError, setRequestLogsError] = useState<string>('');
 
-  const tabs = tabsProp.length > 0 ? tabsProp : ['output', 'provider'];
   const showTabList = tabs.length > 1;
   const tabsKey = tabs.join(',');
 
