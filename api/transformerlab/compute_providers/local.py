@@ -315,6 +315,7 @@ class LocalProvider(ComputeProvider):
             raise FileNotFoundError(f"Conda executable not found at {_CONDA_BIN}")
 
         # Create per-job uv venv while running under the local-provider conda env.
+        _t0 = time.time()
         subprocess.run(
             [
                 str(_CONDA_BIN),
@@ -333,6 +334,7 @@ class LocalProvider(ComputeProvider):
             capture_output=True,
             timeout=300,
         )
+        print(f"[LocalProvider][TIMING] uv venv --clear: {time.time() - _t0:.2f}s")
 
         additional_flags = _get_uv_pip_install_flags()
         extra = _get_pyproject_extra()
@@ -369,6 +371,7 @@ class LocalProvider(ComputeProvider):
                 "-e",
                 str(lab_sdk_dir),
             ]
+            _t1 = time.time()
             ed_result = subprocess.run(
                 ed_cmd,
                 cwd=tmp_project_dir,
@@ -377,6 +380,7 @@ class LocalProvider(ComputeProvider):
                 text=True,
                 timeout=900,
             )
+            print(f"[LocalProvider][TIMING] uv pip install -e lab-sdk: {time.time() - _t1:.2f}s")
             if ed_result.returncode != 0:
                 shutil.rmtree(tmp_project_dir, ignore_errors=True)
                 raise RuntimeError(
@@ -389,6 +393,7 @@ class LocalProvider(ComputeProvider):
             install_cmd.extend(shlex.split(additional_flags))
         install_cmd.extend(["--python", python_bin, f".{extra}"])
 
+        _t2 = time.time()
         result = subprocess.run(
             install_cmd,
             cwd=tmp_project_dir,
@@ -397,6 +402,7 @@ class LocalProvider(ComputeProvider):
             text=True,
             timeout=900,
         )
+        print(f"[LocalProvider][TIMING] uv pip install .{extra} (all base deps): {time.time() - _t2:.2f}s")
         shutil.rmtree(tmp_project_dir, ignore_errors=True)
         if result.returncode != 0:
             raise RuntimeError(
