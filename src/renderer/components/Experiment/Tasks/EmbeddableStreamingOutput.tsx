@@ -56,7 +56,11 @@ const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
 
     if (containerRef.current) {
       term.open(containerRef.current);
-      fit.fit();
+      try {
+        fit.fit();
+      } catch {
+        // ignore — render service may not be ready yet (e.g. container has zero dimensions in a modal)
+      }
     }
 
     termRef.current = term;
