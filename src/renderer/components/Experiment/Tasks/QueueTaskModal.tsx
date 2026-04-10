@@ -115,6 +115,7 @@ export default function QueueTaskModal({
   const [jobDockerImage, setJobDockerImage] = React.useState('');
   const [jobRegion, setJobRegion] = React.useState('');
   const [jobUseSpot, setJobUseSpot] = React.useState(false);
+  const [jobDstackFleetName, setJobDstackFleetName] = React.useState('');
   const [useTrackio, setUseTrackio] = React.useState(false);
   const [useProfiling, setUseProfiling] = React.useState(false);
   const [useProfilingTorch, setUseProfilingTorch] = React.useState(false);
@@ -219,6 +220,7 @@ export default function QueueTaskModal({
   const isLocalProvider = selectedProvider?.type === 'local';
   const isSlurmProvider = selectedProvider?.type === 'slurm';
   const isSkypilotProvider = selectedProvider?.type === 'skypilot';
+  const isDstackProvider = selectedProvider?.type === 'dstack';
   const isGalleryImported = Boolean((task as any)?.gallery_import);
 
   const suggestedGalleryResources = React.useMemo(() => {
@@ -688,6 +690,24 @@ export default function QueueTaskModal({
     setJobUseSpot(cfg.use_spot === true);
   }, [open, isSkypilotProvider, selectedProviderId, selectedProvider]);
 
+  // Initialize dstack per-job defaults from provider/task config when selected.
+  React.useEffect(() => {
+    if (!open || !isDstackProvider || !selectedProvider) return;
+    const providerCfg = selectedProvider.config || {};
+    const taskCfg =
+      task?.config !== undefined ? SafeJSONParse(task.config, {}) : {};
+    const taskRunCfg = taskCfg?.config || {};
+    const taskResourcesCfg = taskRunCfg?.resources || {};
+    setJobDstackFleetName(
+      String(
+        taskRunCfg.fleet_name ||
+          taskResourcesCfg.fleet_name ||
+          providerCfg.fleet_name ||
+          '',
+      ),
+    );
+  }, [open, isDstackProvider, selectedProviderId, selectedProvider, task]);
+
   // Helper function to validate constraints
   const validateParameter = (param: ProcessedParameter): string | null => {
     const { schema, value } = param;
@@ -811,6 +831,11 @@ export default function QueueTaskModal({
       if (jobUseSpot) {
         config.use_spot = true;
       }
+    }
+
+    // For dstack providers, allow per-run fleet override.
+    if (provider?.type === 'dstack' && jobDstackFleetName.trim()) {
+      config.fleet_name = jobDstackFleetName.trim();
     }
 
     // Add sweep configuration if enabled
@@ -1770,6 +1795,31 @@ export default function QueueTaskModal({
                         <FormLabel sx={{ m: 0 }}>
                           Use Spot / Preemptible Instances
                         </FormLabel>
+                      </FormControl>
+                    </>
+                  )}
+
+                  {/* dstack per-job overrides */}
+                  {isDstackProvider && (
+                    <>
+                      <Divider />
+                      <Typography level="title-sm">
+                        dstack Job Overrides
+                      </Typography>
+                      <FormControl>
+                        <FormLabel>Fleet Name (optional)</FormLabel>
+                        <Input
+                          value={jobDstackFleetName}
+                          onChange={(e) =>
+                            setJobDstackFleetName(e.target.value)
+                          }
+                          placeholder="my-fleet"
+                          disabled={isSubmitting}
+                        />
+                        <FormHelperText>
+                          If set, this run is scheduled on the specified dstack
+                          fleet. Leave empty to use resource-based scheduling.
+                        </FormHelperText>
                       </FormControl>
                     </>
                   )}

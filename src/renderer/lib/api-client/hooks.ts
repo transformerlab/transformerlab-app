@@ -7,7 +7,6 @@ import {
   fetchWithAuth,
   useSWRWithAuth as useSWR,
 } from 'renderer/lib/authContext';
-import { Endpoints } from './endpoints';
 
 const CONNECTION_HEALTH_TIMEOUT_MS = 10000;
 
@@ -91,25 +90,6 @@ export function useModelStatus() {
     isError,
     mutate: mutate,
   };
-}
-
-export function usePluginStatus(experimentInfo: any) {
-  const { data, isLoading, mutate } = useSWR(
-    experimentInfo
-      ? Endpoints.Experiment.ListScripts(experimentInfo?.id)
-      : null,
-    fetcher,
-  );
-
-  let outdatedPlugins = [];
-  if (data && Array.isArray(data)) {
-    outdatedPlugins = data.filter(
-      (plugin: any) =>
-        plugin?.gallery_version && plugin?.version != plugin?.gallery_version,
-    );
-  }
-
-  return { data: outdatedPlugins, isLoading, mutate };
 }
 
 /**

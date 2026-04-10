@@ -530,11 +530,21 @@ def download_single_artifact(job_id: str, filename: str, output_dir: str) -> str
 
 
 def fetch_logs(experiment_id: str, job_id: str):
-    """Fetch current provider logs for a job."""
+    """Fetch current provider/machine logs for a job."""
     return api.get(f"/experiment/{experiment_id}/jobs/{job_id}/provider_logs", timeout=15.0)
 
 
-def stream_logs(experiment_id: str, job_id: str, output_format: str) -> None:
+def fetch_task_logs(experiment_id: str, job_id: str):
+    """Fetch task (Lab SDK) output for a job."""
+    return api.get(f"/experiment/{experiment_id}/jobs/{job_id}/stream_output", timeout=15.0)
+
+
+def fetch_request_logs(experiment_id: str, job_id: str):
+    """Fetch provider request/launch logs for a job."""
+    return api.get(f"/experiment/{experiment_id}/jobs/{job_id}/request_logs", timeout=15.0)
+
+
+def _stream_logs_generic(experiment_id: str, job_id: str, output_format: str, fetch_fn) -> None:
     """Poll and stream new log lines until job ends or Ctrl-C."""
     import time
 
@@ -545,7 +555,7 @@ def stream_logs(experiment_id: str, job_id: str, output_format: str) -> None:
         while True:
             elapsed = int(time.time() - start)
             try:
-                response = fetch_logs(experiment_id, job_id)
+                response = fetch_fn(experiment_id, job_id)
                 if response.status_code == 200:
                     data = response.json()
                     logs_text = data.get("logs", "") if isinstance(data, dict) else ""
@@ -560,7 +570,7 @@ def stream_logs(experiment_id: str, job_id: str, output_format: str) -> None:
                             print(
                                 json.dumps(
                                     {
-                                        "job_id": int(job_id),
+                                        "job_id": job_id,
                                         "new_lines": "\n".join(new_lines),
                                         "elapsed_seconds": elapsed,
                                     }
@@ -593,43 +603,89 @@ def stream_logs(experiment_id: str, job_id: str, output_format: str) -> None:
         pass
 
 
-@app.command("logs")
-def command_job_logs(
-    job_id: str = typer.Argument(..., help="Job ID to fetch logs for"),
-    follow: bool = typer.Option(False, "--follow", "-f", help="Stream new lines continuously"),
-):
-    """Fetch logs for a job. Use --follow to stream continuously."""
-    experiment_id = require_current_experiment()
-    output_format = cli_state.output_format
+def stream_logs(experiment_id: str, job_id: str, output_format: str) -> None:
+    """Poll and stream machine log lines until job ends or Ctrl-C."""
+    _stream_logs_generic(experiment_id, job_id, output_format, fetch_logs)
 
-    if follow:
-        stream_logs(experiment_id, job_id, output_format)
-        return
 
+def _print_logs(experiment_id: str, job_id: str, output_format: str, fetch_fn, label: str) -> None:
+    """Shared logic for one-shot log fetching and display."""
     if output_format != "json":
-        with console.status("[bold green]Fetching logs...[/bold green]", spinner="dots"):
-            response = fetch_logs(experiment_id, job_id)
+        with console.status(f"[bold green]Fetching {label}...[/bold green]", spinner="dots"):
+            response = fetch_fn(experiment_id, job_id)
     else:
-        response = fetch_logs(experiment_id, job_id)
+        response = fetch_fn(experiment_id, job_id)
 
     if response.status_code != 200:
         if output_format == "json":
-            print(json.dumps({"error": f"Failed to fetch logs. Status code: {response.status_code}"}))
+            print(json.dumps({"error": f"Failed to fetch {label}. Status code: {response.status_code}"}))
         else:
-            console.print(f"[red]Error:[/red] Failed to fetch logs. Status code: {response.status_code}")
+            console.print(f"[red]Error:[/red] Failed to fetch {label}. Status code: {response.status_code}")
         raise typer.Exit(1)
 
     data = response.json()
     logs_text = data.get("logs", "") if isinstance(data, dict) else ""
 
     if not logs_text or "No log files found" in logs_text:
-        exit_with_no_results(output_format, "No logs found for this job")
+        exit_with_no_results(output_format, f"No {label} found for this job")
 
     if output_format == "json":
         lines = [line for line in logs_text.splitlines() if line]
-        print(json.dumps({"job_id": int(job_id), "logs": logs_text, "line_count": len(lines)}))
+        print(json.dumps({"job_id": job_id, "logs": logs_text, "line_count": len(lines)}))
     else:
         console.print(logs_text)
+
+
+@app.command("machine-logs")
+def command_job_machine_logs(
+    job_id: str = typer.Argument(..., help="Job ID to fetch logs for"),
+    follow: bool = typer.Option(False, "--follow", "-f", help="Stream new lines continuously"),
+):
+    """Fetch machine/provider logs for a job. Use --follow to stream continuously."""
+    experiment_id = require_current_experiment()
+    output_format = cli_state.output_format
+
+    if follow:
+        _stream_logs_generic(experiment_id, job_id, output_format, fetch_logs)
+        return
+
+    _print_logs(experiment_id, job_id, output_format, fetch_logs, "machine logs")
+
+
+@app.command("task-logs")
+def command_job_task_logs(
+    job_id: str = typer.Argument(..., help="Job ID to fetch logs for"),
+    follow: bool = typer.Option(False, "--follow", "-f", help="Stream new lines continuously"),
+):
+    """Fetch task (Lab SDK) output for a job. Use --follow to stream continuously."""
+    experiment_id = require_current_experiment()
+    output_format = cli_state.output_format
+
+    if follow:
+        _stream_logs_generic(experiment_id, job_id, output_format, fetch_task_logs)
+        return
+
+    _print_logs(experiment_id, job_id, output_format, fetch_task_logs, "task logs")
+
+
+@app.command("request-logs")
+def command_job_request_logs(
+    job_id: str = typer.Argument(..., help="Job ID to fetch logs for"),
+):
+    """Fetch provider request/launch logs for a job (e.g. SkyPilot launch logs)."""
+    experiment_id = require_current_experiment()
+    output_format = cli_state.output_format
+
+    _print_logs(experiment_id, job_id, output_format, fetch_request_logs, "request logs")
+
+
+@app.command("logs", deprecated=True, hidden=True)
+def command_job_logs(
+    job_id: str = typer.Argument(..., help="Job ID to fetch logs for"),
+    follow: bool = typer.Option(False, "--follow", "-f", help="Stream new lines continuously"),
+):
+    """Deprecated: use 'machine-logs' instead."""
+    command_job_machine_logs(job_id, follow)
 
 
 @app.command("list")

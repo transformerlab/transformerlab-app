@@ -20,10 +20,6 @@
       "method": "GET",
       "path": "tasks/{id}/anystring/{anything}"
     },
-    "create": {
-      "method": "POST",
-      "path": "tasks/new_task"
-    },
     "delete": {
       "method": "DELETE",
       "path": "tasks/{id}/delete"
@@ -80,7 +76,7 @@
     },
     "create": {
       "method": "POST",
-      "path": "experiment/{experimentId}/task/new_task"
+      "path": "experiment/{experimentId}/task/create"
     },
     "delete": {
       "method": "GET",
@@ -476,14 +472,6 @@
     }
   },
   "experiment": {
-    "getScriptsOfTypeWithFilter": {
-      "method": "GET",
-      "path": "experiment/{experimentId}/plugins/list?type={type}&filter={filter}"
-    },
-    "getScriptsOfTypeWithoutFilter": {
-      "method": "GET",
-      "path": "experiment/{experimentId}/plugins/list?type={type}"
-    },
     "getAll": {
       "method": "GET",
       "path": "experiment/"

@@ -140,6 +140,22 @@ _uncached_fs_cache: dict[tuple[str, tuple[tuple[str, str], ...]], "fsspec.Abstra
 _uncached_fs_lock = threading.Lock()
 
 
+def _is_localfs_org_scoped_uri(uri: str | None) -> bool:
+    """Return True when uri is a localfs path containing /orgs/<org_id>/... ."""
+    if not uri:
+        return False
+
+    # Only apply this check to plain local filesystem paths.
+    if is_remote_path(uri):
+        return False
+
+    parts = [p for p in os.path.normpath(uri).split(os.sep) if p]
+    for i, part in enumerate(parts[:-1]):
+        if part == "orgs" and parts[i + 1] not in {"", "."}:
+            return True
+    return False
+
+
 def is_remote_path(path: str) -> bool:
     """
     Return True if the given path represents a remote storage location.
@@ -252,11 +268,15 @@ def _get_fs_and_root():
     tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
     uses_localfs_multi_org = STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI")
     if (tfl_remote_storage_enabled or uses_localfs_multi_org) and _current_tfl_storage_uri.get() is None:
-        raise RuntimeError(
-            "Organization context is required but not set. "
-            "Ensure set_organization_id() is called before accessing storage "
-            "(e.g. in request middleware or at the start of a background task)."
-        )
+        # Local provider subprocesses may receive an explicit org-scoped
+        # TFL_STORAGE_URI (<base>/orgs/<org_id>/workspace). In that case, allow
+        # storage access even without a propagated contextvar.
+        if not (uses_localfs_multi_org and _is_localfs_org_scoped_uri(tfl_uri)):
+            raise RuntimeError(
+                "Organization context is required but not set. "
+                "Ensure set_organization_id() is called before accessing storage "
+                "(e.g. in request middleware or at the start of a background task)."
+            )
 
     return _get_fs_for_uri(tfl_uri)
 

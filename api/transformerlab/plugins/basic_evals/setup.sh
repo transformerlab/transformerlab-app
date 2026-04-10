@@ -1,1 +1,0 @@
-uv pip install pandas tensorboardX RestrictedPython==8.0.0

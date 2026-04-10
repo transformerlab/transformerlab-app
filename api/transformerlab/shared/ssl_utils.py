@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import datetime as _dt
+import fcntl
 import ipaddress as _ip
 import os
+from contextlib import asynccontextmanager
 from typing import Tuple
 
 from cryptography import x509
@@ -18,10 +20,27 @@ __all__ = [
     "ensure_persistent_self_signed_cert",
 ]
 
-# In-process lock: prevents concurrent async tasks from racing to generate
-# the cert simultaneously. FileLock is not suitable here because the storage
-# awaits inside the critical section now genuinely yield to the event loop.
-_cert_lock = asyncio.Lock()
+
+async def _acquire_flock(lock_path: str) -> int:
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    while True:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fd
+        except BlockingIOError:
+            await asyncio.sleep(0.1)
+
+
+@asynccontextmanager
+async def _cert_generation_lock(cert_dir: str):
+    await storage.makedirs(cert_dir, exist_ok=True)
+    lock_path = os.path.join(cert_dir, ".cert-generation.lock")
+    lock_fd = await _acquire_flock(lock_path)
+    try:
+        yield
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
 
 
 async def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
@@ -31,7 +50,7 @@ async def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
     cert_path = os.path.join(cert_dir, "server-cert.pem")
     key_path = os.path.join(cert_dir, "server-key.pem")
 
-    async with _cert_lock:
+    async with _cert_generation_lock(cert_dir):
         if await storage.exists(cert_path) and await storage.exists(key_path):
             return cert_path, key_path
         await storage.makedirs(cert_dir, exist_ok=True)

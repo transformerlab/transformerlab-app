@@ -64,6 +64,84 @@ interface Cluster {
   provider_data?: any;
 }
 
+const parseGpuResources = (rawRun: any): Record<string, number> => {
+  const gpuSpec = rawRun?.run_spec?.configuration?.resources?.gpu;
+  if (!gpuSpec) return {};
+
+  const names: string[] = Array.isArray(gpuSpec.name)
+    ? gpuSpec.name
+    : gpuSpec.name
+      ? [String(gpuSpec.name)]
+      : [];
+  const gpuName = names[0] || gpuSpec.vendor || 'GPU';
+  const count = Number(gpuSpec?.count?.min ?? 0);
+  if (!gpuName || Number.isNaN(count) || count <= 0) return {};
+  return { [gpuName]: count };
+};
+
+const normalizeClusters = (
+  rawClusters: any[],
+  providerType: string | undefined,
+): Cluster[] => {
+  if (!Array.isArray(rawClusters)) return [];
+
+  // dstack returns "runs", not internal Cluster objects expected by this view.
+  if (providerType === 'dstack') {
+    return rawClusters.map((run: any): Cluster => {
+      const backend =
+        run?.latest_job_submission?.job_provisioning_data?.backend ||
+        run?.jobs?.[0]?.job_submissions?.[0]?.job_provisioning_data?.backend;
+      const nodeName =
+        run?.latest_job_submission?.job_provisioning_data?.instance_id ||
+        run?.id ||
+        run?.run_spec?.run_name ||
+        'unknown-node';
+      const resources = run?.run_spec?.configuration?.resources || {};
+      const cpuTotal = Number(resources?.cpu?.min ?? 0);
+      const memoryTotal = Number(resources?.memory?.min ?? 0);
+      const status = String(run?.status || '').toLowerCase();
+      const isActive = [
+        'running',
+        'submitted',
+        'provisioning',
+        'pending',
+      ].includes(status);
+
+      return {
+        cluster_id: run?.id || run?.run_spec?.run_name || 'unknown-cluster',
+        cluster_name: run?.run_spec?.run_name || run?.id || 'unknown-cluster',
+        cloud_provider: backend ? String(backend).toUpperCase() : 'DSTACK',
+        backend_type: 'DSTACK',
+        elastic_enabled: true,
+        max_nodes: 1,
+        nodes: [
+          {
+            node_name: String(nodeName),
+            is_fixed: false,
+            is_active: isActive,
+            state: String(run?.status || 'UNKNOWN').toUpperCase(),
+            reason: String(run?.status_message || ''),
+            resources: {
+              cpus_total: cpuTotal,
+              cpus_allocated: isActive ? cpuTotal : 0,
+              gpus: parseGpuResources(run),
+              gpus_free: {},
+              memory_gb_total: memoryTotal,
+              memory_gb_allocated: isActive ? memoryTotal : 0,
+            },
+          },
+        ],
+        provider_data: run,
+      };
+    });
+  }
+
+  return rawClusters.map((cluster: any) => ({
+    ...cluster,
+    nodes: Array.isArray(cluster?.nodes) ? cluster.nodes : [],
+  }));
+};
+
 const Resources = () => {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
@@ -133,8 +211,14 @@ const Resources = () => {
       );
       if (response.ok) {
         const clustersData = await response.json();
-        console.log('Clusters data:', clustersData); // Added console.log to see the output
-        setClusters(Array.isArray(clustersData) ? clustersData : []);
+        const providerType = providers.find(
+          (p) => p.id === selectedProvider,
+        )?.type;
+        const normalized = normalizeClusters(
+          Array.isArray(clustersData) ? clustersData : [],
+          providerType,
+        );
+        setClusters(normalized);
       } else {
         console.error('Failed to fetch clusters:', await response.text());
         setClusters([]);
@@ -248,7 +332,7 @@ const Resources = () => {
       cloudGroups[cloudName].push(cluster);
     }
 
-    cluster.nodes.forEach((node) => {
+    (cluster.nodes || []).forEach((node) => {
       if (node.is_active) {
         activeNodesWithCluster.push({ node, cluster });
       }
@@ -594,7 +678,7 @@ const Resources = () => {
                           // Count clusters with active nodes
                           const activeClusters = cloudClusters.filter(
                             (c) =>
-                              c.nodes.length > 0 &&
+                              (c.nodes?.length ?? 0) > 0 &&
                               c.nodes.some((n) => n.is_active),
                           );
                           const totalClusters = activeClusters.length;

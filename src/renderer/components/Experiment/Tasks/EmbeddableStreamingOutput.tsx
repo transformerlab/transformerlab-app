@@ -8,6 +8,7 @@ import React, {
 import {
   Alert,
   Box,
+  Button,
   Checkbox,
   Chip,
   CircularProgress,
@@ -18,6 +19,7 @@ import {
   Typography,
 } from '@mui/joy';
 import { RefreshCwIcon } from 'lucide-react';
+import { useAuth } from 'renderer/lib/authContext';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -198,11 +200,12 @@ function RefreshIndicator({
   );
 }
 
-type TabValue = 'output' | 'provider';
+type TabValue = 'output' | 'provider' | 'skypilot';
 
 const TAB_OPTIONS: { value: TabValue; label: string }[] = [
   { value: 'output', label: 'Lab SDK Output' },
   { value: 'provider', label: 'Machine Logs' },
+  { value: 'skypilot', label: 'SkyPilot Logs' },
 ];
 
 export interface EmbeddableStreamingOutputProps {
@@ -211,17 +214,24 @@ export interface EmbeddableStreamingOutputProps {
   tabs?: TabValue[];
   /** Current job status string (e.g. 'RUNNING', 'COMPLETE'). Passed from the parent to avoid extra polling. */
   jobStatus?: string;
+  /** The SkyPilot request ID for the job, shown in the SkyPilot Logs tab. */
+  skypilotRequestId?: string;
 }
 
 export default function EmbeddableStreamingOutput({
   jobId,
   tabs: tabsProp = ['output', 'provider'],
   jobStatus = '',
+  skypilotRequestId,
 }: EmbeddableStreamingOutputProps) {
   const { experimentInfo } = useExperimentInfo();
+  const { fetchWithAuth } = useAuth();
   const [activeTab, setActiveTab] = useState<TabValue>('output');
   const [viewLiveProviderLogs, setViewLiveProviderLogs] =
     useState<boolean>(false);
+  const [requestLogs, setRequestLogs] = useState<string>('');
+  const [requestLogsLoading, setRequestLogsLoading] = useState(false);
+  const [requestLogsError, setRequestLogsError] = useState<string>('');
 
   const tabs = tabsProp.length > 0 ? tabsProp : ['output', 'provider'];
   const showTabList = tabs.length > 1;
@@ -232,6 +242,8 @@ export default function EmbeddableStreamingOutput({
       tabs.includes(current) ? current : ((tabs[0] ?? 'output') as TabValue),
     );
     setViewLiveProviderLogs(false);
+    setRequestLogs('');
+    setRequestLogsError('');
     // tabsKey is a stable serialization of tabs to avoid array reference churn
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId, tabsKey]);
@@ -317,6 +329,30 @@ export default function EmbeddableStreamingOutput({
     resetProviderCountdown,
   ]);
 
+  const fetchRequestLogs = useCallback(async () => {
+    if (!experimentInfo?.id || !jobId) return;
+    setRequestLogsLoading(true);
+    setRequestLogsError('');
+    try {
+      const url = chatAPI.Endpoints.Experiment.GetRequestLogs(
+        experimentInfo.id,
+        String(jobId),
+      );
+      const response = await fetchWithAuth(url);
+      if (!response.ok) {
+        const detail = await response.text();
+        setRequestLogsError(detail || `HTTP ${response.status}`);
+        return;
+      }
+      const data = await response.json();
+      setRequestLogs(typeof data.logs === 'string' ? data.logs : '');
+    } catch (err: any) {
+      setRequestLogsError(err?.message || 'Failed to fetch request logs');
+    } finally {
+      setRequestLogsLoading(false);
+    }
+  }, [experimentInfo?.id, jobId, fetchWithAuth]);
+
   if (!jobId || !experimentInfo) {
     return null;
   }
@@ -340,7 +376,9 @@ export default function EmbeddableStreamingOutput({
           onChange={(_event, value) => {
             if (
               typeof value === 'string' &&
-              (value === 'output' || value === 'provider')
+              (value === 'output' ||
+                value === 'provider' ||
+                value === 'skypilot')
             ) {
               setActiveTab(value as TabValue);
             }
@@ -398,14 +436,37 @@ export default function EmbeddableStreamingOutput({
               )}
             </>
           )}
+          {activeTab === 'skypilot' && skypilotRequestId && (
+            <>
+              <Typography level="body-sm" sx={{ fontFamily: 'monospace' }}>
+                Request ID: {skypilotRequestId}
+              </Typography>
+              {requestLogs && (
+                <IconButton
+                  size="sm"
+                  variant="plain"
+                  color="neutral"
+                  onClick={fetchRequestLogs}
+                  disabled={requestLogsLoading}
+                  sx={{ minHeight: 'unset', minWidth: 'unset', p: 0.25 }}
+                >
+                  <RefreshCwIcon size={12} />
+                </IconButton>
+              )}
+            </>
+          )}
         </Box>
-        <RefreshIndicator
-          seconds={activeTab === 'output' ? outputCountdown : providerCountdown}
-          isRefreshing={
-            activeTab === 'output' ? outputIsValidating : providerIsValidating
-          }
-          onRefresh={handleManualRefresh}
-        />
+        {activeTab !== 'skypilot' && (
+          <RefreshIndicator
+            seconds={
+              activeTab === 'output' ? outputCountdown : providerCountdown
+            }
+            isRefreshing={
+              activeTab === 'output' ? outputIsValidating : providerIsValidating
+            }
+            onRefresh={handleManualRefresh}
+          />
+        )}
       </Box>
       <Box
         sx={{
@@ -417,7 +478,7 @@ export default function EmbeddableStreamingOutput({
           flexDirection: 'column',
         }}
       >
-        {tabs.includes('output') && activeTab === 'output' ? (
+        {activeTab === 'output' ? (
           <Box
             sx={{
               padding: '8px 11px',
@@ -440,6 +501,82 @@ export default function EmbeddableStreamingOutput({
               onValidatingChange={handleOutputValidatingChange}
               onMutateReady={handleOutputMutateReady}
             />
+          </Box>
+        ) : activeTab === 'skypilot' ? (
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: '#000',
+              borderRadius: '8px',
+              padding: '8px 11px',
+              gap: 1,
+            }}
+          >
+            {!requestLogs && !requestLogsLoading && !requestLogsError && (
+              <Box
+                sx={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Button
+                  variant="soft"
+                  color="neutral"
+                  onClick={fetchRequestLogs}
+                >
+                  Fetch Request Logs
+                </Button>
+              </Box>
+            )}
+            {requestLogsLoading && (
+              <Box
+                sx={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CircularProgress size="sm" />
+              </Box>
+            )}
+            {requestLogsError && (
+              <Box
+                sx={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1,
+                }}
+              >
+                <Alert
+                  color="danger"
+                  variant="soft"
+                  sx={{ maxWidth: '600px', width: '100%' }}
+                >
+                  {requestLogsError}
+                </Alert>
+                <Button
+                  variant="soft"
+                  color="neutral"
+                  size="sm"
+                  onClick={fetchRequestLogs}
+                >
+                  Retry
+                </Button>
+              </Box>
+            )}
+            {requestLogs && !requestLogsLoading && (
+              <ProviderLogsTerminal logsText={requestLogs} />
+            )}
           </Box>
         ) : (
           <Box

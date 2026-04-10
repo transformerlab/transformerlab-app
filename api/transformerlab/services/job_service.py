@@ -363,8 +363,17 @@ async def job_delete(job_id, experiment_id):
 
 async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id):
     try:
-        job = await Job.get(job_id, experiment_id)
+        # Resolve canonical job id so cache invalidation targets the right key.
+        resolved_id = await _resolve_full_job_id(str(job_id), str(experiment_id))
+        actual_id = resolved_id or str(job_id)
+
+        job = await Job.get(actual_id, experiment_id)
         await job.update_job_data_field(key, value)
+
+        # Invalidate cache so readers don't observe stale job_data snapshots,
+        # especially for fast-finishing jobs that transition to terminal quickly.
+        await cache.invalidate(f"job:{actual_id}")
+        await cache.delete(_job_cache_key(actual_id))
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
 

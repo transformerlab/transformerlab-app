@@ -10,7 +10,6 @@ import re
 import json
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-import sys
 
 import fastapi
 
@@ -41,7 +40,6 @@ from transformerlab.routers import (  # noqa: E402
     data,
     model,
     serverinfo,
-    plugins,
     config,
     teams,
     compute_provider,
@@ -127,9 +125,6 @@ async def lifespan(app: FastAPI):
         from transformerlab.services.migrate_jobs_to_experiment_dirs import start_jobs_migration_worker
 
         await start_jobs_migration_worker()
-
-        if "--reload" in sys.argv:
-            await install_all_plugins()
 
         # Start background sweep status updater after all startup steps succeed.
         await start_sweep_status_worker()
@@ -302,7 +297,6 @@ app.include_router(model.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(serverinfo.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(data.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(experiment.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(plugins.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(jobs.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(config.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
@@ -313,15 +307,6 @@ app.include_router(quota.router)
 app.include_router(ssh_keys.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(asset_versions.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(trackio.router, dependencies=[Depends(get_user_and_team)])
-
-
-async def install_all_plugins():
-    all_plugins = await plugins.list_plugins()
-    print("Re-copying all plugin files from source to workspace")
-    for plugin in all_plugins:
-        plugin_id = plugin["uniqueId"]
-        print(f"Refreshing workspace plugin: {plugin_id}")
-        await plugins.copy_plugin_files_to_workspace(plugin_id)
 
 
 # @app.get("/")
@@ -387,7 +372,6 @@ def parse_args():
     parser.add_argument("--allowed-origins", type=json.loads, default=["*"], help="allowed origins")
     parser.add_argument("--allowed-methods", type=json.loads, default=["*"], help="allowed methods")
     parser.add_argument("--allowed-headers", type=json.loads, default=["*"], help="allowed headers")
-    parser.add_argument("--auto_reinstall_plugins", type=bool, default=False, help="auto reinstall plugins")
     parser.add_argument("--https", action="store_true", help="Serve the API over HTTPS with a self-signed cert.")
 
     return parser.parse_args()

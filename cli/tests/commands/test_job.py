@@ -137,6 +137,129 @@ def test_job_list_json_no_spinner_text(mock_check, mock_get_config, mock_api):
     json.loads(result.output.strip())
 
 
+# ---------------------------------------------------------------------------
+# Log command tests
+# ---------------------------------------------------------------------------
+
+
+def _mock_logs_response(logs_text="line1\nline2\nline3"):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"logs": logs_text}
+    return mock_resp
+
+
+def _mock_error_response(status_code=500):
+    mock_resp = MagicMock()
+    mock_resp.status_code = status_code
+    mock_resp.json.return_value = {"detail": "something went wrong"}
+    return mock_resp
+
+
+@patch("transformerlab_cli.commands.job.fetch_logs", return_value=_mock_logs_response())
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_machine_logs_pretty(mock_require, mock_fetch):
+    """machine-logs prints log text in pretty mode."""
+    result = runner.invoke(app, ["job", "machine-logs", "42"])
+    assert result.exit_code == 0
+    assert "line1" in result.output
+    assert "line3" in result.output
+
+
+@patch("transformerlab_cli.commands.job.fetch_logs", return_value=_mock_logs_response())
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_machine_logs_json(mock_require, mock_fetch):
+    """machine-logs --format json emits valid JSON with logs field."""
+    result = runner.invoke(app, ["--format", "json", "job", "machine-logs", "42"])
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip())
+    assert data["job_id"] == "42"
+    assert "line1" in data["logs"]
+    assert data["line_count"] == 3
+
+
+@patch("transformerlab_cli.commands.job.fetch_logs", return_value=_mock_error_response(502))
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_machine_logs_error(mock_require, mock_fetch):
+    """machine-logs returns non-zero exit on API error."""
+    result = runner.invoke(app, ["job", "machine-logs", "42"])
+    assert result.exit_code == 1
+
+
+@patch(
+    "transformerlab_cli.commands.job.fetch_task_logs",
+    return_value=_mock_logs_response("sdk output line 1\nsdk output line 2"),
+)
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_task_logs_pretty(mock_require, mock_fetch):
+    """task-logs prints task output in pretty mode."""
+    result = runner.invoke(app, ["job", "task-logs", "42"])
+    assert result.exit_code == 0
+    assert "sdk output line 1" in result.output
+
+
+@patch("transformerlab_cli.commands.job.fetch_task_logs", return_value=_mock_logs_response("sdk line"))
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_task_logs_json(mock_require, mock_fetch):
+    """task-logs --format json emits valid JSON."""
+    result = runner.invoke(app, ["--format", "json", "job", "task-logs", "42"])
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip())
+    assert "sdk line" in data["logs"]
+
+
+@patch("transformerlab_cli.commands.job.fetch_task_logs", return_value=_mock_error_response(404))
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_task_logs_error(mock_require, mock_fetch):
+    """task-logs returns non-zero exit on API error."""
+    result = runner.invoke(app, ["job", "task-logs", "42"])
+    assert result.exit_code == 1
+
+
+@patch(
+    "transformerlab_cli.commands.job.fetch_request_logs",
+    return_value=_mock_logs_response("Provisioning cluster...\nDone."),
+)
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_request_logs_pretty(mock_require, mock_fetch):
+    """request-logs prints request/launch logs in pretty mode."""
+    result = runner.invoke(app, ["job", "request-logs", "42"])
+    assert result.exit_code == 0
+    assert "Provisioning cluster" in result.output
+
+
+@patch("transformerlab_cli.commands.job.fetch_request_logs", return_value=_mock_logs_response("launch log"))
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_request_logs_json(mock_require, mock_fetch):
+    """request-logs --format json emits valid JSON."""
+    result = runner.invoke(app, ["--format", "json", "job", "request-logs", "42"])
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip())
+    assert "launch log" in data["logs"]
+
+
+@patch("transformerlab_cli.commands.job.fetch_request_logs", return_value=_mock_error_response(400))
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_request_logs_error(mock_require, mock_fetch):
+    """request-logs returns non-zero exit on API error."""
+    result = runner.invoke(app, ["job", "request-logs", "42"])
+    assert result.exit_code == 1
+
+
+@patch("transformerlab_cli.commands.job.fetch_logs", return_value=_mock_logs_response())
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_deprecated_logs_still_works(mock_require, mock_fetch):
+    """The deprecated 'logs' command should still work and delegate to machine-logs."""
+    result = runner.invoke(app, ["job", "logs", "42"])
+    assert result.exit_code == 0
+    assert "line1" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Publish command tests
+# ---------------------------------------------------------------------------
+
+
 @patch("transformerlab_cli.commands.job.api.post")
 @patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
 def test_job_publish_dataset_success(mock_require, mock_post):

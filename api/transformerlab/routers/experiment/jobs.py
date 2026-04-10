@@ -415,6 +415,71 @@ async def get_provider_job_logs(
     }
 
 
+@router.get("/{job_id}/request_logs")
+async def get_request_logs(
+    experimentId: str,
+    job_id: str,
+    tail_lines: int = Query(400, ge=100, le=5000),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Fetch logs for the provider-level request that launched this job.
+
+    This returns the orchestration/launch logs from the provider (e.g. SkyPilot
+    API server logs for a launch request), as opposed to the job's own stdout
+    or the machine-level provider logs.
+    """
+    job = await job_service.job_get_cached(job_id, experiment_id=experimentId)
+    if not job or str(job.get("experiment_id")) != str(experimentId):
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job_data = job.get("job_data") or {}
+    if not isinstance(job_data, dict):
+        try:
+            job_data = json.loads(job_data)
+        except JSONDecodeError:
+            job_data = {}
+
+    provider_id = job_data.get("provider_id")
+    if not provider_id:
+        raise HTTPException(status_code=400, detail="Job does not contain provider metadata (provider_id missing)")
+
+    provider_launch_result = job_data.get("provider_launch_result")
+    request_id = None
+    if isinstance(provider_launch_result, dict):
+        request_id = provider_launch_result.get("request_id")
+    if not request_id:
+        request_id = job_data.get("orchestrator_request_id")
+    if not request_id:
+        raise HTTPException(status_code=400, detail="Job does not have a provider request ID")
+
+    team_id = user_and_team["team_id"]
+    try:
+        provider_record = await get_team_provider(session, team_id, provider_id)
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail=f"Provider not found: {exc}") from exc
+
+    try:
+        provider_instance = await get_provider_instance(provider_record)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to instantiate provider: {exc}") from exc
+
+    try:
+        logs_text = provider_instance.get_request_logs(request_id, tail_lines=tail_lines)
+    except NotImplementedError:
+        raise HTTPException(
+            status_code=400, detail=f"Provider type '{provider_record.type}' does not support request logs"
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch request logs: {exc}") from exc
+
+    return {
+        "request_id": request_id,
+        "logs": logs_text,
+    }
+
+
 @router.get("/{job_id}/tunnel_info")
 async def get_tunnel_info_for_job(
     experimentId: str,
@@ -583,35 +648,6 @@ async def get_tunnel_info_for_job(
         "modal_subtitle": modal_subtitle,
         "instructions": instructions,
     }
-
-
-# Templates
-
-
-# @router.get("/template/{template_id}")
-# async def get_train_template(template_id: str):
-#     return await get_training_template(template_id)
-
-
-# @router.put("/template/update")
-# async def update_training_template(
-#     template_id: str,
-#     name: str,
-#     description: str,
-#     type: str,
-#     config: Annotated[str, Body(embed=True)],
-# ):
-#     try:
-#         configObject = json.loads(config)
-#         datasets = configObject["dataset_name"]
-#         job_service.update_training_template(template_id, name, description, type, datasets, config)
-#     except JSONDecodeError as e:
-#         print(f"JSON decode error: {e}")
-#         return {"status": "error", "message": "An error occurred while processing the request."}
-#     except Exception as e:
-#         print(f"Unexpected error: {e}")
-#         return {"status": "error", "message": "An internal error has occurred."}
-#     return {"status": "success"}
 
 
 @router.get("/{job_id}/stream_output")

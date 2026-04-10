@@ -126,7 +126,7 @@ WORKSPACE_DIR = HOME_DIR
 TFL_HOME_DIR is the directory that is the parent of the src and workspace directories.
 By default, it is set to ~/.transformerlab
 
-TFL_WORKSPACE_DIR is the directory where all the experiments, plugins, and models are stored.
+TFL_WORKSPACE_DIR is the directory where all the experiments, tasks, and models are stored.
 By default, it is set to TFL_HOME_DIR/workspace
 
 TFL_SOURCE_CODE_DIR is the directory where the source code is stored.
@@ -179,17 +179,6 @@ async def get_logs_dir() -> str:
 async def experiment_dir_by_name(experiment_name: str) -> str:
     experiments_dir = await get_experiments_dir()
     return storage.join(experiments_dir, experiment_name)
-
-
-async def get_plugin_dir() -> str:
-    workspace = await get_workspace_dir()
-    return storage.join(workspace, "plugins")
-
-
-async def plugin_dir_by_name(plugin_name: str) -> str:
-    plugin_name = secure_filename(plugin_name)
-    plugin_dir = await get_plugin_dir()
-    return storage.join(plugin_dir, plugin_name)
 
 
 async def get_models_dir() -> str:

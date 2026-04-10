@@ -4,7 +4,7 @@ Tasks are stored entirely on the filesystem — there are no database tables for
 
 ## Storage layout
 
-```
+```text
 {workspace}/
 ├── task/
 │   ├── {task_id}/
@@ -68,6 +68,7 @@ The canonical source of truth for a task. Flat structure — all fields at the t
 ```
 
 **Notes:**
+
 - `command` is a legacy field; `run` is the modern entrypoint. Both may be present.
 - `file_mounts: true` means uploaded files exist in `uploads/task/{id}/` and will be extracted to `~/src` at launch.
 - `type` is typically `"REMOTE"` for tasks sent to compute providers.
@@ -113,7 +114,7 @@ sweeps:
 minutes_requested: 60               # Quota request (minutes)
 ```
 
-When saved via `PUT /task2/{task_id}/yaml`, the YAML is parsed and `index.json` is updated to stay in sync.
+When saved via `PUT /task/{task_id}/yaml`, the YAML is parsed and `index.json` is updated to stay in sync.
 
 ## TaskTemplate class (lab-sdk)
 
@@ -126,12 +127,12 @@ The `TaskTemplate` class in `lab-sdk/src/lab/task_template.py` wraps the filesys
 ## API endpoints for task CRUD
 
 | Method | Endpoint | Purpose |
-|--------|----------|---------|
+| --- | --- | --- |
 | GET | `/task/list` | List all tasks |
 | GET | `/task/{task_id}/get` | Get task by ID |
 | PUT | `/task/{task_id}/update` | Update task metadata |
 | GET | `/task/{task_id}/delete` | Delete task |
-| GET | `/task2/{task_id}/yaml` | Get task.yaml for editing |
-| PUT | `/task2/{task_id}/yaml` | Save updated task.yaml |
-| POST | `/task2/validate` | Validate YAML without saving |
+| GET | `/task/{task_id}/yaml` | Get task.yaml for editing |
+| PUT | `/task/{task_id}/yaml` | Save updated task.yaml |
+| POST | `/task/validate` | Validate YAML without saving |
 | GET | `/task/{task_id}/files` | List files (GitHub or uploaded) |

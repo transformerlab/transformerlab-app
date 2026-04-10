@@ -26,7 +26,6 @@ Endpoints.Tasks = {
   Queue: (id: string) => `${API_URL()}tasks/${id}/queue`,
   GetByID: (id: string) => `${API_URL()}tasks/${id}/get`,
   UpdateTask: (id: string) => `${API_URL()}tasks/${id}/update`,
-  NewTask: () => `${API_URL()}tasks/new_task`,
   DeleteTask: (id: string) => `${API_URL()}tasks/${id}/delete`,
   Gallery: () => `${API_URL()}tasks/gallery`,
   ImportFromGallery: (experimentId: string) =>
@@ -58,8 +57,8 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task/${id}/get`,
   UpdateTemplate: (experimentId: string, id: string) =>
     `${API_URL()}experiment/${experimentId}/task/${id}/update`,
-  NewTemplate: (experimentId: string) =>
-    `${API_URL()}experiment/${experimentId}/task/new_task`,
+  CreateTemplate: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/create`,
   DeleteTemplate: (experimentId: string, id: string) =>
     `${API_URL()}experiment/${experimentId}/task/${id}/delete`,
   Gallery: (experimentId: string) =>
@@ -93,15 +92,15 @@ Endpoints.Task = {
   FetchTaskJson: (experimentId: string, url: string) =>
     `${API_URL()}experiment/${experimentId}/task/fetch_task_json?url=${encodeURIComponent(url)}`,
   FromDirectory: (experimentId: string) =>
-    `${API_URL()}experiment/${experimentId}/task2/from_directory`,
+    `${API_URL()}experiment/${experimentId}/task/create`,
   BlankFromYaml: (experimentId: string) =>
-    `${API_URL()}experiment/${experimentId}/task2/blank`,
+    `${API_URL()}experiment/${experimentId}/task/create`,
   GetYaml: (experimentId: string, taskId: string) =>
-    `${API_URL()}experiment/${experimentId}/task2/${taskId}/yaml`,
+    `${API_URL()}experiment/${experimentId}/task/${taskId}/yaml`,
   UpdateYaml: (experimentId: string, taskId: string) =>
-    `${API_URL()}experiment/${experimentId}/task2/${taskId}/yaml`,
+    `${API_URL()}experiment/${experimentId}/task/${taskId}/yaml`,
   ValidateYaml: (experimentId: string) =>
-    `${API_URL()}experiment/${experimentId}/task2/validate`,
+    `${API_URL()}experiment/${experimentId}/task/validate`,
   ListFiles: (experimentId: string, taskId: string) =>
     `${API_URL()}experiment/${experimentId}/task/${taskId}/files`,
   GetFile: (experimentId: string, taskId: string, filePath: string) =>
@@ -219,25 +218,6 @@ Endpoints.Models = {
     }`,
 };
 
-Endpoints.Plugins = {
-  Gallery: () => `${API_URL()}plugins/gallery`,
-  Info: (pluginId: string) => `${API_URL()}plugins/info?plugin_id=${pluginId}`,
-  Preview: (pluginId: string) =>
-    `${API_URL()}plugins/preview?pluginId=${pluginId}`,
-  List: () => `${API_URL()}plugins/list`,
-  RunPluginInstallScript: (pluginId: string) =>
-    `${API_URL()}plugins/${pluginId}/run_installer_script`,
-  SuggestLoader: (modelArchitecture: string) =>
-    `${API_URL()}plugins/suggest_loader?model_architecture=${encodeURIComponent(modelArchitecture)}`,
-};
-
-// Following is no longer needed as it is replaced with useAPI
-// Endpoints.Config = {
-//   Get: (key: string) => `${API_URL()}config/get/${key}`,
-//   Set: (key: string, value: string) =>
-//     `${API_URL()}config/set?k=${key}&v=${value}`,
-// };
-
 Endpoints.Documents = {
   List: (experimentId: string, currentFolder: string = '') =>
     `${API_URL()}experiment/${experimentId}/documents/list?folder=${
@@ -285,32 +265,6 @@ Endpoints.Experiment = {
     `${API_URL()}experiment/${id}/file_contents?filename=${filename}`,
   SaveFile: (id: string, filename: string) =>
     `${API_URL()}experiment/${id}/save_file_contents?filename=${filename}`,
-  GetPlugin: (id: string, plugin_name: string) => {
-    return `${API_URL()}experiment/${
-      id
-    }/evals/get_evaluation_plugin_file_contents?plugin_name=${plugin_name}`;
-  },
-  GetGenerationPlugin: (id: string, plugin_name: string) => {
-    return `${API_URL()}experiment/${
-      id
-    }/generations/get_evaluation_plugin_file_contents?plugin_name=${
-      plugin_name
-    }`;
-  },
-  RunEvaluation: (id: string, pluginName: string, evalName: string) => {
-    return `${API_URL()}experiment/${
-      id
-    }/evals/run_evaluation_script?eval_name=${evalName}&plugin_name=${
-      pluginName
-    }`;
-  },
-  RunGeneration: (id: string, pluginName: string, evalName: string) => {
-    return `${API_URL()}experiment/${
-      id
-    }/generations/run_generation_script?generation_name=${
-      evalName
-    }&plugin_name=${pluginName}`;
-  },
   DeleteEval: (experimentId: string, evalName: string) =>
     `${API_URL()}experiment/${experimentId}/evals/delete` +
     `?eval_name=${evalName}`,
@@ -323,18 +277,6 @@ Endpoints.Experiment = {
   GetGenerationOutput: (experimentId: string, eval_name: string) =>
     `${API_URL()}experiment/${experimentId}/generations/get_output` +
     `?eval_name=${eval_name}`,
-  RunExport: (
-    id: string,
-    pluginName: string,
-    pluginArchitecture: string,
-    pluginParams: string,
-  ) => {
-    return `${API_URL()}experiment/${
-      id
-    }/export/run_exporter_script?plugin_name=${
-      pluginName
-    }&plugin_architecture=${pluginArchitecture}&plugin_params=${pluginParams}`;
-  },
   SaveConversation: (experimentId: String) =>
     `${API_URL()}experiment/${experimentId}/conversations/save`,
   GetConversations: (experimentId: string) =>
@@ -345,48 +287,6 @@ Endpoints.Experiment = {
         conversationId
       }`,
     ),
-  InstallPlugin: (pluginId: string) =>
-    `${API_URL()}plugins/gallery/${pluginId}/install`,
-  DeletePlugin: (pluginId: string) =>
-    `${API_URL()}plugins/delete_plugin?plugin_name=${pluginId}`,
-  ListScripts: (experimentId: string) =>
-    FULL_PATH(`experiment/${experimentId}/plugins/list`),
-  ListScriptsOfType: (
-    experimentId: string,
-    type: string,
-    filter: string | null = null,
-  ) =>
-    FULL_PATH(
-      `experiment/${experimentId}/plugins/list?type=${
-        type
-      }${filter ? `&filter=${filter}` : ''}`,
-    ),
-  ScriptListFiles: (experimentId: string, id: string) =>
-    `${API_URL()}experiment/${experimentId}/plugins/${id}/list_files`,
-  ScriptGetFile: (experimentId: string, pluginId: string, filename: string) =>
-    `${API_URL()}experiment/${experimentId}/plugins/${
-      pluginId
-    }/file_contents?filename=${filename}`,
-  ScriptNewFile: (experimentId: string, pluginId: string, filename: string) =>
-    `${API_URL()}experiment/${experimentId}/plugins/${
-      pluginId
-    }/create_new_file?filename=${filename}`,
-  ScriptDeleteFile: (
-    experimentId: string,
-    pluginId: string,
-    filename: string,
-  ) =>
-    `${API_URL()}experiment/${experimentId}/plugins/${
-      pluginId
-    }/delete_file?filename=${filename}`,
-  ScriptSaveFile: (experimentId: string, pluginId: string, filename: string) =>
-    `${API_URL()}experiment/${experimentId}/plugins/${
-      pluginId
-    }/save_file_contents?filename=${filename}`,
-  ScriptCreateNew: (experimentId: string, pluginId: string) =>
-    `${API_URL()}experiment/${experimentId}/plugins/new_plugin?pluginId=${
-      pluginId
-    }`,
   GetOutputFromJob: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/output`,
   GetTasksOutputFromJob: (experimentId: string, jobId: string) =>
@@ -410,6 +310,12 @@ Endpoints.Experiment = {
     live: boolean = false,
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/provider_logs?tail_lines=${tailLines}&live=${live}`,
+  GetRequestLogs: (
+    experimentId: string,
+    jobId: string,
+    tailLines: number = 400,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/request_logs?tail_lines=${tailLines}`,
   GetTunnelInfo: (
     experimentId: string,
     jobId: string,
@@ -502,28 +408,30 @@ Endpoints.Users = {
 Endpoints.AssetVersions = {
   ListGroups: (assetType: string) =>
     `${API_URL()}asset_versions/groups?asset_type=${assetType}`,
-  DeleteGroup: (assetType: string, groupName: string) =>
-    `${API_URL()}asset_versions/groups/${assetType}/${groupName}`,
+  DeleteGroup: (assetType: string, groupId: string) =>
+    `${API_URL()}asset_versions/groups/${assetType}/${groupId}`,
+  UpdateGroup: (assetType: string, groupId: string) =>
+    `${API_URL()}asset_versions/groups/${assetType}/${groupId}`,
   CreateVersion: () => `${API_URL()}asset_versions/versions`,
-  ListVersions: (assetType: string, groupName: string) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}`,
-  GetVersion: (assetType: string, groupName: string, versionLabel: string) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
-  DeleteVersion: (assetType: string, groupName: string, versionLabel: string) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
-  UpdateVersion: (assetType: string, groupName: string, versionLabel: string) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}`,
-  SetTag: (assetType: string, groupName: string, versionLabel: string) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}/tag`,
-  ClearTag: (assetType: string, groupName: string, versionLabel: string) =>
-    `${API_URL()}asset_versions/versions/${assetType}/${groupName}/${versionLabel}/tag`,
+  ListVersions: (assetType: string, groupId: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupId}`,
+  GetVersion: (assetType: string, groupId: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupId}/${versionLabel}`,
+  DeleteVersion: (assetType: string, groupId: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupId}/${versionLabel}`,
+  UpdateVersion: (assetType: string, groupId: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupId}/${versionLabel}`,
+  SetTag: (assetType: string, groupId: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupId}/${versionLabel}/tag`,
+  ClearTag: (assetType: string, groupId: string, versionLabel: string) =>
+    `${API_URL()}asset_versions/versions/${assetType}/${groupId}/${versionLabel}/tag`,
   Resolve: (
     assetType: string,
-    groupName: string,
+    groupId: string,
     tag?: string,
     versionLabel?: string,
   ) => {
-    let url = `${API_URL()}asset_versions/resolve/${assetType}/${groupName}`;
+    let url = `${API_URL()}asset_versions/resolve/${assetType}/${groupId}`;
     const params: string[] = [];
     if (tag) params.push(`tag=${tag}`);
     if (versionLabel !== undefined)

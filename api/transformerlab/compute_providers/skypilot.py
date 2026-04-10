@@ -451,7 +451,7 @@ class SkyPilotProvider(ComputeProvider):
             response = self._make_authenticated_request("POST", "/launch", json_data=body_json, timeout=5)
         except ConnectionError as e:
             print(f"Failed to launch cluster {cluster_name}: {e}")
-            return {"status": "error", "message": str(e)}
+            raise
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         if self._server_common:
@@ -496,7 +496,7 @@ class SkyPilotProvider(ComputeProvider):
             response = self._make_authenticated_request("POST", "/down", json_data=body_json, timeout=30)
         except ConnectionError as e:
             print(f"Failed to stop cluster {cluster_name}: {e}")
-            return {"status": "error", "message": str(e)}
+            raise
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         request_id = None
@@ -1066,7 +1066,7 @@ class SkyPilotProvider(ComputeProvider):
             response = self._make_authenticated_request("POST", "/exec", json_data=body_json, timeout=5)
         except ConnectionError as e:
             print(f"Failed to exec on cluster {cluster_name}: {e}")
-            return {"status": "error", "message": str(e)}
+            raise
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         if self._server_common:
@@ -1184,6 +1184,40 @@ class SkyPilotProvider(ComputeProvider):
                 print(f"Error reading logs: {str(e)}")
                 return "Error reading logs"
 
+    def get_request_logs(
+        self,
+        request_id: str,
+        tail_lines: Optional[int] = None,
+    ) -> str:
+        """Get logs for a SkyPilot API server request by its request ID."""
+        params = f"request_id={request_id}&format=plain"
+        if tail_lines:
+            params += f"&tail={tail_lines}"
+
+        try:
+            from sky.client import common as client_common
+
+            timeout = (
+                getattr(client_common, "API_SERVER_REQUEST_CONNECTION_TIMEOUT_SECONDS", 5),
+                None,
+            )
+        except (ImportError, AttributeError):
+            timeout = (5, None)
+
+        try:
+            response = self._make_authenticated_request("GET", f"/api/stream?{params}", json_data=None, timeout=timeout)
+        except ConnectionError as e:
+            return f"Failed to fetch request logs: {e}"
+
+        try:
+            if hasattr(response, "text"):
+                return response.text
+            elif hasattr(response, "content"):
+                return response.content.decode("utf-8")
+            return ""
+        except Exception as e:
+            return f"Error reading request logs: {e}"
+
     def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
         """Cancel a job."""
         # Convert job_id to int if it's a string
@@ -1214,7 +1248,7 @@ class SkyPilotProvider(ComputeProvider):
             response = self._make_authenticated_request("POST", "/cancel", json_data=body_json, timeout=5)
         except ConnectionError as e:
             print(f"Failed to cancel job on cluster {cluster_name}: {e}")
-            return {"status": "error", "message": str(e)}
+            raise
 
         # Get request ID using SkyPilot's method (matches SDK exactly)
         if self._server_common:

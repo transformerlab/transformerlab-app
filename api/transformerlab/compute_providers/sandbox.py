@@ -81,16 +81,21 @@ def _build_seatbelt_profile(
     for p in extra_read_paths:
         if p:
             rules.append(f'(allow file-read* (subpath "{p}"))')
-    # macOS system libraries and developer tools (needed by git, xcrun, etc.)
+    # Avoid path-by-path allowlisting churn for system files:
+    # permit read-only access everywhere, while keeping writes scoped by
+    # workspace_dir/extra_rw_paths plus /private for temp/runtime paths.
     rules += [
-        '(allow file-read* (subpath "/Library"))',
-        '(allow file-read* (subpath "/usr"))',
-        '(allow file-read* (subpath "/bin"))',
-        '(allow file-read* (subpath "/sbin"))',
-        # SSL config needed for HTTPS git clone
-        '(allow file-read* (subpath "/private/etc"))',
-        # xcrun writes temp cache files under /private/var/folders
-        '(allow file* (subpath "/private/var/folders"))',
+        "(allow file-read*)",
+        '(allow file* (subpath "/private"))',
+        '(allow file* (subpath "/tmp"))',
+        '(allow file* (subpath "/var"))',
+        '(allow file* (subpath "/etc"))',
+        '(allow file* (subpath "/opt"))',
+        '(allow file* (subpath "/Applications"))',
+        '(allow file* (subpath "/Library"))',
+        '(allow file* (subpath "/usr"))',
+        '(allow file* (subpath "/bin"))',
+        '(allow file* (subpath "/sbin"))',
     ]
     # GPU device files (CUDA / Metal)
     rules += [
@@ -158,16 +163,6 @@ def make_seatbelt_preexec(
 
 _BWRAP_BIN: Optional[str] = None
 _BWRAP_AVAILABLE: Optional[bool] = None
-_LINUX_BASE_RO_PATHS: tuple[str, ...] = (
-    "/usr",
-    "/bin",
-    "/sbin",
-    "/lib",
-    "/lib64",
-    "/etc",
-    "/var",
-    "/opt",
-)
 
 
 def _find_bwrap() -> bool:
@@ -195,9 +190,9 @@ def wrap_command_with_bwrap(
     """
     Wrap *cmd* in a bwrap invocation that:
       - Creates a new filesystem namespace
-      - Bind-mounts common Linux system paths read-only
+      - Bind-mounts host filesystem read-only
       - Bind-mounts workspace_dir read-write
-      - Bind-mounts extra_read_paths read-only (shared caches)
+      - Bind-mounts extra_read_paths read-only (kept for parity/overrides)
       - Bind-mounts /dev (needed for GPU device files)
       - Bind-mounts /proc and /sys
       - Shares the host network namespace (models still download); see --share-net
@@ -217,6 +212,10 @@ def wrap_command_with_bwrap(
         bwrap,
         "--share-net",
         "--unshare-ipc",
+        # Broad read-only view of the host FS to avoid path-by-path allowlist churn.
+        "--ro-bind",
+        "/",
+        "/",
         "--dev-bind",
         "/dev",
         "/dev",
@@ -232,12 +231,6 @@ def wrap_command_with_bwrap(
         workspace_dir,
     ]
 
-    # Keep core system binaries/libs/config readable without exposing the entire
-    # host filesystem like "--ro-bind / /".
-    for p in _LINUX_BASE_RO_PATHS:
-        if os.path.exists(p):
-            args += ["--ro-bind", p, p]
-
     for p in extra_read_paths:
         if p and os.path.exists(p):
             args += ["--ro-bind", p, p]
@@ -245,6 +238,20 @@ def wrap_command_with_bwrap(
     for p in extra_rw_paths or []:
         if p and os.path.exists(p):
             args += ["--bind", p, p]
+
+    # DNS resolution fix: /etc/resolv.conf is often a symlink into a systemd
+    # submount (e.g. /run/systemd/resolve/stub-resolv.conf).  Submounts are NOT
+    # included in a parent --ro-bind, so the symlink target is missing and DNS
+    # silently fails.  Explicitly bind the real file and any resolver submounts.
+    for dns_dir in ("/run/systemd/resolve", "/run/resolvconf"):
+        if os.path.isdir(dns_dir):
+            args += ["--ro-bind", dns_dir, dns_dir]
+
+    resolv_real = os.path.realpath("/etc/resolv.conf")
+    if os.path.isfile(resolv_real):
+        # Override whatever was mounted for /etc/resolv.conf (possibly a broken
+        # symlink) with a direct bind of the actual file.
+        args += ["--ro-bind", resolv_real, "/etc/resolv.conf"]
 
     args += cmd
     return args

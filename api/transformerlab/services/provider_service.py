@@ -239,6 +239,7 @@ def db_record_to_provider_config(
         name=record.name,
         server_url=config_dict.get("server_url"),
         api_token=config_dict.get("api_token"),
+        dstack_project=config_dict.get("dstack_project"),
         default_env_vars=config_dict.get("default_env_vars", {}),
         default_entrypoint_run=config_dict.get("default_entrypoint_run"),
         mode=config_dict.get("mode"),

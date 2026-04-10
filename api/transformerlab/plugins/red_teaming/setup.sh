@@ -1,1 +1,0 @@
-uv pip install deepeval==2.6.4 deepteam==0.0.7 tensorboardX instructor anthropic openai instructor

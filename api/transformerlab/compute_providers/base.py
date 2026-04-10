@@ -25,6 +25,11 @@ class ComputeProvider(ABC):
 
         Returns:
             Dictionary with launch result (e.g., request_id, cluster_name)
+
+        Raises:
+            Exception: If the launch fails for any reason (connection error,
+                authentication failure, etc.). Raise an exception rather than
+                returning an error dict so callers can handle failures uniformly.
         """
         raise NotImplementedError
 
@@ -160,6 +165,26 @@ class ComputeProvider(ABC):
             True if the provider is active and accessible, False otherwise
         """
         raise NotImplementedError
+
+    def get_request_logs(
+        self,
+        request_id: str,
+        tail_lines: Optional[int] = None,
+    ) -> str:
+        """
+        Get logs for a provider-level request (e.g. a launch or setup operation).
+
+        Not all providers support this. The default raises NotImplementedError.
+        Providers that track operations by request ID should override this.
+
+        Args:
+            request_id: The provider request/operation ID
+            tail_lines: Number of lines to retrieve from the end (None for all)
+
+        Returns:
+            Log content as a string
+        """
+        raise NotImplementedError(f"{type(self).__name__} does not support request logs")
 
     def setup(
         self,

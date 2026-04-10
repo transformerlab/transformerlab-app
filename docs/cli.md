@@ -51,7 +51,7 @@ cli/src/transformerlab_cli/
 ├── commands/            # One module per command group
 │   ├── login.py         # lab login
 │   ├── logout.py        # lab logout
-│   ├── job.py           # lab job {list,info,logs,download,monitor,...}
+│   ├── job.py           # lab job {list,info,machine-logs,task-logs,request-logs,download,monitor,...}
 │   ├── task.py          # lab task {list,add,delete,...}
 │   ├── status.py        # lab status
 │   ├── provider.py      # lab provider {list,...}

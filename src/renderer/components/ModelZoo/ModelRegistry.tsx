@@ -21,36 +21,43 @@ import {
   Button,
   Chip,
   CircularProgress,
+  DialogTitle,
   FormControl,
   FormLabel,
   IconButton,
   Input,
+  Modal,
+  ModalClose,
+  ModalDialog,
   Option,
   Select,
   Sheet,
   Skeleton,
   Stack,
   Table,
+  Textarea,
   Tooltip,
   Typography,
 } from '@mui/joy';
 import {
   BriefcaseIcon,
-  CheckCircle2Icon,
   ChevronDownIcon,
   PackageIcon,
+  PencilIcon,
   PlayIcon,
   RotateCcwIcon,
   SearchIcon,
   Trash2Icon,
   XIcon,
 } from 'lucide-react';
-import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
-import { fetchWithAuth } from 'renderer/lib/authContext';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import {
+  useSWRWithAuth as useSWR,
+  fetchWithAuth,
+} from 'renderer/lib/authContext';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../lib/transformerlab-api-sdk';
 import { licenseTypes, modelTypes } from '../../lib/utils';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 dayjs.extend(relativeTime);
 
@@ -74,8 +81,10 @@ interface VersionEntry {
 }
 
 interface GroupSummary {
+  group_id: string;
   group_name: string;
   asset_type: string;
+  description: string;
   version_count: number;
   latest_version_label: string | null;
   latest_tag: string | null;
@@ -153,25 +162,19 @@ function RegistrySkeleton() {
 function VersionRow({
   v,
   assetType,
-  groupName,
+  groupId,
   updatingVersion,
-  selectingVersion,
-  isCurrentFoundation,
   onSetTag,
   onClearTag,
   onDelete,
-  onSelect,
 }: {
   v: VersionEntry;
   assetType: string;
-  groupName: string;
+  groupId: string;
   updatingVersion: string | null;
-  selectingVersion: string | null;
-  isCurrentFoundation: boolean;
   onSetTag: (versionLabel: string, tag: string) => void;
   onClearTag: (versionLabel: string) => void;
   onDelete: (versionLabel: string) => void;
-  onSelect: (version: VersionEntry) => void;
 }) {
   return (
     <tr key={v.id}>
@@ -288,29 +291,22 @@ function VersionRow({
 // ─── Expanded group content ──────────────────────────────────────────────────
 
 function GroupVersionsTable({
-  groupName,
+  groupId,
   assetType,
   mutateGroups,
-  experimentInfo,
-  experimentInfoMutate,
-  currentFoundation,
 }: {
-  groupName: string;
+  groupId: string;
   assetType: string;
   mutateGroups: () => void;
-  experimentInfo: any;
-  experimentInfoMutate: () => void;
-  currentFoundation: string;
 }) {
   const [updatingVersion, setUpdatingVersion] = useState<string | null>(null);
-  const [selectingVersion, setSelectingVersion] = useState<string | null>(null);
 
   const {
     data: versions,
     isLoading,
     mutate,
   } = useSWR(
-    chatAPI.Endpoints.AssetVersions.ListVersions(assetType, groupName),
+    chatAPI.Endpoints.AssetVersions.ListVersions(assetType, groupId),
     fetcher,
   );
 
@@ -320,7 +316,7 @@ function GroupVersionsTable({
       await fetchWithAuth(
         chatAPI.Endpoints.AssetVersions.SetTag(
           assetType,
-          groupName,
+          groupId,
           versionLabel,
         ),
         {
@@ -344,7 +340,7 @@ function GroupVersionsTable({
       await fetchWithAuth(
         chatAPI.Endpoints.AssetVersions.ClearTag(
           assetType,
-          groupName,
+          groupId,
           versionLabel,
         ),
         { method: 'DELETE' },
@@ -361,7 +357,7 @@ function GroupVersionsTable({
   const handleDeleteVersion = async (versionLabel: string) => {
     if (
       !window.confirm(
-        `Delete version ${versionLabel} from group "${groupName}"? This will not delete the underlying model.`,
+        `Delete version ${versionLabel} from this group? This will not delete the underlying model.`,
       )
     ) {
       return;
@@ -371,7 +367,7 @@ function GroupVersionsTable({
       await fetchWithAuth(
         chatAPI.Endpoints.AssetVersions.DeleteVersion(
           assetType,
-          groupName,
+          groupId,
           versionLabel,
         ),
         { method: 'DELETE' },
@@ -382,87 +378,6 @@ function GroupVersionsTable({
       console.error('Failed to delete version:', error);
     } finally {
       setUpdatingVersion(null);
-    }
-  };
-
-  /**
-   * Select a version's underlying model as the experiment foundation.
-   */
-  const handleSelectVersion = async (v: VersionEntry) => {
-    if (!experimentInfo?.id) return;
-
-    setSelectingVersion(v.version_label);
-    try {
-      const detailResp = await fetchWithAuth(
-        chatAPI.Endpoints.Models.ModelDetailsFromFilesystem(v.asset_id),
-      );
-      const modelDetails = detailResp.ok ? await detailResp.json() : {};
-
-      const architecture = modelDetails?.architecture || '';
-      const modelFilename = modelDetails?.model_filename || '';
-
-      let foundationFilename = '';
-
-      const localListResp = await fetchWithAuth(
-        chatAPI.Endpoints.Models.LocalList(),
-      );
-      const localModels = localListResp.ok ? await localListResp.json() : [];
-      const localModel = Array.isArray(localModels)
-        ? localModels.find((m: any) => m.model_id === v.asset_id)
-        : null;
-
-      if (localModel?.stored_in_filesystem) {
-        foundationFilename = localModel.local_path || '';
-      } else if (modelFilename) {
-        foundationFilename = modelFilename;
-      }
-
-      const additionalConfigs: Record<string, string> = {};
-      if (architecture) {
-        try {
-          const enginesResp = await fetchWithAuth(
-            chatAPI.Endpoints.Experiment.ListScriptsOfType(
-              experimentInfo.id,
-              'loader',
-              `model_architectures:${architecture}`,
-            ),
-          );
-          if (enginesResp.ok) {
-            const engines = await enginesResp.json();
-            if (engines && engines.length > 0) {
-              const engine = engines[0];
-              additionalConfigs.inferenceParams = JSON.stringify({
-                inferenceEngine: engine.uniqueId,
-                inferenceEngineFriendlyName: engine.name || '',
-              });
-            }
-          }
-        } catch {
-          // Silently ignore — user can set engine manually
-        }
-      }
-
-      await fetchWithAuth(
-        chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo.id),
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            foundation: v.asset_id,
-            foundation_model_architecture: architecture,
-            foundation_filename: foundationFilename,
-            adaptor: '',
-            generationParams:
-              '{"temperature": 0.7,"maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}',
-            ...additionalConfigs,
-          }),
-        },
-      );
-      experimentInfoMutate();
-    } catch (err) {
-      console.error('Failed to select model from registry:', err);
-    } finally {
-      setSelectingVersion(null);
     }
   };
 
@@ -509,18 +424,80 @@ function GroupVersionsTable({
             key={v.id}
             v={v}
             assetType={assetType}
-            groupName={groupName}
+            groupId={groupId}
             updatingVersion={updatingVersion}
-            selectingVersion={selectingVersion}
-            isCurrentFoundation={currentFoundation === v.asset_id}
             onSetTag={handleSetTag}
             onClearTag={handleClearTag}
             onDelete={handleDeleteVersion}
-            onSelect={handleSelectVersion}
           />
         ))}
       </tbody>
     </Table>
+  );
+}
+
+// ─── Edit Group Modal ───────────────────────────────────────────────────────
+
+function EditGroupModal({
+  open,
+  onClose,
+  group,
+  mutateGroups,
+}: {
+  open: boolean;
+  onClose: () => void;
+  group: GroupSummary;
+  mutateGroups: () => void;
+}) {
+  const [name, setName] = useState(group.group_name);
+  const [description, setDescription] = useState(group.description || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await fetchWithAuth(
+        chatAPI.Endpoints.AssetVersions.UpdateGroup('model', group.group_id),
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, description }),
+        },
+      );
+      await mutateGroups();
+      onClose();
+    } catch (err) {
+      console.error('Failed to update group:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <ModalDialog sx={{ width: 480 }}>
+        <ModalClose />
+        <DialogTitle>Edit Model Group</DialogTitle>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <FormControl>
+            <FormLabel>Name</FormLabel>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </FormControl>
+          <FormControl>
+            <FormLabel>Description</FormLabel>
+            <Textarea
+              minRows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe this model group…"
+            />
+          </FormControl>
+          <Button loading={saving} onClick={handleSave}>
+            Save
+          </Button>
+        </Stack>
+      </ModalDialog>
+    </Modal>
   );
 }
 
@@ -530,6 +507,7 @@ export default function ModelRegistry() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState<Record<string, string>>({});
+  const [editingGroup, setEditingGroup] = useState<GroupSummary | null>(null);
   const { experimentInfo, experimentInfoMutate } = useExperimentInfo();
 
   const currentFoundation: string = experimentInfo?.config?.foundation || '';
@@ -541,17 +519,17 @@ export default function ModelRegistry() {
     mutate: mutateGroups,
   } = useSWR(chatAPI.Endpoints.AssetVersions.ListGroups('model'), fetcher);
 
-  const handleDeleteGroup = async (groupName: string) => {
+  const handleDeleteGroup = async (groupId: string, displayName: string) => {
     if (
       !window.confirm(
-        `Delete group "${groupName}" and ALL its versions? The underlying models will not be deleted.`,
+        `Delete group "${displayName}" and ALL its versions? The underlying models will not be deleted.`,
       )
     ) {
       return;
     }
     try {
       await fetchWithAuth(
-        chatAPI.Endpoints.AssetVersions.DeleteGroup('model', groupName),
+        chatAPI.Endpoints.AssetVersions.DeleteGroup('model', groupId),
         { method: 'DELETE' },
       );
       mutateGroups();
@@ -560,13 +538,13 @@ export default function ModelRegistry() {
     }
   };
 
-  const toggleGroup = (groupName: string) => {
+  const toggleGroup = (groupId: string) => {
     setExpandedGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(groupName)) {
-        next.delete(groupName);
+      if (next.has(groupId)) {
+        next.delete(groupId);
       } else {
-        next.add(groupName);
+        next.add(groupId);
       }
       return next;
     });
@@ -717,12 +695,12 @@ export default function ModelRegistry() {
             }}
           >
             {filteredGroups.map((group) => {
-              const isExpanded = expandedGroups.has(group.group_name);
+              const isExpanded = expandedGroups.has(group.group_id);
               return (
                 <Accordion
-                  key={group.group_name}
+                  key={group.group_id}
                   expanded={isExpanded}
-                  onChange={() => toggleGroup(group.group_name)}
+                  onChange={() => toggleGroup(group.group_id)}
                   sx={{
                     borderRadius: 'md',
                     border: '1px solid',
@@ -733,47 +711,66 @@ export default function ModelRegistry() {
                     indicator={<ChevronDownIcon size={18} />}
                     sx={{ px: 2, py: 1.5 }}
                   >
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        width: '100%',
-                        pr: 1,
-                      }}
+                    <Stack
+                      direction="row"
+                      alignItems="flex-start"
+                      gap={1.5}
+                      sx={{ width: '100%', pr: 1 }}
                     >
-                      {/* Left side: Name + badges */}
-                      <Stack direction="row" alignItems="center" gap={1.5}>
-                        <PackageIcon size={18} />
-                        <Typography level="title-md" fontWeight="lg">
-                          {group.group_name}
-                        </Typography>
-                        <Chip size="sm" variant="soft" color="neutral">
-                          {group.version_count} version
-                          {group.version_count !== 1 ? 's' : ''}
-                        </Chip>
-                        {group.latest_tag && (
-                          <Chip
-                            size="sm"
-                            variant="soft"
-                            color={TAG_COLORS[group.latest_tag] || 'neutral'}
-                          >
-                            {group.latest_tag}
+                      <PackageIcon
+                        size={18}
+                        style={{ marginTop: 3, flexShrink: 0 }}
+                      />
+
+                      {/* Title + description */}
+                      <Stack gap={0.25} sx={{ flex: 1, minWidth: 0 }}>
+                        <Stack direction="row" alignItems="center" gap={1.5}>
+                          <Typography level="title-md" fontWeight="lg">
+                            {group.group_name}
+                          </Typography>
+                          <Chip size="sm" variant="soft" color="neutral">
+                            {group.version_count} version
+                            {group.version_count !== 1 ? 's' : ''}
                           </Chip>
+                          {group.latest_tag && (
+                            <Chip
+                              size="sm"
+                              variant="soft"
+                              color={TAG_COLORS[group.latest_tag] || 'neutral'}
+                            >
+                              {group.latest_tag}
+                            </Chip>
+                          )}
+                        </Stack>
+                        {group.description && (
+                          <Typography level="body-xs" color="neutral">
+                            {group.description}
+                          </Typography>
                         )}
                       </Stack>
-                    </Box>
+
+                      {/* Edit icon */}
+                      <IconButton
+                        size="sm"
+                        variant="plain"
+                        color="neutral"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingGroup(group);
+                        }}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        <PencilIcon size={16} />
+                      </IconButton>
+                    </Stack>
                   </AccordionSummary>
 
                   <AccordionDetails sx={{ px: 2, pb: 2 }}>
                     {isExpanded && (
                       <GroupVersionsTable
-                        groupName={group.group_name}
+                        groupId={group.group_id}
                         assetType="model"
                         mutateGroups={mutateGroups}
-                        experimentInfo={experimentInfo}
-                        experimentInfoMutate={experimentInfoMutate}
-                        currentFoundation={currentFoundation}
                       />
                     )}
                   </AccordionDetails>
@@ -783,6 +780,15 @@ export default function ModelRegistry() {
           </AccordionGroup>
         )}
       </Box>
+
+      {editingGroup && (
+        <EditGroupModal
+          open
+          onClose={() => setEditingGroup(null)}
+          group={editingGroup}
+          mutateGroups={mutateGroups}
+        />
+      )}
     </Sheet>
   );
 }

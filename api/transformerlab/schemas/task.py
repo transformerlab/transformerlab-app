@@ -64,6 +64,7 @@ class TaskYamlResources(BaseModel):
     disk_space: Optional[Any] = None
     accelerators: Optional[str] = None
     num_nodes: Optional[int] = None
+    fleet_name: Optional[str] = None
 
 
 class TaskYamlSweeps(BaseModel):

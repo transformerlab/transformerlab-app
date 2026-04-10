@@ -5,15 +5,18 @@ import EmbeddableStreamingOutput from './EmbeddableStreamingOutput';
 const TAB_LABELS: Record<string, string> = {
   output: 'Lab SDK Output',
   provider: 'Machine Logs',
+  skypilot: 'SkyPilot Logs',
 };
 
 interface ViewOutputModalStreamingProps {
   jobId: string | null;
   setJobId: (jobId: string | null) => void;
   /** Which tabs to show, in order. e.g. ['output', 'provider'] or ['provider'] for interactive tasks. */
-  tabs?: ('output' | 'provider')[];
+  tabs?: ('output' | 'provider' | 'skypilot')[];
   /** Current job status string (e.g. 'RUNNING', 'COMPLETE'). */
   jobStatus?: string;
+  /** The SkyPilot request ID for the job. */
+  skypilotRequestId?: string;
 }
 
 function ViewOutputModalStreaming({
@@ -21,6 +24,7 @@ function ViewOutputModalStreaming({
   setJobId,
   tabs = ['output', 'provider'],
   jobStatus = '',
+  skypilotRequestId,
 }: ViewOutputModalStreamingProps) {
   if (!jobId) return null;
 
@@ -52,6 +56,7 @@ function ViewOutputModalStreaming({
           jobId={jobId}
           tabs={tabs}
           jobStatus={jobStatus}
+          skypilotRequestId={skypilotRequestId}
         />
       </ModalDialog>
     </Modal>

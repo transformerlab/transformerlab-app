@@ -15,7 +15,6 @@ export {
 
 export {
   useModelStatus,
-  usePluginStatus,
   useConnectionHealth,
   fetcher,
 } from './api-client/hooks';

@@ -174,15 +174,27 @@ Get detailed job information including status, progress, config, resources, prov
 {"id": 1, "status": "RUNNING", "progress": 45, "config": {...}, "artifacts": [...], "errors": [...], ...}
 ```
 
-### `job logs <job_id>`
+### `job machine-logs <job_id>`
 
-Fetch provider logs for a job.
+Fetch machine/provider logs for a job (the raw logs from the compute provider).
 
 | Option | Description |
 |---|---|
 | `--follow` / `-f` | Stream new lines continuously. Polls every 2 seconds. Stops automatically when the job exits an active state. |
 
 **Note:** `--follow` blocks until the job finishes. Use it for real-time monitoring.
+
+### `job task-logs <job_id>`
+
+Fetch task (Lab SDK) output for a job. This is the output produced by the task script itself.
+
+| Option | Description |
+|---|---|
+| `--follow` / `-f` | Stream new lines continuously. Polls every 2 seconds. Stops automatically when the job exits an active state. |
+
+### `job request-logs <job_id>`
+
+Fetch provider request/launch logs for a job. These are the orchestration logs from the provider's API server (e.g. SkyPilot launch logs showing cluster provisioning). Only available for providers that support request logs (currently SkyPilot).
 
 ### `job artifacts <job_id>`
 
@@ -210,7 +222,7 @@ Stop a running job.
 
 Launch the interactive job monitor TUI (Textual app).
 
-**Warning:** This launches a full terminal UI. **Never use in automated or agent contexts.** Use `job list` + `job logs` instead.
+**Warning:** This launches a full terminal UI. **Never use in automated or agent contexts.** Use `job list` + `job machine-logs` instead.
 
 ---
 

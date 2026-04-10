@@ -18,6 +18,7 @@ class ComputeProviderConfig(BaseModel):
     api_token: Optional[str] = None
     default_env_vars: Dict[str, str] = Field(default_factory=dict)
     default_entrypoint_run: Optional[str] = None
+    dstack_project: Optional[str] = None
 
     # SLURM-specific config
     mode: Optional[str] = None  # "rest" or "ssh"
@@ -187,5 +188,18 @@ def create_compute_provider(config: ComputeProviderConfig):
         from .local import LocalProvider
 
         return LocalProvider(extra_config=config.extra_config)
+    elif config.type == "dstack":
+        from .dstack import DstackProvider
+
+        if not config.server_url:
+            raise ValueError("dstack provider requires server_url in config")
+        if not config.api_token:
+            raise ValueError("dstack provider requires api_token in config")
+        return DstackProvider(
+            server_url=config.server_url,
+            api_token=config.api_token,
+            project_name=config.dstack_project or "main",
+            extra_config=config.extra_config,
+        )
     else:
         raise ValueError(f"Unknown provider type: {config.type}")

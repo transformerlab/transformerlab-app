@@ -2,6 +2,7 @@ import { Chip, Tooltip, Stack, Typography } from '@mui/joy';
 import { GitBranchIcon } from 'lucide-react';
 
 interface VersionGroupInfo {
+  group_id: string;
   group_name: string;
   version_label: string;
   tag: string | null;
@@ -9,7 +10,7 @@ interface VersionGroupInfo {
 
 interface VersionGroupChipProps {
   versionGroups: VersionGroupInfo[];
-  onClick: (groupName: string) => void;
+  onClick: (groupId: string) => void;
 }
 
 const TAG_COLORS: Record<string, 'success' | 'primary' | 'warning'> = {
@@ -31,17 +32,17 @@ export default function VersionGroupChip({
     return null;
   }
 
-  // Group by group_name to consolidate (an asset can appear only once per group)
+  // Group by group_id to consolidate (an asset can appear only once per group)
   const groupMap = new Map<string, VersionGroupInfo>();
   for (const vg of versionGroups) {
-    groupMap.set(vg.group_name, vg);
+    groupMap.set(vg.group_id, vg);
   }
 
   return (
     <Stack direction="row" gap={0.5} flexWrap="wrap">
       {Array.from(groupMap.values()).map((vg) => (
         <Tooltip
-          key={vg.group_name}
+          key={vg.group_id}
           title={`Version group "${vg.group_name}" — ${vg.version_label}${vg.tag ? ` (${vg.tag})` : ''}`}
         >
           <Chip
@@ -50,7 +51,7 @@ export default function VersionGroupChip({
             color={vg.tag ? TAG_COLORS[vg.tag] || 'neutral' : 'neutral'}
             onClick={(e) => {
               e.stopPropagation();
-              onClick(vg.group_name);
+              onClick(vg.group_id);
             }}
             startDecorator={<GitBranchIcon size={12} />}
             sx={{ cursor: 'pointer' }}
