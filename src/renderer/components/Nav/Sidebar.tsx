@@ -51,17 +51,17 @@ function ExperimentMenuItems({ experimentInfo }: ExperimentMenuItemsProps) {
     >
       <>
         <SubNavItem
-          title="Interact"
-          path={`${basePath}/interactive`}
-          matchPattern="/experiment/:experimentName/interactive"
-          icon={<CodeIcon strokeWidth={1} />}
-          disabled={!experimentReady}
-        />
-        <SubNavItem
           title="Tasks"
           path={`${basePath}/tasks`}
           matchPattern="/experiment/:experimentName/tasks"
           icon={<StretchHorizontalIcon />}
+          disabled={!experimentReady}
+        />
+        <SubNavItem
+          title="Interact"
+          path={`${basePath}/interactive`}
+          matchPattern="/experiment/:experimentName/interactive"
+          icon={<CodeIcon strokeWidth={1} />}
           disabled={!experimentReady}
         />
         <SubNavItem
