@@ -25,6 +25,7 @@ import {
   useSWRWithAuth as useSWR,
 } from 'renderer/lib/authContext';
 import SaveToRegistryDialog, { SaveVersionInfo } from '../SaveToRegistryDialog';
+import ModelDetailsModal from '../../../ModelZoo/ModelDetailsModal';
 
 interface ModelsSectionProps {
   open?: boolean;
@@ -59,6 +60,7 @@ export default function ModelsSection({
   const [saveDialogModel, setSaveDialogModel] = useState<string | null>(null);
   const [saveTaskJobId, setSaveTaskJobId] = useState<string | null>(null);
   const [assetNameError, setAssetNameError] = useState<string | null>(null);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
   // Fetch existing models in the registry for "Add to existing" option
   const { data: registryModels } = useSWR(
@@ -249,6 +251,7 @@ export default function ModelsSection({
                       alignItems: 'center',
                       gap: 1,
                     }}
+                    onClick={() => setSelectedModelId(model.name)}
                   >
                     <ListItemContent sx={{ flex: 1, minWidth: 0 }}>
                       <Typography level="title-sm" noWrap>
@@ -334,6 +337,10 @@ export default function ModelsSection({
         </ModalDialog>
       </Modal>
       {saveDialog}
+      <ModelDetailsModal
+        modelId={selectedModelId}
+        setModelId={setSelectedModelId}
+      />
     </>
   );
 }
