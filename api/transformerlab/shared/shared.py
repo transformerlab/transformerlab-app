@@ -89,7 +89,7 @@ def slugify(value, allow_unicode=False):
     return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
-async def get_job_output_file_name(job_id: str, plugin_name: str = None, experiment_name: str = None):
+async def get_job_output_file_name(job_id: str, experiment_name: str = None):
     try:
         experiment_id = experiment_name or os.environ.get("_TFL_EXPERIMENT_ID")
 

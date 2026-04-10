@@ -35,6 +35,10 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import { generateFriendlyName } from 'renderer/lib/utils';
 import { isProviderCompatibleWithAccelerators } from './providerCompatibility';
+import ModelNameInput, {
+  getModelHistoryKey,
+  saveModelToHistory,
+} from 'renderer/components/Shared/ModelNameInput';
 
 type ProviderOption = {
   id: string;
@@ -420,6 +424,14 @@ export default function NewInteractiveTaskModal({
       }
     }
 
+    // Persist model name to history before submitting
+    const modelName = configFieldValues['MODEL_NAME'];
+    if (modelName?.trim() && selectedTemplate) {
+      const taskTypeOrId =
+        selectedTemplate.interactive_type || selectedTemplate.id;
+      saveModelToHistory(getModelHistoryKey(taskTypeOrId), modelName.trim());
+    }
+
     onSubmit(
       {
         title: title.trim(),
@@ -649,28 +661,44 @@ export default function NewInteractiveTaskModal({
                             }
                           >
                             <FormLabel>{field.field_name}</FormLabel>
-                            <Input
-                              type={
-                                field.password
-                                  ? 'password'
-                                  : field.field_type === 'integer'
-                                    ? 'number'
-                                    : 'text'
-                              }
-                              value={configFieldValues[field.env_var] || ''}
-                              onChange={(e) =>
-                                handleConfigFieldChange(
-                                  field.env_var,
-                                  e.target.value,
-                                )
-                              }
-                              placeholder={field.placeholder}
-                              disabled={
-                                isSubmitting ||
-                                (isLocalProvider &&
-                                  field.env_var === 'NGROK_AUTH_TOKEN')
-                              }
-                            />
+                            {field.env_var === 'MODEL_NAME' ? (
+                              <ModelNameInput
+                                value={configFieldValues[field.env_var] || ''}
+                                onChange={(v) =>
+                                  handleConfigFieldChange(field.env_var, v)
+                                }
+                                taskTypeOrId={
+                                  selectedTemplate?.interactive_type ||
+                                  selectedTemplate?.id
+                                }
+                                placeholder={field.placeholder}
+                                disabled={isSubmitting}
+                                required={!!field.required}
+                              />
+                            ) : (
+                              <Input
+                                type={
+                                  field.password
+                                    ? 'password'
+                                    : field.field_type === 'integer'
+                                      ? 'number'
+                                      : 'text'
+                                }
+                                value={configFieldValues[field.env_var] || ''}
+                                onChange={(e) =>
+                                  handleConfigFieldChange(
+                                    field.env_var,
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder={field.placeholder}
+                                disabled={
+                                  isSubmitting ||
+                                  (isLocalProvider &&
+                                    field.env_var === 'NGROK_AUTH_TOKEN')
+                                }
+                              />
+                            )}
                             {field.help_text && (
                               <FormHelperText>{field.help_text}</FormHelperText>
                             )}

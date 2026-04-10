@@ -1,19 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { login, selectFirstExperiment } from './helpers';
 
-const TASK_NAME = 'sample-generate-task';
-const REGISTRY_DATASET_NAME = 'sample-generate-task-registry-dataset';
-const REGISTRY_VERSION_NAME = 'sample-generate-task-v1';
-
-const TASK_YAML = `name: sample-generate-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: demo-generate-task
-resources:
-  cpus: 2
-  memory: 4
-setup: "uv pip install datasets;"
-run: "python ~/demo-generate-task/fake_generate.py"
-`;
+const TASK_NAME_PREFIX = 'sample-generate-task';
 
 async function replaceMonacoContents(page: Page, contents: string) {
   const editor = page.locator('.monaco-editor').first();
@@ -48,6 +36,20 @@ test.describe('Dataset Generation Task', () => {
   test('create blank task, edit task.yaml, run local job, save dataset to registry, verify in Datasets page', async ({
     page,
   }) => {
+    const uniqueSuffix = Math.random().toString(36).slice(2, 8);
+    const taskName = `${TASK_NAME_PREFIX}_${uniqueSuffix}`;
+    const registryDatasetName = `${taskName}-registry-dataset`;
+    const registryVersionName = `${taskName}-v1`;
+    const taskYaml = `name: ${taskName}
+github_repo_url: https://github.com/transformerlab/transformerlab-examples
+github_repo_dir: demo-generate-task
+resources:
+  cpus: 2
+  memory: 4
+setup: "uv pip install datasets;"
+run: "python ~/demo-generate-task/fake_generate.py"
+`;
+
     await login(page);
 
     await selectFirstExperiment(page);
@@ -72,15 +74,15 @@ test.describe('Dataset Generation Task', () => {
     // Edit generated task.yaml to use the dataset generator template.
     const taskYamlDialog = page.getByRole('dialog', { name: 'task.yaml' });
     await expect(taskYamlDialog).toBeVisible({ timeout: 10000 });
-    await replaceMonacoContents(page, TASK_YAML);
+    await replaceMonacoContents(page, taskYaml);
     await taskYamlDialog.getByRole('button', { name: 'Save' }).click();
 
     await expect(
-      page.getByText(TASK_NAME, { exact: true }).first(),
+      page.getByText(taskName, { exact: true }).first(),
     ).toBeVisible({ timeout: 15000 });
 
     const taskRow = page.locator('tr', {
-      has: page.getByText(TASK_NAME, { exact: true }),
+      has: page.getByText(taskName, { exact: true }),
     });
     await taskRow.first().getByRole('button', { name: 'Queue' }).click();
 
@@ -90,28 +92,52 @@ test.describe('Dataset Generation Task', () => {
       queueDialog.getByRole('combobox', { name: 'Compute Provider' }),
     ).toHaveText('Local', { timeout: 5000 });
     await queueDialog.getByRole('button', { name: 'Submit' }).click();
-
-    // Wait for completion.
-    await expect(page.getByText('COMPLETE').first()).toBeVisible({
-      timeout: 120000,
+    const jobNamePrefix = `${taskName}-job-`;
+    const queuedJobRow = page.locator('tr', {
+      has: page.getByRole('button', { name: 'Output' }),
+      hasText: jobNamePrefix,
     });
 
-    // Open Artifacts -> View Datasets.
-    await page.getByRole('button', { name: 'Artifacts' }).first().click();
-    await page.getByRole('menuitem', { name: 'View Datasets' }).first().click();
+    // Wait for this specific job to reach COMPLETE - 100%, and fail fast on bad terminal states.
+    await expect
+      .poll(
+        async () => {
+          const rowText = (await queuedJobRow.first().innerText()).replace(
+            /\s+/g,
+            ' ',
+          );
+          if (/FAILED/i.test(rowText)) {
+            throw new Error(`Job entered failed state: ${rowText}`);
+          }
+          if (/COMPLETE\s*-\s*0(?:\.0)?%/i.test(rowText)) {
+            throw new Error(`Job completed with 0%: ${rowText}`);
+          }
+          return /COMPLETE\s*-\s*100(?:\.0)?%/i.test(rowText);
+        },
+        {
+          message:
+            'Expected dataset job to reach COMPLETE - 100% (and never FAILED/COMPLETE - 0%)',
+          timeout: 120000,
+          intervals: [2000],
+        },
+      )
+      .toBeTruthy();
 
-    const datasetsDialog = page
+    // Open Artifacts (now opens the datasets/artifacts modal directly).
+    await queuedJobRow.getByRole('button', { name: 'Artifacts' }).click();
+
+    const artifactsDialog = page
       .getByRole('dialog')
-      .filter({ hasText: 'Datasets for Job' })
+      .filter({ hasText: 'Artifacts for Job' })
       .first();
-    await expect(datasetsDialog).toBeVisible({
+    await expect(artifactsDialog).toBeVisible({
       timeout: 10000,
     });
-    const saveToRegistryButton = datasetsDialog
+    const saveToRegistryButton = artifactsDialog
       .getByRole('button', { name: 'Save to Registry' })
       .first();
-    await saveToRegistryButton.scrollIntoViewIfNeeded();
     await expect(saveToRegistryButton).toBeVisible({ timeout: 10000 });
+    await saveToRegistryButton.scrollIntoViewIfNeeded();
     await saveToRegistryButton.click();
 
     const publishDialog = page
@@ -121,10 +147,10 @@ test.describe('Dataset Generation Task', () => {
     await expect(publishDialog).toBeVisible({ timeout: 10000 });
     await publishDialog
       .getByRole('textbox', { name: 'Name', exact: true })
-      .fill(REGISTRY_DATASET_NAME);
+      .fill(registryDatasetName);
     await publishDialog
       .getByRole('textbox', { name: 'Version Name', exact: true })
-      .fill(REGISTRY_VERSION_NAME);
+      .fill(registryVersionName);
     const publishButton = publishDialog.getByRole('button', {
       name: /Publish as/i,
     });
@@ -132,14 +158,26 @@ test.describe('Dataset Generation Task', () => {
     await expect(publishButton).toBeVisible({ timeout: 10000 });
     await publishButton.click();
 
-    // As soon as the in-modal notification appears, treat save-start as success.
-    await expect(
-      datasetsDialog
-        .getByRole('alert')
-        .filter({ hasText: /dataset save to registry started/i })
-        .first(),
-    ).toBeVisible({
-      timeout: 15000,
-    });
+    // As soon as a "save started" message appears, treat publish-start as success.
+    const publishStartedPattern =
+      /dataset save to registry started|publishing\s+.+\s+to registry/i;
+    await expect
+      .poll(
+        async () => {
+          const dialogText = (await artifactsDialog.textContent()) || '';
+          const pageText = (await page.locator('body').textContent()) || '';
+          return (
+            publishStartedPattern.test(dialogText) ||
+            publishStartedPattern.test(pageText)
+          );
+        },
+        {
+          message:
+            'Expected a registry publish-start message in modal or page notifications',
+          timeout: 15000,
+          intervals: [1000, 2000],
+        },
+      )
+      .toBeTruthy();
   });
 });

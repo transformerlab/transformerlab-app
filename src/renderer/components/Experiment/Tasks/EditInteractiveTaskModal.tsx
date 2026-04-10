@@ -25,6 +25,10 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
+import ModelNameInput, {
+  getModelHistoryKey,
+  saveModelToHistory,
+} from 'renderer/components/Shared/ModelNameInput';
 
 type ProviderOption = {
   id: string;
@@ -305,7 +309,7 @@ export default function EditInteractiveTaskModal({
     setTimeout(() => {
       if (run && editor.getValue() !== run) {
         try {
-          editor.setValue(command);
+          editor.setValue(run);
         } catch (e) {
           // ignore
         }
@@ -393,6 +397,13 @@ export default function EditInteractiveTaskModal({
       const provider = providers.find((p) => p.id === selectedProviderId);
       if (provider) {
         body.provider_name = provider.name;
+      }
+
+      // Persist model name to history before saving
+      const modelName = configFieldValues['MODEL_NAME'];
+      if (modelName?.trim() && (interactiveType || galleryId)) {
+        const taskTypeOrId = interactiveType || galleryId;
+        saveModelToHistory(getModelHistoryKey(taskTypeOrId), modelName.trim());
       }
 
       // The caller is responsible for actually persisting the changes via API.
@@ -531,33 +542,47 @@ export default function EditInteractiveTaskModal({
                 <>
                   {templateConfigFields.map((field) => {
                     const isNgrokField = field.env_var === 'NGROK_AUTH_TOKEN';
+                    const isModelNameField = field.env_var === 'MODEL_NAME';
                     return (
                       <FormControl
                         key={field.env_var}
                         required={field.required && !isNgrokField}
                       >
                         <FormLabel>{field.field_name}</FormLabel>
-                        <Input
-                          type={
-                            field.password
-                              ? 'password'
-                              : field.field_type === 'integer'
-                                ? 'number'
-                                : 'text'
-                          }
-                          value={configFieldValues[field.env_var] || ''}
-                          onChange={
-                            isNgrokField
-                              ? undefined
-                              : (e) =>
-                                  handleConfigFieldChange(
-                                    field.env_var,
-                                    e.target.value,
-                                  )
-                          }
-                          placeholder={field.placeholder}
-                          disabled={isNgrokField}
-                        />
+                        {isModelNameField ? (
+                          <ModelNameInput
+                            value={configFieldValues[field.env_var] || ''}
+                            onChange={(v) =>
+                              handleConfigFieldChange(field.env_var, v)
+                            }
+                            taskTypeOrId={interactiveType}
+                            placeholder={field.placeholder}
+                            disabled={false}
+                            required={!!field.required}
+                          />
+                        ) : (
+                          <Input
+                            type={
+                              field.password
+                                ? 'password'
+                                : field.field_type === 'integer'
+                                  ? 'number'
+                                  : 'text'
+                            }
+                            value={configFieldValues[field.env_var] || ''}
+                            onChange={
+                              isNgrokField
+                                ? undefined
+                                : (e) =>
+                                    handleConfigFieldChange(
+                                      field.env_var,
+                                      e.target.value,
+                                    )
+                            }
+                            placeholder={field.placeholder}
+                            disabled={isNgrokField}
+                          />
+                        )}
                         {field.help_text && (
                           <FormHelperText>{field.help_text}</FormHelperText>
                         )}

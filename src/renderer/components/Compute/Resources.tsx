@@ -575,7 +575,7 @@ const Resources = () => {
                           // Count clusters with active nodes
                           const activeClusters = cloudClusters.filter(
                             (c) =>
-                              c.nodes.length > 0 &&
+                              (c.nodes?.length ?? 0) > 0 &&
                               c.nodes.some((n) => n.is_active),
                           );
                           const totalClusters = activeClusters.length;

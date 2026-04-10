@@ -55,6 +55,17 @@ jobs:
             exit 1
           fi
 
+      - name: Inject Sentry DSN
+        if: env.SENTRY_DSN != ''
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          python3 -c "
+          import sys, pathlib
+          p = pathlib.Path('src/transformerlab_cli/util/telemetry.py')
+          p.write_text(p.read_text().replace('__SENTRY_DSN_PLACEHOLDER__', sys.argv[1]))
+          " "$SENTRY_DSN"
+
       - name: Build release distributions
         run: |
           python -m pip install build

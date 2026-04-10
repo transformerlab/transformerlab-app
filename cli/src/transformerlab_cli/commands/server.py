@@ -6,6 +6,7 @@ import sys
 
 import typer
 
+from transformerlab_cli.util import telemetry
 from transformerlab_cli.util.ui import console
 
 app = typer.Typer()
@@ -317,6 +318,20 @@ def _prompt_auth(existing: dict[str, str]) -> dict[str, str]:
     return env
 
 
+def _enabled_auth_providers(env_vars: dict[str, str]) -> list[str]:
+    """Return a list of auth provider names enabled in the config."""
+    providers: list[str] = []
+    if env_vars.get("EMAIL_AUTH_ENABLED", "").lower() == "true":
+        providers.append("email")
+    if env_vars.get("GOOGLE_OAUTH_ENABLED", "").lower() == "true":
+        providers.append("google")
+    if env_vars.get("GITHUB_OAUTH_ENABLED", "").lower() == "true":
+        providers.append("github")
+    if env_vars.get("OIDC_0_DISCOVERY_URL", "").strip():
+        providers.append("oidc")
+    return providers
+
+
 # ---------------------------------------------------------------------------
 # Config validation
 # ---------------------------------------------------------------------------
@@ -383,6 +398,7 @@ INSTALL_COMMAND = "curl -fsSL https://lab.cloud/install.sh | bash -s -- multiuse
 def _run_install_script() -> int:
     """Run the install/update script, streaming output. Returns the exit code."""
     console.print(f"\n[info]Command:[/info] [bold]{INSTALL_COMMAND}[/bold]\n")
+    telemetry.breadcrumb("running_install_script")
     try:
         process = subprocess.run(
             ["bash", "-c", INSTALL_COMMAND],
@@ -393,21 +409,25 @@ def _run_install_script() -> int:
             console.print("\n[success]Script completed successfully.[/success]")
         else:
             console.print(f"\n[error]Script exited with code {process.returncode}.[/error]")
+        telemetry.incr("installer.script_completed", exit_code=str(process.returncode))
         return process.returncode
     except KeyboardInterrupt:
         console.print("\n[warning]Script interrupted.[/warning]")
+        telemetry.incr("installer.script_completed", exit_code="130")
         return 130
     except OSError as e:
         console.print(f"\n[error]Failed to run script: {e}[/error]")
+        telemetry.incr("installer.script_completed", exit_code="1")
+        telemetry.capture_error(e)
         return 1
 
 
-def _offer_install_script() -> None:
-    """Prompt the user to run the install script after writing config."""
+def _offer_install_script() -> int:
+    """Prompt the user to run the install script after writing config. Returns exit code."""
     if not typer.confirm("\nRun the install script now?", default=True):
         console.print("[dim]Skipped. You can run it manually later.[/dim]")
-        return
-    _run_install_script()
+        return 0
+    return _run_install_script()
 
 
 # ---------------------------------------------------------------------------
@@ -571,16 +591,24 @@ def _install_from_config(config_path: str, dry_run: bool) -> None:
     console.print("\n[bold header]Transformer Lab Server Setup (from config)[/bold header]")
     console.print("=" * 52)
 
+    telemetry.init(app_version=_get_current_version())
+    telemetry.incr("installer.start", mode="config_file", had_existing_config="false")
+
     if not os.path.exists(config_path):
         console.print(f"\n[error]Config file not found: {config_path}[/error]")
+        telemetry.incr("installer.error", reason="config_file_not_found")
+        telemetry.flush()
         raise typer.Exit(1)
 
     env_vars = _load_existing_env(config_path)
     if not env_vars:
         console.print(f"\n[error]Config file is empty or has no valid key=value pairs: {config_path}[/error]")
+        telemetry.incr("installer.error", reason="config_file_empty")
+        telemetry.flush()
         raise typer.Exit(1)
 
     console.print(f"\n[info]Loaded configuration from {config_path}[/info]")
+    telemetry.breadcrumb("loaded_config_file")
 
     # Generate JWT secrets if not provided in the config
     if env_vars.get("TRANSFORMERLAB_JWT_SECRET") and env_vars.get("TRANSFORMERLAB_REFRESH_SECRET"):
@@ -593,12 +621,30 @@ def _install_from_config(config_path: str, dry_run: bool) -> None:
     # Ensure MULTIUSER is always set
     env_vars.setdefault("MULTIUSER", "true")
 
+    # Track choices from the config file
+    telemetry.incr(
+        "installer.storage_selected",
+        provider=env_vars.get("TFL_STORAGE_PROVIDER", "unknown"),
+    )
+    if env_vars.get("DEFAULT_COMPUTE_PROVIDER"):
+        telemetry.incr(
+            "installer.compute_selected",
+            provider=env_vars["DEFAULT_COMPUTE_PROVIDER"],
+        )
+    telemetry.incr(
+        "installer.email_configured",
+        method=env_vars.get("EMAIL_METHOD", "not_set"),
+    )
+    for auth_provider in _enabled_auth_providers(env_vars):
+        telemetry.incr("installer.auth_provider", provider=auth_provider)
+
     # Validate
     config_warnings = _validate_config(env_vars)
     if config_warnings:
         console.print("\n[bold warning]Configuration warnings:[/bold warning]")
         for w in config_warnings:
             console.print(f"  [warning]• {w}[/warning]")
+        telemetry.incr("installer.validation_warnings", len(config_warnings))
 
     # Display or write
     if dry_run:
@@ -609,16 +655,23 @@ def _install_from_config(config_path: str, dry_run: bool) -> None:
         syntax = Syntax(content, "ini", theme="monokai", line_numbers=True)
         console.print(Panel(syntax, title=f"{ENV_FILE} (dry run)", border_style="dim"))
         console.print("\n[warning]Dry run complete. No files were written.[/warning]")
+        telemetry.incr("installer.dry_run")
+        telemetry.flush()
         raise typer.Exit(0)
 
+    telemetry.breadcrumb("writing_env_file")
     _write_env_file(ENV_FILE, env_vars)
     console.print(f"\n[success]Configuration written to {ENV_FILE}[/success]")
 
     # Run install script automatically (no prompt in config mode)
     exit_code = _run_install_script()
     if exit_code != 0:
+        telemetry.incr("installer.error", reason="install_script_failed")
+        telemetry.flush()
         raise typer.Exit(exit_code)
 
+    telemetry.incr("installer.success")
+    telemetry.flush()
     _print_next_steps(env_vars)
 
 
@@ -635,15 +688,38 @@ def _install_interactive(dry_run: bool) -> None:
             "\n[dim]Current values will be shown as defaults. Press Enter to keep them.[/dim]"
         )
 
+    telemetry.init(app_version=_get_current_version())
+    telemetry.incr("installer.start", mode="interactive", had_existing_config=str(bool(existing)))
+
     # Collect configuration from each section
     env_vars: dict[str, str] = {}
 
     env_vars.update(_prompt_frontend(existing))
+
     env_vars.update(_prompt_storage(existing))
+    telemetry.incr(
+        "installer.storage_selected",
+        provider=env_vars.get("TFL_STORAGE_PROVIDER", "unknown"),
+    )
+
     env_vars.update(_prompt_admin())
+
     env_vars.update(_prompt_compute(existing))
+    if env_vars.get("DEFAULT_COMPUTE_PROVIDER"):
+        telemetry.incr(
+            "installer.compute_selected",
+            provider=env_vars["DEFAULT_COMPUTE_PROVIDER"],
+        )
+
     env_vars.update(_prompt_email(existing))
+    telemetry.incr(
+        "installer.email_configured",
+        method=env_vars.get("EMAIL_METHOD", "not_set"),
+    )
+
     env_vars.update(_prompt_auth(existing))
+    for auth_provider in _enabled_auth_providers(env_vars):
+        telemetry.incr("installer.auth_provider", provider=auth_provider)
 
     # JWT secrets: preserve existing, generate if missing
     jwt_secret = existing.get("TRANSFORMERLAB_JWT_SECRET")
@@ -666,8 +742,11 @@ def _install_interactive(dry_run: bool) -> None:
         console.print("\n[bold warning]Configuration warnings:[/bold warning]")
         for w in config_warnings:
             console.print(f"  [warning]• {w}[/warning]")
+        telemetry.incr("installer.validation_warnings", len(config_warnings))
         if not typer.confirm("\nContinue anyway?", default=False):
             console.print("[dim]Aborted. Re-run to fix the configuration.[/dim]")
+            telemetry.incr("installer.error", reason="user_aborted_after_warnings")
+            telemetry.flush()
             raise typer.Exit(1)
 
     # Display or write
@@ -679,14 +758,24 @@ def _install_interactive(dry_run: bool) -> None:
         syntax = Syntax(content, "ini", theme="monokai", line_numbers=True)
         console.print(Panel(syntax, title=f"{ENV_FILE} (dry run)", border_style="dim"))
         console.print("\n[warning]Dry run complete. No files were written.[/warning]")
+        telemetry.incr("installer.dry_run")
+        telemetry.flush()
         raise typer.Exit(0)
 
+    telemetry.breadcrumb("writing_env_file")
     _write_env_file(ENV_FILE, env_vars)
     console.print(f"\n[success]Configuration written to {ENV_FILE}[/success]")
 
     # Run install script
-    _offer_install_script()
+    telemetry.breadcrumb("offering_install_script")
+    exit_code = _offer_install_script()
+    if exit_code != 0:
+        telemetry.incr("installer.error", reason="install_script_failed")
+        telemetry.flush()
+        raise typer.Exit(exit_code)
 
+    telemetry.incr("installer.success")
+    telemetry.flush()
     _print_next_steps(env_vars)
 
 

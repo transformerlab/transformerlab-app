@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Button,
   Stack,
@@ -207,6 +207,39 @@ export default function InteractiveJobCard({
 
   const tunnelReady = Boolean(tunnelData?.is_ready);
 
+  // Track how long tunnel has been not-ready while job is INTERACTIVE.
+  // After a timeout, show a warning so the user isn't stuck on "Launching…" forever.
+  const TUNNEL_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+  const waitingSinceRef = useRef<number | null>(null);
+  const [tunnelTimedOut, setTunnelTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (tunnelReady || !isInteractive) {
+      // Reset when tunnel becomes ready or job is no longer interactive.
+      waitingSinceRef.current = null;
+      setTunnelTimedOut(false);
+      return;
+    }
+
+    // Start the clock if not already running.
+    if (waitingSinceRef.current === null) {
+      waitingSinceRef.current = Date.now();
+    }
+
+    const elapsed = Date.now() - waitingSinceRef.current;
+    if (elapsed >= TUNNEL_TIMEOUT_MS) {
+      setTunnelTimedOut(true);
+      return;
+    }
+
+    // Schedule a check for when the timeout would fire.
+    const timer = setTimeout(
+      () => setTunnelTimedOut(true),
+      TUNNEL_TIMEOUT_MS - elapsed,
+    );
+    return () => clearTimeout(timer);
+  }, [tunnelReady, isInteractive, tunnelData]);
+
   return (
     <Card
       variant="outlined"
@@ -283,6 +316,11 @@ export default function InteractiveJobCard({
               job.status === 'INTERACTIVE' ? 99 : undefined
             }
           />
+          {tunnelTimedOut && !tunnelReady && (
+            <Typography level="body-xs" color="warning" sx={{ mt: 0.5 }}>
+              Startup may have stalled. Check Logs.
+            </Typography>
+          )}
         </Box>
 
         {showActions && (
@@ -304,7 +342,11 @@ export default function InteractiveJobCard({
                 disabled={!tunnelReady}
                 onClick={() => setInteractOpen(true)}
               >
-                {tunnelReady ? 'Interact' : 'Launching…'}
+                {tunnelReady
+                  ? 'Interact'
+                  : tunnelTimedOut
+                    ? 'Waiting…'
+                    : 'Launching…'}
               </Button>
             </Stack>
           </>

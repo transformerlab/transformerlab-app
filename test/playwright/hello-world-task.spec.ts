@@ -1,5 +1,30 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { login, selectFirstExperiment } from './helpers';
+
+async function replaceTaskNameInMonaco(page: Page, taskName: string) {
+  const editor = page.locator('.monaco-editor').first();
+  await expect(editor).toBeVisible({ timeout: 10000 });
+  await editor.click({ force: true });
+
+  const updatedViaMonacoApi = await page.evaluate((nextTaskName) => {
+    const maybeMonaco = (window as any).monaco;
+    const models = maybeMonaco?.editor?.getModels?.();
+    if (!Array.isArray(models) || models.length === 0) {
+      return false;
+    }
+    const model = models[0];
+    const current = model.getValue();
+    const replaced = /^name:\s*.*$/m.test(current)
+      ? current.replace(/^name:\s*.*$/m, `name: ${nextTaskName}`)
+      : `name: ${nextTaskName}\n${current}`;
+    model.setValue(replaced);
+    return true;
+  }, taskName);
+
+  if (!updatedViaMonacoApi) {
+    throw new Error('Monaco API unavailable for task name update');
+  }
+}
 
 /**
  * End-to-end test: create a blank task, run "echo hello" on the local provider,
@@ -12,6 +37,9 @@ test.describe('Hello World Task', () => {
   test('create blank task, run on local provider, verify output in Machine Logs', async ({
     page,
   }) => {
+    const uniqueSuffix = Math.random().toString(36).slice(2, 8);
+    const taskName = `hello-world-task_${uniqueSuffix}`;
+
     await login(page);
 
     // ── Step 1: Verify a local provider is available via the Compute page ──
@@ -48,10 +76,11 @@ test.describe('Hello World Task', () => {
       .getByRole('button', { name: 'Submit' })
       .click();
 
-    // A YAML editor dialog opens – save the default template
+    // A YAML editor dialog opens – set a unique task name to isolate this test's job row.
     await expect(page.getByRole('dialog', { name: 'task.yaml' })).toBeVisible({
       timeout: 10000,
     });
+    await replaceTaskNameInMonaco(page, taskName);
     await page
       .getByRole('dialog', { name: 'task.yaml' })
       .getByRole('button', { name: 'Save' })
@@ -59,11 +88,14 @@ test.describe('Hello World Task', () => {
 
     // Wait for the task template to appear in the list
     await expect(
-      page.getByText('my-task', { exact: true }).first(),
+      page.getByText(taskName, { exact: true }).first(),
     ).toBeVisible({ timeout: 10000 });
 
     // ── Step 4: Queue the task on the local provider ──
-    await page.getByRole('button', { name: 'Queue' }).first().click();
+    const taskRow = page.locator('tr', {
+      has: page.getByText(taskName, { exact: true }),
+    });
+    await taskRow.first().getByRole('button', { name: 'Queue' }).click();
     const queueDialog = page.getByRole('dialog', {
       name: /Queue Task/,
     });
@@ -74,17 +106,19 @@ test.describe('Hello World Task', () => {
       queueDialog.getByRole('combobox', { name: 'Compute Provider' }),
     ).toHaveText('Local', { timeout: 5000 });
 
-    // Click Submit to queue the job
     await queueDialog.getByRole('button', { name: 'Submit' }).click();
+    const queuedJobRow = page.locator('tr', {
+      has: page.getByRole('button', { name: 'Output' }),
+      hasText: taskName,
+    });
 
     // ── Step 5: Wait for the job to complete ──
-    // Use first() in case prior runs left completed jobs visible
-    await expect(page.getByText('COMPLETE').first()).toBeVisible({
+    await expect(queuedJobRow.getByText('COMPLETE')).toBeVisible({
       timeout: 60000,
     });
 
     // ── Step 6: Open the Output modal and verify "hello" in Machine Logs ──
-    await page.getByRole('button', { name: 'Output' }).first().click();
+    await queuedJobRow.getByRole('button', { name: 'Output' }).click();
 
     const outputDialog = page.getByRole('dialog');
     await expect(outputDialog).toBeVisible({ timeout: 10000 });
@@ -108,7 +142,7 @@ test.describe('Hello World Task', () => {
       .first()
       .textContent();
 
-    // Extract the job ID from the dialog title ("Output from job: <id>")
+    // Extract the job ID from the dialog title ("Output from job: <id>").
     const dialogTitle = await outputDialog
       .locator('text=Output from job:')
       .textContent();
