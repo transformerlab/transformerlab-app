@@ -1,0 +1,58 @@
+name: Sync Galleries to transformerlab/galleries
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "api/transformerlab/galleries/*.json"
+
+permissions:
+  contents: read
+
+jobs:
+  sync-galleries:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout transformerlab-app repo
+        uses: actions/checkout@v4
+        with:
+          path: transformerlab-app
+      
+      - name: Checkout transformerlab/galleries repo
+        uses: actions/checkout@v4
+        with:
+          repository: transformerlab/galleries
+          token: ${{ secrets.GALLERIES_SYNC_TOKEN }}
+          path: galleries
+      
+      - name: Copy gallery files
+        run: |
+          echo "Copying gallery JSON files from transformerlab-app to galleries repo..."
+          cp -v transformerlab-app/api/transformerlab/galleries/*.json galleries/
+      
+      - name: Check for changes
+        id: check_changes
+        run: |
+          cd galleries
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changes detected:"
+            git status --short
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No changes detected"
+          fi
+      
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          cd galleries
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add *.json
+          git commit -m "Sync gallery files from transformerlab-app@${{ github.sha }}
+
+          Auto-synced from: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          git push
