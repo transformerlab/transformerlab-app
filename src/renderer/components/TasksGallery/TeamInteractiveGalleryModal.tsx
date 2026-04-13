@@ -45,7 +45,6 @@ interface InteractiveTask {
   github_repo_url?: string;
   github_repo_dir?: string;
   github_repo_branch?: string;
-  github_branch?: string;
 }
 
 interface TeamInteractiveGalleryModalProps {
@@ -128,9 +127,7 @@ function filterTasksGallery(data: InteractiveTask[], searchText: string = '') {
       title.toLowerCase().includes(lowerSearch) ||
       description.toLowerCase().includes(lowerSearch) ||
       (task.github_repo_url || '').toLowerCase().includes(lowerSearch) ||
-      (task.github_repo_branch || task.github_branch || '')
-        .toLowerCase()
-        .includes(lowerSearch)
+      (task.github_repo_branch || '').toLowerCase().includes(lowerSearch)
     );
   });
   return filteredData;
@@ -321,8 +318,7 @@ export default function TeamInteractiveGalleryModal({
                                     href={generateGithubLink(
                                       task.github_repo_url,
                                       task?.github_repo_dir,
-                                      task?.github_repo_branch ??
-                                        task?.github_branch,
+                                      task?.github_repo_branch,
                                     )}
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -344,8 +340,7 @@ export default function TeamInteractiveGalleryModal({
                                     href={generateGithubLink(
                                       task.github_repo_url,
                                       task?.github_repo_dir,
-                                      task?.github_repo_branch ??
-                                        task?.github_branch,
+                                      task?.github_repo_branch,
                                     )}
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -365,8 +360,7 @@ export default function TeamInteractiveGalleryModal({
                                     {formatGithubPath(
                                       task.github_repo_url,
                                       task?.github_repo_dir,
-                                      task?.github_repo_branch ??
-                                        task?.github_branch,
+                                      task?.github_repo_branch,
                                     )}
                                   </Typography>
                                 </Box>

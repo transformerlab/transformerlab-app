@@ -90,10 +90,11 @@ function AppContent({
         <Box
           sx={{
             px: {
-              md: 3,
-              lg: 4,
+              sm: 1,
+              md: 1,
+              lg: 1,
             },
-            pt: 2,
+            pt: 1,
             pb: 0,
             height: '100%',
             gridArea: 'main',

@@ -693,10 +693,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         parameters: data.parameters || undefined,
         file_mounts: data.file_mounts || undefined,
         github_repo_url: data.github_repo_url || undefined,
-        github_repo_dir:
-          data.github_repo_dir || data.github_directory || undefined,
-        github_repo_branch:
-          data.github_repo_branch || data.github_branch || undefined,
+        github_repo_dir: data.github_repo_dir || undefined,
+        github_repo_branch: data.github_repo_branch || undefined,
         run_sweeps: data.run_sweeps || undefined,
         sweep_config: data.sweep_config || undefined,
         sweep_metric:
@@ -866,7 +864,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           provider_name: providerMeta.name,
           env_vars: Object.keys(envVars).length > 0 ? envVars : undefined,
           github_repo_url: template?.github_repo_url || undefined,
-          github_directory: template?.github_repo_dir || undefined,
+          github_repo_dir: template?.github_repo_dir || undefined,
         };
 
         response = await fetchWithAuth(
@@ -1026,16 +1024,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         file_mounts: cfg.file_mounts || task.file_mounts,
         provider_name: config?.provider_name ?? providerMeta.name,
         github_repo_url: cfg.github_repo_url || task.github_repo_url,
-        github_repo_dir:
-          cfg.github_repo_dir ||
-          cfg.github_directory ||
-          task.github_repo_dir ||
-          task.github_directory,
-        github_repo_branch:
-          cfg.github_repo_branch ||
-          cfg.github_branch ||
-          task.github_repo_branch ||
-          task.github_branch,
+        github_repo_dir: cfg.github_repo_dir || task.github_repo_dir,
+        github_repo_branch: cfg.github_repo_branch || task.github_repo_branch,
         run_sweeps: cfg.run_sweeps || task.run_sweeps || undefined,
         sweep_config: cfg.sweep_config || task.sweep_config || undefined,
         sweep_metric:
@@ -1366,7 +1356,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           )}
         </Stack>
       </Stack>
-      <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
+      <Sheet sx={{ px: 1, mt: 1, mb: 1, flex: 2, overflow: 'auto' }}>
         <JobsList
           jobs={filteredJobsForDisplay as any}
           launchProgressByJobId={launchProgressByJobId}

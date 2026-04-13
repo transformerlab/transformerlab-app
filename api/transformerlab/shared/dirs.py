@@ -65,13 +65,6 @@ else:
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-# PLUGIN_PRELOADED_GALLERY - use os.path.join for module-level paths
-PLUGIN_PRELOADED_GALLERY = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab", "plugins")
-
-PLUGIN_SDK_DIR = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab", "plugin_sdk")
-PLUGIN_HARNESS = os.path.join(PLUGIN_SDK_DIR, "plugin_harness.py")
-
-
 # Galleries cache directory
 GALLERIES_LOCAL_FALLBACK_DIR = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab/galleries/")
 

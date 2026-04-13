@@ -57,7 +57,7 @@ test.describe('Ollama Gradio Interactive Task', () => {
     });
     await expect(configDialog).toBeVisible({ timeout: 10000 });
     await configDialog
-      .getByRole('textbox', { name: 'Model Name' })
+      .getByRole('combobox', { name: 'Model Name' })
       .fill('smollm:135m');
 
     // ── Step 3: Launch the task ──

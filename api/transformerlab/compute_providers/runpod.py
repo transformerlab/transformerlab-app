@@ -484,9 +484,26 @@ class RunpodProvider(ComputeProvider):
             }
 
         try:
-            # Terminate the pod
+            # Terminate the pod. RunPod documents 204 No Content on success (no body).
+            # https://docs.runpod.io/api-reference/pods/DELETE/pods/podId
             response = self._make_request("DELETE", f"/pods/{pod_id}")
-            result = response.json()
+            status = response.status_code
+            result: Optional[Any] = None
+
+            if status == 204:
+                result = None
+            elif 200 <= status < 300:
+                if response.content:
+                    try:
+                        result = response.json()
+                    except requests.exceptions.JSONDecodeError:
+                        if response.text:
+                            result = {"raw_response": response.text}
+            else:
+                # Should not occur: _make_request uses raise_for_status() (non-2xx raise before here).
+                raise RuntimeError(
+                    f"Unexpected HTTP status from RunPod delete pod: {status} (expected 2xx, typically 204)"
+                )
 
             # Remove from cache
             if cluster_name in self._cluster_name_to_pod_id:

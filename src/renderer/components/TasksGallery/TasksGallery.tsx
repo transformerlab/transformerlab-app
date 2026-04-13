@@ -48,9 +48,7 @@ function filterTasksGallery(data: any[], searchText: string = '') {
       title.toLowerCase().includes(lowerSearch) ||
       description.toLowerCase().includes(lowerSearch) ||
       (task.github_repo_url || '').toLowerCase().includes(lowerSearch) ||
-      (task.github_repo_branch || task.github_branch || '')
-        .toLowerCase()
-        .includes(lowerSearch)
+      (task.github_repo_branch || '').toLowerCase().includes(lowerSearch)
     );
   });
   return filteredData;
@@ -205,7 +203,7 @@ function TaskCard({
                   href={generateGithubLink(
                     task.github_repo_url,
                     task?.github_repo_dir,
-                    task?.github_repo_branch ?? task?.github_branch,
+                    task?.github_repo_branch,
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -227,7 +225,7 @@ function TaskCard({
                   href={generateGithubLink(
                     task.github_repo_url,
                     task?.github_repo_dir,
-                    task?.github_repo_branch ?? task?.github_branch,
+                    task?.github_repo_branch,
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -247,7 +245,7 @@ function TaskCard({
                   {formatGithubPath(
                     task.github_repo_url,
                     task?.github_repo_dir,
-                    task?.github_repo_branch ?? task?.github_branch,
+                    task?.github_repo_branch,
                   )}
                 </Typography>
               </Box>
@@ -792,7 +790,6 @@ export default function TasksGallery() {
                       title?: string;
                       github_repo_url?: string;
                       github_repo_branch?: string;
-                      github_branch?: string;
                     }) =>
                       galleryTask === task ||
                       (galleryTask?.id &&
@@ -802,12 +799,8 @@ export default function TasksGallery() {
                         task?.title &&
                         galleryTask.title === task.title &&
                         galleryTask.github_repo_url === task.github_repo_url &&
-                        (galleryTask.github_repo_branch ??
-                          galleryTask.github_branch ??
-                          '') ===
-                          (task.github_repo_branch ??
-                            task.github_branch ??
-                            '')),
+                        (galleryTask.github_repo_branch ?? '') ===
+                          (task.github_repo_branch ?? '')),
                   );
                   galleryIdentifier =
                     originalIndex >= 0 ? originalIndex : filteredIndex;

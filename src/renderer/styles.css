@@ -2,6 +2,21 @@ body {
   overflow: hidden;
 }
 
+/* Scale icons to match text size in buttons and list items */
+.MuiButton-root svg,
+.MuiIconButton-root svg,
+.MuiListItemDecorator-root svg,
+.MuiListItemButton-root svg {
+  width: 1.1em !important;
+  height: 1.1em !important;
+}
+
+/* Lighter, thinner lucide icons */
+svg[stroke='currentColor'][stroke-width='2'],
+svg[stroke^='var(--joy'][stroke-width='2'] {
+  stroke-width: 1.5px;
+}
+
 a {
   color: var(--joy-palette-primary-400);
 }

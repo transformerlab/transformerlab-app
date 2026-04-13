@@ -5,6 +5,23 @@ export default extendTheme({
     display: '-apple-system, "system-ui", var(--joy-fontFamily-fallback)',
     body: '-apple-system, "system-ui", var(--joy-fontFamily-fallback)',
   },
+  components: {
+    JoyButton: {
+      styleOverrides: {
+        root: {
+          '--Button-minHeight': '1.75rem',
+          paddingBlock: '3px',
+        },
+      },
+    },
+    JoyIconButton: {
+      styleOverrides: {
+        root: {
+          '--IconButton-size': '1.75rem',
+        },
+      },
+    },
+  },
   colorSchemes: {
     light: {
       palette: {
@@ -49,22 +66,6 @@ export default extendTheme({
         },
         text: {
           primary: 'rgb(60, 60, 67)',
-        },
-      },
-    },
-    dark: {
-      palette: {
-        primary: {
-          '50': '#f8fafc',
-          '100': '#f1f5f9',
-          '200': '#e2e8f0',
-          '300': '#cbd5e1',
-          '400': '#94a3b8',
-          '500': '#64748b',
-          '600': '#475569',
-          '700': '#334155',
-          '800': '#1e293b',
-          '900': '#0f172a',
         },
       },
     },

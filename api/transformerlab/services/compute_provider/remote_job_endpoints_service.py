@@ -162,8 +162,6 @@ async def resume_remote_job_from_checkpoint(
         "github_repo_url",
         "github_repo_dir",
         "github_repo_branch",
-        "github_directory",
-        "github_branch",
         "user_info",
         "team_id",
     ]
@@ -260,9 +258,9 @@ async def resume_remote_job_from_checkpoint(
         github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id_for_pat)
         github_setup = generate_github_clone_setup(
             repo_url=github_repo_url,
-            directory=job_data.get("github_directory"),
+            directory=job_data.get("github_repo_dir"),
             github_pat=github_pat,
-            branch=job_data.get("github_branch"),
+            branch=job_data.get("github_repo_branch"),
         )
         setup_commands.append(github_setup)
 

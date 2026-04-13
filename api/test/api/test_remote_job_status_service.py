@@ -548,6 +548,122 @@ async def test_check_job_via_provider_local_still_running(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# _check_job_via_provider tests — interactive jobs (dead process detection)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_check_job_via_provider_interactive_local_down_transitions_failed(monkeypatch):
+    """Interactive job on LOCAL provider with DOWN cluster → job marked FAILED."""
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(status="INTERACTIVE", workspace_dir="/tmp/ws")
+    job["job_data"]["subtype"] = "interactive"
+    record = _make_provider_record("local")
+
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.DOWN
+    cluster_status.status_message = "Process not running"
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+    instance.extra_config = {}
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key))
+
+    async def fake_update_status(job_id, status, experiment_id=None):
+        calls.append(("status", status))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        fake_update_status,
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+
+    assert result is True
+    assert ("status", "FAILED") in calls
+
+
+@pytest.mark.asyncio
+async def test_check_job_via_provider_interactive_local_up_no_transition(monkeypatch):
+    """Interactive job on LOCAL provider with UP cluster → no transition (still running)."""
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(status="INTERACTIVE", workspace_dir="/tmp/ws")
+    job["job_data"]["subtype"] = "interactive"
+    record = _make_provider_record("local")
+
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.UP
+    cluster_status.status_message = "Process running"
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+    instance.extra_config = {}
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        AsyncMock(side_effect=AssertionError("should not be called")),
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_check_job_via_provider_interactive_stopping_local_down_transitions_stopped(monkeypatch):
+    """Interactive job STOPPING on LOCAL with DOWN cluster → job marked STOPPED."""
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(status="STOPPING", workspace_dir="/tmp/ws")
+    job["job_data"]["subtype"] = "interactive"
+    record = _make_provider_record("local")
+
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.DOWN
+    cluster_status.status_message = "Process not running"
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+    instance.extra_config = {}
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key))
+
+    async def fake_update_status(job_id, status, experiment_id=None):
+        calls.append(("status", status))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        fake_update_status,
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+
+    assert result is True
+    assert ("status", "STOPPED") in calls
+
+
+# ---------------------------------------------------------------------------
 # refresh_launching_remote_jobs_once integration-style tests
 # ---------------------------------------------------------------------------
 

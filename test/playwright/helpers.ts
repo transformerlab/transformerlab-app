@@ -36,3 +36,29 @@ export async function selectFirstExperiment(page: Page) {
   await expect(dropdown).toBeHidden({ timeout: 10000 });
   await expect(menuTrigger).not.toHaveText(/^Select\s*$/, { timeout: 15000 });
 }
+
+export async function hideAllVisibleJobs(page: Page) {
+  // Re-scan after each hide because rows are removed from the visible list.
+  for (let pass = 0; pass < 50; pass += 1) {
+    const menuButtons = page.locator('tr button[aria-haspopup="menu"]');
+    const menuButtonCount = await menuButtons.count();
+    let hidOneJob = false;
+
+    for (let i = 0; i < menuButtonCount; i += 1) {
+      await menuButtons.nth(i).click();
+
+      const hideMenuItem = page.getByRole('menuitem', { name: 'Hide' }).first();
+      if (await hideMenuItem.isVisible()) {
+        await hideMenuItem.click();
+        hidOneJob = true;
+        break;
+      }
+
+      await page.keyboard.press('Escape');
+    }
+
+    if (!hidOneJob) {
+      break;
+    }
+  }
+}

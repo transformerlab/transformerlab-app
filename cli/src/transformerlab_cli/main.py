@@ -54,7 +54,7 @@ def common_setup(
     cli_state.output_format = format
     if not ctx.invoked_subcommand:
         show_header(console)  # Display the logo when no command is provided
-    elif ctx.invoked_subcommand != "version":
+    elif ctx.invoked_subcommand != "version" and format != "json":
         check_for_update(console)
 
 

@@ -29,13 +29,13 @@
         "task_type": "TRAIN",
         "type": "Training",
         "plugin": "mlx_lora_trainer",
-        "config_json": "{\"template_name\":\"TrainFromScratch\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"{{text}}\",\"lora_layers\":\"16\",\"batch_size\":\"8\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"32\",\"lora_alpha\":\"128\",\"iters\":\"120\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"20\",\"save_every\":\"10\",\"adaptor\":\"from_scratch\"}"
+        "config_json": "{\"template_name\":\"TrainFromScratch\",\"task_name\":\"mlx_lora_trainer\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"{{text}}\",\"lora_layers\":\"16\",\"batch_size\":\"8\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"32\",\"lora_alpha\":\"128\",\"iters\":\"120\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"20\",\"save_every\":\"10\",\"adaptor\":\"from_scratch\"}"
       },
       {
         "name": "evaluate_model",
         "task_type": "EVAL",
         "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
-        "config_json": "{\"template_name\":\"EvalFromScratch\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalFromScratch\"}"
+        "config_json": "{\"template_name\":\"EvalFromScratch\",\"task_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalFromScratch\"}"
       }
     ],
     "workflows": [
@@ -94,13 +94,13 @@
         "type": "LoRA",
         "plugin": "llama_trainer",
         "formatting_template": "Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}",
-        "config_json": "{\"template_name\":\"DialogueSummarizing\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"Instruction: Summarize the Following\\nPrompt: {{dialogue}}\\nGeneration: {{summary}}\",\"dataset_name\":\"knkarthick/samsum\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"32\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"Summarizer\"}"
+        "config_json": "{\"template_name\":\"DialogueSummarizing\",\"task_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"Instruction: Summarize the Following\\nPrompt: {{dialogue}}\\nGeneration: {{summary}}\",\"dataset_name\":\"knkarthick/samsum\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"32\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"Summarizer\"}"
       },
       {
         "name": "evaluate_finetuned",
         "task_type": "EVAL",
         "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
-        "config_json": "{\"template_name\":\"EvalFineTuned\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalFineTuned\"}"
+        "config_json": "{\"template_name\":\"EvalFineTuned\",\"task_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalFineTuned\"}"
       }
     ],
     "workflows": [
@@ -153,13 +153,13 @@
         "name": "evaluate_model_mmlu",
         "task_type": "EVAL",
         "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
-        "config_json": "{\"template_name\":\"EvalMMLU\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"1.0\",\"run_name\":\"EvalMMLU\"}"
+        "config_json": "{\"template_name\":\"EvalMMLU\",\"task_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"1.0\",\"run_name\":\"EvalMMLU\"}"
       },
       {
         "name": "evaluate_model_truthfulqa",
         "task_type": "EVAL",
         "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
-        "config_json": "{\"template_name\":\"EvalTruthfulQA\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"truthfulqa\",\"limit\":\"1.0\",\"run_name\":\"EvalTruthfulQA\"}"
+        "config_json": "{\"template_name\":\"EvalTruthfulQA\",\"task_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"truthfulqa\",\"limit\":\"1.0\",\"run_name\":\"EvalTruthfulQA\"}"
       }
     ],
     "workflows": [
@@ -208,7 +208,7 @@
         "name": "convert_to_mlx",
         "task_type": "EXPORT",
         "plugin": "airllm_mlx_server",
-        "config_json": "{\"template_name\":\"MLXConversion\",\"plugin_name\":\"airllm_mlx_server\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"output_format\":\"mlx\"}"
+        "config_json": "{\"template_name\":\"MLXConversion\",\"task_name\":\"airllm_mlx_server\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"output_format\":\"mlx\"}"
       }
     ],
     "workflows": [
@@ -254,13 +254,13 @@
         "name": "quantize_model",
         "task_type": "EXPORT",
         "plugin": "llama_cpp_server",
-        "config_json": "{\"template_name\":\"Quantization\",\"plugin_name\":\"llama_cpp_server\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"quantization_type\":\"q4_k_m\",\"n_gpu_layers\":\"auto\"}"
+        "config_json": "{\"template_name\":\"Quantization\",\"task_name\":\"llama_cpp_server\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"quantization_type\":\"q4_k_m\",\"n_gpu_layers\":\"auto\"}"
       },
       {
         "name": "evaluate_quantized",
         "task_type": "EVAL",
         "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
-        "config_json": "{\"template_name\":\"EvalQuantized\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalQuantized\"}"
+        "config_json": "{\"template_name\":\"EvalQuantized\",\"task_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalQuantized\"}"
       }
     ],
     "workflows": [
@@ -313,13 +313,13 @@
         "name": "optimize_for_edge",
         "task_type": "EXPORT",
         "plugin": "airllm_mlx_server",
-        "config_json": "{\"template_name\":\"EdgeOptimization\",\"plugin_name\":\"airllm_mlx_server\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"output_format\":\"mlx\",\"optimize_for_edge\":true}"
+        "config_json": "{\"template_name\":\"EdgeOptimization\",\"task_name\":\"airllm_mlx_server\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"output_format\":\"mlx\",\"optimize_for_edge\":true}"
       },
       {
         "name": "evaluate_edge_model",
         "task_type": "EVAL",
         "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
-        "config_json": "{\"template_name\":\"EvalEdge\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalEdge\"}"
+        "config_json": "{\"template_name\":\"EvalEdge\",\"task_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalEdge\"}"
       }
     ],
     "workflows": [
@@ -372,13 +372,13 @@
         "name": "setup_edge_inference",
         "task_type": "LOADER",
         "plugin": "fastchat_server",
-        "config_json": "{\"template_name\":\"EdgeInference\",\"plugin_name\":\"fastchat_server\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"load_compressed\":\"4-bit\",\"model_dtype\":\"float16\"}"
+        "config_json": "{\"template_name\":\"EdgeInference\",\"task_name\":\"fastchat_server\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"load_compressed\":\"4-bit\",\"model_dtype\":\"float16\"}"
       },
       {
         "name": "evaluate_inference",
         "task_type": "EVAL",
         "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
-        "config_json": "{\"template_name\":\"EvalInference\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalInference\"}"
+        "config_json": "{\"template_name\":\"EvalInference\",\"task_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalInference\"}"
       }
     ],
     "workflows": [
@@ -441,19 +441,19 @@
         "type": "LoRA",
         "plugin": "mlx_lora_trainer",
         "formatting_template": "{{prompt}}\n{{completion}}",
-        "config_json": "{\"template_name\":\"TouchRugby\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"{{prompt}}\\n{{completion}}\",\"dataset_name\":\"Trelis/touch-rugby-rules\",\"lora_layers\":\"16\",\"batch_size\":\"8\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"32\",\"lora_alpha\":\"128\",\"iters\":\"120\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"20\",\"save_every\":\"10\",\"adaptor\":\"touch-rugby\"}"
+        "config_json": "{\"template_name\":\"TouchRugby\",\"task_name\":\"mlx_lora_trainer\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"{{prompt}}\\n{{completion}}\",\"dataset_name\":\"Trelis/touch-rugby-rules\",\"lora_layers\":\"16\",\"batch_size\":\"8\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"32\",\"lora_alpha\":\"128\",\"iters\":\"120\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"20\",\"save_every\":\"10\",\"adaptor\":\"touch-rugby\"}"
       },
       {
         "name": "evaluate_touch_rugby",
         "task_type": "EVAL",
         "plugin": "common-eleuther-ai-lm-eval-harness-mlx",
-        "config_json": "{\"template_name\":\"HandsomeBadger\",\"plugin_name\":\"common-eleuther-ai-lm-eval-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"HandsomeBadger\",\"predefined_tasks\":\"\",\"script_parameters\":{\"template_name\":\"HandsomeBadger\",\"plugin_name\":\"common-eleuther-ai-lm-eval-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"HandsomeBadger\",\"predefined_tasks\":\"\"}}"
+        "config_json": "{\"template_name\":\"HandsomeBadger\",\"task_name\":\"common-eleuther-ai-lm-eval-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"HandsomeBadger\",\"predefined_tasks\":\"\",\"script_parameters\":{\"template_name\":\"HandsomeBadger\",\"task_name\":\"common-eleuther-ai-lm-eval-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"HandsomeBadger\",\"predefined_tasks\":\"\"}}"
       },
       {
         "name": "generate_touch_rugby_examples",
         "task_type": "GENERATE",
         "plugin": "synthesizer_scratch",
-        "config_json": "{\"template_name\":\"SparklingNarwhal\",\"plugin_name\":\"synthesizer_scratch\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"generation_model\":\"local\",\"num_goldens\":\"51\",\"generate_expected_output\":\"Yes\",\"scenario\":\"You are an expert in Touch Rugby rules and regulations. Generate diverse training examples that cover various aspects of the game.\",\"task\":\"Create question-answer pairs about Touch Rugby rules, focusing on game procedures, scoring rules, player positions, and common scenarios.\",\"input_format\":\"A specific question about Touch Rugby rules, formatted as: Question: [question text].\",\"expected_output_format\":\"A clear, accurate answer explaining the relevant Touch Rugby rule, formatted as: Answer: [detailed explanation]\",\"run_name\":\"SparklingNarwhal\",\"generation_type\":\"scratch\",\"script_parameters\":{\"template_name\":\"SparklingNarwhal\",\"plugin_name\":\"synthesizer_scratch\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"generation_model\":\"local\",\"num_goldens\":\"51\",\"generate_expected_output\":\"Yes\",\"scenario\":\"You are an expert in Touch Rugby rules and regulations. Generate diverse training examples that cover various aspects of the game.\",\"task\":\"Create question-answer pairs about Touch Rugby rules, focusing on game procedures, scoring rules, player positions, and common scenarios.\",\"input_format\":\"A specific question about Touch Rugby rules, formatted as: Question: [question text].\",\"expected_output_format\":\"A clear, accurate answer explaining the relevant Touch Rugby rule, formatted as: Answer: [detailed explanation]\",\"run_name\":\"SparklingNarwhal\",\"generation_type\":\"scratch\"}}"
+        "config_json": "{\"template_name\":\"SparklingNarwhal\",\"task_name\":\"synthesizer_scratch\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"generation_model\":\"local\",\"num_goldens\":\"51\",\"generate_expected_output\":\"Yes\",\"scenario\":\"You are an expert in Touch Rugby rules and regulations. Generate diverse training examples that cover various aspects of the game.\",\"task\":\"Create question-answer pairs about Touch Rugby rules, focusing on game procedures, scoring rules, player positions, and common scenarios.\",\"input_format\":\"A specific question about Touch Rugby rules, formatted as: Question: [question text].\",\"expected_output_format\":\"A clear, accurate answer explaining the relevant Touch Rugby rule, formatted as: Answer: [detailed explanation]\",\"run_name\":\"SparklingNarwhal\",\"generation_type\":\"scratch\",\"script_parameters\":{\"template_name\":\"SparklingNarwhal\",\"task_name\":\"synthesizer_scratch\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"generation_model\":\"local\",\"num_goldens\":\"51\",\"generate_expected_output\":\"Yes\",\"scenario\":\"You are an expert in Touch Rugby rules and regulations. Generate diverse training examples that cover various aspects of the game.\",\"task\":\"Create question-answer pairs about Touch Rugby rules, focusing on game procedures, scoring rules, player positions, and common scenarios.\",\"input_format\":\"A specific question about Touch Rugby rules, formatted as: Question: [question text].\",\"expected_output_format\":\"A clear, accurate answer explaining the relevant Touch Rugby rule, formatted as: Answer: [detailed explanation]\",\"run_name\":\"SparklingNarwhal\",\"generation_type\":\"scratch\"}}"
       }
     ],
     "workflows": [
@@ -515,7 +515,7 @@
         "type": "LoRA",
         "plugin": "llama_trainer",
         "formatting_template": "Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}",
-        "config_json": "{\"template_name\":\"DialogueSummarizing\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"TinyLlama/TinyLlama-1.1B-Chat-v1.0\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"Instruction: Summarize the Following\\nPrompt: {{dialogue}}\\nGeneration: {{summary}}\",\"dataset_name\":\"knkarthick/samsum\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"32\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"Summarizer\",\"_tlab_recipe_datasets\":{\"name\":\"knkarthick/samsum\",\"path\":\"knkarthick/samsum\"},\"_tlab_recipe_models\":{\"name\":\"TinyLlama/TinyLlama-1.1B-Chat-v1.0\",\"path\":\"TinyLlama/TinyLlama-1.1B-Chat-v1.0\"}}"
+        "config_json": "{\"template_name\":\"DialogueSummarizing\",\"task_name\":\"llama_trainer\",\"model_name\":\"TinyLlama/TinyLlama-1.1B-Chat-v1.0\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"Instruction: Summarize the Following\\nPrompt: {{dialogue}}\\nGeneration: {{summary}}\",\"dataset_name\":\"knkarthick/samsum\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"32\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"Summarizer\",\"_tlab_recipe_datasets\":{\"name\":\"knkarthick/samsum\",\"path\":\"knkarthick/samsum\"},\"_tlab_recipe_models\":{\"name\":\"TinyLlama/TinyLlama-1.1B-Chat-v1.0\",\"path\":\"TinyLlama/TinyLlama-1.1B-Chat-v1.0\"}}"
       }
     ],
     "workflows": [],
@@ -548,7 +548,7 @@
         "type": "LoRA",
         "plugin": "llama_trainer",
         "formatting_template": "{{output}}",
-        "config_json": "{\"template_name\":\"PythonCompletion\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"HuggingFaceTB/SmolLM2-135M\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"{{output}}\\n\",\"dataset_name\":\"flytech/python-codes-25k\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.0005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"64\",\"lora_alpha\":\"128\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"python\",\"_tlab_recipe_datasets\":{\"name\":\"flytech/python-codes-25k\",\"path\":\"flytech/python-codes-25k\"},\"_tlab_recipe_models\":{\"name\":\"HuggingFaceTB/SmolLM2-135M\",\"path\":\"HuggingFaceTB/SmolLM2-135M\"}}"
+        "config_json": "{\"template_name\":\"PythonCompletion\",\"task_name\":\"llama_trainer\",\"model_name\":\"HuggingFaceTB/SmolLM2-135M\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"{{output}}\\n\",\"dataset_name\":\"flytech/python-codes-25k\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.0005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"64\",\"lora_alpha\":\"128\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"python\",\"_tlab_recipe_datasets\":{\"name\":\"flytech/python-codes-25k\",\"path\":\"flytech/python-codes-25k\"},\"_tlab_recipe_models\":{\"name\":\"HuggingFaceTB/SmolLM2-135M\",\"path\":\"HuggingFaceTB/SmolLM2-135M\"}}"
       }
     ],
     "workflows": [],
@@ -580,7 +580,7 @@
         "task_type": "TRAIN",
         "type": "LoRA",
         "plugin": "mlx_lora_trainer",
-        "config_json": "{\"template_name\":\"MachineLearningQnA-MLX\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"google/gemma-2-2b-it\",\"model_architecture\":\"Gemma2ForCausalLM\",\"formatting_template\":\"{{text}}\",\"dataset_name\":\"win-wang/Machine_Learning_QA_Collection\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\",\"_tlab_recipe_datasets\":{\"name\":\"Machine Learning QA Collection\",\"path\":\"win-wang/Machine_Learning_QA_Collection\"},\"_tlab_recipe_models\":{\"name\":\"google/gemma-2-2b-it\",\"path\":\"google/gemma-2-2b-it\"}}"
+        "config_json": "{\"template_name\":\"MachineLearningQnA-MLX\",\"task_name\":\"mlx_lora_trainer\",\"model_name\":\"google/gemma-2-2b-it\",\"model_architecture\":\"Gemma2ForCausalLM\",\"formatting_template\":\"{{text}}\",\"dataset_name\":\"win-wang/Machine_Learning_QA_Collection\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\",\"_tlab_recipe_datasets\":{\"name\":\"Machine Learning QA Collection\",\"path\":\"win-wang/Machine_Learning_QA_Collection\"},\"_tlab_recipe_models\":{\"name\":\"google/gemma-2-2b-it\",\"path\":\"google/gemma-2-2b-it\"}}"
       }
     ],
     "workflows": [],
@@ -612,7 +612,7 @@
         "task_type": "TRAIN",
         "type": "LoRA",
         "plugin": "llama_trainer",
-        "config_json": "{\"template_name\":\"MachineLearningQnA\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"{{text}}\\n\",\"dataset_name\":\"win-wang/Machine_Learning_QA_Collection\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"1\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"16\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.1\",\"adaptor_name\":\"ML-QA\",\"_tlab_recipe_datasets\":{\"name\":\"win-wang/Machine_Learning_QA_Collection\",\"path\":\"win-wang/Machine_Learning_QA_Collection\"},\"_tlab_recipe_models\":{\"name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"path\":\"Qwen/Qwen2.5-1.5B-Instruct\"}}"
+        "config_json": "{\"template_name\":\"MachineLearningQnA\",\"task_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"{{text}}\\n\",\"dataset_name\":\"win-wang/Machine_Learning_QA_Collection\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"1\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"16\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.1\",\"adaptor_name\":\"ML-QA\",\"_tlab_recipe_datasets\":{\"name\":\"win-wang/Machine_Learning_QA_Collection\",\"path\":\"win-wang/Machine_Learning_QA_Collection\"},\"_tlab_recipe_models\":{\"name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"path\":\"Qwen/Qwen2.5-1.5B-Instruct\"}}"
       }
     ],
     "workflows": [],
@@ -644,7 +644,7 @@
         "task_type": "TRAIN",
         "type": "LoRA",
         "plugin": "mlx_lora_trainer",
-        "config_json": "{\"template_name\":\"WikiSQL-MLX\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"meta-llama/Llama-3.2-1B\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question.\\n{{text}}\",\"dataset_name\":\"mlx-community/wikisql\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\",\"_tlab_recipe_datasets\":{\"name\":\"mlx-community/wikisql\",\"path\":\"mlx-community/wikisql\"},\"_tlab_recipe_models\":{\"name\":\"meta-llama/Llama-3.2-1B\",\"path\":\"meta-llama/Llama-3.2-1B\"}}"
+        "config_json": "{\"template_name\":\"WikiSQL-MLX\",\"task_name\":\"mlx_lora_trainer\",\"model_name\":\"meta-llama/Llama-3.2-1B\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question.\\n{{text}}\",\"dataset_name\":\"mlx-community/wikisql\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\",\"_tlab_recipe_datasets\":{\"name\":\"mlx-community/wikisql\",\"path\":\"mlx-community/wikisql\"},\"_tlab_recipe_models\":{\"name\":\"meta-llama/Llama-3.2-1B\",\"path\":\"meta-llama/Llama-3.2-1B\"}}"
       }
     ],
     "workflows": [],
@@ -676,7 +676,7 @@
         "task_type": "TRAIN",
         "type": "LoRA",
         "plugin": "llama_trainer",
-        "config_json": "{\"template_name\":\"Wiki SQL\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"{{text}} ;\",\"dataset_name\":\"mlx-community/wikisql\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"1\",\"learning_rate\":\"0.005\",\"num_train_epochs\":\"2\",\"max_steps\":\"-1\",\"lora_r\":\"32\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.1\",\"adaptor_name\":\"WikiSQL\",\"_tlab_recipe_datasets\":{\"name\":\"mlx-community/wikisql\",\"path\":\"mlx-community/wikisql\"},\"_tlab_recipe_models\":{\"name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"path\":\"Qwen/Qwen2.5-1.5B-Instruct\"}}"
+        "config_json": "{\"template_name\":\"Wiki SQL\",\"task_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"{{text}} ;\",\"dataset_name\":\"mlx-community/wikisql\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"1\",\"learning_rate\":\"0.005\",\"num_train_epochs\":\"2\",\"max_steps\":\"-1\",\"lora_r\":\"32\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.1\",\"adaptor_name\":\"WikiSQL\",\"_tlab_recipe_datasets\":{\"name\":\"mlx-community/wikisql\",\"path\":\"mlx-community/wikisql\"},\"_tlab_recipe_models\":{\"name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"path\":\"Qwen/Qwen2.5-1.5B-Instruct\"}}"
       }
     ],
     "workflows": [],
@@ -708,7 +708,7 @@
         "task_type": "TRAIN",
         "type": "LoRA",
         "plugin": "llama_trainer",
-        "config_json": "{\"template_name\":\"PirateSpeech\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"HuggingFaceTB/SmolLM-135M-Instruct\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"<instruction>\\n{{instruction}}\\n</instruction>\\n<response>\\n{{response}}\\n</response>\",\"dataset_name\":\"Peyton3995/dolly-15k-mistral-pirate\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate_schedule\":\"cosine\",\"learning_rate\":\"0.01\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"64\",\"lora_alpha\":\"128\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"Pirate_Speech\",\"_tlab_recipe_datasets\":{\"name\":\"Peyton3995/dolly-15k-mistral-pirate\",\"path\":\"Peyton3995/dolly-15k-mistral-pirate\"},\"_tlab_recipe_models\":{\"name\":\"HuggingFaceTB/SmolLM-135M-Instruct\",\"path\":\"HuggingFaceTB/SmolLM-135M-Instruct\"}}"
+        "config_json": "{\"template_name\":\"PirateSpeech\",\"task_name\":\"llama_trainer\",\"model_name\":\"HuggingFaceTB/SmolLM-135M-Instruct\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"<instruction>\\n{{instruction}}\\n</instruction>\\n<response>\\n{{response}}\\n</response>\",\"dataset_name\":\"Peyton3995/dolly-15k-mistral-pirate\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate_schedule\":\"cosine\",\"learning_rate\":\"0.01\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"64\",\"lora_alpha\":\"128\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"Pirate_Speech\",\"_tlab_recipe_datasets\":{\"name\":\"Peyton3995/dolly-15k-mistral-pirate\",\"path\":\"Peyton3995/dolly-15k-mistral-pirate\"},\"_tlab_recipe_models\":{\"name\":\"HuggingFaceTB/SmolLM-135M-Instruct\",\"path\":\"HuggingFaceTB/SmolLM-135M-Instruct\"}}"
       }
     ],
     "workflows": [],
@@ -740,7 +740,7 @@
         "task_type": "TRAIN",
         "type": "LoRA",
         "plugin": "llama_trainer",
-        "config_json": "{\"template_name\":\"InstructTuning\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"HuggingFaceTB/SmolLM2-135M\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"<User>\\n{{instruction}}\\n</User>\\n<Assistant>\\n{{output}}\\n</Assistant>\\n\",\"dataset_name\":\"nickrosh/Evol-Instruct-Code-80k-v1\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.00003\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"4\",\"lora_alpha\":\"16\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"instruct\",\"_tlab_recipe_datasets\":{\"name\":\"nickrosh/Evol-Instruct-Code-80k-v1\",\"path\":\"nickrosh/Evol-Instruct-Code-80k-v1\"},\"_tlab_recipe_models\":{\"name\":\"HuggingFaceTB/SmolLM2-135M\",\"path\":\"HuggingFaceTB/SmolLM2-135M\"}}"
+        "config_json": "{\"template_name\":\"InstructTuning\",\"task_name\":\"llama_trainer\",\"model_name\":\"HuggingFaceTB/SmolLM2-135M\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"<User>\\n{{instruction}}\\n</User>\\n<Assistant>\\n{{output}}\\n</Assistant>\\n\",\"dataset_name\":\"nickrosh/Evol-Instruct-Code-80k-v1\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.00003\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"4\",\"lora_alpha\":\"16\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"instruct\",\"_tlab_recipe_datasets\":{\"name\":\"nickrosh/Evol-Instruct-Code-80k-v1\",\"path\":\"nickrosh/Evol-Instruct-Code-80k-v1\"},\"_tlab_recipe_models\":{\"name\":\"HuggingFaceTB/SmolLM2-135M\",\"path\":\"HuggingFaceTB/SmolLM2-135M\"}}"
       }
     ],
     "workflows": [],

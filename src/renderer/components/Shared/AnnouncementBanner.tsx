@@ -161,8 +161,6 @@ export default function AnnouncementBanner() {
         gap: 1,
         px: 2,
         py: 1,
-        mx: -4,
-        mt: -2,
         mb: 2,
         backgroundColor: 'var(--joy-palette-warning-softBg)',
       }}

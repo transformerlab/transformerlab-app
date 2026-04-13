@@ -221,9 +221,7 @@ async def _check_job_via_provider(
     provider_type = provider_record.type
     job_status = job.get("status", "")
 
-    # Never auto-transition interactive sessions unless they are already STOPPING.
-    if _is_interactive_subtype_job(job) and job_status != JobStatus.STOPPING.value:
-        return False
+    is_interactive = _is_interactive_subtype_job(job)
 
     if provider_type in (ProviderType.LOCAL.value, ProviderType.RUNPOD.value):
         # LOCAL and RUNPOD: the pod/process itself is the job — check cluster state.
@@ -322,6 +320,10 @@ async def _check_job_via_provider(
                 elif job_status == JobStatus.INTERACTIVE.value and cluster_state == ClusterState.DOWN:
                     # Interactive session died (e.g. setup failure); treat as failed so the job is not stuck.
                     final_status = JobStatus.FAILED.value
+                elif is_interactive:
+                    # Interactive sessions should never be auto-marked COMPLETE.
+                    # If the cluster is down/stopped but not explicitly failed, treat as failed.
+                    final_status = JobStatus.FAILED.value
                 else:
                     final_status = JobStatus.COMPLETE.value
             else:
@@ -329,6 +331,9 @@ async def _check_job_via_provider(
                 if job_status == JobStatus.STOPPING.value:
                     final_status = JobStatus.STOPPED.value
                 elif cluster_state == ClusterState.FAILED:
+                    final_status = JobStatus.FAILED.value
+                elif is_interactive:
+                    # Interactive sessions should never be auto-marked COMPLETE.
                     final_status = JobStatus.FAILED.value
                 else:
                     final_status = JobStatus.COMPLETE.value
@@ -405,6 +410,9 @@ async def _check_job_via_provider(
             if job_status == JobStatus.STOPPING.value or any(state == JobState.CANCELLED for state in provider_states):
                 final_status = JobStatus.STOPPED.value
             elif any(state == JobState.FAILED for state in provider_states):
+                final_status = JobStatus.FAILED.value
+            elif is_interactive:
+                # Interactive sessions should never be auto-marked COMPLETE.
                 final_status = JobStatus.FAILED.value
             else:
                 final_status = JobStatus.COMPLETE.value

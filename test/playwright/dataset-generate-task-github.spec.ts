@@ -1,10 +1,34 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { login, selectFirstExperiment } from './helpers';
 
 const GITHUB_REPO_URL =
   'https://github.com/transformerlab/transformerlab-examples';
 const GITHUB_SUBDIR = 'demo-generate-task';
-const TASK_NAME_CANDIDATES = ['sample-generate-task', 'demo-generate-task'];
+
+async function replaceTaskNameInMonaco(page: Page, taskName: string) {
+  const editor = page.locator('.monaco-editor').first();
+  await expect(editor).toBeVisible({ timeout: 10000 });
+  await editor.click({ force: true });
+
+  const updatedViaMonacoApi = await page.evaluate((nextTaskName) => {
+    const maybeMonaco = (window as any).monaco;
+    const models = maybeMonaco?.editor?.getModels?.();
+    if (!Array.isArray(models) || models.length === 0) {
+      return false;
+    }
+    const model = models[0];
+    const current = model.getValue();
+    const replaced = /^name:\s*.*$/m.test(current)
+      ? current.replace(/^name:\s*.*$/m, `name: ${nextTaskName}`)
+      : `name: ${nextTaskName}\n${current}`;
+    model.setValue(replaced);
+    return true;
+  }, taskName);
+
+  if (!updatedViaMonacoApi) {
+    throw new Error('Monaco API unavailable for task name update');
+  }
+}
 
 test.describe('Dataset Generation Task From GitHub', () => {
   test.setTimeout(180_000);
@@ -12,6 +36,9 @@ test.describe('Dataset Generation Task From GitHub', () => {
   test('create task from GitHub, run local job, and require COMPLETE - 100%', async ({
     page,
   }) => {
+    const uniqueSuffix = Math.random().toString(36).slice(2, 8);
+    const taskName = `demo-generate-task_${uniqueSuffix}`;
+
     await login(page);
 
     await selectFirstExperiment(page);
@@ -34,31 +61,12 @@ test.describe('Dataset Generation Task From GitHub', () => {
     await addTaskDialog.getByRole('button', { name: 'Submit' }).click();
     const taskYamlDialog = page.getByRole('dialog', { name: 'task.yaml' });
     await expect(taskYamlDialog).toBeVisible({ timeout: 15000 });
+    await replaceTaskNameInMonaco(page, taskName);
     await taskYamlDialog.getByRole('button', { name: 'Save' }).click();
 
-    // Wait for the imported task to appear.
-    let taskName = '';
-    await expect
-      .poll(
-        async () => {
-          for (const candidate of TASK_NAME_CANDIDATES) {
-            const row = page.locator('tr', {
-              has: page.getByText(candidate, { exact: true }),
-            });
-            if ((await row.count()) > 0) {
-              taskName = candidate;
-              break;
-            }
-          }
-          return taskName;
-        },
-        {
-          message: 'Expected imported GitHub task to appear in Tasks list',
-          timeout: 30000,
-          intervals: [1000, 2000],
-        },
-      )
-      .not.toBe('');
+    await expect(page.getByText(taskName, { exact: true }).first()).toBeVisible({
+      timeout: 30000,
+    });
 
     const taskRow = page.locator('tr', {
       has: page.getByText(taskName, { exact: true }),
@@ -70,54 +78,11 @@ test.describe('Dataset Generation Task From GitHub', () => {
     await expect(
       queueDialog.getByRole('combobox', { name: 'Compute Provider' }),
     ).toHaveText('Local', { timeout: 5000 });
-    const jobsWithOutputRows = page.locator('tr', {
-      has: page.getByRole('button', { name: 'Output' }),
-    });
-    const existingJobSignatures = new Set<string>();
-    const existingRowCount = await jobsWithOutputRows.count();
-    for (let i = 0; i < existingRowCount; i += 1) {
-      const signature = (await jobsWithOutputRows
-        .nth(i)
-        .locator('td')
-        .first()
-        .innerText())
-        .trim();
-      if (signature) {
-        existingJobSignatures.add(signature);
-      }
-    }
     await queueDialog.getByRole('button', { name: 'Submit' }).click();
-
-    let queuedJobSignature = '';
-    await expect
-      .poll(
-        async () => {
-          const rowCount = await jobsWithOutputRows.count();
-          for (let i = 0; i < rowCount; i += 1) {
-            const signature = (await jobsWithOutputRows
-              .nth(i)
-              .locator('td')
-              .first()
-              .innerText())
-              .trim();
-            if (signature && !existingJobSignatures.has(signature)) {
-              queuedJobSignature = signature;
-              break;
-            }
-          }
-          return queuedJobSignature;
-        },
-        {
-          message: 'Expected a newly queued job row to appear',
-          timeout: 30000,
-          intervals: [1000, 2000],
-        },
-      )
-      .not.toBe('');
-
+    const jobNamePrefix = `${taskName}-job-`;
     const queuedJobRow = page.locator('tr', {
       has: page.getByRole('button', { name: 'Output' }),
-      hasText: queuedJobSignature,
+      hasText: jobNamePrefix,
     });
 
     // Stop once COMPLETE - 100% is reached.

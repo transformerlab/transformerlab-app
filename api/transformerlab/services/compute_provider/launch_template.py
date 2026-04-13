@@ -269,18 +269,15 @@ async def launch_template_on_provider(
         task_data = await task_service.task_get_by_id(request.task_id)
         if task_data:
             request.github_repo_url = task_data.get("github_repo_url", "") or ""
-            # Task data may store the directory as either github_repo_dir or github_directory
-            request.github_repo_dir = (
-                task_data.get("github_repo_dir", "") or task_data.get("github_directory", "") or ""
-            )
-            request.github_repo_branch = task_data.get("github_branch", "") or ""
+            request.github_repo_dir = task_data.get("github_repo_dir", "") or ""
+            request.github_repo_branch = task_data.get("github_repo_branch", "") or ""
 
     # Add GitHub clone setup if enabled
     if request.github_repo_url:
         workspace_dir = await get_workspace_dir()
         github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
-        directory = request.github_repo_dir or request.github_directory
-        branch = request.github_repo_branch or request.github_branch
+        directory = request.github_repo_dir
+        branch = request.github_repo_branch
         github_setup = generate_github_clone_setup(
             repo_url=request.github_repo_url,
             directory=directory,

@@ -426,6 +426,13 @@ async def initialize_team_local_provider(
         try:
             provider_instance = await get_provider_instance(provider, user_id=created_by_user_id, team_id=team_id)
             await asyncio.to_thread(provider_instance.setup)
+            # Re-detect accelerators after setup: setup installs CUDA (including nvidia-smi)
+            # via conda, so detection here gives the correct result on machines where CUDA
+            # was not yet installed when the provider was first created.
+            post_setup_accelerators = await asyncio.to_thread(detect_local_supported_accelerators)
+            post_setup_config = dict(provider.config or {})
+            post_setup_config["supported_accelerators"] = post_setup_accelerators
+            await update_team_provider(session, provider, config=post_setup_config)
         except Exception:
             # Best-effort bootstrap: do not fail startup if setup fails.
             logger.warning("Background local provider setup failed", exc_info=True)

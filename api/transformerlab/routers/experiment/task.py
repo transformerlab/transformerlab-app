@@ -168,11 +168,9 @@ async def task_list_files(task_id: str) -> TaskFilesResponse:
     github_files: list[str] = []
     local_files: list[str] = []
 
-    # For tasks, fields are stored directly (flat structure). Prefer canonical github_repo_* keys,
-    # but fall back to legacy github_directory/github_branch for older tasks.
     github_repo_url = task.get("github_repo_url")
-    github_repo_dir = task.get("github_repo_dir") or task.get("github_directory")
-    github_repo_branch = task.get("github_repo_branch") or task.get("github_branch")
+    github_repo_dir = task.get("github_repo_dir")
+    github_repo_branch = task.get("github_repo_branch")
 
     if github_repo_url:
         try:
@@ -357,7 +355,7 @@ async def task_get_github_file(task_id: str, file_path: str):
         raise HTTPException(status_code=404, detail="Task not found")
 
     github_repo_url = task.get("github_repo_url")
-    github_branch = task.get("github_branch")
+    github_repo_branch = task.get("github_repo_branch")
     if not github_repo_url:
         raise HTTPException(status_code=400, detail="Task has no github_repo_url configured")
 
@@ -366,7 +364,7 @@ async def task_get_github_file(task_id: str, file_path: str):
     content_bytes = await fetch_github_file_bytes(
         github_repo_url,
         file_path=file_path,
-        ref=github_branch,
+        ref=github_repo_branch,
     )
 
     _, ext = os.path.splitext(file_path.lower())
@@ -895,14 +893,14 @@ async def import_task_from_gallery(
         # 3. inline setup/command fields on the gallery entry
         github_repo_url = gallery_entry.get("github_repo_url")
         github_repo_dir = gallery_entry.get("github_repo_dir")
-        github_branch = gallery_entry.get("github_branch")
+        github_repo_branch = gallery_entry.get("github_repo_branch")
         local_task_dir = gallery_entry.get("local_task_dir")
         source_yaml_data = {}
 
         if github_repo_url:
             try:
                 task_yaml_content = await fetch_task_yaml_from_github(
-                    github_repo_url, directory=github_repo_dir, ref=github_branch
+                    github_repo_url, directory=github_repo_dir, ref=github_repo_branch
                 )
                 source_yaml_data = _parse_yaml_to_task_data(task_yaml_content)
             except Exception as e:
@@ -931,17 +929,17 @@ async def import_task_from_gallery(
         if github_repo_url:
             task_data["github_repo_url"] = github_repo_url
             if github_repo_dir:
-                task_data["github_directory"] = github_repo_dir
-            if github_branch:
-                task_data["github_branch"] = github_branch
+                task_data["github_repo_dir"] = github_repo_dir
+            if github_repo_branch:
+                task_data["github_repo_branch"] = github_repo_branch
 
         # Merge additional fields from source task.yaml (parameters, env_vars, resources, etc.)
         for key in (
             "parameters",
             "env_vars",
             "github_repo_url",
-            "github_directory",
-            "github_branch",
+            "github_repo_dir",
+            "github_repo_branch",
             "cpus",
             "memory",
             "disk_space",
@@ -1029,15 +1027,9 @@ async def import_task_from_gallery(
 
     # Extract gallery entry fields
     title = gallery_entry.get("title", "Imported Task")
-    github_repo_url = gallery_entry.get("github_repo_url") or gallery_entry.get("github_url", "")
-    github_repo_dir = (
-        gallery_entry.get("github_repo_dir")
-        or gallery_entry.get("directory_path")
-        or gallery_entry.get("github_directory")
-    )
-    github_branch = (
-        gallery_entry.get("github_branch") or gallery_entry.get("github_repo_branch") or gallery_entry.get("git_branch")
-    )
+    github_repo_url = gallery_entry.get("github_repo_url") or ""
+    github_repo_dir = gallery_entry.get("github_repo_dir")
+    github_repo_branch = gallery_entry.get("github_repo_branch")
 
     if not github_repo_url:
         raise HTTPException(status_code=400, detail="Gallery entry missing github_repo_url")
@@ -1045,7 +1037,7 @@ async def import_task_from_gallery(
     # Fetch task.yaml from GitHub repository
     try:
         task_yaml_content = await fetch_task_yaml_from_github(
-            github_repo_url, directory=github_repo_dir, ref=github_branch
+            github_repo_url, directory=github_repo_dir, ref=github_repo_branch
         )
     except HTTPException as e:
         if e.status_code == 404:
@@ -1087,13 +1079,13 @@ async def import_task_from_gallery(
     if "plugin" not in task_data:
         task_data["plugin"] = "remote_orchestrator"
 
-    # Ensure GitHub repo info is set (may be in task.yaml as git_repo). Prefer canonical github_repo_* keys.
+    # Ensure GitHub repo info is set when gallery YAML omits it.
     if not task_data.get("github_repo_url"):
         task_data["github_repo_url"] = github_repo_url
     if github_repo_dir and not task_data.get("github_repo_dir"):
         task_data["github_repo_dir"] = github_repo_dir
-    if github_branch and not task_data.get("github_repo_branch"):
-        task_data["github_repo_branch"] = github_branch
+    if github_repo_branch and not task_data.get("github_repo_branch"):
+        task_data["github_repo_branch"] = github_repo_branch
 
     # Resolve provider
     await _resolve_provider(task_data, user_and_team, session)
@@ -1328,15 +1320,9 @@ async def import_task_from_team_gallery(
 
     # Extract gallery entry fields
     title = gallery_entry.get("title", "Imported Task")
-    github_repo_url = gallery_entry.get("github_repo_url") or gallery_entry.get("github_url", "")
-    github_repo_dir = (
-        gallery_entry.get("github_repo_dir")
-        or gallery_entry.get("directory_path")
-        or gallery_entry.get("github_directory")
-    )
-    github_branch = (
-        gallery_entry.get("github_branch") or gallery_entry.get("github_repo_branch") or gallery_entry.get("git_branch")
-    )
+    github_repo_url = gallery_entry.get("github_repo_url") or ""
+    github_repo_dir = gallery_entry.get("github_repo_dir")
+    github_repo_branch = gallery_entry.get("github_repo_branch")
 
     local_task_dir = gallery_entry.get("local_task_dir")
     inline_config = gallery_entry.get("config") if isinstance(gallery_entry.get("config"), dict) else None
@@ -1387,8 +1373,8 @@ async def import_task_from_team_gallery(
             task_data["github_repo_url"] = github_repo_url
         if github_repo_dir and not task_data.get("github_repo_dir"):
             task_data["github_repo_dir"] = github_repo_dir
-        if github_branch and not task_data.get("github_repo_branch"):
-            task_data["github_repo_branch"] = github_branch
+        if github_repo_branch and not task_data.get("github_repo_branch"):
+            task_data["github_repo_branch"] = github_repo_branch
 
         if not is_interactive_import:
             await _resolve_provider(task_data, user_and_team, session)
@@ -1519,7 +1505,7 @@ async def import_task_from_team_gallery(
     # Fetch task.yaml from GitHub repository
     try:
         task_yaml_content = await fetch_task_yaml_from_github(
-            github_repo_url, directory=github_repo_dir, ref=github_branch
+            github_repo_url, directory=github_repo_dir, ref=github_repo_branch
         )
     except HTTPException as e:
         if e.status_code == 404:
@@ -1554,13 +1540,12 @@ async def import_task_from_team_gallery(
         if interactive_gallery_id and not task_data.get("interactive_gallery_id"):
             task_data["interactive_gallery_id"] = interactive_gallery_id
 
-    # Ensure GitHub repo info is set (may be in task.yaml as git_repo)
     if not task_data.get("github_repo_url"):
         task_data["github_repo_url"] = github_repo_url
-    if github_repo_dir and not task_data.get("github_directory"):
-        task_data["github_directory"] = github_repo_dir
-    if github_branch and not task_data.get("github_branch"):
-        task_data["github_branch"] = github_branch
+    if github_repo_dir and not task_data.get("github_repo_dir"):
+        task_data["github_repo_dir"] = github_repo_dir
+    if github_repo_branch and not task_data.get("github_repo_branch"):
+        task_data["github_repo_branch"] = github_repo_branch
 
     # Interactive imports: provider is chosen at launch in the UI, not from YAML/defaults.
     if not is_interactive_import:
@@ -1637,10 +1622,10 @@ async def export_task_to_team_gallery(
         config["file_mounts"] = task.get("file_mounts")
     if task.get("github_repo_url"):
         config["github_repo_url"] = task.get("github_repo_url")
-    if task.get("github_directory"):
-        config["github_directory"] = task.get("github_directory")
-    if task.get("github_branch"):
-        config["github_branch"] = task.get("github_branch")
+    if task.get("github_repo_dir"):
+        config["github_repo_dir"] = task.get("github_repo_dir")
+    if task.get("github_repo_branch"):
+        config["github_repo_branch"] = task.get("github_repo_branch")
     # Preserve interactive metadata in the exported entry so the team interactive tab can round-trip.
     if task.get("subtype"):
         config["subtype"] = task.get("subtype")
@@ -1655,8 +1640,8 @@ async def export_task_to_team_gallery(
         "description": task.get("description"),
         "config": config,
         "github_repo_url": task.get("github_repo_url"),
-        "github_repo_dir": task.get("github_directory"),
-        "github_branch": task.get("github_branch"),
+        "github_repo_dir": task.get("github_repo_dir"),
+        "github_repo_branch": task.get("github_repo_branch"),
         "subtype": task.get("subtype"),
         "interactive_type": task.get("interactive_type"),
         "interactive_gallery_id": task.get("interactive_gallery_id"),
@@ -1705,8 +1690,8 @@ async def export_task_to_team_gallery(
                         "envs": task.get("env_vars") if isinstance(task.get("env_vars"), dict) else None,
                         "parameters": task.get("parameters") if isinstance(task.get("parameters"), dict) else None,
                         "github_repo_url": task.get("github_repo_url"),
-                        "github_repo_dir": task.get("github_directory"),
-                        "github_repo_branch": task.get("github_branch"),
+                        "github_repo_dir": task.get("github_repo_dir"),
+                        "github_repo_branch": task.get("github_repo_branch"),
                     }
                     yaml_obj["resources"] = {
                         k: v for k, v in (yaml_obj.get("resources") or {}).items() if v is not None
@@ -1770,7 +1755,7 @@ async def add_task_to_team_gallery(
         },
         "github_repo_url": request.github_repo_url,
         "github_repo_dir": request.github_repo_dir,
-        "github_repo_branch": request.github_branch,
+        "github_repo_branch": request.github_repo_branch,
     }
     yaml_obj["resources"] = {k: v for k, v in (yaml_obj.get("resources") or {}).items() if v not in (None, "")}
     yaml_obj = {k: v for k, v in yaml_obj.items() if v not in (None, "", {}, [])}
@@ -1802,11 +1787,11 @@ async def add_task_to_team_gallery(
             "supported_accelerators": request.supported_accelerators,
             "github_repo_url": request.github_repo_url,
             "github_repo_dir": request.github_repo_dir,
-            "github_branch": request.github_branch,
+            "github_repo_branch": request.github_repo_branch,
         },
         "github_repo_url": request.github_repo_url,
         "github_repo_dir": request.github_repo_dir,
-        "github_branch": request.github_branch,
+        "github_repo_branch": request.github_repo_branch,
         "local_task_dir": dest_dir,
     }
 

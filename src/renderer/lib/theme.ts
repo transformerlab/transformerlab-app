@@ -5,6 +5,23 @@ export default extendTheme({
     display: '-apple-system, "system-ui", var(--joy-fontFamily-fallback)',
     body: '-apple-system, "system-ui", var(--joy-fontFamily-fallback)',
   },
+  components: {
+    JoyButton: {
+      styleOverrides: {
+        root: {
+          '--Button-minHeight': '1.75rem',
+          paddingBlock: '3px',
+        },
+      },
+    },
+    JoyIconButton: {
+      styleOverrides: {
+        root: {
+          '--IconButton-size': '1.75rem',
+        },
+      },
+    },
+  },
   colorSchemes: {
     light: {
       palette: {
