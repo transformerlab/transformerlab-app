@@ -59,7 +59,9 @@ test.describe('Dataset Generation Task From GitHub', () => {
       .getByPlaceholder('Optional: subdirectory (e.g. tasks/my-task)')
       .fill(GITHUB_SUBDIR);
     await addTaskDialog.getByRole('button', { name: 'Submit' }).click();
-    const taskYamlDialog = page.getByRole('dialog', { name: 'task.yaml' });
+    const taskYamlDialog = page.getByRole('dialog', {
+      name: /(Edit Task|task\.ya?ml)/i,
+    });
     await expect(taskYamlDialog).toBeVisible({ timeout: 15000 });
     await replaceTaskNameInMonaco(page, taskName);
     await taskYamlDialog.getByRole('button', { name: 'Save' }).click();

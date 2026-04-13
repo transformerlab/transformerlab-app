@@ -72,7 +72,9 @@ run: "python ~/demo-generate-task/fake_generate.py"
       .click();
 
     // Edit generated task.yaml to use the dataset generator template.
-    const taskYamlDialog = page.getByRole('dialog', { name: 'task.yaml' });
+    const taskYamlDialog = page.getByRole('dialog', {
+      name: /(Edit Task|task\.ya?ml)/i,
+    });
     await expect(taskYamlDialog).toBeVisible({ timeout: 10000 });
     await replaceMonacoContents(page, taskYaml);
     await taskYamlDialog.getByRole('button', { name: 'Save' }).click();

@@ -77,12 +77,14 @@ test.describe('Hello World Task', () => {
       .click();
 
     // A YAML editor dialog opens – set a unique task name to isolate this test's job row.
-    await expect(page.getByRole('dialog', { name: 'task.yaml' })).toBeVisible({
+    await expect(
+      page.getByRole('dialog', { name: /(Edit Task|task\.ya?ml)/i }),
+    ).toBeVisible({
       timeout: 10000,
     });
     await replaceTaskNameInMonaco(page, taskName);
     await page
-      .getByRole('dialog', { name: 'task.yaml' })
+      .getByRole('dialog', { name: /(Edit Task|task\.ya?ml)/i })
       .getByRole('button', { name: 'Save' })
       .click();
 
