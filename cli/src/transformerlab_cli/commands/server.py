@@ -92,19 +92,18 @@ def _numbered_choice(label: str, options: list[str], default: int = 1) -> str:
 
 
 def _prompt_frontend(existing: dict[str, str]) -> dict[str, str]:
-    """Prompt for frontend/API URL configuration."""
-    console.print("\n[bold header]1. Frontend URL[/bold header]")
-    console.print("[dim]The URL where users will access the Transformer Lab web interface.[/dim]")
+    """Prompt for server URL configuration."""
+    console.print("\n[bold header]1. Server URL[/bold header]")
+    console.print("[dim]The URL where users will access Transformer Lab (e.g. http://myserver.com:8338).[/dim]")
 
     default_url = existing.get("FRONTEND_URL", "http://localhost:8338")
     while True:
-        url = typer.prompt("Frontend URL", default=default_url)
+        url = typer.prompt("Server URL", default=default_url)
         url = url.rstrip("/")
         if url.startswith("http://") or url.startswith("https://"):
             break
         console.print("[red]URL must start with http:// or https://[/red]")
 
-    # Derive API URL from frontend URL
     api_url = url.rstrip("/") + "/"
 
     return {
@@ -437,7 +436,7 @@ def _offer_install_script() -> int:
 # Defines the order of sections and their env keys for output
 _ENV_SECTIONS: list[tuple[str, list[str]]] = [
     (
-        "Frontend",
+        "Server",
         ["FRONTEND_URL", "TL_API_URL"],
     ),
     (

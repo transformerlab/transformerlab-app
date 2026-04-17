@@ -62,7 +62,7 @@ def test_build_env_content():
         "EMAIL_AUTH_ENABLED": "true",
     }
     content = _build_env_content(env)
-    assert "# Frontend" in content
+    assert "# Server" in content
     assert 'FRONTEND_URL="http://localhost:8338"' in content
     assert "# Storage" in content
     assert "# JWT Secrets" in content
