@@ -21,7 +21,7 @@ dependencies = [
   "gcsfs",
   "adlfs",
   "requests",
-  "trackio",
+  "trackio==0.24.1",
 ]
 
 [project.urls]
