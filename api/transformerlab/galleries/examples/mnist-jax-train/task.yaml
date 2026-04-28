@@ -1,6 +1,6 @@
 name: mnist-jax-train
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: mnist-jax-train
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/mnist-jax-train
 resources:
   accelerators: "RTX3090:1"
 setup: "uv pip install transformerlab jax flax optax matplotlib wandb && uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126"

@@ -65,7 +65,15 @@ class TaskYamlResources(BaseModel):
     disk_space: Optional[Any] = None
     accelerators: Optional[str] = None
     num_nodes: Optional[int] = None
+    # dstack-specific resource options
     fleet_name: Optional[str] = None
+    # SkyPilot-compatible resource options
+    instance_type: Optional[str] = None
+    cloud: Optional[str] = None
+    region: Optional[str] = None
+    zone: Optional[str] = None
+    use_spot: Optional[bool] = None
+    image_id: Optional[str] = None
 
 
 class TaskYamlSweeps(BaseModel):

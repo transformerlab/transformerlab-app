@@ -1,6 +1,6 @@
 name: nanochat-train-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: nanochat
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/nanochat
 resources:
   accelerators: "H100:8"
 setup: "uv pip install transformerlab torch torchvision torchaudio transformers datasets wandb;sudo apt update;sudo apt install -y curl git build-essential;"
@@ -21,14 +21,14 @@ parameters:
     step: 1
     title: Number of GPUs
     description: Number of GPUs to use for distributed training. Set to 8 for a full 8xH100 node.
-  
+
   enable_fp8:
     type: bool
     default: true
     ui_widget: switch
     title: Enable FP8 Training
     description: Enable FP8 training for faster pretraining. Requires H100+ GPU with torchao support.
-  
+
   wandb_run_name:
     type: string
     default: "nanochat-speedrun"
@@ -44,7 +44,7 @@ parameters:
     step: 1
     title: Initial Dataset Shards
     description: Number of dataset shards to download before tokenizer training. Each shard is ~250M chars (~100MB). 8 shards = ~2B chars.
-  
+
   total_dataset_shards:
     type: int
     default: 370
@@ -53,7 +53,7 @@ parameters:
     step: 10
     title: Total Dataset Shards
     description: "Total dataset shards to download in background for pretraining. ~350 shards needed for 10B tokens. Max available: 1822."
-  
+
   tokenizer_max_chars:
     type: int
     default: 2000000000
@@ -61,7 +61,7 @@ parameters:
     max: 10000000000
     title: Tokenizer Training Chars
     description: Maximum characters to train the tokenizer on. Default 2B chars. Reduce for faster tokenizer training during experimentation.
-  
+
   tokenizer_vocab_size:
     type: int
     default: 32768
@@ -80,7 +80,7 @@ parameters:
     step: 2
     title: Model Depth (Layers)
     description: Number of transformer layers. This is the single main dial — all other hyperparameters are derived from it. GPT-2 capability is around d24-d26. Use d12 for quick experiments (~5 min).
-  
+
   target_param_data_ratio:
     type: float
     default: 8.25
@@ -89,7 +89,7 @@ parameters:
     step: 0.25
     title: Target Data:Param Ratio
     description: Ratio of training tokens to model parameters for compute-optimal training. Default 8.25 for speedrun (slightly overtrained). Chinchilla-optimal is ~20. Use 10.5 for compute-optimal training. Set -1 to disable.
-  
+
   device_batch_size:
     type: int
     default: 16
@@ -98,7 +98,7 @@ parameters:
     step: 1
     title: Device Batch Size
     description: Per-GPU batch size. Reduce to 8, 4, 2, or 1 if you run out of VRAM. Default 16 for H100 80GB with FP8.
-  
+
   total_batch_size:
     type: int
     default: -1
@@ -106,7 +106,7 @@ parameters:
     max: 4194304
     title: Total Batch Size (tokens)
     description: Total batch size in tokens across all GPUs. Set -1 to auto-compute optimal batch size via scaling laws.
-  
+
   num_iterations:
     type: int
     default: -1
@@ -114,7 +114,7 @@ parameters:
     max: 100000
     title: Number of Iterations
     description: Explicit number of optimization steps. Set -1 to auto-calculate from target_param_data_ratio.
-  
+
   max_seq_len:
     type: int
     default: 2048
@@ -123,13 +123,13 @@ parameters:
     step: 256
     title: Max Sequence Length
     description: Maximum context length for training.
-  
+
   window_pattern:
     type: string
     default: "SSSL"
     title: Sliding Window Pattern
     description: Attention window pattern tiled across layers. L=full context, S=half context. E.g. 'SSSL' = 3 sliding + 1 full. Use 'L' if FA3 not available.
-  
+
   aspect_ratio:
     type: int
     default: 64
@@ -138,7 +138,7 @@ parameters:
     step: 8
     title: Aspect Ratio
     description: model_dim = depth × aspect_ratio. Default 64.
-  
+
   warmdown_ratio:
     type: float
     default: 0.5
@@ -147,7 +147,7 @@ parameters:
     step: 0.05
     title: Warmdown Ratio
     description: Fraction of training for linear LR warmdown. 0.5 = last 50% of training decays the LR.
-  
+
   weight_decay:
     type: float
     default: 0.2
@@ -156,7 +156,7 @@ parameters:
     step: 0.01
     title: Weight Decay
     description: Cautious weight decay for the Muon optimizer. Automatically scaled by depth.
-  
+
   eval_every:
     type: int
     default: 250
@@ -164,7 +164,7 @@ parameters:
     max: 10000
     title: Eval Every N Steps
     description: Evaluate validation BPB every N steps. Set -1 to disable.
-  
+
   core_metric_every:
     type: int
     default: 2000
@@ -172,7 +172,7 @@ parameters:
     max: 100000
     title: CORE Metric Every N Steps
     description: Evaluate CORE metric every N steps. Set -1 to disable. Use 999999 for eval only at the end.
-  
+
   save_every:
     type: int
     default: -1
@@ -180,7 +180,7 @@ parameters:
     max: 100000
     title: Save Checkpoint Every N Steps
     description: Save intermediate checkpoints every N steps. Set -1 to only save at end.
-  
+
   sample_every:
     type: int
     default: 2000
@@ -188,7 +188,7 @@ parameters:
     max: 100000
     title: Sample Every N Steps
     description: Generate text samples from the model every N steps. Set -1 to disable.
-  
+
   model_tag:
     type: string
     default: ""
@@ -204,7 +204,7 @@ parameters:
     step: 1
     title: SFT Device Batch Size
     description: Per-GPU batch size for SFT. Reduce if OOM.
-  
+
   sft_num_iterations:
     type: int
     default: -1
@@ -212,7 +212,7 @@ parameters:
     max: 100000
     title: SFT Number of Iterations
     description: Number of SFT optimization steps. Set -1 for full epoch (default).
-  
+
   sft_mmlu_epochs:
     type: int
     default: 3
@@ -221,7 +221,7 @@ parameters:
     step: 1
     title: SFT MMLU Epochs
     description: Number of MMLU epochs in the SFT data mixture. Teaches multiple choice capability.
-  
+
   sft_gsm8k_epochs:
     type: int
     default: 4
@@ -238,7 +238,7 @@ parameters:
     ui_widget: switch
     title: Enable RL Training
     description: Enable reinforcement learning phase on GSM8K after SFT. Adds additional training time.
-  
+
   rl_num_epochs:
     type: int
     default: 1
@@ -247,7 +247,7 @@ parameters:
     step: 1
     title: RL Number of Epochs
     description: Number of epochs for RL training over GSM8K.
-  
+
   rl_device_batch_size:
     type: int
     default: 8
@@ -256,7 +256,7 @@ parameters:
     step: 1
     title: RL Device Batch Size
     description: Per-GPU batch size for RL rollouts.
-  
+
   rl_examples_per_step:
     type: int
     default: 16
@@ -265,7 +265,7 @@ parameters:
     step: 1
     title: RL Examples Per Step
     description: Total examples per RL optimization step across all ranks.
-  
+
   rl_num_samples:
     type: int
     default: 16
@@ -274,7 +274,7 @@ parameters:
     step: 1
     title: RL Samples Per Example
     description: Number of rollout samples per example/question.
-  
+
   rl_max_new_tokens:
     type: int
     default: 256
@@ -285,9 +285,9 @@ parameters:
     description: Maximum tokens to generate per RL rollout sample.
 
 description: >-
-  Train your own GPT-2 grade LLM from scratch for ~$73 using the nanochat pipeline 
-  (https://github.com/karpathy/nanochat). Covers tokenizer training, base model pretraining 
-  with Muon optimizer and Flash Attention 3, supervised finetuning (SFT), and optional 
-  reinforcement learning on GSM8K. Designed for 8xH100 GPUs, approximately 3 hours to complete. 
-  The '--depth' parameter is the single main dial that controls model size — all other 
+  Train your own GPT-2 grade LLM from scratch for ~$73 using the nanochat pipeline
+  (https://github.com/karpathy/nanochat). Covers tokenizer training, base model pretraining
+  with Muon optimizer and Flash Attention 3, supervised finetuning (SFT), and optional
+  reinforcement learning on GSM8K. Designed for 8xH100 GPUs, approximately 3 hours to complete.
+  The '--depth' parameter is the single main dial that controls model size — all other
   hyperparameters are derived automatically.

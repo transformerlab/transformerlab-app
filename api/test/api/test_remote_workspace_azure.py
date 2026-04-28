@@ -48,3 +48,24 @@ def test_create_bucket_for_team_azure_calls_helper(monkeypatch):
     assert called["team_id"] == "My-Team"
     # Name should be normalised and prefixed
     assert called["container_name"].startswith("workspace-")
+
+
+def test_create_bucket_for_team_aws_uses_env_profile(monkeypatch):
+    monkeypatch.setenv("TFL_REMOTE_STORAGE_ENABLED", "true")
+    monkeypatch.setenv("TFL_STORAGE_PROVIDER", "aws")
+    monkeypatch.setenv("AWS_PROFILE", "my-aws-profile")
+    monkeypatch.setattr(remote_workspace, "STORAGE_PROVIDER", "aws", raising=False)
+
+    called = {}
+
+    def fake_create_s3_bucket(bucket_name, team_id, profile_name):
+        called["bucket_name"] = bucket_name
+        called["team_id"] = team_id
+        called["profile_name"] = profile_name
+        return True
+
+    monkeypatch.setattr(remote_workspace, "_create_s3_bucket", fake_create_s3_bucket)
+
+    assert remote_workspace.create_bucket_for_team("team-123") is True
+    assert called["team_id"] == "team-123"
+    assert called["profile_name"] == "my-aws-profile"

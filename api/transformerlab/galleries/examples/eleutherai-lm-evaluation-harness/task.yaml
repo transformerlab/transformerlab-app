@@ -1,6 +1,6 @@
 name: eleuther-ai-lm-evaluation-harness
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: eleutherai-lm-evaluation-harness
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/eleutherai-lm-evaluation-harness
 resources:
   accelerators: "RTX3090:1"
 setup: "uv pip install transformerlab lm_eval==0.4.7 pandas torch"

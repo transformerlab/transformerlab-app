@@ -1,6 +1,6 @@
 name: basic-evals-metrics
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: basic-evals-metrics
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/basic-evals-metrics
 resources:
   accelerators: "RTX3090:1"
 setup: "uv pip install transformerlab datasets pandas RestrictedPython==8.0.0;"

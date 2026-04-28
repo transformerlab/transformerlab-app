@@ -9,10 +9,17 @@ import asyncio
 import logging
 import os
 import re
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import sys
 
 from lab.storage import STORAGE_PROVIDER
+
+AWS_PROFILE_FALLBACK = "transformerlab-s3"
+
+
+def get_default_aws_profile() -> str:
+    """Return AWS profile name, honoring AWS_PROFILE when set."""
+    return os.getenv("AWS_PROFILE", AWS_PROFILE_FALLBACK)
 
 
 def validate_cloud_credentials() -> None:
@@ -45,13 +52,13 @@ def validate_cloud_credentials() -> None:
 
 def _validate_aws_credentials() -> None:
     """
-    Validate that AWS credentials are available for the transformerlab-s3 profile.
+    Validate that AWS credentials are available for the configured AWS profile.
     Checks both profile-based credentials and environment variables.
 
     Raises:
         SystemExit: If AWS profile is not found or credentials are missing
     """
-    profile_name = os.getenv("AWS_PROFILE", "transformerlab-s3")
+    profile_name = get_default_aws_profile()
 
     import boto3
     from botocore.exceptions import ProfileNotFound, NoCredentialsError
@@ -235,17 +242,19 @@ def _validate_azure_credentials() -> None:
         sys.exit(1)
 
 
-def create_bucket_for_team(team_id: str, profile_name: str = "transformerlab-s3") -> bool:
+def create_bucket_for_team(team_id: str, profile_name: Optional[str] = None) -> bool:
     """
     Create a bucket (S3 or GCS) for a team using the appropriate cloud provider.
 
     Args:
         team_id: The team ID to use as the bucket name
-        profile_name: The AWS profile name to use for S3 (ignored for GCS)
+        profile_name: AWS profile for S3. Uses AWS_PROFILE or fallback if omitted.
 
     Returns:
         True if bucket was created successfully or already exists, False otherwise
     """
+
+    profile_name = profile_name or get_default_aws_profile()
 
     # If localfs storage is configured, create local folder structure instead of a cloud bucket
     if STORAGE_PROVIDER == "localfs":
@@ -463,7 +472,7 @@ def _create_azure_container(container_name: str, team_id: str) -> bool:
         return False
 
 
-async def create_buckets_for_all_teams(session, profile_name: str = "transformerlab-s3") -> Tuple[int, int, List[str]]:
+async def create_buckets_for_all_teams(session, profile_name: Optional[str] = None) -> Tuple[int, int, List[str]]:
     """
     Create buckets for all existing teams that don't have buckets yet.
 
@@ -472,12 +481,14 @@ async def create_buckets_for_all_teams(session, profile_name: str = "transformer
 
     Args:
         session: Database session to query teams
-        profile_name: The AWS profile name to use for S3 (ignored for GCS)
+        profile_name: AWS profile for S3. Uses AWS_PROFILE or fallback if omitted.
 
     Returns:
         Tuple of (success_count, failure_count, error_messages)
     """
     from transformerlab.shared.models.models import Team
+
+    profile_name = profile_name or get_default_aws_profile()
 
     # Check if storage is configured
     if STORAGE_PROVIDER == "localfs":

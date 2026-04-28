@@ -1,6 +1,6 @@
 name: ppo-train-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: ppo-train
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/ppo-train
 resources:
   accelerators: "RTX3090:1"
 setup: "uv pip install trl==0.26.2 peft trackio kernels accelerate transformers==4.57.3 datasets torch"

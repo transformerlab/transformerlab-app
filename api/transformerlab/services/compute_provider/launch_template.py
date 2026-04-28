@@ -223,8 +223,10 @@ async def launch_template_on_provider(
 
     if os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true":
         if STORAGE_PROVIDER == "aws":
-            # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
-            aws_profile = "transformerlab-s3"
+            # Get AWS credentials from stored credentials file
+            from transformerlab.shared.remote_workspace import get_default_aws_profile
+
+            aws_profile = get_default_aws_profile()
             aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
                 get_aws_credentials_from_file, aws_profile
             )

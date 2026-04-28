@@ -1,6 +1,6 @@
 name: mlx-audio-tts
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: inference-mlx-audio-tts
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/inference-mlx-audio-tts
 resources:
   cpus: 2
   memory: 4

@@ -1,6 +1,6 @@
 name: gguf-exporter-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: gguf_exporter
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/gguf_exporter
 resources:
   accelerators: "RTX3090:1"
 setup: "uv pip install transformerlab huggingface-hub torch; sudo apt update; sudo apt install -y git;"

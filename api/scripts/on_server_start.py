@@ -8,7 +8,7 @@ import os
 from transformerlab.db.session import async_session
 from transformerlab.db.session import run_alembic_migrations
 from transformerlab.services.experiment_init import seed_default_admin_user, seed_default_experiments
-from transformerlab.shared.remote_workspace import create_buckets_for_all_teams
+from transformerlab.shared.remote_workspace import create_buckets_for_all_teams, get_default_aws_profile
 from transformerlab.shared import dirs, galleries
 
 
@@ -33,7 +33,7 @@ async def main() -> None:
         try:
             async with async_session() as session:
                 success_count, failure_count, error_messages = await create_buckets_for_all_teams(
-                    session, profile_name="transformerlab-s3"
+                    session, profile_name=get_default_aws_profile()
                 )
                 if success_count > 0:
                     print(f"✅ Created/verified storage for {success_count} team(s)")

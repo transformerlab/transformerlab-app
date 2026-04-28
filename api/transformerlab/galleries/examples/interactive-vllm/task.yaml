@@ -1,6 +1,6 @@
 name: vllm
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: interactive-vllm
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/interactive-vllm
 resources:
   cpus: 2
   memory: 8

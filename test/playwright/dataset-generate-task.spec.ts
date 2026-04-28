@@ -40,13 +40,13 @@ test.describe('Dataset Generation Task', () => {
     const taskName = `${TASK_NAME_PREFIX}_${uniqueSuffix}`;
     const registryDatasetName = `${taskName}-registry-dataset`;
     const taskYaml = `name: ${taskName}
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: demo-generate-task
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/demo-generate-task
 resources:
   cpus: 2
   memory: 4
 setup: "uv pip install datasets;"
-run: "python ~/demo-generate-task/fake_generate.py"
+run: "python demo-generate-task/fake_generate.py"
 `;
 
     await login(page);
@@ -78,9 +78,9 @@ run: "python ~/demo-generate-task/fake_generate.py"
     await replaceMonacoContents(page, taskYaml);
     await taskYamlDialog.getByRole('button', { name: 'Save' }).click();
 
-    await expect(
-      page.getByText(taskName, { exact: true }).first(),
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(taskName, { exact: true }).first()).toBeVisible(
+      { timeout: 15000 },
+    );
 
     const taskRow = page.locator('tr', {
       has: page.getByText(taskName, { exact: true }),

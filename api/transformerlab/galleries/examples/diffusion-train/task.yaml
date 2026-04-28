@@ -1,6 +1,6 @@
 name: diffusion-train-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: diffusion-train
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/diffusion-train
 resources:
   accelerators: "A100-80GB:1"
 setup: "uv pip install transformerlab diffusers peft safetensors torch torchvision accelerate 'datasets==4.4.2' 'pyarrow==22.0.0' huggingface_hub 'transformers==4.57.3'"

@@ -52,9 +52,9 @@ from typing import Optional
 
 # ---- Config -----------------------------------------------------------------
 
-GITHUB_FULL_REPO = "https://github.com/transformerlab/transformerlab-examples"
-GITHUB_SUBDIR_REPO = "https://github.com/transformerlab/transformerlab-examples"
-GITHUB_SUBDIR_PATH = "sample-task"
+GITHUB_FULL_REPO = "https://github.com/transformerlab/transformerlab-app"
+GITHUB_SUBDIR_REPO = "https://github.com/transformerlab/transformerlab-app"
+GITHUB_SUBDIR_PATH = "api/transformerlab/galleries/examples/sample-task"
 GITHUB_SUBDIR_BRANCH = "main"
 
 JOB_WAIT_SECS = int(os.environ.get("JOB_WAIT_SECS", "300"))

@@ -26,6 +26,8 @@ COMPUTE_TYPES = [
 ]
 COMPUTE_TYPE_VALUES = ["local", "skypilot", "slurm", "runpod", None]
 
+AWS_PROFILE_FALLBACK = "transformerlab-s3"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -57,8 +59,13 @@ def _generate_secret(length: int = 32) -> str:
     return secrets.token_hex(length)
 
 
-def _check_aws_profile(profile: str = "transformerlab-s3") -> bool:
+def _default_aws_profile() -> str:
+    return os.getenv("AWS_PROFILE", AWS_PROFILE_FALLBACK)
+
+
+def _check_aws_profile(profile: str | None = None) -> bool:
     """Check if an AWS credentials profile exists."""
+    profile = profile or _default_aws_profile()
     creds_file = os.path.join(os.path.expanduser("~"), ".aws", "credentials")
     if not os.path.exists(creds_file):
         return False
@@ -152,14 +159,15 @@ def _prompt_storage(existing: dict[str, str]) -> dict[str, str]:
         env["TFL_REMOTE_STORAGE_ENABLED"] = "true"
 
         if provider == "aws":
+            aws_profile = _default_aws_profile()
             if _check_aws_profile():
-                console.print("\n[success]AWS profile 'transformerlab-s3' is configured.[/success]")
+                console.print(f"\n[success]AWS profile '{aws_profile}' is configured.[/success]")
             else:
                 console.print(
-                    "\n[bold error]WARNING: AWS profile 'transformerlab-s3' is NOT configured![/bold error]"
+                    f"\n[bold error]WARNING: AWS profile '{aws_profile}' is NOT configured![/bold error]"
                     "\n[error]S3 storage will not work until you set up credentials.[/error]"
                     "\n\nRun this command to configure it:"
-                    "\n  [bold]aws configure --profile transformerlab-s3[/bold]"
+                    f"\n  [bold]aws configure --profile {aws_profile}[/bold]"
                     "\n[dim]The profile needs permissions to create and manage S3 buckets.[/dim]"
                 )
         elif provider == "gcp":

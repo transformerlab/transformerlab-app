@@ -1,6 +1,6 @@
 name: unsloth-llm-train-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: unsloth-llm-train
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/unsloth-llm-train
 resources:
   accelerators: "RTX3090:1"
 setup: "uv pip install unsloth==2025.12.5 transformers==4.57.3 torch==2.10.0 datasets huggingface-hub torch transformerlab wandb"

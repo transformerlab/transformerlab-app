@@ -1,6 +1,6 @@
 name: mlx-exporter-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: mlx_exporter
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/mlx_exporter
 resources:
   accelerators: "RTX3090:1"
 setup: "uv pip install transformerlab mlx==0.29.3 mlx-lm==0.28.3 huggingface-hub;"

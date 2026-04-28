@@ -236,7 +236,9 @@ async def launch_sweep_jobs(
 
                 if os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true":
                     if STORAGE_PROVIDER == "aws":
-                        aws_profile = "transformerlab-s3"
+                        from transformerlab.shared.remote_workspace import get_default_aws_profile
+
+                        aws_profile = get_default_aws_profile()
                         aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
                             get_aws_credentials_from_file, aws_profile
                         )

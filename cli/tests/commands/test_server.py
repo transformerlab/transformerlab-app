@@ -5,7 +5,12 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 from transformerlab_cli.main import app
-from transformerlab_cli.commands.server import _load_existing_env, _build_env_content, _generate_secret
+from transformerlab_cli.commands.server import (
+    _build_env_content,
+    _check_aws_profile,
+    _generate_secret,
+    _load_existing_env,
+)
 from tests.helpers import strip_ansi
 
 runner = CliRunner()
@@ -80,6 +85,18 @@ def test_generate_secret():
 def test_generate_secret_different():
     """Test that two generated secrets are different."""
     assert _generate_secret() != _generate_secret()
+
+
+def test_check_aws_profile_defaults_to_env_profile(tmp_path, monkeypatch):
+    """Default profile check should honor AWS_PROFILE when set."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("AWS_PROFILE", "custom-profile")
+
+    aws_dir = tmp_path / ".aws"
+    aws_dir.mkdir(parents=True, exist_ok=True)
+    (aws_dir / "credentials").write_text("[custom-profile]\naws_access_key_id=test\n", encoding="utf-8")
+
+    assert _check_aws_profile() is True
 
 
 def test_server_install_dry_run_defaults(tmp_path):

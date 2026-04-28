@@ -1,6 +1,6 @@
 name: mlx-lora-train-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: mlx_lora_train
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/mlx_lora_train
 setup: "source ~/venv/bin/activate; uv pip install transformerlab mlx mlx-lm datasets jinja2 transformers huggingface-hub pyyaml wandb"
 run: "source ~/venv/bin/activate; cd ~/mlx_lora_train && python train.py"
 envs:

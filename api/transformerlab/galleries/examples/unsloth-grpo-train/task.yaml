@@ -1,6 +1,6 @@
 name: unsloth-grpo-train-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: unsloth-grpo-train
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/unsloth-grpo-train
 resources:
   accelerators: "RTX3090:1"
 setup: "uv pip install trl==0.24.0 bitsandbytes==0.49.2 unsloth==2026.3.3 unsloth-zoo==2026.3.1 transformerlab datasets==4.3.0 torch==2.10.0"

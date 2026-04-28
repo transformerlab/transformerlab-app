@@ -1,6 +1,6 @@
 name: yolo-train-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: yolo-train-task
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/yolo-train-task
 resources:
   accelerators: "RTX3090:1"
 setup: "sudo apt update && sudo apt install -y libgl1-mesa-glx libglib2.0-0 && pip install datasets transformers==4.57.3 torch==2.9.1 wandb ultralytics transformerlab"

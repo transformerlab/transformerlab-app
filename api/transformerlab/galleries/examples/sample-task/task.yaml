@@ -1,6 +1,6 @@
 name: sample-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: sample-task
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/sample-task
 resources:
   cpus: 2
   memory: 4

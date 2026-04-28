@@ -1,6 +1,6 @@
 name: unsloth-text-to-speech-train-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: unsloth-text-to-speech-train
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/unsloth-text-to-speech-train
 resources:
   accelerators: "RTX3090:1"
 setup: uv pip install torch unsloth transformers==4.52.3 snac transformerlab "datasets==3.6.0" librosa soundfile "torch==2.10.0"

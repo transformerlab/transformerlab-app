@@ -1,6 +1,6 @@
 name: batch-image-gen-flux
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: batch-image-gen-flux
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/batch-image-gen-flux
 resources:
   accelerators: "RTX3090:1"
 setup: "sudo apt update && sudo apt install -y libopenblas-dev curl && git clone https://github.com/antirez/flux2.c && cd flux2.c && make blas && ./download_model.sh && uv pip install transformerlab"

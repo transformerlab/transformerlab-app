@@ -1,6 +1,6 @@
 name: grpo-multi-gpu-train-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: grpo-multi-gpu-train
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/grpo-multi-gpu-train
 resources:
   accelerators: "A100-80GB:1"
 setup: "uv pip install trl bitsandbytes accelerate transformerlab datasets jinja2 wandb"

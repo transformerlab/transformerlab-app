@@ -1,6 +1,6 @@
 name: gpt-oss-train-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: gpt-oss
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/gpt-oss
 resources:
   accelerators: "RTX3090:1"
 setup: "uv pip install transformerlab datasets transformers==4.57.3 torch trl peft lm_eval==0.4.7;sudo apt update;sudo apt install -y libgl1 libglib2.0-0;"

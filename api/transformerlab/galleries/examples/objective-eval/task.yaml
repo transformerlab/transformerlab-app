@@ -1,6 +1,6 @@
 name: objective-eval-task
-github_repo_url: https://github.com/transformerlab/transformerlab-examples
-github_repo_dir: objective-eval
+github_repo_url: https://github.com/transformerlab/transformerlab-app
+github_repo_dir: api/transformerlab/galleries/examples/objective-eval
 resources:
   accelerators: "RTX3090:1"
 setup: "uv pip install transformerlab deepeval==2.8.2 bert-score==0.3.13 datasets==3.6.0 seaborn==0.13.2 tensorboardx==2.6.2.2 rouge_score==0.1.2 pandas nltk"
