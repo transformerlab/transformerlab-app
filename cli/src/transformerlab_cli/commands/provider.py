@@ -264,7 +264,13 @@ def command_provider_check(
 
     if response.status_code == 200:
         result = response.json()
-        render_object(result, format_type=cli_state.output_format)
+        if cli_state.output_format == "json":
+            render_object(result, format_type=cli_state.output_format)
+        elif result.get("status"):
+            console.print("[success]✓[/success] Provider is healthy.")
+        else:
+            reason = result.get("reason", "Unknown reason. Check server logs for details.")
+            console.print(f"[error]✗[/error] Provider check failed: {reason}")
     elif response.status_code == 404:
         console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
         raise typer.Exit(1)

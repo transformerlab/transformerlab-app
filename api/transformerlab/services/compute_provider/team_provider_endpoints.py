@@ -221,16 +221,34 @@ async def delete_provider_for_team(session: AsyncSession, team_id: str, provider
 
 async def check_provider_accessible(
     session: AsyncSession, team_id: str, provider_id: str, user_id_str: str
-) -> Dict[str, bool]:
+) -> Dict[str, Any]:
     provider = await get_team_provider(session, team_id, provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
+    # Pre-flight: check required config fields are present
+    config = provider.config or {}
+    provider_type = provider.type
+    required_fields_map = {
+        "skypilot": ["server_url"],
+        "slurm": ["mode"],
+        "runpod": ["api_key"],
+    }
+    required = required_fields_map.get(provider_type, [])
+    missing = [f for f in required if not config.get(f)]
+    if missing:
+        return {
+            "status": False,
+            "reason": f"Missing required config fields: {', '.join(missing)}",
+        }
+
     try:
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
         is_active = await asyncio.to_thread(provider_instance.check)
-        return {"status": is_active}
+        if is_active:
+            return {"status": True}
+        return {"status": False, "reason": "Provider health check returned false. Check server logs for details."}
     except Exception as e:
         error_msg = str(e)
         print(f"Failed to check provider: {error_msg}")
-        return {"status": False}
+        return {"status": False, "reason": error_msg}
