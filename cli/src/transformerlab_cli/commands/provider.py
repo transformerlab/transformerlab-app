@@ -36,6 +36,20 @@ PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
     "local": [],
 }
 
+# Fields that must be present (non-empty) for a provider to work.
+PROVIDER_REQUIRED_FIELDS: dict[str, list[str]] = {
+    "skypilot": ["server_url"],
+    "slurm": ["mode"],
+    "runpod": ["api_key"],
+    "local": [],
+}
+
+
+def _validate_required_config_fields(provider_type: str, config_dict: dict) -> list[str]:
+    """Return list of missing required config fields for the given provider type."""
+    required = PROVIDER_REQUIRED_FIELDS.get(provider_type, [])
+    return [f for f in required if not config_dict.get(f)]
+
 
 def _prompt_provider_type() -> str:
     """Prompt user to select a provider type from a numbered list."""
@@ -144,6 +158,13 @@ def command_provider_add(
                 raise typer.Exit(1)
         else:
             config_dict = _prompt_config_fields(provider_type)
+
+    missing = _validate_required_config_fields(provider_type, config_dict)
+    if missing:
+        console.print(
+            f"[error]Error:[/error] Missing required config fields for {provider_type}: {', '.join(missing)}"
+        )
+        raise typer.Exit(1)
 
     payload = {"name": name, "type": provider_type, "config": config_dict}
 
