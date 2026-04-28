@@ -161,9 +161,7 @@ def command_provider_add(
 
     missing = _validate_required_config_fields(provider_type, config_dict)
     if missing:
-        console.print(
-            f"[error]Error:[/error] Missing required config fields for {provider_type}: {', '.join(missing)}"
-        )
+        console.print(f"[error]Error:[/error] Missing required config fields for {provider_type}: {', '.join(missing)}")
         raise typer.Exit(1)
 
     payload = {"name": name, "type": provider_type, "config": config_dict}
