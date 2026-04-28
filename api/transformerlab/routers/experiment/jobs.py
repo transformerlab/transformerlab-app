@@ -280,6 +280,17 @@ async def get_provider_job_logs(
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
     if not provider_id or not cluster_name:
+        job_status = job.get("status", "")
+        if job_status in ("WAITING", "LAUNCHING"):
+            return {
+                "cluster_name": None,
+                "provider_id": None,
+                "provider_job_id": None,
+                "provider_name": None,
+                "tail_lines": tail_lines,
+                "logs": f"Job is still {job_status}. Provider logs are not yet available.",
+                "job_candidates": [],
+            }
         raise HTTPException(
             status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
         )
@@ -445,6 +456,9 @@ async def get_request_logs(
 
     provider_id = job_data.get("provider_id")
     if not provider_id:
+        job_status = job.get("status", "")
+        if job_status in ("WAITING", "LAUNCHING"):
+            return {"request_id": None, "logs": f"Job is still {job_status}. Request logs are not yet available."}
         raise HTTPException(status_code=400, detail="Job does not contain provider metadata (provider_id missing)")
 
     provider_launch_result = job_data.get("provider_launch_result")
@@ -454,6 +468,9 @@ async def get_request_logs(
     if not request_id:
         request_id = job_data.get("orchestrator_request_id")
     if not request_id:
+        job_status = job.get("status", "")
+        if job_status in ("WAITING", "LAUNCHING"):
+            return {"request_id": None, "logs": f"Job is still {job_status}. Request logs are not yet available."}
         raise HTTPException(status_code=400, detail="Job does not have a provider request ID")
 
     team_id = user_and_team["team_id"]
@@ -560,6 +577,9 @@ async def get_tunnel_info_for_job(
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
     if not provider_id or not cluster_name:
+        job_status = job.get("status", "")
+        if job_status in ("WAITING", "LAUNCHING"):
+            return {"is_ready": False, "message": f"Job is still {job_status}. Tunnel info is not yet available."}
         raise HTTPException(
             status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
         )
