@@ -306,6 +306,15 @@ async def _check_job_via_provider(
             provider_type == ProviderType.AZURE.value
             and job_status == JobStatus.STOPPING.value
             and cluster_state == ClusterState.UNKNOWN
+            and status_message == "ResourceNotFound"
+        ):
+            # Explicit stop flow: Azure has already deleted (or is deleting) the VM.
+            # Treat this as terminal immediately so STOPPING does not hang.
+            cluster_state = ClusterState.STOPPED
+        elif (
+            provider_type == ProviderType.AZURE.value
+            and job_status == JobStatus.STOPPING.value
+            and cluster_state == ClusterState.UNKNOWN
         ):
             # Azure can briefly report UNKNOWN while delete/stop propagates.
             # Debounce to avoid prematurely marking STOPPED on transient states.

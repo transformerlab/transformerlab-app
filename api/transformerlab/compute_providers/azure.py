@@ -302,6 +302,35 @@ class AzureProvider(ComputeProvider):
 set -eo pipefail
 mkdir -p /workspace
 
+# Self-terminate on EXIT (success or crash) using Azure IMDS + ARM.
+_tfl_self_terminate() {{
+  local _token_json _token _sub _rg _name _http
+  echo "[tfl] self-terminate: requesting managed identity token" >> /workspace/run_logs.txt 2>&1 || true
+  _token_json=$(curl -s -H "Metadata: true" \
+    "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.azure.com%2F" \
+    2>/dev/null) || true
+  _token=$(echo "$_token_json" | tr -d '\n' | sed -n 's/.*"access_token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p') || true
+  _sub=$(curl -s -H "Metadata: true" \
+    "http://169.254.169.254/metadata/instance/compute/subscriptionId?api-version=2021-02-01&format=text" \
+    2>/dev/null) || true
+  _rg=$(curl -s -H "Metadata: true" \
+    "http://169.254.169.254/metadata/instance/compute/resourceGroupName?api-version=2021-02-01&format=text" \
+    2>/dev/null) || true
+  _name=$(curl -s -H "Metadata: true" \
+    "http://169.254.169.254/metadata/instance/compute/name?api-version=2021-02-01&format=text" \
+    2>/dev/null) || true
+  if [ -n "$_token" ] && [ -n "$_sub" ] && [ -n "$_rg" ] && [ -n "$_name" ]; then
+    _http=$(curl -s -o /tmp/tfl_self_terminate_resp.txt -w "%{{http_code}}" -X DELETE \
+      -H "Authorization: Bearer $_token" \
+      "https://management.azure.com/subscriptions/$_sub/resourceGroups/$_rg/providers/Microsoft.Compute/virtualMachines/$_name?api-version=2023-09-01") || true
+    echo "[tfl] self-terminate: vm delete requested (http=$_http)" >> /workspace/run_logs.txt 2>&1 || true
+  else
+    echo "[tfl] self-terminate: missing token/metadata; skipping delete" >> /workspace/run_logs.txt 2>&1 || true
+  fi
+  return 0
+}}
+trap _tfl_self_terminate EXIT
+
 # Ensure Python tooling is available and use an isolated runtime for setup/run.
 apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq software-properties-common >/dev/null 2>&1
@@ -384,6 +413,7 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
 
         vm_params: Dict[str, Any] = {
             "location": self.location,
+            "identity": {"type": "SystemAssigned"},
             "tags": {
                 "transformerlab-team-id": self.team_id,
                 "transformerlab-cluster-name": cluster_name,
@@ -408,9 +438,10 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
                     },
                 },
             },
-            "network_profile": {"network_interfaces": [{"id": nic.id, "primary": True}]},
+            "network_profile": {"network_interfaces": [{"id": nic.id, "primary": True, "delete_option": "Delete"}]},
             "user_data": user_data_b64,
         }
+        vm_params["storage_profile"]["os_disk"]["delete_option"] = "Delete"
 
         image_refs = self._get_image_references(config)
         last_error: Optional[Exception] = None
@@ -463,9 +494,11 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             vm = compute_client.virtual_machines.get(self.resource_group, cluster_name, expand="instanceView")
         except Exception as e:
             msg = str(e).lower()
-            # After stop/delete, Azure can return ResourceNotFound; treat this as terminal DOWN.
+            # ResourceNotFound can be transient while a VM is still coming up.
+            # Keep this UNKNOWN and let the status worker decide terminal transitions
+            # based on job state (e.g. STOPPING).
             if "resourcenotfound" in msg or "not found" in msg:
-                return ClusterStatus(cluster_name=cluster_name, state=ClusterState.DOWN, status_message="ResourceNotFound")
+                return ClusterStatus(cluster_name=cluster_name, state=ClusterState.UNKNOWN, status_message="ResourceNotFound")
             return ClusterStatus(cluster_name=cluster_name, state=ClusterState.UNKNOWN)
 
         state = self._map_vm_to_cluster_state(vm)

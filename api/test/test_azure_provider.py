@@ -228,6 +228,7 @@ class TestLaunchCluster:
             provider.launch_cluster("my-cluster", ClusterConfig(run="train.py"))
         call_kwargs = mock_cc.virtual_machines.begin_create_or_update.call_args[0][2]
         assert "disk_size_gb" not in call_kwargs["storage_profile"]["os_disk"]
+        assert call_kwargs["storage_profile"]["os_disk"]["delete_option"] == "Delete"
 
     def test_tags_include_team_id_and_cluster_name(self, provider):
         mock_cc, mock_nc, mock_rc = self._make_mock_clients()
@@ -245,6 +246,8 @@ class TestLaunchCluster:
         tags = call_kwargs["tags"]
         assert tags["transformerlab-team-id"] == "abc"
         assert tags["transformerlab-cluster-name"] == "my-cluster"
+        assert call_kwargs["identity"]["type"] == "SystemAssigned"
+        assert call_kwargs["network_profile"]["network_interfaces"][0]["delete_option"] == "Delete"
 
     def test_gpu_launch_falls_back_to_secondary_image(self, provider):
         mock_cc, mock_nc, mock_rc = self._make_mock_clients()
@@ -275,6 +278,9 @@ class TestBuildUserData:
         assert "add-apt-repository -y ppa:deadsnakes/ppa" in script
         assert "python3.11 -m venv /opt/transformerlab-venv" in script
         assert "curl -LsSf https://astral.sh/uv/install.sh | sh" in script
+        assert "trap _tfl_self_terminate EXIT" in script
+        assert "metadata/identity/oauth2/token" in script
+        assert "providers/Microsoft.Compute/virtualMachines" in script
         assert 'export FOO="bar"' in script
         assert "echo setup" in script
         assert "(python train.py --epochs 1) 2>&1 | tee /workspace/run_logs.txt" in script
@@ -375,12 +381,13 @@ class TestGetClusterStatus:
             status = provider.get_cluster_status("my-cluster")
         assert status.state == ClusterState.STOPPED
 
-    def test_returns_down_when_not_found(self, provider):
+    def test_returns_unknown_when_not_found(self, provider):
         mock_cc = MagicMock()
         mock_cc.virtual_machines.get.side_effect = Exception("ResourceNotFound")
         with patch.object(provider, "_get_compute_client", return_value=mock_cc):
             status = provider.get_cluster_status("my-cluster")
-        assert status.state == ClusterState.DOWN
+        assert status.state == ClusterState.UNKNOWN
+        assert status.status_message == "ResourceNotFound"
 
 
 class TestGetJobLogs:
