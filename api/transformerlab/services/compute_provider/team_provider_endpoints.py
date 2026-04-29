@@ -82,6 +82,7 @@ async def create_provider_for_team(
         ProviderType.RUNPOD,
         ProviderType.LOCAL,
         ProviderType.DSTACK,
+        ProviderType.AZURE,
     ]
     if provider_data.type not in allowed_provider_types:
         allowed_values = ", ".join(provider_type.value for provider_type in allowed_provider_types)
@@ -101,6 +102,10 @@ async def create_provider_for_team(
             )
 
     config_dict = provider_data.config.model_dump(exclude_none=True)
+
+    if provider_data.type == ProviderType.AZURE:
+        config_dict.setdefault("azure_resource_group", f"transformerlab-{team_id}")
+        config_dict["team_id"] = team_id
 
     provider = await create_team_provider(
         session=session,

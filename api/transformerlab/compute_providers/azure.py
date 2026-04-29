@@ -4,15 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import io
+import logging
 from typing import Any, Dict, List, Optional, Union
 
 from .base import ComputeProvider
 from .models import ClusterConfig, ClusterState, ClusterStatus, JobConfig, JobInfo, ResourceInfo
 
-
-# ---------------------------------------------------------------------------
-# Instance selection tables
-# ---------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
 
 _GPU_VM_SIZE_MAP: Dict[tuple, str] = {
     ("T4", 1): "Standard_NC4as_T4_v3",
@@ -88,9 +86,7 @@ def _resolve_gpu_vm_size(accelerators: str) -> str:
     key = (accel_type, count)
     if key not in _GPU_VM_SIZE_MAP:
         valid = sorted(f"{t}:{c}" for t, c in _GPU_VM_SIZE_MAP)
-        raise ValueError(
-            f"Unsupported accelerator spec '{accelerators}'. Valid options: {', '.join(valid)}"
-        )
+        raise ValueError(f"Unsupported accelerator spec '{accelerators}'. Valid options: {', '.join(valid)}")
     return _GPU_VM_SIZE_MAP[key]
 
 
@@ -157,3 +153,383 @@ def _ssh_read_file(host: str, key_bytes: bytes, remote_path: str, tail_lines: in
         return f"SSH failed: {e}"
     finally:
         ssh.close()
+
+
+class AzureProvider(ComputeProvider):
+    """Compute provider that launches ephemeral Azure VMs per job."""
+
+    def __init__(
+        self,
+        subscription_id: str,
+        tenant_id: str,
+        client_id: str,
+        client_secret: str,
+        location: str,
+        resource_group: str,
+        team_id: str,
+        extra_config: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        self.subscription_id = subscription_id
+        self.tenant_id = tenant_id
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.location = location
+        self.resource_group = resource_group
+        self.team_id = team_id
+        self.extra_config = extra_config or {}
+
+    def _get_credential(self) -> Any:
+        from azure.identity import ClientSecretCredential
+
+        return ClientSecretCredential(self.tenant_id, self.client_id, self.client_secret)
+
+    def _get_compute_client(self) -> Any:
+        from azure.mgmt.compute import ComputeManagementClient
+
+        return ComputeManagementClient(self._get_credential(), self.subscription_id)
+
+    def _get_network_client(self) -> Any:
+        from azure.mgmt.network import NetworkManagementClient
+
+        return NetworkManagementClient(self._get_credential(), self.subscription_id)
+
+    def _get_resource_client(self) -> Any:
+        from azure.mgmt.resource import ResourceManagementClient
+
+        return ResourceManagementClient(self._get_credential(), self.subscription_id)
+
+    def check(self) -> bool:
+        try:
+            from azure.mgmt.resource import SubscriptionClient
+
+            subscription_client = SubscriptionClient(self._get_credential())
+            subscription_client.subscriptions.get(self.subscription_id)
+            return True
+        except Exception as e:
+            print(f"Azure provider check failed: {e}")
+            return False
+
+    def _ensure_networking(self, network_client, resource_client) -> tuple[str, str]:
+        """Ensure resource group, NSG, VNet, and subnet exist. Returns (subnet_id, nsg_id)."""
+        rg_name = self.resource_group
+        vnet_name = f"transformerlab-vnet-{self.team_id}"
+        subnet_name = f"transformerlab-subnet-{self.team_id}"
+        nsg_name = f"transformerlab-nsg-{self.team_id}"
+
+        resource_client.resource_groups.create_or_update(rg_name, {"location": self.location})
+
+        try:
+            nsg = network_client.network_security_groups.get(rg_name, nsg_name)
+        except Exception:
+            nsg_poller = network_client.network_security_groups.begin_create_or_update(
+                rg_name,
+                nsg_name,
+                {
+                    "location": self.location,
+                    "security_rules": [
+                        {
+                            "name": "allow-ssh",
+                            "protocol": "Tcp",
+                            "source_port_range": "*",
+                            "destination_port_range": "22",
+                            "source_address_prefix": "*",
+                            "destination_address_prefix": "*",
+                            "access": "Allow",
+                            "priority": 1000,
+                            "direction": "Inbound",
+                        }
+                    ],
+                },
+            )
+            nsg = nsg_poller.result()
+
+        try:
+            subnet = network_client.subnets.get(rg_name, vnet_name, subnet_name)
+        except Exception:
+            network_client.virtual_networks.begin_create_or_update(
+                rg_name,
+                vnet_name,
+                {
+                    "location": self.location,
+                    "address_space": {"address_prefixes": ["10.0.0.0/16"]},
+                    "subnets": [{"name": subnet_name, "address_prefix": "10.0.0.0/24"}],
+                },
+            ).result()
+            subnet = network_client.subnets.get(rg_name, vnet_name, subnet_name)
+
+        return subnet.id, nsg.id
+
+    def _resolve_vm_size(self, config: ClusterConfig) -> str:
+        if config.accelerators:
+            return _resolve_gpu_vm_size(config.accelerators)
+        return _resolve_cpu_vm_size(config.cpus, config.memory)
+
+    def _get_image_reference(self, config: ClusterConfig) -> Dict[str, str]:
+        if config.accelerators:
+            return {
+                "publisher": "microsoft-dsvm",
+                "offer": "ubuntu-2004",
+                "sku": "2004",
+                "version": "latest",
+            }
+        return {
+            "publisher": "Canonical",
+            "offer": "0001-com-ubuntu-server-jammy",
+            "sku": "22_04-lts",
+            "version": "latest",
+        }
+
+    @staticmethod
+    def _build_user_data(config: ClusterConfig) -> str:
+        env_exports = "\n".join(f'export {k}="{v}"' for k, v in config.env_vars.items())
+        setup_block = config.setup or ""
+        return f"""#!/bin/bash
+set -e
+mkdir -p /workspace
+{env_exports}
+pip3 install transformerlab --quiet >> /workspace/install.log 2>&1
+{setup_block}
+tfl-remote-trap >> /workspace/run_logs.txt 2>&1
+"""
+
+    def _get_vm_power_state(self, vm: Any) -> str:
+        if vm.instance_view and vm.instance_view.statuses:
+            for status in vm.instance_view.statuses:
+                if status.code and status.code.lower().startswith("powerstate/"):
+                    return status.code
+        return vm.provisioning_state or "unknown"
+
+    def _map_vm_to_cluster_state(self, vm: Any) -> ClusterState:
+        power_state = self._get_vm_power_state(vm).lower()
+        if power_state in _AZURE_POWER_STATE_MAP:
+            return _AZURE_POWER_STATE_MAP[power_state]
+        prov_state = (vm.provisioning_state or "").lower()
+        return _AZURE_PROV_STATE_MAP.get(prov_state, ClusterState.UNKNOWN)
+
+    def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
+        import base64
+
+        from transformerlab.services.ssh_key_service import get_org_ssh_public_key
+
+        compute_client = self._get_compute_client()
+        network_client = self._get_network_client()
+        resource_client = self._get_resource_client()
+
+        vm_size = self._resolve_vm_size(config)
+        subnet_id, nsg_id = self._ensure_networking(network_client, resource_client)
+        public_key_str = asyncio.run(get_org_ssh_public_key(self.team_id))
+
+        pip_name = f"transformerlab-pip-{cluster_name}"
+        pip = network_client.public_ip_addresses.begin_create_or_update(
+            self.resource_group,
+            pip_name,
+            {"location": self.location, "sku": {"name": "Standard"}, "public_ip_allocation_method": "Static"},
+        ).result()
+
+        nic_name = f"transformerlab-nic-{cluster_name}"
+        nic = network_client.network_interfaces.begin_create_or_update(
+            self.resource_group,
+            nic_name,
+            {
+                "location": self.location,
+                "ip_configurations": [
+                    {"name": "ipconfig1", "subnet": {"id": subnet_id}, "public_ip_address": {"id": pip.id}}
+                ],
+                "network_security_group": {"id": nsg_id},
+            },
+        ).result()
+
+        user_data = self._build_user_data(config)
+        user_data_b64 = base64.b64encode(user_data.encode()).decode()
+
+        os_disk: Dict[str, Any] = {"create_option": "FromImage"}
+        if config.disk_size:
+            os_disk["disk_size_gb"] = config.disk_size
+
+        vm_params: Dict[str, Any] = {
+            "location": self.location,
+            "tags": {
+                "transformerlab-team-id": self.team_id,
+                "transformerlab-cluster-name": cluster_name,
+            },
+            "hardware_profile": {"vm_size": vm_size},
+            "storage_profile": {
+                "image_reference": self._get_image_reference(config),
+                "os_disk": os_disk,
+            },
+            "os_profile": {
+                "computer_name": cluster_name[:64],
+                "admin_username": "azureuser",
+                "linux_configuration": {
+                    "disable_password_authentication": True,
+                    "ssh": {
+                        "public_keys": [
+                            {
+                                "path": "/home/azureuser/.ssh/authorized_keys",
+                                "key_data": public_key_str,
+                            }
+                        ]
+                    },
+                },
+            },
+            "network_profile": {"network_interfaces": [{"id": nic.id, "primary": True}]},
+            "user_data": user_data_b64,
+        }
+
+        try:
+            vm = compute_client.virtual_machines.begin_create_or_update(
+                self.resource_group, cluster_name, vm_params
+            ).result()
+            return {"vm_id": vm.id, "request_id": cluster_name}
+        except Exception as e:
+            raise RuntimeError(f"Failed to launch Azure VM: {e}") from e
+
+    def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
+        compute_client = self._get_compute_client()
+        network_client = self._get_network_client()
+
+        try:
+            compute_client.virtual_machines.begin_delete(self.resource_group, cluster_name).result()
+        except Exception as e:
+            return {"status": "error", "message": str(e), "cluster_name": cluster_name}
+
+        nic_name = f"transformerlab-nic-{cluster_name}"
+        pip_name = f"transformerlab-pip-{cluster_name}"
+
+        try:
+            network_client.network_interfaces.begin_delete(self.resource_group, nic_name).result()
+        except Exception as e:
+            logger.warning("Failed to delete NIC %s: %s", nic_name, e)
+
+        try:
+            network_client.public_ip_addresses.begin_delete(self.resource_group, pip_name).result()
+        except Exception as e:
+            logger.warning("Failed to delete Public IP %s: %s", pip_name, e)
+
+        return {"status": "success", "message": f"VM '{cluster_name}' deleted", "cluster_name": cluster_name}
+
+    def get_cluster_status(self, cluster_name: str) -> ClusterStatus:
+        compute_client = self._get_compute_client()
+        try:
+            vm = compute_client.virtual_machines.get(self.resource_group, cluster_name, expand="instanceView")
+        except Exception:
+            return ClusterStatus(cluster_name=cluster_name, state=ClusterState.UNKNOWN)
+
+        state = self._map_vm_to_cluster_state(vm)
+        power_state = self._get_vm_power_state(vm)
+        vm_size = vm.hardware_profile.vm_size if vm.hardware_profile else None
+        return ClusterStatus(
+            cluster_name=cluster_name,
+            state=state,
+            status_message=power_state,
+            provider_data={"vm_id": vm.id, "vm_size": vm_size},
+        )
+
+    def list_clusters(self) -> List[ClusterStatus]:
+        compute_client = self._get_compute_client()
+        statuses = []
+        try:
+            for vm in compute_client.virtual_machines.list(self.resource_group):
+                tags = vm.tags or {}
+                if tags.get("transformerlab-team-id") != self.team_id:
+                    continue
+                cluster_name = tags.get("transformerlab-cluster-name", vm.name)
+                try:
+                    vm_detail = compute_client.virtual_machines.get(self.resource_group, vm.name, expand="instanceView")
+                    state = self._map_vm_to_cluster_state(vm_detail)
+                    power_state = self._get_vm_power_state(vm_detail)
+                except Exception:
+                    state = ClusterState.UNKNOWN
+                    power_state = "unknown"
+                statuses.append(
+                    ClusterStatus(
+                        cluster_name=cluster_name,
+                        state=state,
+                        status_message=power_state,
+                        provider_data={"vm_id": vm.id, "vm_name": vm.name},
+                    )
+                )
+        except Exception as e:
+            logger.warning("Error listing Azure VMs: %s", e)
+        return statuses
+
+    def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
+        compute_client = self._get_compute_client()
+        try:
+            vm = compute_client.virtual_machines.get(self.resource_group, cluster_name)
+            vm_size = vm.hardware_profile.vm_size if vm.hardware_profile else None
+        except Exception:
+            return ResourceInfo(cluster_name=cluster_name, gpus=[], num_nodes=1)
+        return ResourceInfo(
+            cluster_name=cluster_name,
+            gpus=[],
+            num_nodes=1,
+            provider_data={"vm_size": vm_size},
+        )
+
+    def get_clusters_detailed(self) -> List[Dict[str, Any]]:
+        clusters = self.list_clusters()
+        detailed = []
+        for status in clusters:
+            state_str = status.state.name if hasattr(status.state, "name") else str(status.state)
+            is_up = state_str.upper() in ("UP", "INIT")
+            detailed.append(
+                {
+                    "cluster_id": status.cluster_name,
+                    "cluster_name": status.cluster_name,
+                    "backend_type": "Azure VM",
+                    "elastic_enabled": True,
+                    "max_nodes": 1,
+                    "head_node_ip": None,
+                    "nodes": [
+                        {
+                            "node_name": status.cluster_name,
+                            "is_fixed": False,
+                            "is_active": is_up,
+                            "state": state_str.upper(),
+                            "reason": status.status_message or state_str,
+                            "resources": {
+                                "cpus_total": 0,
+                                "cpus_allocated": 0,
+                                "gpus": {},
+                                "gpus_free": {},
+                                "memory_gb_total": 0,
+                                "memory_gb_allocated": 0,
+                            },
+                        }
+                    ],
+                }
+            )
+        return detailed
+
+    def get_job_logs(
+        self,
+        cluster_name: str,
+        job_id: Union[str, int],
+        tail_lines: Optional[int] = 500,
+        follow: bool = False,
+    ) -> str:
+        from transformerlab.services.ssh_key_service import get_org_ssh_private_key
+
+        network_client = self._get_network_client()
+        pip_name = f"transformerlab-pip-{cluster_name}"
+        try:
+            pip = network_client.public_ip_addresses.get(self.resource_group, pip_name)
+            public_ip = pip.ip_address
+        except Exception:
+            return f"Public IP address resource not found for instance '{cluster_name}'."
+
+        if not public_ip:
+            return "Instance has no public IP yet (still starting)."
+
+        key_bytes = asyncio.run(get_org_ssh_private_key(self.team_id))
+        return _ssh_read_file(public_ip, key_bytes, "/workspace/run_logs.txt", tail_lines or 500)
+
+    def submit_job(self, cluster_name: str, job_config: JobConfig) -> Dict[str, Any]:
+        raise NotImplementedError("submit_job not yet implemented for AzureProvider")
+
+    def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
+        raise NotImplementedError("cancel_job not yet implemented for AzureProvider")
+
+    def list_jobs(self, cluster_name: str) -> List[JobInfo]:
+        raise NotImplementedError("list_jobs not yet implemented for AzureProvider")

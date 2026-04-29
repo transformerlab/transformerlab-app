@@ -86,8 +86,8 @@ class ProviderRead(BaseModel):
     type: str
     config: Dict[str, Any]  # Will mask sensitive fields
     created_by_user_id: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     disabled: bool
     is_default: bool
 

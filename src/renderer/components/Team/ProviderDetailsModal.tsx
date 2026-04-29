@@ -64,6 +64,9 @@ const DEFAULT_CONFIGS = {
   "dstack_project": "<Your dstack project name e.g. main>"
 }`,
   local: `{}`,
+  azure: `{
+  "azure_location": "eastus"
+}`,
 } as const;
 
 const DEFAULT_SUPPORTED_ACCELERATORS: Record<string, string[]> = {
@@ -72,6 +75,7 @@ const DEFAULT_SUPPORTED_ACCELERATORS: Record<string, string[]> = {
   runpod: ['NVIDIA'],
   dstack: ['NVIDIA'],
   local: ['AppleSilicon', 'cpu'],
+  azure: ['NVIDIA'],
 };
 
 export default function ProviderDetailsModal({
@@ -127,6 +131,15 @@ export default function ProviderDetailsModal({
   const [runpodApiKey, setRunpodApiKey] = useState('');
   const [runpodApiKeyChanged, setRunpodApiKeyChanged] = useState(false);
   const [runpodApiBaseUrl, setRunpodApiBaseUrl] = useState('');
+
+  // Azure-specific form fields
+  const [azureSubscriptionId, setAzureSubscriptionId] = useState('');
+  const [azureTenantId, setAzureTenantId] = useState('');
+  const [azureClientId, setAzureClientId] = useState('');
+  const [azureClientSecret, setAzureClientSecret] = useState('');
+  const [azureClientSecretChanged, setAzureClientSecretChanged] =
+    useState(false);
+  const [azureLocation, setAzureLocation] = useState('eastus');
 
   const { fetchWithAuth } = useAuth();
   const { data: providerData, isLoading: providerDataLoading } = useAPI(
@@ -305,6 +318,24 @@ export default function ProviderDetailsModal({
     }
   };
 
+  const parseAzureConfig = (configObj: any) => {
+    if (configObj && typeof configObj === 'object') {
+      setAzureSubscriptionId(configObj.azure_subscription_id || '');
+      setAzureTenantId(configObj.azure_tenant_id || '');
+      setAzureClientId(configObj.azure_client_id || '');
+      setAzureClientSecret(
+        configObj.azure_client_secret === '***'
+          ? ''
+          : configObj.azure_client_secret || '',
+      );
+      setAzureClientSecretChanged(false);
+      setAzureLocation(configObj.azure_location || 'eastus');
+      if (configObj.supported_accelerators) {
+        setSupportedAccelerators(configObj.supported_accelerators);
+      }
+    }
+  };
+
   const buildRunpodConfig = useCallback(() => {
     const configObj: any = {
       api_base_url: runpodApiBaseUrl || 'https://rest.runpod.io/v1',
@@ -320,6 +351,31 @@ export default function ProviderDetailsModal({
     runpodApiKey,
     runpodApiKeyChanged,
     runpodApiBaseUrl,
+    supportedAccelerators,
+    providerId,
+  ]);
+
+  const buildAzureConfig = useCallback(() => {
+    const configObj: any = {
+      azure_subscription_id: azureSubscriptionId,
+      azure_tenant_id: azureTenantId,
+      azure_client_id: azureClientId,
+      azure_location: azureLocation,
+    };
+    if (!providerId || azureClientSecretChanged) {
+      configObj.azure_client_secret = azureClientSecret;
+    }
+    if (supportedAccelerators.length > 0) {
+      configObj.supported_accelerators = supportedAccelerators;
+    }
+    return configObj;
+  }, [
+    azureSubscriptionId,
+    azureTenantId,
+    azureClientId,
+    azureClientSecret,
+    azureClientSecretChanged,
+    azureLocation,
     supportedAccelerators,
     providerId,
   ]);
@@ -373,6 +429,9 @@ export default function ProviderDetailsModal({
       if (providerData.type === 'runpod') {
         parseRunpodConfig(rawConfigObj);
       }
+      if (providerData.type === 'azure') {
+        parseAzureConfig(rawConfigObj);
+      }
       setConfig(JSON.stringify(rawConfigObj, null, 2));
     } else if (!providerId) {
       // Reset form when in "add" mode (no providerId)
@@ -407,6 +466,12 @@ export default function ProviderDetailsModal({
       setRunpodApiKey('');
       setRunpodApiKeyChanged(false);
       setRunpodApiBaseUrl('');
+      setAzureSubscriptionId('');
+      setAzureTenantId('');
+      setAzureClientId('');
+      setAzureClientSecret('');
+      setAzureClientSecretChanged(false);
+      setAzureLocation('eastus');
     }
   }, [providerId, providerData]);
 
@@ -447,6 +512,12 @@ export default function ProviderDetailsModal({
       setRunpodApiKey('');
       setRunpodApiKeyChanged(false);
       setRunpodApiBaseUrl('');
+      setAzureSubscriptionId('');
+      setAzureTenantId('');
+      setAzureClientId('');
+      setAzureClientSecret('');
+      setAzureClientSecretChanged(false);
+      setAzureLocation('eastus');
     }
   }, [open]);
 
@@ -530,6 +601,14 @@ export default function ProviderDetailsModal({
           // Ignore parse errors
         }
       }
+      if (type === 'azure') {
+        try {
+          const configObj = JSON.parse(defaultConfig);
+          parseAzureConfig(configObj);
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
     }
   }, [type, providerId]);
 
@@ -553,12 +632,17 @@ export default function ProviderDetailsModal({
         const configObj = buildRunpodConfig();
         setConfig(JSON.stringify(configObj, null, 2));
       }
+      if (type === 'azure') {
+        const configObj = buildAzureConfig();
+        setConfig(JSON.stringify(configObj, null, 2));
+      }
     }
   }, [
     buildSlurmConfig,
     buildSkypilotConfig,
     buildDstackConfig,
     buildRunpodConfig,
+    buildAzureConfig,
     type,
     providerId,
   ]);
@@ -690,6 +774,8 @@ export default function ProviderDetailsModal({
         parsedConfig = buildDstackConfig();
       } else if (type === 'runpod') {
         parsedConfig = buildRunpodConfig();
+      } else if (type === 'azure') {
+        parsedConfig = buildAzureConfig();
       } else if (type === 'local') {
         // Local providers are configured via supported accelerators only
         parsedConfig = {};
@@ -847,6 +933,7 @@ export default function ProviderDetailsModal({
                   <Option value="slurm">SLURM</Option>
                   <Option value="runpod">Runpod</Option>
                   <Option value="dstack">dstack</Option>
+                  <Option value="azure">Azure</Option>
                   {!hasLocalProvider && !providerId && (
                     <Option value="local">Local</Option>
                   )}
@@ -1241,11 +1328,85 @@ export default function ProviderDetailsModal({
                 </>
               )}
 
+              {type === 'azure' && (
+                <>
+                  <FormControl sx={{ mt: 2 }}>
+                    <FormLabel>Subscription ID *</FormLabel>
+                    <Input
+                      value={azureSubscriptionId}
+                      onChange={(event) =>
+                        setAzureSubscriptionId(event.currentTarget.value)
+                      }
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      fullWidth
+                    />
+                  </FormControl>
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>Tenant ID *</FormLabel>
+                    <Input
+                      value={azureTenantId}
+                      onChange={(event) =>
+                        setAzureTenantId(event.currentTarget.value)
+                      }
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      fullWidth
+                    />
+                  </FormControl>
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>Client ID *</FormLabel>
+                    <Input
+                      value={azureClientId}
+                      onChange={(event) =>
+                        setAzureClientId(event.currentTarget.value)
+                      }
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      fullWidth
+                    />
+                  </FormControl>
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>Client Secret *</FormLabel>
+                    <Input
+                      value={azureClientSecret}
+                      onChange={(event) => {
+                        setAzureClientSecretChanged(true);
+                        setAzureClientSecret(event.currentTarget.value);
+                      }}
+                      placeholder={
+                        providerId
+                          ? 'Leave blank to keep existing secret'
+                          : 'Your Service Principal client secret'
+                      }
+                      type="password"
+                      fullWidth
+                    />
+                  </FormControl>
+                  <FormControl sx={{ mt: 1 }}>
+                    <FormLabel>Location *</FormLabel>
+                    <Input
+                      value={azureLocation}
+                      onChange={(event) =>
+                        setAzureLocation(event.currentTarget.value)
+                      }
+                      placeholder="eastus"
+                      fullWidth
+                    />
+                    <Typography
+                      level="body-sm"
+                      sx={{ mt: 0.5, color: 'text.tertiary' }}
+                    >
+                      Azure region where VMs will be launched (e.g. eastus,
+                      westus2, eastus2).
+                    </Typography>
+                  </FormControl>
+                </>
+              )}
+
               {/* Generic JSON config for non-structured providers or advanced editing */}
               {type !== 'slurm' &&
                 type !== 'skypilot' &&
                 type !== 'dstack' &&
                 type !== 'runpod' &&
+                type !== 'azure' &&
                 type !== 'local' && (
                   <FormControl sx={{ mt: 1 }}>
                     <FormLabel>Configuration</FormLabel>

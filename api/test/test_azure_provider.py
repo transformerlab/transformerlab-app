@@ -1,7 +1,15 @@
 """Tests for the Azure compute provider."""
 
-from transformerlab.shared.models.models import ProviderType
+import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from transformerlab.compute_providers.azure import AzureProvider, _resolve_cpu_vm_size, _resolve_gpu_vm_size
+from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
+from transformerlab.compute_providers.models import ClusterConfig, ClusterState
 from transformerlab.schemas.compute_providers import ProviderConfigBase, mask_sensitive_config
+from transformerlab.shared.models.models import ProviderType
 
 
 def test_azure_provider_type_value():
@@ -26,10 +34,6 @@ def test_mask_sensitive_config_masks_client_secret():
     masked = mask_sensitive_config(config, "azure")
     assert masked["azure_client_secret"] == "***"
     assert masked["azure_client_id"] == "client-123"
-
-
-import pytest
-from transformerlab.compute_providers.azure import _resolve_gpu_vm_size, _resolve_cpu_vm_size
 
 
 class TestResolveGpuVmSize:
@@ -85,3 +89,334 @@ class TestResolveCpuVmSize:
     def test_exceeds_max_raises(self):
         with pytest.raises(ValueError, match="No Azure CPU VM"):
             _resolve_cpu_vm_size(200, 0)
+
+
+@pytest.fixture
+def provider():
+    return AzureProvider(
+        subscription_id="sub-123",
+        tenant_id="tenant-456",
+        client_id="client-789",
+        client_secret="secret",
+        location="eastus",
+        resource_group="transformerlab-abc",
+        team_id="abc",
+    )
+
+
+class TestCheck:
+    def _patch_subscription_client(self, mock_sub_client):
+        """Inject a fake azure.mgmt.resource module with SubscriptionClient into sys.modules."""
+        fake_module = MagicMock()
+        fake_module.SubscriptionClient = MagicMock(return_value=mock_sub_client)
+        return patch.dict(sys.modules, {"azure.mgmt.resource": fake_module})
+
+    def test_returns_true_when_resource_client_succeeds(self, provider):
+        mock_sub_client = MagicMock()
+        mock_sub_client.subscriptions.get.return_value = MagicMock()
+        with self._patch_subscription_client(mock_sub_client):
+            with patch.object(provider, "_get_credential", return_value=MagicMock()):
+                assert provider.check() is True
+
+    def test_returns_false_on_exception(self, provider):
+        mock_sub_client = MagicMock()
+        mock_sub_client.subscriptions.get.side_effect = Exception("AuthError")
+        with self._patch_subscription_client(mock_sub_client):
+            with patch.object(provider, "_get_credential", return_value=MagicMock()):
+                assert provider.check() is False
+
+
+class TestEnsureNetworking:
+    def _make_mock_clients(self):
+        mock_nc = MagicMock()
+        mock_rc = MagicMock()
+        mock_nc.network_security_groups.get.side_effect = Exception("NotFound")
+        mock_nc.network_security_groups.begin_create_or_update.return_value = MagicMock(
+            result=MagicMock(return_value=MagicMock(id="nsg-id-1"))
+        )
+        mock_nc.virtual_networks.begin_create_or_update.return_value = MagicMock(result=MagicMock(return_value=None))
+        mock_nc.subnets.get.side_effect = [Exception("NotFound"), MagicMock(id="subnet-id-1")]
+        return mock_nc, mock_rc
+
+    def test_creates_nsg_and_vnet_when_missing(self, provider):
+        mock_nc, mock_rc = self._make_mock_clients()
+        subnet_id, nsg_id = provider._ensure_networking(mock_nc, mock_rc)
+        mock_rc.resource_groups.create_or_update.assert_called_once_with("transformerlab-abc", {"location": "eastus"})
+        mock_nc.network_security_groups.begin_create_or_update.assert_called_once()
+        mock_nc.virtual_networks.begin_create_or_update.assert_called_once()
+        assert nsg_id == "nsg-id-1"
+        assert subnet_id == "subnet-id-1"
+
+    def test_returns_existing_nsg_without_creating(self, provider):
+        mock_nc = MagicMock()
+        mock_rc = MagicMock()
+        existing_nsg = MagicMock(id="existing-nsg")
+        mock_nc.network_security_groups.get.return_value = existing_nsg
+        existing_subnet = MagicMock(id="existing-subnet")
+        mock_nc.subnets.get.return_value = existing_subnet
+        subnet_id, nsg_id = provider._ensure_networking(mock_nc, mock_rc)
+        mock_nc.network_security_groups.begin_create_or_update.assert_not_called()
+        assert nsg_id == "existing-nsg"
+        assert subnet_id == "existing-subnet"
+
+
+class TestLaunchCluster:
+    def _make_mock_clients(self):
+        mock_cc = MagicMock()
+        mock_nc = MagicMock()
+        mock_rc = MagicMock()
+        # Networking returns existing resources
+        mock_nc.network_security_groups.get.return_value = MagicMock(id="nsg-id")
+        mock_nc.subnets.get.return_value = MagicMock(id="subnet-id")
+        # Public IP
+        mock_nc.public_ip_addresses.begin_create_or_update.return_value = MagicMock(
+            result=MagicMock(return_value=MagicMock(id="pip-id"))
+        )
+        # NIC
+        mock_nc.network_interfaces.begin_create_or_update.return_value = MagicMock(
+            result=MagicMock(return_value=MagicMock(id="nic-id"))
+        )
+        # VM creation
+        mock_vm = MagicMock(
+            id="/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/my-cluster",
+            name="my-cluster",
+        )
+        mock_cc.virtual_machines.begin_create_or_update.return_value = MagicMock(result=MagicMock(return_value=mock_vm))
+        return mock_cc, mock_nc, mock_rc
+
+    def test_returns_vm_id_and_request_id(self, provider):
+        mock_cc, mock_nc, mock_rc = self._make_mock_clients()
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch(
+                "transformerlab.compute_providers.azure.asyncio.run",
+                return_value="ssh-ed25519 AAAA",
+            ),
+        ):
+            result = provider.launch_cluster("my-cluster", ClusterConfig(run="python train.py"))
+        assert result["request_id"] == "my-cluster"
+        assert "vm_id" in result
+
+    def test_disk_size_is_applied_when_set(self, provider):
+        mock_cc, mock_nc, mock_rc = self._make_mock_clients()
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch(
+                "transformerlab.compute_providers.azure.asyncio.run",
+                return_value="ssh-ed25519 AAAA",
+            ),
+        ):
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py", disk_size=200))
+        call_kwargs = mock_cc.virtual_machines.begin_create_or_update.call_args[0][2]
+        assert call_kwargs["storage_profile"]["os_disk"]["disk_size_gb"] == 200
+
+    def test_no_disk_size_override_when_not_set(self, provider):
+        mock_cc, mock_nc, mock_rc = self._make_mock_clients()
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch(
+                "transformerlab.compute_providers.azure.asyncio.run",
+                return_value="ssh-ed25519 AAAA",
+            ),
+        ):
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py"))
+        call_kwargs = mock_cc.virtual_machines.begin_create_or_update.call_args[0][2]
+        assert "disk_size_gb" not in call_kwargs["storage_profile"]["os_disk"]
+
+    def test_tags_include_team_id_and_cluster_name(self, provider):
+        mock_cc, mock_nc, mock_rc = self._make_mock_clients()
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch(
+                "transformerlab.compute_providers.azure.asyncio.run",
+                return_value="ssh-ed25519 AAAA",
+            ),
+        ):
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py"))
+        call_kwargs = mock_cc.virtual_machines.begin_create_or_update.call_args[0][2]
+        tags = call_kwargs["tags"]
+        assert tags["transformerlab-team-id"] == "abc"
+        assert tags["transformerlab-cluster-name"] == "my-cluster"
+
+
+class TestStopCluster:
+    def test_deletes_vm_nic_and_pip(self, provider):
+        mock_cc = MagicMock()
+        mock_nc = MagicMock()
+        mock_cc.virtual_machines.begin_delete.return_value = MagicMock(result=MagicMock(return_value=None))
+        mock_nc.network_interfaces.begin_delete.return_value = MagicMock(result=MagicMock(return_value=None))
+        mock_nc.public_ip_addresses.begin_delete.return_value = MagicMock(result=MagicMock(return_value=None))
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+        ):
+            result = provider.stop_cluster("my-cluster")
+        mock_cc.virtual_machines.begin_delete.assert_called_once_with("transformerlab-abc", "my-cluster")
+        mock_nc.network_interfaces.begin_delete.assert_called_once_with(
+            "transformerlab-abc", "transformerlab-nic-my-cluster"
+        )
+        mock_nc.public_ip_addresses.begin_delete.assert_called_once_with(
+            "transformerlab-abc", "transformerlab-pip-my-cluster"
+        )
+        assert result["status"] == "success"
+
+    def test_returns_error_when_vm_delete_fails(self, provider):
+        mock_cc = MagicMock()
+        mock_nc = MagicMock()
+        mock_cc.virtual_machines.begin_delete.side_effect = Exception("VM not found")
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+        ):
+            result = provider.stop_cluster("my-cluster")
+        assert result["status"] == "error"
+
+
+class TestGetClusterStatus:
+    def _make_running_vm(self):
+        vm = MagicMock()
+        vm.provisioning_state = "Succeeded"
+        vm.instance_view = MagicMock()
+        status = MagicMock()
+        status.code = "PowerState/running"
+        vm.instance_view.statuses = [status]
+        return vm
+
+    def test_maps_running_to_up(self, provider):
+        mock_cc = MagicMock()
+        mock_cc.virtual_machines.get.return_value = self._make_running_vm()
+        with patch.object(provider, "_get_compute_client", return_value=mock_cc):
+            status = provider.get_cluster_status("my-cluster")
+        assert status.state == ClusterState.UP
+
+    def test_maps_deallocated_to_down(self, provider):
+        mock_cc = MagicMock()
+        vm = MagicMock()
+        vm.provisioning_state = "Succeeded"
+        vm.instance_view = MagicMock()
+        s = MagicMock()
+        s.code = "PowerState/deallocated"
+        vm.instance_view.statuses = [s]
+        mock_cc.virtual_machines.get.return_value = vm
+        with patch.object(provider, "_get_compute_client", return_value=mock_cc):
+            status = provider.get_cluster_status("my-cluster")
+        assert status.state == ClusterState.DOWN
+
+    def test_maps_stopping_to_stopped(self, provider):
+        mock_cc = MagicMock()
+        vm = MagicMock()
+        vm.provisioning_state = "Succeeded"
+        vm.instance_view = MagicMock()
+        s = MagicMock()
+        s.code = "PowerState/stopping"
+        vm.instance_view.statuses = [s]
+        mock_cc.virtual_machines.get.return_value = vm
+        with patch.object(provider, "_get_compute_client", return_value=mock_cc):
+            status = provider.get_cluster_status("my-cluster")
+        assert status.state == ClusterState.STOPPED
+
+    def test_returns_unknown_when_not_found(self, provider):
+        mock_cc = MagicMock()
+        mock_cc.virtual_machines.get.side_effect = Exception("ResourceNotFound")
+        with patch.object(provider, "_get_compute_client", return_value=mock_cc):
+            status = provider.get_cluster_status("my-cluster")
+        assert status.state == ClusterState.UNKNOWN
+
+
+class TestGetJobLogs:
+    def test_returns_log_content_via_ssh(self, provider):
+        mock_nc = MagicMock()
+        mock_nc.public_ip_addresses.get.return_value = MagicMock(ip_address="1.2.3.4")
+        with (
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch("transformerlab.compute_providers.azure.asyncio.run", return_value=b"PRIVATE_KEY"),
+            patch("transformerlab.compute_providers.azure._ssh_read_file", return_value="training loss: 0.5"),
+        ):
+            logs = provider.get_job_logs("my-cluster", "job-1")
+        assert "training loss" in logs
+
+    def test_returns_message_when_no_public_ip(self, provider):
+        mock_nc = MagicMock()
+        mock_nc.public_ip_addresses.get.return_value = MagicMock(ip_address=None)
+        with patch.object(provider, "_get_network_client", return_value=mock_nc):
+            logs = provider.get_job_logs("my-cluster", "job-1")
+        assert "starting" in logs.lower()
+
+    def test_returns_message_when_pip_not_found(self, provider):
+        mock_nc = MagicMock()
+        mock_nc.public_ip_addresses.get.side_effect = Exception("ResourceNotFound")
+        with patch.object(provider, "_get_network_client", return_value=mock_nc):
+            logs = provider.get_job_logs("my-cluster", "job-1")
+        assert "not found" in logs.lower()
+
+
+class TestListClusters:
+    def test_returns_cluster_statuses_for_team(self, provider):
+        mock_cc = MagicMock()
+        vm = MagicMock()
+        vm.name = "my-cluster"
+        vm.id = "/subscriptions/sub/vms/my-cluster"
+        vm.tags = {"transformerlab-team-id": "abc", "transformerlab-cluster-name": "my-cluster"}
+        vm.provisioning_state = "Succeeded"
+        vm_detail = MagicMock()
+        vm_detail.provisioning_state = "Succeeded"
+        vm_detail.hardware_profile = MagicMock(vm_size="Standard_NC4as_T4_v3")
+        status = MagicMock()
+        status.code = "PowerState/running"
+        vm_detail.instance_view = MagicMock(statuses=[status])
+        mock_cc.virtual_machines.list.return_value = iter([vm])
+        mock_cc.virtual_machines.get.return_value = vm_detail
+        with patch.object(provider, "_get_compute_client", return_value=mock_cc):
+            clusters = provider.list_clusters()
+        assert len(clusters) == 1
+        assert clusters[0].cluster_name == "my-cluster"
+        assert clusters[0].state == ClusterState.UP
+
+    def test_filters_out_other_team_vms(self, provider):
+        mock_cc = MagicMock()
+        vm = MagicMock()
+        vm.name = "other-cluster"
+        vm.tags = {"transformerlab-team-id": "other-team", "transformerlab-cluster-name": "other-cluster"}
+        mock_cc.virtual_machines.list.return_value = iter([vm])
+        with patch.object(provider, "_get_compute_client", return_value=mock_cc):
+            clusters = provider.list_clusters()
+        assert len(clusters) == 0
+
+
+def test_factory_creates_azure_provider():
+    config = ComputeProviderConfig(
+        type="azure",
+        name="my-azure",
+        azure_subscription_id="sub-123",
+        azure_tenant_id="tenant-456",
+        azure_client_id="client-789",
+        azure_client_secret="secret",
+        azure_location="eastus",
+        azure_resource_group="transformerlab-abc",
+        team_id="abc",
+    )
+    provider = create_compute_provider(config)
+    assert isinstance(provider, AzureProvider)
+    assert provider.location == "eastus"
+    assert provider.team_id == "abc"
+
+
+def test_factory_raises_without_subscription_id():
+    config = ComputeProviderConfig(
+        type="azure",
+        name="my-azure",
+        azure_tenant_id="tenant",
+        azure_client_id="client",
+        azure_client_secret="secret",
+        team_id="abc",
+    )
+    with pytest.raises(ValueError, match="subscription_id"):
+        create_compute_provider(config)

@@ -258,6 +258,14 @@ def db_record_to_provider_config(
         default_network_volume_id=config_dict.get("default_network_volume_id"),
         supported_accelerators=config_dict.get("supported_accelerators"),
         extra_config=extra_config,
+        # Azure-specific config
+        azure_subscription_id=config_dict.get("azure_subscription_id"),
+        azure_tenant_id=config_dict.get("azure_tenant_id"),
+        azure_client_id=config_dict.get("azure_client_id"),
+        azure_client_secret=config_dict.get("azure_client_secret"),
+        azure_location=config_dict.get("azure_location"),
+        azure_resource_group=config_dict.get("azure_resource_group"),
+        team_id=config_dict.get("team_id") or record.team_id,
     )
     # Local provider has no extra required config; workspace_dir is set at launch from get_workspace_dir()
 
