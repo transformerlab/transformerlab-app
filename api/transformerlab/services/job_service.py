@@ -760,27 +760,6 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
         pass
 
 
-def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, experiment_id: Optional[str] = None):
-    """
-    Synchronous version of job update for both type and status.
-
-    Args:
-        job_id: The ID of the job to update
-        job_type: The new type to set
-        status: The new status to set
-        experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
-    """
-    try:
-        if experiment_id is None:
-            return
-        job = asyncio.run(Job.get(job_id, experiment_id))
-        asyncio.run(job.set_type(job_type))
-        asyncio.run(job.update_status(status))
-    except Exception as e:
-        print(f"Error updating job {job_id}: {e}")
-        pass
-
-
 async def format_artifact(file_path: str, is_directory: bool = False) -> Optional[Dict[str, Any]]:
     """
     Format a single artifact file into the response structure.
