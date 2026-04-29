@@ -257,6 +257,21 @@ async def _check_job_via_provider(
                     f"Remote job status worker: failed to reset provider_empty_jobs_polls for job {job_id}: {exc}"
                 )
 
+        if (
+            provider_type == ProviderType.AZURE.value
+            and isinstance(job_data, dict)
+            and cluster_state != ClusterState.UNKNOWN
+            and (job_data.get("azure_stopping_unknown_polls", 0) or 0) > 0
+        ):
+            try:
+                await job_service.job_update_job_data_insert_key_value(job_id, "azure_stopping_unknown_polls", 0, experiment_id)
+            except Exception as exc:
+                logger.warning(
+                    "Remote job status worker: failed to reset azure_stopping_unknown_polls for job %s: %s",
+                    job_id,
+                    exc,
+                )
+
         # For RUNPOD, when the user requested stop (job in STOPPING), treat any non-UP
         # state as terminal STOPPED so the job does not stay stuck in STOPPING. This
         # covers: "Pod not found" (pod already deleted), "TERMINATING", or any other
@@ -276,6 +291,32 @@ async def _check_job_via_provider(
             # Local setup can be interrupted before a pid file is created.
             # If the user requested stop, treat this as terminal STOPPED so
             # the job does not remain stuck in STOPPING.
+            cluster_state = ClusterState.STOPPED
+        elif (
+            provider_type == ProviderType.AZURE.value
+            and job_status == JobStatus.STOPPING.value
+            and cluster_state == ClusterState.UNKNOWN
+        ):
+            # Azure can briefly report UNKNOWN while delete/stop propagates.
+            # Debounce to avoid prematurely marking STOPPED on transient states.
+            azure_unknown_polls_raw = (job_data.get("azure_stopping_unknown_polls", 0) if isinstance(job_data, dict) else 0) or 0
+            try:
+                azure_unknown_polls = int(azure_unknown_polls_raw)
+            except (TypeError, ValueError):
+                azure_unknown_polls = 0
+            azure_unknown_polls += 1
+            try:
+                await job_service.job_update_job_data_insert_key_value(
+                    job_id, "azure_stopping_unknown_polls", azure_unknown_polls, experiment_id
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Remote job status worker: failed to update azure_stopping_unknown_polls for job %s: %s",
+                    job_id,
+                    exc,
+                )
+            if azure_unknown_polls < EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD:
+                return False
             cluster_state = ClusterState.STOPPED
         elif provider_type == ProviderType.RUNPOD.value and status_message == "Pod not found":
             # Debounce: same threshold as empty provider job queue — avoid flapping on transient API errors.

@@ -284,13 +284,28 @@ class AzureProvider(ComputeProvider):
     def _build_user_data(config: ClusterConfig) -> str:
         env_exports = "\n".join(f'export {k}="{v}"' for k, v in config.env_vars.items())
         setup_block = config.setup or ""
+        run_cmd = config.run or "true"
         return f"""#!/bin/bash
-set -e
+set -eo pipefail
 mkdir -p /workspace
+
+# Ensure Python tooling is available and use an isolated runtime for setup/run.
+apt-get update -qq
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3 python3-venv python3-pip >/dev/null 2>&1
+python3 -m venv /opt/transformerlab-venv
+export PATH="/opt/transformerlab-venv/bin:$PATH"
+
+# Install uv for setup scripts that use `uv pip ...`.
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:/root/.local/bin:/home/azureuser/.local/bin:$PATH"
+
+# Make uv available even when later commands run as a different user.
+if [ -x /root/.local/bin/uv ]; then cp /root/.local/bin/uv /usr/local/bin/uv && chmod +x /usr/local/bin/uv; fi
+if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx && chmod +x /usr/local/bin/uvx; fi
+
 {env_exports}
-pip3 install transformerlab --quiet >> /workspace/install.log 2>&1
 {setup_block}
-tfl-remote-trap >> /workspace/run_logs.txt 2>&1
+({run_cmd}) 2>&1 | tee /workspace/run_logs.txt
 """
 
     def _get_vm_power_state(self, vm: Any) -> str:
@@ -413,7 +428,11 @@ tfl-remote-trap >> /workspace/run_logs.txt 2>&1
         compute_client = self._get_compute_client()
         try:
             vm = compute_client.virtual_machines.get(self.resource_group, cluster_name, expand="instanceView")
-        except Exception:
+        except Exception as e:
+            msg = str(e).lower()
+            # After stop/delete, Azure can return ResourceNotFound; treat this as terminal DOWN.
+            if "resourcenotfound" in msg or "not found" in msg:
+                return ClusterStatus(cluster_name=cluster_name, state=ClusterState.DOWN, status_message="ResourceNotFound")
             return ClusterStatus(cluster_name=cluster_name, state=ClusterState.UNKNOWN)
 
         state = self._map_vm_to_cluster_state(vm)

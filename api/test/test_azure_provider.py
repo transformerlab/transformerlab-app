@@ -247,6 +247,26 @@ class TestLaunchCluster:
         assert tags["transformerlab-cluster-name"] == "my-cluster"
 
 
+class TestBuildUserData:
+    def test_includes_run_command_and_setup(self):
+        config = ClusterConfig(
+            setup="echo setup",
+            run="python train.py --epochs 1",
+            env_vars={"FOO": "bar"},
+        )
+        script = AzureProvider._build_user_data(config)
+        assert "set -eo pipefail" in script
+        assert "python3 -m venv /opt/transformerlab-venv" in script
+        assert "curl -LsSf https://astral.sh/uv/install.sh | sh" in script
+        assert 'export FOO="bar"' in script
+        assert "echo setup" in script
+        assert "(python train.py --epochs 1) 2>&1 | tee /workspace/run_logs.txt" in script
+
+    def test_defaults_run_command_to_true(self):
+        script = AzureProvider._build_user_data(ClusterConfig())
+        assert "(true) 2>&1 | tee /workspace/run_logs.txt" in script
+
+
 class TestStopCluster:
     def test_deletes_vm_nic_and_pip(self, provider):
         mock_cc = MagicMock()
@@ -323,12 +343,12 @@ class TestGetClusterStatus:
             status = provider.get_cluster_status("my-cluster")
         assert status.state == ClusterState.STOPPED
 
-    def test_returns_unknown_when_not_found(self, provider):
+    def test_returns_down_when_not_found(self, provider):
         mock_cc = MagicMock()
         mock_cc.virtual_machines.get.side_effect = Exception("ResourceNotFound")
         with patch.object(provider, "_get_compute_client", return_value=mock_cc):
             status = provider.get_cluster_status("my-cluster")
-        assert status.state == ClusterState.UNKNOWN
+        assert status.state == ClusterState.DOWN
 
 
 class TestGetJobLogs:
