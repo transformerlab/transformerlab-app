@@ -35,6 +35,7 @@ dependencies = [
   "azure-mgmt-compute==34.1.0",
   "azure-mgmt-network==30.1.0",
   "azure-mgmt-resource==24.0.0",
+  "azure-mgmt-authorization==4.0.0",
   "azure-storage-blob==12.28.0",
   "cashews==7.5.0",
 ]

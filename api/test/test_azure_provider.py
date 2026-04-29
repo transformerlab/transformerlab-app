@@ -190,6 +190,7 @@ class TestLaunchCluster:
             patch.object(provider, "_get_compute_client", return_value=mock_cc),
             patch.object(provider, "_get_network_client", return_value=mock_nc),
             patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch.object(provider, "_ensure_vm_self_delete_role"),
             patch(
                 "transformerlab.compute_providers.azure.asyncio.run",
                 return_value="ssh-ed25519 AAAA",
@@ -205,6 +206,7 @@ class TestLaunchCluster:
             patch.object(provider, "_get_compute_client", return_value=mock_cc),
             patch.object(provider, "_get_network_client", return_value=mock_nc),
             patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch.object(provider, "_ensure_vm_self_delete_role"),
             patch(
                 "transformerlab.compute_providers.azure.asyncio.run",
                 return_value="ssh-ed25519 AAAA",
@@ -220,6 +222,7 @@ class TestLaunchCluster:
             patch.object(provider, "_get_compute_client", return_value=mock_cc),
             patch.object(provider, "_get_network_client", return_value=mock_nc),
             patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch.object(provider, "_ensure_vm_self_delete_role"),
             patch(
                 "transformerlab.compute_providers.azure.asyncio.run",
                 return_value="ssh-ed25519 AAAA",
@@ -236,6 +239,7 @@ class TestLaunchCluster:
             patch.object(provider, "_get_compute_client", return_value=mock_cc),
             patch.object(provider, "_get_network_client", return_value=mock_nc),
             patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch.object(provider, "_ensure_vm_self_delete_role"),
             patch(
                 "transformerlab.compute_providers.azure.asyncio.run",
                 return_value="ssh-ed25519 AAAA",
@@ -259,11 +263,25 @@ class TestLaunchCluster:
             patch.object(provider, "_get_compute_client", return_value=mock_cc),
             patch.object(provider, "_get_network_client", return_value=mock_nc),
             patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch.object(provider, "_ensure_vm_self_delete_role"),
             patch("transformerlab.compute_providers.azure.asyncio.run", return_value="ssh-ed25519 AAAA"),
         ):
             result = provider.launch_cluster("my-cluster", ClusterConfig(run="train.py", accelerators="T4:1"))
         assert result["request_id"] == "my-cluster"
         assert mock_cc.virtual_machines.begin_create_or_update.call_count == 2
+
+    def test_assigns_vm_self_delete_role_after_launch(self, provider):
+        mock_cc, mock_nc, mock_rc = self._make_mock_clients()
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch.object(provider, "_ensure_vm_self_delete_role") as mock_ensure_role,
+            patch("transformerlab.compute_providers.azure.asyncio.run", return_value="ssh-ed25519 AAAA"),
+        ):
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py"))
+        vm = mock_cc.virtual_machines.begin_create_or_update.return_value.result.return_value
+        mock_ensure_role.assert_called_once_with(vm)
 
 
 class TestBuildUserData:

@@ -6,6 +6,8 @@ import asyncio
 import copy
 import io
 import logging
+import time
+import uuid
 from typing import Any, Dict, List, Optional, Union
 
 from .base import ComputeProvider
@@ -75,6 +77,8 @@ _AZURE_PROV_STATE_MAP: Dict[str, ClusterState] = {
     "failed": ClusterState.FAILED,
     "succeeded": ClusterState.UP,
 }
+
+_VM_CONTRIBUTOR_ROLE_DEFINITION_ID = "9980e02c-c2be-4d73-94e8-173b1dc7cf3c"
 
 
 def _resolve_gpu_vm_size(accelerators: str) -> str:
@@ -199,6 +203,50 @@ class AzureProvider(ComputeProvider):
         from azure.mgmt.resource import ResourceManagementClient
 
         return ResourceManagementClient(self._get_credential(), self.subscription_id)
+
+    def _get_authorization_client(self) -> Any:
+        from azure.mgmt.authorization import AuthorizationManagementClient
+
+        return AuthorizationManagementClient(self._get_credential(), self.subscription_id)
+
+    def _ensure_vm_self_delete_role(self, vm: Any) -> None:
+        """Best-effort: grant VM identity rights to delete itself."""
+        principal_id = getattr(getattr(vm, "identity", None), "principal_id", None)
+        if not principal_id:
+            logger.warning("Azure VM identity principal_id missing; skipping self-delete role assignment")
+            return
+
+        scope = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group}"
+        role_definition_id = (
+            f"/subscriptions/{self.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/"
+            f"{_VM_CONTRIBUTOR_ROLE_DEFINITION_ID}"
+        )
+        auth_client = self._get_authorization_client()
+
+        for attempt in range(1, 4):
+            try:
+                auth_client.role_assignments.create(
+                    scope=scope,
+                    role_assignment_name=str(uuid.uuid4()),
+                    parameters={
+                        "properties": {
+                            "roleDefinitionId": role_definition_id,
+                            "principalId": principal_id,
+                            "principalType": "ServicePrincipal",
+                        }
+                    },
+                )
+                logger.info("Assigned Virtual Machine Contributor role to VM identity for self-terminate.")
+                return
+            except Exception as e:
+                # Role assignment can race with identity propagation.
+                if "RoleAssignmentExists" in str(e):
+                    logger.info("VM self-delete role assignment already exists.")
+                    return
+                if attempt < 3:
+                    time.sleep(2)
+                    continue
+                logger.warning("Failed to assign VM self-delete role: %s", e)
 
     def check(self) -> bool:
         try:
@@ -454,6 +502,10 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
                 vm = compute_client.virtual_machines.begin_create_or_update(
                     self.resource_group, cluster_name, params_for_attempt
                 ).result()
+                try:
+                    self._ensure_vm_self_delete_role(vm)
+                except Exception as e:
+                    logger.warning("Failed configuring VM self-delete RBAC: %s", e)
                 return {"vm_id": vm.id, "request_id": cluster_name}
             except Exception as e:
                 last_error = e
