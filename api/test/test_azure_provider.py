@@ -246,6 +246,22 @@ class TestLaunchCluster:
         assert tags["transformerlab-team-id"] == "abc"
         assert tags["transformerlab-cluster-name"] == "my-cluster"
 
+    def test_gpu_launch_falls_back_to_secondary_image(self, provider):
+        mock_cc, mock_nc, mock_rc = self._make_mock_clients()
+        mock_cc.virtual_machines.begin_create_or_update.side_effect = [
+            Exception("PlatformImageNotFound"),
+            MagicMock(result=MagicMock(return_value=MagicMock(id="vm-id", name="my-cluster"))),
+        ]
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch("transformerlab.compute_providers.azure.asyncio.run", return_value="ssh-ed25519 AAAA"),
+        ):
+            result = provider.launch_cluster("my-cluster", ClusterConfig(run="train.py", accelerators="T4:1"))
+        assert result["request_id"] == "my-cluster"
+        assert mock_cc.virtual_machines.begin_create_or_update.call_count == 2
+
 
 class TestBuildUserData:
     def test_includes_run_command_and_setup(self):
@@ -256,11 +272,13 @@ class TestBuildUserData:
         )
         script = AzureProvider._build_user_data(config)
         assert "set -eo pipefail" in script
-        assert "python3 -m venv /opt/transformerlab-venv" in script
+        assert "add-apt-repository -y ppa:deadsnakes/ppa" in script
+        assert "python3.11 -m venv /opt/transformerlab-venv" in script
         assert "curl -LsSf https://astral.sh/uv/install.sh | sh" in script
         assert 'export FOO="bar"' in script
         assert "echo setup" in script
         assert "(python train.py --epochs 1) 2>&1 | tee /workspace/run_logs.txt" in script
+        assert "command -v python3.11" in script
 
     def test_defaults_run_command_to_true(self):
         script = AzureProvider._build_user_data(ClusterConfig())
@@ -298,6 +316,20 @@ class TestStopCluster:
         ):
             result = provider.stop_cluster("my-cluster")
         assert result["status"] == "error"
+
+
+class TestImageReferences:
+    def test_gpu_images_prefer_ubuntu_2204_with_dsvm_fallback(self, provider):
+        images = provider._get_image_references(ClusterConfig(accelerators="T4:1"))
+        assert images[0]["publisher"] == "Canonical"
+        assert images[0]["sku"] == "22_04-lts-gen2"
+        assert images[1]["publisher"] == "microsoft-dsvm"
+
+    def test_cpu_images_use_jammy(self, provider):
+        images = provider._get_image_references(ClusterConfig())
+        assert len(images) == 1
+        assert images[0]["publisher"] == "Canonical"
+        assert images[0]["sku"] == "22_04-lts"
 
 
 class TestGetClusterStatus:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import io
 import logging
 from typing import Any, Dict, List, Optional, Union
@@ -265,20 +266,32 @@ class AzureProvider(ComputeProvider):
             return _resolve_gpu_vm_size(config.accelerators)
         return _resolve_cpu_vm_size(config.cpus, config.memory)
 
-    def _get_image_reference(self, config: ClusterConfig) -> Dict[str, str]:
+    def _get_image_references(self, config: ClusterConfig) -> List[Dict[str, str]]:
         if config.accelerators:
-            return {
-                "publisher": "microsoft-dsvm",
-                "offer": "ubuntu-2004",
-                "sku": "2004",
+            # Prefer newer Ubuntu for GPU VMs, but keep DSVM 20.04 as fallback
+            # because image availability varies across regions/SKUs.
+            return [
+                {
+                    "publisher": "Canonical",
+                    "offer": "0001-com-ubuntu-server-jammy",
+                    "sku": "22_04-lts-gen2",
+                    "version": "latest",
+                },
+                {
+                    "publisher": "microsoft-dsvm",
+                    "offer": "ubuntu-2004",
+                    "sku": "2004",
+                    "version": "latest",
+                },
+            ]
+        return [
+            {
+                "publisher": "Canonical",
+                "offer": "0001-com-ubuntu-server-jammy",
+                "sku": "22_04-lts",
                 "version": "latest",
             }
-        return {
-            "publisher": "Canonical",
-            "offer": "0001-com-ubuntu-server-jammy",
-            "sku": "22_04-lts",
-            "version": "latest",
-        }
+        ]
 
     @staticmethod
     def _build_user_data(config: ClusterConfig) -> str:
@@ -291,8 +304,15 @@ mkdir -p /workspace
 
 # Ensure Python tooling is available and use an isolated runtime for setup/run.
 apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3 python3-venv python3-pip >/dev/null 2>&1
-python3 -m venv /opt/transformerlab-venv
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq software-properties-common >/dev/null 2>&1
+if ! command -v python3.11 >/dev/null 2>&1; then
+  add-apt-repository -y ppa:deadsnakes/ppa >/dev/null 2>&1 || true
+  apt-get update -qq
+fi
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3.11 python3.11-venv python3.11-distutils curl >/dev/null 2>&1
+curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+python3.11 /tmp/get-pip.py >/dev/null 2>&1
+python3.11 -m venv /opt/transformerlab-venv
 export PATH="/opt/transformerlab-venv/bin:$PATH"
 
 # Install uv for setup scripts that use `uv pip ...`.
@@ -370,7 +390,7 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             },
             "hardware_profile": {"vm_size": vm_size},
             "storage_profile": {
-                "image_reference": self._get_image_reference(config),
+                "image_reference": None,
                 "os_disk": os_disk,
             },
             "os_profile": {
@@ -392,13 +412,26 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             "user_data": user_data_b64,
         }
 
-        try:
-            vm = compute_client.virtual_machines.begin_create_or_update(
-                self.resource_group, cluster_name, vm_params
-            ).result()
-            return {"vm_id": vm.id, "request_id": cluster_name}
-        except Exception as e:
-            raise RuntimeError(f"Failed to launch Azure VM: {e}") from e
+        image_refs = self._get_image_references(config)
+        last_error: Optional[Exception] = None
+        for image_ref in image_refs:
+            params_for_attempt = copy.deepcopy(vm_params)
+            params_for_attempt["storage_profile"]["image_reference"] = image_ref
+            try:
+                vm = compute_client.virtual_machines.begin_create_or_update(
+                    self.resource_group, cluster_name, params_for_attempt
+                ).result()
+                return {"vm_id": vm.id, "request_id": cluster_name}
+            except Exception as e:
+                last_error = e
+                logger.warning("Azure VM launch failed with image %s: %s", image_ref, e)
+                # If image/offer/sku is unavailable, continue to fallback image.
+                error_text = str(e).lower()
+                if any(token in error_text for token in ("platformimage", "image", "offer", "sku", "not found")):
+                    continue
+                raise RuntimeError(f"Failed to launch Azure VM: {e}") from e
+
+        raise RuntimeError(f"Failed to launch Azure VM: {last_error}") from last_error
 
     def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
         compute_client = self._get_compute_client()

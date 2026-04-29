@@ -232,6 +232,15 @@ async def _check_job_via_provider(
         cluster_status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
         cluster_state = cluster_status.state
         status_message = getattr(cluster_status, "status_message", "")
+        if provider_type == ProviderType.AZURE.value and job_status == JobStatus.STOPPING.value:
+            logger.info(
+                "Remote job status worker: Azure STOPPING poll for cluster %s (job %s): "
+                "cluster_state=%s status_message=%s",
+                cluster_name,
+                job_id,
+                cluster_state,
+                status_message,
+            )
 
         provider_empty_jobs_polls_raw = (
             job_data.get("provider_empty_jobs_polls", 0) if isinstance(job_data, dict) else 0
@@ -315,6 +324,15 @@ async def _check_job_via_provider(
                     job_id,
                     exc,
                 )
+            logger.warning(
+                "Remote job status worker: Azure STOPPING unknown-state debounce for cluster %s (job %s): "
+                "unknown_polls=%s threshold=%s status_message=%s",
+                cluster_name,
+                job_id,
+                azure_unknown_polls,
+                EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD,
+                status_message,
+            )
             if azure_unknown_polls < EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD:
                 return False
             cluster_state = ClusterState.STOPPED
