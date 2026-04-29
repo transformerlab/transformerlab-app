@@ -552,7 +552,9 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             # Keep this UNKNOWN and let the status worker decide terminal transitions
             # based on job state (e.g. STOPPING).
             if "resourcenotfound" in msg or "not found" in msg:
-                return ClusterStatus(cluster_name=cluster_name, state=ClusterState.UNKNOWN, status_message="ResourceNotFound")
+                return ClusterStatus(
+                    cluster_name=cluster_name, state=ClusterState.UNKNOWN, status_message="ResourceNotFound"
+                )
             return ClusterStatus(cluster_name=cluster_name, state=ClusterState.UNKNOWN)
 
         state = self._map_vm_to_cluster_state(vm)
