@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from .base import ComputeProvider
 from .models import ClusterConfig, ClusterState, ClusterStatus, JobConfig, JobInfo, ResourceInfo
+from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +144,7 @@ def _ssh_read_file(host: str, key_bytes: bytes, remote_path: str, tail_lines: in
         return "Failed to load SSH key."
 
     ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.set_missing_host_key_policy(get_add_if_verified_policy())
     try:
         ssh.connect(hostname=host, port=22, username="azureuser", pkey=pkey, timeout=15, banner_timeout=15)
         cmd = f"tail -n {tail_lines} {remote_path} 2>/dev/null || echo 'No log file yet.'"
