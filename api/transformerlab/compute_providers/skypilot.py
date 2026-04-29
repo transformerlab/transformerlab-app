@@ -152,6 +152,14 @@ class SkyPilotProvider(ComputeProvider):
         )
         return f"{distributed_env_setup};{run_command}"
 
+    def _normalize_dag(self, dag_result: Any) -> Any:
+        """Handle SkyPilot API variants where helpers return (dag, metadata)."""
+        if isinstance(dag_result, tuple):
+            if not dag_result:
+                raise ValueError("SkyPilot DAG conversion returned an empty tuple")
+            return dag_result[0]
+        return dag_result
+
     def _make_authenticated_request(
         self,
         method: str,
@@ -372,7 +380,7 @@ class SkyPilotProvider(ComputeProvider):
 
         # Convert Task to DAG and then to YAML string using SkyPilot's built-in method
         # This matches how the SDK does it internally
-        dag = dag_utils.convert_entrypoint_to_dag(task)
+        dag = self._normalize_dag(dag_utils.convert_entrypoint_to_dag(task))
 
         # Upload mounts if needed (for file mounts, etc.)
         try:
@@ -388,12 +396,12 @@ class SkyPilotProvider(ComputeProvider):
                         pass
 
             if client_common and hasattr(client_common, "upload_mounts_to_api_server"):
-                dag = client_common.upload_mounts_to_api_server(dag)
+                dag = self._normalize_dag(client_common.upload_mounts_to_api_server(dag))
         except Exception:
             # If upload_mounts fails, continue without it
             pass
 
-        dag_str = dag_utils.dump_chain_dag_to_yaml_str(dag)
+        dag_str = dag_utils.dump_dag_to_yaml_str(dag)
 
         # Get backend if specified in provider_config
         backend = None
@@ -995,7 +1003,7 @@ class SkyPilotProvider(ComputeProvider):
             task.num_nodes = job_config.num_nodes
 
         # Convert Task to DAG (matches SDK exactly)
-        dag = dag_utils.convert_entrypoint_to_dag(task)
+        dag = self._normalize_dag(dag_utils.convert_entrypoint_to_dag(task))
 
         # Validate DAG (matches SDK exactly)
         try:
@@ -1025,13 +1033,13 @@ class SkyPilotProvider(ComputeProvider):
                         pass
 
             if client_common and hasattr(client_common, "upload_mounts_to_api_server"):
-                dag = client_common.upload_mounts_to_api_server(dag, workdir_only=True)
+                dag = self._normalize_dag(client_common.upload_mounts_to_api_server(dag, workdir_only=True))
         except Exception:
             # If upload_mounts fails, continue without it
             pass
 
         # Dump DAG to YAML string (matches SDK exactly)
-        dag_str = dag_utils.dump_chain_dag_to_yaml_str(dag)
+        dag_str = dag_utils.dump_dag_to_yaml_str(dag)
 
         # Get backend if specified in provider_config
         backend = None

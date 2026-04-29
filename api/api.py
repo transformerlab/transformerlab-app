@@ -197,26 +197,31 @@ tags_metadata = [
 ]
 
 if os.getenv("SENTRY_DSN"):
-    # Import only if SENTRY_DSN is set.
-    # This way we can avoid making sentry_sdk a mandatory dependency.
-    import sentry_sdk
-    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    try:
+        # Import only if SENTRY_DSN is set.
+        # This way we can avoid making sentry_sdk a mandatory dependency.
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
 
-    sentry_sdk.init(
-        dsn=os.environ["SENTRY_DSN"],
-        integrations=[FastApiIntegration()],
-        # Enable sending logs to Sentry
-        enable_logs=True,
-        # Set traces_sample_rate to 1.0 to capture 100%
-        # of transactions for tracing.
-        traces_sample_rate=1.0,
-        # Set profile_session_sample_rate to 1.0 to profile 100%
-        # of profile sessions.
-        profile_session_sample_rate=1.0,
-        # Set profile_lifecycle to "trace" to automatically
-        # run the profiler on when there is an active transaction
-        profile_lifecycle="trace",
-    )
+        sentry_sdk.init(
+            dsn=os.environ["SENTRY_DSN"],
+            integrations=[FastApiIntegration()],
+            # Enable sending logs to Sentry
+            enable_logs=True,
+            # Set traces_sample_rate to 1.0 to capture 100%
+            # of transactions for tracing.
+            traces_sample_rate=1.0,
+            # Set profile_session_sample_rate to 1.0 to profile 100%
+            # of profile sessions.
+            profile_session_sample_rate=1.0,
+            # Set profile_lifecycle to "trace" to automatically
+            # run the profiler on when there is an active transaction
+            profile_lifecycle="trace",
+        )
+    except ImportError:
+        print(
+            "Sentry SDK is not installed. Skipping Sentry integration. Please install it with the following command: source ~/.transformerlab/envs/general-uv/bin/activate && pip install sentry-sdk"
+        )
 
 app = fastapi.FastAPI(
     title="Transformerlab API",
