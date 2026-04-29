@@ -304,12 +304,12 @@ mkdir -p /workspace
 
 # Self-terminate on EXIT (success or crash) using Azure IMDS + ARM.
 _tfl_self_terminate() {{
-  local _token_json _token _sub _rg _name _http
+  local _token_json _token _sub _rg _name _http _resp _delete_url
   echo "[tfl] self-terminate: requesting managed identity token" >> /workspace/run_logs.txt 2>&1 || true
   _token_json=$(curl -s -H "Metadata: true" \
     "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.azure.com%2F" \
     2>/dev/null) || true
-  _token=$(echo "$_token_json" | tr -d '\n' | sed -n 's/.*"access_token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p') || true
+  _token=$(printf "%s" "$_token_json" | python3.11 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))' 2>/dev/null) || true
   _sub=$(curl -s -H "Metadata: true" \
     "http://169.254.169.254/metadata/instance/compute/subscriptionId?api-version=2021-02-01&format=text" \
     2>/dev/null) || true
@@ -320,10 +320,12 @@ _tfl_self_terminate() {{
     "http://169.254.169.254/metadata/instance/compute/name?api-version=2021-02-01&format=text" \
     2>/dev/null) || true
   if [ -n "$_token" ] && [ -n "$_sub" ] && [ -n "$_rg" ] && [ -n "$_name" ]; then
+    _delete_url="https://management.azure.com/subscriptions/$_sub/resourceGroups/$_rg/providers/Microsoft.Compute/virtualMachines/$_name?api-version=2022-11-01"
     _http=$(curl -s -o /tmp/tfl_self_terminate_resp.txt -w "%{{http_code}}" -X DELETE \
       -H "Authorization: Bearer $_token" \
-      "https://management.azure.com/subscriptions/$_sub/resourceGroups/$_rg/providers/Microsoft.Compute/virtualMachines/$_name?api-version=2023-09-01") || true
-    echo "[tfl] self-terminate: vm delete requested (http=$_http)" >> /workspace/run_logs.txt 2>&1 || true
+      "$_delete_url") || true
+    _resp=$(tr '\n' ' ' < /tmp/tfl_self_terminate_resp.txt | cut -c1-600) || true
+    echo "[tfl] self-terminate: vm delete requested (http=$_http) body=$_resp" >> /workspace/run_logs.txt 2>&1 || true
   else
     echo "[tfl] self-terminate: missing token/metadata; skipping delete" >> /workspace/run_logs.txt 2>&1 || true
   fi
