@@ -36,7 +36,9 @@ export default function AzureProviderFields({
         <FormLabel>Subscription ID *</FormLabel>
         <Input
           value={azureSubscriptionId}
-          onChange={(event) => setAzureSubscriptionId(event.currentTarget.value)}
+          onChange={(event) =>
+            setAzureSubscriptionId(event.currentTarget.value)
+          }
           placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
           fullWidth
         />
