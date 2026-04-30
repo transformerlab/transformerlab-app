@@ -223,8 +223,13 @@ async def _check_job_via_provider(
 
     is_interactive = _is_interactive_subtype_job(job)
 
-    if provider_type in (ProviderType.LOCAL.value, ProviderType.RUNPOD.value, ProviderType.AWS.value):
-        # LOCAL/RUNPOD/AWS: cluster state directly represents job lifecycle.
+    if provider_type in (
+        ProviderType.LOCAL.value,
+        ProviderType.RUNPOD.value,
+        ProviderType.AWS.value,
+        ProviderType.GCP.value,
+    ):
+        # LOCAL/RUNPOD/AWS/GCP: cluster state directly represents job lifecycle.
         if provider_type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
             if hasattr(provider_instance, "extra_config"):
                 provider_instance.extra_config["workspace_dir"] = job_data["workspace_dir"]

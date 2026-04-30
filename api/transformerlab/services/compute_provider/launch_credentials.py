@@ -2,8 +2,9 @@
 
 import base64
 import configparser
+import json
 import os
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 # lab.init() not required; copy_file_mounts uses _TFL_JOB_ID, _TFL_EXPERIMENT_ID / TFL_EXPERIMENT_ID, and job_data
 COPY_FILE_MOUNTS_SETUP = 'python -c "from lab import lab; lab.copy_file_mounts()"'
@@ -118,6 +119,42 @@ def generate_azure_credentials_setup(
 
 def _aws_credentials_path() -> str:
     return os.path.join(os.path.expanduser("~"), ".aws", "credentials")
+
+
+def _gcp_credentials_dir() -> str:
+    return os.path.join(os.path.expanduser("~"), ".config", "transformerlab", "gcp")
+
+
+def write_gcp_service_account_json(filename: str, service_account_json: str) -> tuple[str, dict[str, Any]]:
+    """Write a GCP service account JSON document under Transformer Lab's config directory.
+
+    Returns the absolute credentials path and parsed JSON data. Raises ValueError
+    if the JSON is malformed or does not look like a service account key.
+    """
+    try:
+        parsed = json.loads(service_account_json)
+    except json.JSONDecodeError as exc:
+        raise ValueError("GCP service account credentials must be valid JSON") from exc
+
+    if not isinstance(parsed, dict):
+        raise ValueError("GCP service account credentials must be a JSON object")
+    required_fields = ["project_id", "client_email", "private_key"]
+    missing_fields = [field for field in required_fields if not parsed.get(field)]
+    if missing_fields:
+        raise ValueError(f"GCP service account JSON is missing required field(s): {', '.join(missing_fields)}")
+
+    safe_filename = os.path.basename(filename).replace("/", "-")
+    if not safe_filename.endswith(".json"):
+        safe_filename = f"{safe_filename}.json"
+    creds_dir = _gcp_credentials_dir()
+    os.makedirs(creds_dir, exist_ok=True)
+    os.chmod(creds_dir, 0o700)
+    creds_path = os.path.join(creds_dir, safe_filename)
+    with open(creds_path, "w", encoding="utf-8") as f:
+        json.dump(parsed, f, indent=2)
+        f.write("\n")
+    os.chmod(creds_path, 0o600)
+    return creds_path, parsed
 
 
 def write_aws_credentials_to_profile(

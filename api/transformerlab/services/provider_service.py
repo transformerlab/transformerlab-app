@@ -50,6 +50,13 @@ def build_aws_profile_name(team_id: str, provider_identifier: str) -> str:
     return f"tlab-compute-{short_team}-{short_provider}"
 
 
+def build_gcp_credentials_name(team_id: str, provider_identifier: str) -> str:
+    """Generate a stable GCP credentials filename unique per org/provider."""
+    short_team = _short_identifier(team_id)
+    short_provider = _short_identifier(provider_identifier)
+    return f"tlab-compute-{short_team}-{short_provider}.json"
+
+
 def _local_providers_disabled() -> bool:
     """
     Return True when local providers are globally disabled.
@@ -290,7 +297,12 @@ def db_record_to_provider_config(
         supported_accelerators=config_dict.get("supported_accelerators"),
         aws_profile=config_dict.get("aws_profile"),
         region=config_dict.get("region"),
-        team_id=config_dict.get("team_id") or (record.team_id if record.type == ProviderType.AWS.value else None),
+        team_id=config_dict.get("team_id")
+        or (record.team_id if record.type in (ProviderType.AWS.value, ProviderType.GCP.value) else None),
+        project_id=config_dict.get("project_id"),
+        zone=config_dict.get("zone"),
+        credentials_path=config_dict.get("credentials_path"),
+        service_account_email=config_dict.get("service_account_email"),
         extra_config=extra_config,
     )
     # Local provider has no extra required config; workspace_dir is set at launch from get_workspace_dir()

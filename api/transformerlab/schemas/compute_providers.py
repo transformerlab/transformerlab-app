@@ -39,6 +39,12 @@ class ProviderConfigBase(BaseModel):
     # AWS-specific config
     region: Optional[str] = None  # AWS region (e.g. "us-east-1")
 
+    # GCP-specific config
+    project_id: Optional[str] = None
+    zone: Optional[str] = None  # GCP zone (e.g. "us-central1-a")
+    credentials_path: Optional[str] = None
+    service_account_email: Optional[str] = None
+
     # Runpod-specific config
     api_key: Optional[str] = None  # Runpod API key (sensitive)
     api_base_url: Optional[str] = None  # Defaults to https://rest.runpod.io/v1

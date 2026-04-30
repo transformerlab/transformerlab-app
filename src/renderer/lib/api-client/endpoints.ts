@@ -133,6 +133,8 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/providers/${providerId}/check`,
   AwsCredentials: (providerId: string) =>
     `${API_URL()}compute_provider/providers/${providerId}/aws/credentials`,
+  GcpCredentials: (providerId: string) =>
+    `${API_URL()}compute_provider/providers/${providerId}/gcp/credentials`,
   Setup: (providerId: string) =>
     `${API_URL()}compute_provider/providers/${providerId}/setup/`,
   SetupStatus: (providerId: string) =>
