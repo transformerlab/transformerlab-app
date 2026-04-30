@@ -248,16 +248,17 @@ class AzureProvider(ComputeProvider):
                     continue
                 logger.warning("Failed to assign VM self-delete role: %s", e)
 
-    def check(self) -> bool:
+    def check(self) -> tuple[bool, str | None]:
         try:
             from azure.mgmt.resource import SubscriptionClient
 
             subscription_client = SubscriptionClient(self._get_credential())
             subscription_client.subscriptions.get(self.subscription_id)
-            return True
+            return True, None
         except Exception as e:
-            print(f"Azure provider check failed: {e}")
-            return False
+            reason = f"Azure provider check failed: {e}"
+            logger.warning(reason)
+            return False, reason
 
     def _ensure_networking(self, network_client, resource_client) -> tuple[str, str]:
         """Ensure resource group, NSG, VNet, and subnet exist. Returns (subnet_id, nsg_id)."""

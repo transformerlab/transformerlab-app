@@ -116,14 +116,16 @@ class TestCheck:
         mock_sub_client.subscriptions.get.return_value = MagicMock()
         with self._patch_subscription_client(mock_sub_client):
             with patch.object(provider, "_get_credential", return_value=MagicMock()):
-                assert provider.check() is True
+                assert provider.check() == (True, None)
 
     def test_returns_false_on_exception(self, provider):
         mock_sub_client = MagicMock()
         mock_sub_client.subscriptions.get.side_effect = Exception("AuthError")
         with self._patch_subscription_client(mock_sub_client):
             with patch.object(provider, "_get_credential", return_value=MagicMock()):
-                assert provider.check() is False
+                ok, reason = provider.check()
+                assert ok is False
+                assert reason == "Azure provider check failed: AuthError"
 
 
 class TestEnsureNetworking:
