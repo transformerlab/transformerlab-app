@@ -109,8 +109,8 @@ async def create_provider_for_team(
     if provider_data.type == ProviderType.AZURE:
         config_dict.setdefault("azure_resource_group", f"transformerlab-{team_id}")
 
-    # Auto-inject team_id for AWS providers; aws_profile is finalized after provider ID exists.
-    if provider_data.type == ProviderType.AWS:
+    # Auto-inject team_id for cloud providers that require team scoping.
+    if provider_data.type in {ProviderType.AWS, ProviderType.AZURE}:
         config_dict["team_id"] = team_id
 
     provider = await create_team_provider(
