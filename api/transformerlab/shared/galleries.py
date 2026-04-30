@@ -67,22 +67,7 @@ async def get_interactive_gallery():
     This contains templates for interactive task types (vscode, jupyter, vllm, ssh).
     Task run/setup resolve from task.yaml; gallery metadata augments for tunnels; see resolve_interactive_command.
     """
-    raw_gallery = await get_gallery_file(INTERACTIVE_GALLERY_FILE)
-    if not isinstance(raw_gallery, list):
-        return []
-
-    # Backward compatibility: older gallery entries may not include interactive_type.
-    # Use the entry id as a stable interactive_type so imported tasks/jobs do not
-    # collapse to the generic "custom" parser path.
-    normalized: list[dict] = []
-    for entry in raw_gallery:
-        if not isinstance(entry, dict):
-            continue
-        normalized_entry = dict(entry)
-        if not normalized_entry.get("interactive_type") and normalized_entry.get("id"):
-            normalized_entry["interactive_type"] = normalized_entry.get("id")
-        normalized.append(normalized_entry)
-    return normalized
+    return await get_gallery_file(INTERACTIVE_GALLERY_FILE)
 
 
 async def get_announcements_gallery():

@@ -66,11 +66,25 @@ def _assert_no_duplicate_ids(items: list[dict[str, Any]], gallery_name: str) -> 
         seen_ids.add(normalized)
 
 
+def _assert_interactive_schema(items: list[dict[str, Any]]) -> None:
+    for idx, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise ValueError(f"Invalid interactive entry at index {idx}: expected object")
+        entry_id = item.get("id")
+        interactive_type = item.get("interactive_type")
+        if not isinstance(entry_id, str) or not entry_id.strip():
+            raise ValueError(f"Interactive entry at index {idx} missing required string field: id")
+        if not isinstance(interactive_type, str) or not interactive_type.strip():
+            raise ValueError(f"Interactive entry '{entry_id}' missing required string field: interactive_type")
+
+
 def build_galleries() -> dict[str, list[dict[str, Any]]]:
     combined: dict[str, list[dict[str, Any]]] = {}
     for source_dir, output_filename in GALLERY_SPECS.items():
         source_folder = SOURCE_ROOT / source_dir
         entries = _combine_folder(source_folder)
+        if output_filename == "interactive-gallery.json":
+            _assert_interactive_schema(entries)
         combined[output_filename] = entries
     return combined
 

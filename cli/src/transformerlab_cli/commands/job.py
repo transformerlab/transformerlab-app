@@ -31,6 +31,39 @@ publish_app = typer.Typer()
 ACTIVE_JOB_STATUSES = {"RUNNING", "LAUNCHING", "INTERACTIVE", "WAITING"}
 
 
+def _extract_provider_cluster_from_job(job: dict) -> tuple[str | None, str | None]:
+    """Extract provider_id and cluster_name from a job payload."""
+    if not isinstance(job, dict):
+        return None, None
+    job_data = job.get("job_data", {})
+    if not isinstance(job_data, dict):
+        return None, None
+    provider_id = job_data.get("provider_id")
+    cluster_name = job_data.get("cluster_name")
+    if not provider_id or not cluster_name:
+        return None, None
+    return str(provider_id), str(cluster_name)
+
+
+def _stop_provider_cluster(experiment_id: str, job_id: str) -> None:
+    """Best-effort provider cluster stop to mirror GUI behavior."""
+    job_response = api.get(f"/experiment/{experiment_id}/jobs/{job_id}")
+    if job_response.status_code != 200:
+        return
+
+    provider_id, cluster_name = _extract_provider_cluster_from_job(job_response.json())
+    if not provider_id or not cluster_name:
+        return
+
+    cluster_stop_url = f"/compute_provider/providers/{provider_id}/clusters/{cluster_name}/stop?job_id={job_id}"
+    cluster_response = api.post(cluster_stop_url)
+    if cluster_response.status_code >= 400:
+        console.print(
+            f"[warning]Warning:[/warning] Job stop requested, but cluster stop request failed "
+            f"(status {cluster_response.status_code})."
+        )
+
+
 def _publish_job_asset(
     asset_type: str,
     endpoint_collection: str,
@@ -727,16 +760,48 @@ def _print_logs(experiment_id: str, job_id: str, output_format: str, fetch_fn, l
         response = fetch_fn(experiment_id, job_id)
 
     if response.status_code != 200:
+        detail = ""
+        try:
+            payload = response.json()
+            if isinstance(payload, dict):
+                detail = str(payload.get("detail") or payload.get("message") or "")
+        except Exception:
+            detail = ""
+
         if output_format == "json":
-            print(json.dumps({"error": f"Failed to fetch {label}. Status code: {response.status_code}"}))
+            body = {"error": f"Failed to fetch {label}. Status code: {response.status_code}"}
+            if detail:
+                body["detail"] = detail
+            print(json.dumps(body))
         else:
             console.print(f"[red]Error:[/red] Failed to fetch {label}. Status code: {response.status_code}")
+            if detail:
+                console.print(f"[red]Detail:[/red] {detail}")
         raise typer.Exit(1)
 
     data = response.json()
     logs_text = data.get("logs", "") if isinstance(data, dict) else ""
+    wait_message = data.get("message", "") if isinstance(data, dict) else ""
+    retryable = bool(data.get("retryable")) if isinstance(data, dict) else False
 
     if not logs_text or "No log files found" in logs_text:
+        if wait_message and retryable:
+            if output_format == "json":
+                print(
+                    json.dumps(
+                        {
+                            "job_id": job_id,
+                            "logs": logs_text,
+                            "line_count": 0,
+                            "message": wait_message,
+                            "retryable": True,
+                            "retry_after_seconds": data.get("retry_after_seconds"),
+                        }
+                    )
+                )
+            else:
+                console.print(f"[yellow]{wait_message}[/yellow]")
+            return
         exit_with_no_results(output_format, f"No {label} found for this job")
 
     if output_format == "json":
@@ -832,6 +897,7 @@ def command_job_stop(
         response = api.get(f"/experiment/{current_experiment}/jobs/{job_id}/stop")
 
     if response.status_code == 200:
+        _stop_provider_cluster(current_experiment, job_id)
         console.print(f"[success]✓[/success] Job [bold]{job_id}[/bold] stopped.")
     else:
         console.print(f"[error]Error:[/error] Failed to stop job. Status code: {response.status_code}")

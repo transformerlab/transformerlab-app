@@ -1,5 +1,5 @@
 import { ReactElement } from 'react';
-import { useNavigate, useMatch } from 'react-router-dom';
+import { useNavigate, useLocation, matchPath } from 'react-router-dom';
 
 import ListItem from '@mui/joy/ListItem';
 import ListItemContent from '@mui/joy/ListItemContent';
@@ -17,13 +17,17 @@ const SubNavItem = ({
 }: {
   title: string;
   path: string;
-  matchPattern?: string;
+  matchPattern?: string | string[];
   icon: ReactElement;
   disabled?: boolean;
   counter?: number | null;
 }) => {
   const navigate = useNavigate();
-  const match = useMatch(matchPattern || path);
+  const location = useLocation();
+  const patterns = Array.isArray(matchPattern)
+    ? matchPattern
+    : [matchPattern || path];
+  const match = patterns.some((p) => Boolean(matchPath(p, location.pathname)));
 
   return (
     <ListItem className="FirstSidebar_Content">

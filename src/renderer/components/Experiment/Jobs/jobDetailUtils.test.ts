@@ -2,6 +2,7 @@ import {
   getDefaultSection,
   getVisibleSections,
   generateJobPermalink,
+  generateTaskRunsPermalink,
   type SectionKey,
 } from './jobDetailUtils';
 
@@ -76,5 +77,12 @@ describe('generateJobPermalink', () => {
   it('builds a hash URL with experiment and job id', () => {
     const link = generateJobPermalink('my-exp', 'abc-123');
     expect(link).toBe('#/experiment/my-exp/jobs/abc-123');
+  });
+});
+
+describe('generateTaskRunsPermalink', () => {
+  it('builds a hash URL with experiment and task id', () => {
+    const link = generateTaskRunsPermalink('my-exp', 'task-42');
+    expect(link).toBe('#/experiment/my-exp/tasks/task-42/runs');
   });
 });

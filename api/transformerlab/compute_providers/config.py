@@ -45,6 +45,11 @@ class ComputeProviderConfig(BaseModel):
     # Accelerators supported by this provider
     supported_accelerators: Optional[list[str]] = Field(default=None)
 
+    # AWS-specific config
+    aws_profile: Optional[str] = None  # e.g. "transformerlab-compute-{team_id}"
+    region: Optional[str] = None  # e.g. "us-east-1"
+    team_id: Optional[str] = None  # team identifier for resource naming
+
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
 
@@ -238,6 +243,19 @@ def create_compute_provider(config: ComputeProviderConfig) -> "ComputeProvider":
             client_secret=config.azure_client_secret,
             location=config.azure_location or "eastus",
             resource_group=config.azure_resource_group or f"transformerlab-{config.team_id}",
+            team_id=config.team_id,
+            extra_config=config.extra_config,
+        )
+    elif config.type == "aws":
+        from .aws import AWSProvider
+
+        if not config.aws_profile:
+            raise ValueError("AWS provider requires aws_profile in config")
+        if not config.team_id:
+            raise ValueError("AWS provider requires team_id in config")
+        return AWSProvider(
+            aws_profile=config.aws_profile,
+            region=config.region or "us-east-1",
             team_id=config.team_id,
             extra_config=config.extra_config,
         )

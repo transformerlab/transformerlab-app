@@ -36,19 +36,3 @@ def test_local_channel_path_uses_selected_channel(monkeypatch, tmp_path):
 
     resolved = galleries.get_local_gallery_path(galleries.TASKS_GALLERY_FILE)
     assert resolved.endswith("channels/beta/latest/task-gallery.json")
-
-
-def test_get_interactive_gallery_backfills_interactive_type_from_id(monkeypatch):
-    async def fake_get_gallery_file(_filename: str):
-        return [
-            {"id": "comfy_ui", "name": "ComfyUI"},
-            {"id": "ssh", "interactive_type": "ssh", "name": "SSH"},
-        ]
-
-    monkeypatch.setattr(galleries, "get_gallery_file", fake_get_gallery_file)
-
-    import asyncio
-
-    result = asyncio.run(galleries.get_interactive_gallery())
-    assert result[0]["interactive_type"] == "comfy_ui"
-    assert result[1]["interactive_type"] == "ssh"

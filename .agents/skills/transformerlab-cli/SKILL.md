@@ -1,6 +1,6 @@
 ---
 name: transformerlab-cli
-description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "list providers", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset".
+description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset".
 allowed-tools: Bash(lab *), Bash(curl *beta.lab.cloud*), Bash(curl *localhost:8338*)
 ---
 
@@ -116,7 +116,7 @@ lab task init --interactive   # prompts for name, CPUs, memory, setup, and run c
 
 - Default mode is non-interactive. It creates `task.yaml` (with `name`, `resources: {cpus: 2, memory: 4}`, and `run: python main.py`) and a starter `main.py`. Existing files are skipped, not overwritten.
 - `--interactive` writes only `task.yaml` (no `main.py`) and prompts for each field. In this mode `task.yaml` will prompt before overwrite.
-- After init, edit `main.py`, customize `task.yaml`, then run `lab task add .` to upload it.
+- After init, edit `main.py`, customize `task.yaml`, then run `lab task add .` to create it on the server.
 
 ### task.yaml Structure
 
@@ -155,9 +155,37 @@ github_repo_branch: main
 
 ### Validation
 
-`lab task add` automatically validates task.yaml against the server schema before uploading. There is no standalone `lab task validate` command yet (TODO: add one).
+`lab task add` automatically validates task.yaml against the server schema before creating the task. There is no standalone `lab task validate` command yet (TODO: add one).
 
 To validate without creating, use `lab task add ./my-task --dry-run`.
+
+### Editing task.yaml for an existing task
+
+Use `lab task edit` to update the `task.yaml` for a task that already exists on the server:
+
+```bash
+# Interactive editor flow
+lab task edit TASK_ID
+
+# Apply a local task.yaml directly
+lab task edit TASK_ID --from-file ./task.yaml --no-interactive
+```
+
+`lab task edit` expects a `TASK_ID` and supports `--from-file`, `--no-interactive`, and `--timeout`.
+
+### Uploading extra files to an existing task
+
+Use `lab task upload` to upload files or directories into an existing task:
+
+```bash
+# Upload a single file
+lab task upload TASK_ID ./tokenizer.json
+
+# Upload a directory
+lab task upload TASK_ID ./prompts --no-interactive
+```
+
+`lab task upload` requires both `TASK_ID` and `PATH`.
 
 ### Lab SDK Quick Reference
 
@@ -430,6 +458,8 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab task info <id>` | Get task details | Yes |
 | `lab task init` | Scaffold `task.yaml` + `main.py` in the current directory (`--interactive` to prompt) | No |
 | `lab task add [dir]` | Add task from directory or `--from-git` URL (`--no-interactive`, `--dry-run`) | Yes |
+| `lab task edit <id>` | Edit an existing task's `task.yaml` (`--from-file`, `--no-interactive`, `--timeout`) | Yes |
+| `lab task upload <id> <path>` | Upload files/directories into an existing task (`--no-interactive`) | Yes |
 | `lab task delete <id>` | Delete a task (`--no-interactive` to skip confirmation) | Yes |
 | `lab task queue <id>` | Queue task on compute provider (`-m/--description` for a markdown run note; required for agents, see "Always write a run description") | Yes |
 | `lab task gallery` | Browse/import from task gallery | Yes |

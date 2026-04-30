@@ -17,6 +17,7 @@ from transformerlab.services.compute_provider.local_setup_service import (
 )
 from transformerlab.services.provider_service import (
     _local_providers_disabled,
+    build_aws_profile_name,
     create_team_provider,
     delete_team_provider,
     detect_local_supported_accelerators,
@@ -24,6 +25,7 @@ from transformerlab.services.provider_service import (
     get_team_provider,
     list_enabled_team_providers,
     list_team_providers,
+    normalize_provider_check_result,
     update_team_provider,
 )
 from transformerlab.shared.models.models import ProviderType, TeamRole
@@ -83,6 +85,7 @@ async def create_provider_for_team(
         ProviderType.LOCAL,
         ProviderType.DSTACK,
         ProviderType.AZURE,
+        ProviderType.AWS,
     ]
     if provider_data.type not in allowed_provider_types:
         allowed_values = ", ".join(provider_type.value for provider_type in allowed_provider_types)
@@ -105,6 +108,9 @@ async def create_provider_for_team(
 
     if provider_data.type == ProviderType.AZURE:
         config_dict.setdefault("azure_resource_group", f"transformerlab-{team_id}")
+
+    # Auto-inject team_id for AWS providers; aws_profile is finalized after provider ID exists.
+    if provider_data.type == ProviderType.AWS:
         config_dict["team_id"] = team_id
 
     provider = await create_team_provider(
@@ -117,6 +123,20 @@ async def create_provider_for_team(
         config=config_dict,
         created_by_user_id=str(user.id),
     )
+
+    if provider.type == ProviderType.AWS.value:
+        provider_config = dict(provider.config or {})
+        if not provider_config.get("aws_profile"):
+            provider_config["aws_profile"] = build_aws_profile_name(team_id, str(provider.id))
+            provider_config["team_id"] = team_id
+            provider = await update_team_provider(
+                session=session,
+                provider=provider,
+                name=None,
+                config=provider_config,
+                disabled=None,
+                is_default=None,
+            )
 
     await cache.invalidate("providers")
 
@@ -196,6 +216,8 @@ async def update_provider_for_team(
         if new_config.get("api_key") == "***":
             new_config.pop("api_key", None)
         update_config = {**existing_config, **new_config}
+        if provider.type == ProviderType.AWS.value:
+            update_config["team_id"] = team_id
 
     update_disabled = provider_data.disabled if provider_data.disabled is not None else None
     update_is_default = provider_data.is_default if provider_data.is_default is not None else None
@@ -226,16 +248,20 @@ async def delete_provider_for_team(session: AsyncSession, team_id: str, provider
 
 async def check_provider_accessible(
     session: AsyncSession, team_id: str, provider_id: str, user_id_str: str
-) -> Dict[str, bool]:
+) -> Dict[str, bool | str]:
     provider = await get_team_provider(session, team_id, provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
         provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
-        is_active = await asyncio.to_thread(provider_instance.check)
-        return {"status": is_active}
+        check_result = await asyncio.to_thread(provider_instance.check)
+        is_active, reason = normalize_provider_check_result(check_result)
+        if is_active:
+            return {"status": True, "reason": "Provider is active and accessible."}
+        return {"status": False, "reason": reason or "Provider check reported unhealthy status."}
     except Exception as e:
         error_msg = str(e)
         print(f"Failed to check provider: {error_msg}")
-        return {"status": False}
+        reason = error_msg or f"Provider check raised {type(e).__name__}"
+        return {"status": False, "reason": reason}

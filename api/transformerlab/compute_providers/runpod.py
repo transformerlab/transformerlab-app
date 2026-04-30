@@ -2,6 +2,7 @@
 
 import asyncio
 import io
+import logging
 from typing import Dict, Any, Optional, Union, List
 
 import requests
@@ -22,6 +23,7 @@ from .models import (
 
 # Path inside the RunPod container where we tee stdout/stderr for provider log retrieval via SSH
 RUNPOD_RUN_LOGS_PATH = "/workspace/run_logs.txt"
+logger = logging.getLogger(__name__)
 
 
 async def fetch_runpod_provider_logs(
@@ -752,23 +754,15 @@ class RunpodProvider(ComputeProvider):
 
         return detailed
 
-    def check(self) -> bool:
+    def check(self) -> tuple[bool, str | None]:
         """Check if the Runpod provider is active and accessible."""
         try:
             # Make a lightweight API call to verify API key is valid
 
             self._make_request("GET", "/pods", timeout=5)
             # If we get a response (even empty), the API key is valid
-            return True
-        except requests.exceptions.HTTPError as e:
-            # 401/403 means invalid API key
-            if hasattr(e, "response") and e.response.status_code in [401, 403]:
-                print(f"Runpod provider check failed: {e.response.text}")
-                return False
-            # Other errors might be temporary
-            print(f"Runpod provider check failed: {e.response.text}")
-            return False
+            return True, None
         except Exception as e:
-            print(f"Runpod provider check failed: {e}")
-            # Connection errors, timeouts, etc.
-            return False
+            reason = f"Runpod provider check failed: {e}"
+            logger.warning(reason)
+            return False, reason

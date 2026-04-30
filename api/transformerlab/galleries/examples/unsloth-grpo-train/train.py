@@ -282,7 +282,7 @@ def train_model():
 
         except Exception as e:
             lab.log(f"❌ Failed to load dataset: {e}")
-            lab.finish("Training failed due to dataset loading error.")
+            lab.error("Training failed due to dataset loading error.")
             return {"status": "error", "error": str(e)}
 
         lab.update_progress(10)
@@ -469,7 +469,7 @@ def train_model():
             import traceback
 
             traceback.print_exc()
-            lab.finish("Training failed due to model loading error.")
+            lab.error("Training failed due to model loading error.")
             return {"status": "error", "error": str(e)}
 
         lab.update_progress(50)

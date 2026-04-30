@@ -470,9 +470,10 @@ export default function NewInteractiveTaskModal({
     // Persist model name to history before submitting
     const modelName = configFieldValues['MODEL_NAME'];
     if (modelName?.trim() && selectedTemplate) {
-      const taskTypeOrId =
-        selectedTemplate.interactive_type || selectedTemplate.id;
-      saveModelToHistory(getModelHistoryKey(taskTypeOrId), modelName.trim());
+      saveModelToHistory(
+        getModelHistoryKey(selectedTemplate.interactive_type),
+        modelName.trim(),
+      );
     }
 
     onSubmit(
@@ -772,8 +773,7 @@ export default function NewInteractiveTaskModal({
                                       handleConfigFieldChange(field.env_var, v)
                                     }
                                     taskTypeOrId={
-                                      selectedTemplate?.interactive_type ||
-                                      selectedTemplate?.id
+                                      selectedTemplate?.interactive_type
                                     }
                                     placeholder={field.placeholder}
                                     disabled={isSubmitting}

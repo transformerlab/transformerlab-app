@@ -131,6 +131,8 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/providers/${providerId}/launch/${taskId}/file-upload`, // Deprecated: use UploadTemplateFile
   Check: (providerId: string) =>
     `${API_URL()}compute_provider/providers/${providerId}/check`,
+  AwsCredentials: (providerId: string) =>
+    `${API_URL()}compute_provider/providers/${providerId}/aws/credentials`,
   Setup: (providerId: string) =>
     `${API_URL()}compute_provider/providers/${providerId}/setup/`,
   SetupStatus: (providerId: string) =>

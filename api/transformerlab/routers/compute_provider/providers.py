@@ -1,10 +1,14 @@
 from typing import Any, Dict, List
+import json
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services.compute_provider import team_provider_endpoints
+from transformerlab.services.compute_provider.launch_credentials import write_aws_credentials_to_profile
+from transformerlab.services.provider_service import get_team_provider
 from transformerlab.services.cache_service import cached
 from transformerlab.schemas.compute_providers import (
     ProviderCreate,
@@ -101,3 +105,31 @@ async def check_provider(
     team_id = user_and_team["team_id"]
     user_id_str = str(user_and_team["user"].id)
     return await team_provider_endpoints.check_provider_accessible(session, team_id, provider_id, user_id_str)
+
+
+class AwsCredentialsRequest(BaseModel):
+    access_key_id: str
+    secret_access_key: str
+
+
+@router.post("/{provider_id}/aws/credentials")
+async def set_aws_credentials(
+    provider_id: str,
+    body: AwsCredentialsRequest,
+    owner_info=Depends(require_team_owner),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Write AWS credentials for an AWS compute provider to ~/.aws/credentials."""
+    provider = await get_team_provider(session, owner_info["team_id"], provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.type != "aws":
+        raise HTTPException(status_code=400, detail="Provider is not of type 'aws'")
+
+    config = json.loads(provider.config) if isinstance(provider.config, str) else (provider.config or {})
+    profile = config.get("aws_profile")
+    if not profile:
+        raise HTTPException(status_code=400, detail="Provider has no aws_profile configured")
+
+    write_aws_credentials_to_profile(profile, body.access_key_id, body.secret_access_key)
+    return {"status": "ok", "profile": profile}

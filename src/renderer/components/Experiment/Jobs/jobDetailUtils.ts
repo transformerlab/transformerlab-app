@@ -48,3 +48,10 @@ export function generateJobPermalink(
 ): string {
   return `#/experiment/${experimentName}/jobs/${jobId}`;
 }
+
+export function generateTaskRunsPermalink(
+  experimentName: string,
+  taskId: string,
+): string {
+  return `#/experiment/${experimentName}/tasks/${taskId}/runs`;
+}

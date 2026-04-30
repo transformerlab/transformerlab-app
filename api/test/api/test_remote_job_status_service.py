@@ -622,6 +622,46 @@ async def test_check_job_via_provider_local_still_running(monkeypatch):
     assert result is False
 
 
+@pytest.mark.asyncio
+async def test_check_job_via_provider_aws_stopping_terminal_transitions_stopped(monkeypatch):
+    """AWS provider STOPPING + terminal cluster state should mark job STOPPED."""
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(status="STOPPING")
+    record = _make_provider_record("aws")
+
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.DOWN
+    cluster_status.status_message = "terminated"
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key))
+
+    async def fake_update_status(job_id, status, experiment_id=None):
+        calls.append(("status", status))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        fake_update_status,
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+
+    assert result is True
+    assert ("status", "STOPPED") in calls
+
+
 # ---------------------------------------------------------------------------
 # _check_job_via_provider tests — interactive jobs (dead process detection)
 # ---------------------------------------------------------------------------

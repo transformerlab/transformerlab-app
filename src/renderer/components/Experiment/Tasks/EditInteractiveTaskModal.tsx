@@ -109,16 +109,15 @@ export default function EditInteractiveTaskModal({
     return [];
   }, [galleryData]);
 
-  // Resolve gallery entry by interactive_gallery_id first, then interactive_type
+  // Resolve gallery entry by interactive_gallery_id.
   const galleryId = (task as any)?.interactive_gallery_id;
 
   // Update templateConfigFields when gallery loads
   React.useEffect(() => {
     if (gallery.length > 0) {
-      const template =
-        (galleryId && gallery.find((t) => (t as any).id === galleryId)) ||
-        (interactiveType &&
-          gallery.find((t) => t.interactive_type === interactiveType));
+      const template = galleryId
+        ? gallery.find((t) => (t as any).id === galleryId)
+        : undefined;
       if (template?.env_parameters) {
         setTemplateConfigFields(template.env_parameters);
       } else {
@@ -400,9 +399,8 @@ export default function EditInteractiveTaskModal({
       }
 
       // Persist all model-type fields to history before saving
-      const taskTypeOrId = interactiveType || galleryId;
-      if (taskTypeOrId) {
-        const historyKey = getModelHistoryKey(taskTypeOrId);
+      if (interactiveType) {
+        const historyKey = getModelHistoryKey(interactiveType);
         templateConfigFields
           .filter((field) => field.field_type === 'model')
           .forEach((field) => {
@@ -562,7 +560,7 @@ export default function EditInteractiveTaskModal({
                             onChange={(v) =>
                               handleConfigFieldChange(field.env_var, v)
                             }
-                            taskTypeOrId={interactiveType || galleryId}
+                            taskTypeOrId={interactiveType}
                             placeholder={field.placeholder}
                             disabled={false}
                             required={!!field.required}

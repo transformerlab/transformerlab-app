@@ -101,7 +101,7 @@ def train_model():
 
         except Exception as e:
             lab.log(f"❌ Failed to load dataset: {e}")
-            lab.finish("Training failed due to dataset loading error.")
+            lab.error("Training failed due to dataset loading error.")
             return {"status": "error", "error": str(e)}
 
         for dataset_type in dataset_types:

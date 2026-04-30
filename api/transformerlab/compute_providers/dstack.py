@@ -391,9 +391,11 @@ class DstackProvider(ComputeProvider):
         except Exception:
             return []
 
-    def check(self) -> bool:
+    def check(self) -> tuple[bool, str | None]:
         try:
             self._list_runs(limit=1, timeout=10)
-            return True
-        except Exception:
-            return False
+            return True, None
+        except Exception as e:
+            reason = f"dstack provider check failed: {type(e).__name__}: {str(e)}"
+            logger.warning(reason)
+            return False, reason

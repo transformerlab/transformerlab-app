@@ -22,6 +22,9 @@ from lab.dirs import get_global_log_path
 
 from werkzeug.utils import secure_filename
 
+from fastapi import Header
+
+from transformerlab.services import asset_download_service, asset_upload_service
 from transformerlab.services import dataset_service as dataset_service_module
 from transformerlab.services.permission_service import require_permission
 from transformerlab.services.upload_service import get_assembled_path, get_filename, delete_upload
@@ -703,6 +706,8 @@ async def create_upload_file(
     dataset_id: str,
     files: list[UploadFile] = [],
     upload_id: Optional[str] = None,
+    relpath: Optional[str] = None,
+    force: bool = False,
 ):
     dataset_id = slugify(dataset_id)
     uploaded_filenames = []
@@ -710,15 +715,35 @@ async def create_upload_file(
     if upload_id is not None:
         try:
             assembled_path = await get_assembled_path(upload_id)
-            filename = await get_filename(upload_id)
+            staged_filename = await get_filename(upload_id)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc))
         dataset_dir = await dirs.dataset_dir_by_id(dataset_id)
-        target_path = storage.join(dataset_dir, filename)
         await storage.makedirs(dataset_dir, exist_ok=True)
-        await storage.copy_file(assembled_path, target_path)
+        # Lazy-create dataset record if it doesn't exist (matches model behavior).
+        try:
+            await dataset_service.get(dataset_id)
+        except FileNotFoundError:
+            try:
+                ds = await dataset_service.create(dataset_id)
+                await ds.set_metadata(location="local", description="", size=-1, json_data={})
+            except Exception:
+                pass
+
+        target_relpath = relpath if relpath is not None else staged_filename
+        try:
+            await asset_upload_service.accept_uploaded_file(
+                asset_dir=dataset_dir,
+                assembled_path=assembled_path,
+                relpath=target_relpath,
+                force=force,
+            )
+        except asset_upload_service.InvalidRelpathError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except asset_upload_service.RelpathConflictError as exc:
+            raise HTTPException(status_code=409, detail=f"file exists: {exc}")
         await delete_upload(upload_id)
-        uploaded_filenames.append(filename)
+        uploaded_filenames.append(target_relpath)
     else:
         for file in files:
             print("uploading filename is: " + str(file.filename))
@@ -776,3 +801,30 @@ class FlushFile:
 
     def flush(self):
         self.file.flush()
+
+
+@router.get("/files", summary="List files in a dataset.")
+async def dataset_files(dataset_id: str):
+    dataset_id = slugify(dataset_id)
+    try:
+        await dataset_service.get(dataset_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"dataset {dataset_id} not found")
+    dataset_dir = await dirs.dataset_dir_by_id(dataset_id)
+    return await asset_download_service.list_files(dataset_dir)
+
+
+@router.get("/file", summary="Stream one file from a dataset.")
+async def dataset_file(dataset_id: str, relpath: str, range: str | None = Header(default=None)):  # noqa: A002
+    dataset_id = slugify(dataset_id)
+    try:
+        await dataset_service.get(dataset_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"dataset {dataset_id} not found")
+    dataset_dir = await dirs.dataset_dir_by_id(dataset_id)
+    try:
+        return await asset_download_service.stream_file(dataset_dir, relpath, range)
+    except asset_download_service.InvalidRelpathError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"{relpath} not found in dataset {dataset_id}")

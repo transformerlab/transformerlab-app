@@ -114,3 +114,36 @@ def generate_azure_credentials_setup(
 
     exports.append("echo 'Azure storage credentials configured successfully'")
     return "; ".join(exports)
+
+
+def _aws_credentials_path() -> str:
+    return os.path.join(os.path.expanduser("~"), ".aws", "credentials")
+
+
+def write_aws_credentials_to_profile(
+    profile_name: str,
+    access_key_id: str,
+    secret_access_key: str,
+) -> None:
+    """Write AWS credentials to ~/.aws/credentials under the given profile name.
+
+    Creates the file and directory if they don't exist. Overwrites the profile
+    if it already exists, preserving all other profiles.
+    """
+    creds_path = _aws_credentials_path()
+    creds_dir = os.path.dirname(creds_path)
+    os.makedirs(creds_dir, exist_ok=True)
+    os.chmod(creds_dir, 0o700)
+
+    config = configparser.ConfigParser()
+    if os.path.exists(creds_path):
+        config.read(creds_path)
+
+    config[profile_name] = {
+        "aws_access_key_id": access_key_id,
+        "aws_secret_access_key": secret_access_key,
+    }
+
+    with open(creds_path, "w", encoding="utf-8") as f:
+        config.write(f)
+    os.chmod(creds_path, 0o600)

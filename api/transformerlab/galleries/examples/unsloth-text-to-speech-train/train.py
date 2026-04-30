@@ -503,12 +503,12 @@ def train_model():
                 lab.log(
                     f"Missing required columns: '{training_config['_config']['audio_column_name']}' and '{training_config['_config']['text_column_name']}'."
                 )
-                lab.finish("Training failed due to missing dataset columns.")
+                lab.error("Training failed due to missing dataset columns.")
                 return {"status": "error", "error": "Missing required dataset columns."}
 
         except Exception as e:
             lab.log(f"❌ Failed to load dataset: {e}")
-            lab.finish("Training failed due to dataset loading error.")
+            lab.error("Training failed due to dataset loading error.")
             return {"status": "error", "error": str(e)}
 
         lab.log("Preparing dataset...")
@@ -531,7 +531,7 @@ def train_model():
             )
         except Exception as e:
             lab.log(f"❌ Failed to prepare dataset: {e}")
-            lab.finish("Training failed due to dataset preparation error.")
+            lab.error("Training failed due to dataset preparation error.")
             return {"status": "error", "error": str(e)}
 
         # Load model and tokenizer using
@@ -583,7 +583,7 @@ def train_model():
                 lab.log(
                     f"❌ Model architecture {training_config['_config']['model_architecture']} is not supported for audio training. Please use 'CsmForConditionalGeneration' or 'OrpheusForConditionalGeneration'."
                 )
-                lab.finish("Training failed due to unsupported model architecture.")
+                lab.error("Training failed due to unsupported model architecture.")
                 return {"status": "error", "error": "Unsupported model architecture."}
 
             model = model_trainer.model
@@ -593,7 +593,7 @@ def train_model():
             import traceback
 
             traceback.print_exc()
-            lab.finish("Training failed due to model loading error.")
+            lab.error("Training failed due to model loading error.")
             return {"status": "error", "error": str(e)}
 
         lab.log("Preprocessing dataset...")
@@ -611,7 +611,7 @@ def train_model():
 
         except Exception as e:
             lab.log(f"❌ Failed to preprocess dataset: {e}")
-            lab.finish("Training failed due to dataset preprocessing error.")
+            lab.error("Training failed due to dataset preprocessing error.")
             return {"status": "error", "error": str(e)}
 
         lab.log("Setting up trainer...")
@@ -656,7 +656,7 @@ def train_model():
             import traceback
 
             traceback.print_exc()
-            lab.finish("Training failed due to trainer setup error.")
+            lab.error("Training failed due to trainer setup error.")
             return {"status": "error", "error": str(e)}
 
         # Train the model

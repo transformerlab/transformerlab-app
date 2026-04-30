@@ -223,7 +223,12 @@ async def _check_job_via_provider(
 
     is_interactive = _is_interactive_subtype_job(job)
 
-    if provider_type in (ProviderType.LOCAL.value, ProviderType.RUNPOD.value, ProviderType.AZURE.value):
+    if provider_type in (
+        ProviderType.LOCAL.value,
+        ProviderType.RUNPOD.value,
+        ProviderType.AZURE.value,
+        ProviderType.AWS.value,
+    ):
         # Providers where the VM/pod/process lifecycle is the job lifecycle.
         # Check provider cluster state directly.
         if provider_type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):

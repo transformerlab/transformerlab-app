@@ -266,6 +266,7 @@
   },
   {
     "id": "ollama_gradio",
+    "interactive_type": "ollama",
     "name": "Ollama + Gradio",
     "description": "Ollama model server with Gradio chat UI via ngrok tunnel",
     "github_repo_url": "https://github.com/transformerlab/transformerlab-app",
@@ -321,6 +322,7 @@
   },
   {
     "id": "comfy_ui",
+    "interactive_type": "comfyui",
     "name": "ComfyUI",
     "description": "ComfyUI server via ngrok tunnel",
     "github_repo_url": "https://github.com/transformerlab/transformerlab-app",
@@ -440,6 +442,7 @@
   },
   {
     "id": "mlx_gradio",
+    "interactive_type": "mlx",
     "name": "MLX LM + Gradio",
     "description": "MLX LM inference server with Gradio chat UI for Apple Silicon",
     "github_repo_url": "https://github.com/transformerlab/transformerlab-app",
@@ -492,6 +495,7 @@
   },
   {
     "id": "mlx_audio_tts",
+    "interactive_type": "mlx",
     "name": "MLX Audio TTS + Gradio",
     "description": "Text-to-Speech using MLX Audio with Gradio UI for Apple Silicon",
     "github_repo_url": "https://github.com/transformerlab/transformerlab-app",

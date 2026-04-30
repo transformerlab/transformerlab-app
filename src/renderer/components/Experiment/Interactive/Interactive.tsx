@@ -635,15 +635,12 @@ export default function Interactive() {
 
         if (galleryResponse.ok) {
           const galleryData = await galleryResponse.json();
-          template = galleryData.data?.find((t: any) => {
-            if (data.template_id) {
-              return t.id === data.template_id;
-            }
-            return (
-              data.interactive_type &&
-              t.interactive_type === data.interactive_type
-            );
-          });
+          if (!data.template_id) {
+            throw new Error('Interactive template id is required');
+          }
+          template = galleryData.data?.find(
+            (t: any) => t.id === data.template_id,
+          );
 
           if (!template) {
             throw new Error(

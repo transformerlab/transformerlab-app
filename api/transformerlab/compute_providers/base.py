@@ -157,12 +157,14 @@ class ComputeProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def check(self) -> bool:
+    def check(self) -> tuple[bool, str | None]:
         """
         Check if the compute provider is active and accessible.
 
         Returns:
-            True if the provider is active and accessible, False otherwise
+            Tuple of `(is_healthy, reason)`.
+            - `is_healthy`: True when provider is active and accessible
+            - `reason`: Failure reason when unhealthy, otherwise None
         """
         raise NotImplementedError
 

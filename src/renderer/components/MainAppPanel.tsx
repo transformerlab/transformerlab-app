@@ -33,6 +33,7 @@ import Team from './Team/Team';
 import UsageReport from './Team/UsageReport';
 import TasksGallery from './TasksGallery/TasksGallery';
 import JobDetailPage from './Experiment/Jobs/JobDetailPage';
+import TaskRunsPage from './Experiment/Tasks/TaskRunsPage';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -239,6 +240,10 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route
           path="/experiment/:experimentName/jobs/:jobId"
           element={<JobDetailPage />}
+        />
+        <Route
+          path="/experiment/:experimentName/tasks/:taskId/runs"
+          element={<TaskRunsPage />}
         />
         <Route path="/api" element={<Api />} />
         <Route path="/zoo" element={<ModelZoo tab="groups" />} />

@@ -151,8 +151,8 @@ export default function InteractiveJobCard({
   const TypeIcon = typeConfig?.icon;
 
   // Resolve a richer display name/icon from the interactive gallery entry.
-  // This avoids hard-coding per-interactive-type UI logic and lets new gallery
-  // entries render correctly even if `interactive_type` is missing.
+  // Entry lookup is by gallery id first; interactive type is used as the shared
+  // display type key.
   const interactiveGalleryUrl =
     experimentInfo?.id && (interactiveGalleryId || interactiveType)
       ? chatAPI.Endpoints.Task.InteractiveGallery(experimentInfo.id)
@@ -171,8 +171,7 @@ export default function InteractiveJobCard({
       ? galleryEntries.find((e) => e?.id === interactiveGalleryId)
       : null) ||
     (interactiveType
-      ? galleryEntries.find((e) => e?.interactive_type === interactiveType) ||
-        galleryEntries.find((e) => e?.id === interactiveType)
+      ? galleryEntries.find((e) => e?.interactive_type === interactiveType)
       : null);
 
   let boxBg = 'var(--joy-palette-neutral-softBg)';

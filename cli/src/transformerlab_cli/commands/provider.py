@@ -78,6 +78,14 @@ def _extract_error_detail(response) -> str:
         return response.text
 
 
+def _extract_provider_check_reason(result: dict) -> str:
+    """Extract a human-readable provider check failure reason."""
+    reason = result.get("reason")
+    if reason:
+        return str(reason)
+    return "Provider check returned unhealthy status without details."
+
+
 ## COMMANDS ##
 
 
@@ -154,6 +162,23 @@ def command_provider_add(
         result = response.json()
         provider_id = result.get("id", "unknown")
         console.print(f"[success]✓[/success] Provider created with ID: [bold]{provider_id}[/bold]")
+        with console.status(f"[bold success]Checking provider {provider_id}...[/bold success]", spinner="dots"):
+            check_response = api.get(f"/compute_provider/providers/{provider_id}/check", timeout=60.0)
+
+        if check_response.status_code == 200:
+            check_result = check_response.json()
+            if check_result.get("status"):
+                console.print("[success]✓[/success] Provider health check passed.")
+            else:
+                reason = _extract_provider_check_reason(check_result)
+                console.print(f"[error]Error:[/error] Provider health check failed. {reason}")
+                raise typer.Exit(1)
+        else:
+            console.print(
+                "[error]Error:[/error] Provider was created, but health check failed. "
+                f"{_extract_error_detail(check_response)}"
+            )
+            raise typer.Exit(1)
     else:
         console.print(f"[error]Error:[/error] Failed to create provider. {_extract_error_detail(response)}")
         raise typer.Exit(1)
@@ -264,7 +289,16 @@ def command_provider_check(
 
     if response.status_code == 200:
         result = response.json()
-        render_object(result, format_type=cli_state.output_format)
+        if result.get("status") is True:
+            render_object(result, format_type=cli_state.output_format)
+            return
+
+        reason = _extract_provider_check_reason(result)
+        if cli_state.output_format == "json":
+            print(json.dumps({"status": False, "reason": reason}))
+        else:
+            console.print(f"[error]Error:[/error] Provider check failed. {reason}")
+        raise typer.Exit(1)
     elif response.status_code == 404:
         console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
         raise typer.Exit(1)

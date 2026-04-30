@@ -53,7 +53,10 @@ function ExperimentMenuItems({ experimentInfo }: ExperimentMenuItemsProps) {
         <SubNavItem
           title="Tasks"
           path={`${basePath}/tasks`}
-          matchPattern="/experiment/:experimentName/tasks"
+          matchPattern={[
+            '/experiment/:experimentName/tasks/*',
+            '/experiment/:experimentName/jobs/*',
+          ]}
           icon={<StretchHorizontalIcon />}
           disabled={!experimentReady}
         />

@@ -396,6 +396,64 @@ class TaskService:
             await self.update_task(task_id, {"file_mounts": True})
             return task_id
 
+    async def update_task_from_zip_path(
+        self,
+        experiment_id: str,
+        task_id: str,
+        zip_path: str,
+        existing_task: Dict[str, Any],
+        user_and_team: dict,
+        session: Any,
+        resolve_provider: Any,
+        parse_yaml: Any,
+    ) -> bool:
+        """Update an existing task from a local zip path that contains task.yaml."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                zf.extractall(tmpdir)
+
+            yaml_candidates = []
+            for root, _dirs, files in os.walk(tmpdir):
+                for name in files:
+                    if name == "task.yaml":
+                        yaml_candidates.append(os.path.join(root, name))
+            if not yaml_candidates:
+                raise HTTPException(status_code=400, detail="ZIP must contain a task.yaml file.")
+
+            task_yaml_path = yaml_candidates[0]
+            task_root = os.path.dirname(task_yaml_path)
+            with open(task_yaml_path, "r", encoding="utf-8") as f:
+                task_yaml_content = f.read()
+
+            task_data = parse_yaml(task_yaml_content)
+            task_data["experiment_id"] = experiment_id
+            task_data.setdefault("type", existing_task.get("type", "REMOTE"))
+            task_data.setdefault("plugin", existing_task.get("plugin", "remote_orchestrator"))
+
+            if existing_task.get("subtype") == "interactive":
+                task_data["subtype"] = "interactive"
+                if existing_task.get("interactive_type") and not task_data.get("interactive_type"):
+                    task_data["interactive_type"] = existing_task.get("interactive_type")
+                if existing_task.get("interactive_gallery_id") and not task_data.get("interactive_gallery_id"):
+                    task_data["interactive_gallery_id"] = existing_task.get("interactive_gallery_id")
+                task_data.pop("provider_id", None)
+                task_data.pop("provider_name", None)
+            else:
+                await resolve_provider(task_data, user_and_team, session)
+
+            if "name" in task_data:
+                task_data["name"] = secure_filename(task_data["name"])
+
+            success = await self.update_task_from_yaml(task_id, task_data, experiment_id=experiment_id)
+            if not success:
+                return False
+
+            task_dir = await self.get_task_dir(task_id, experiment_id=experiment_id)
+            await storage.makedirs(task_dir, exist_ok=True)
+            await storage.copy_dir(task_root, task_dir)
+            await self.update_task(task_id, {"file_mounts": True}, experiment_id=experiment_id)
+            return True
+
 
 # Create a singleton instance
 task_service = TaskService()

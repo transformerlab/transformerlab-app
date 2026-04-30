@@ -1,6 +1,6 @@
 import React from 'react';
 import Table from '@mui/joy/Table';
-import ButtonGroup from '@mui/joy/ButtonGroup';
+import Stack from '@mui/joy/Stack';
 import IconButton from '@mui/joy/IconButton';
 import Button from '@mui/joy/Button';
 import Skeleton from '@mui/joy/Skeleton';
@@ -230,7 +230,9 @@ const JobsList: React.FC<JobsListProps> = ({
             </Typography>
           )}
           {userDisplay && (
-            <Typography level="body-sm">{userDisplay}</Typography>
+            <Typography level="body-sm">
+              <b>Submitter:</b> {userDisplay}
+            </Typography>
           )}
           {providerDisplay && (
             <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
@@ -255,9 +257,21 @@ const JobsList: React.FC<JobsListProps> = ({
     return <b>{job.type || 'Unknown Job'}</b>;
   };
 
+  const tableHead = (
+    <thead>
+      <tr>
+        <th>Job ID</th>
+        <th>Job Details</th>
+        <th>Status</th>
+        <th style={{ textAlign: 'right' }}>Logs</th>
+      </tr>
+    </thead>
+  );
+
   if (loading) {
     return (
       <Table style={{ tableLayout: 'auto' }} stickyHeader>
+        {tableHead}
         <tbody>
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <tr key={i}>
@@ -287,6 +301,7 @@ const JobsList: React.FC<JobsListProps> = ({
 
   return (
     <Table style={{ tableLayout: 'auto' }} stickyHeader>
+      {tableHead}
       <tbody style={{ overflow: 'auto', height: '100%' }}>
         {jobs?.length > 0 ? (
           jobs?.map((job) => {
@@ -342,8 +357,11 @@ const JobsList: React.FC<JobsListProps> = ({
                     border: 'none',
                   }}
                 >
-                  <ButtonGroup
-                    sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}
+                  <Stack
+                    direction="row"
+                    gap={0.5}
+                    flexWrap="wrap"
+                    justifyContent="flex-end"
                   >
                     {job?.placeholder && (
                       <Skeleton variant="rectangular" width={100} height={28} />
@@ -358,20 +376,9 @@ const JobsList: React.FC<JobsListProps> = ({
                         disabled={stopPending}
                         startDecorator={<LineChartIcon />}
                       >
-                        <Box
-                          sx={{
-                            display: {
-                              xs: 'none',
-                              sm: 'none',
-                              md: 'inline-flex',
-                            },
-                          }}
-                        >
-                          W&B Tracking
-                        </Box>
+                        W&B Tracking
                       </Button>
                     )}
-
                     {(job?.job_data?.trackio_db_artifact_path ||
                       job?.job_data?.trackio_project_name) &&
                       showTrackioForStatus(job?.status) && (
@@ -382,20 +389,9 @@ const JobsList: React.FC<JobsListProps> = ({
                           disabled={stopPending}
                           startDecorator={<LineChartIcon />}
                         >
-                          <Box
-                            sx={{
-                              display: {
-                                xs: 'none',
-                                sm: 'none',
-                                md: 'inline-flex',
-                              },
-                            }}
-                          >
-                            Trackio
-                          </Box>
+                          Trackio
                         </Button>
                       )}
-
                     {!hideOutputButton && (
                       <Button
                         size="sm"
@@ -404,17 +400,7 @@ const JobsList: React.FC<JobsListProps> = ({
                         disabled={stopPending}
                         startDecorator={<LogsIcon />}
                       >
-                        <Box
-                          sx={{
-                            display: {
-                              xs: 'none',
-                              sm: 'none',
-                              md: 'inline-flex',
-                            },
-                          }}
-                        >
-                          Output
-                        </Box>
+                        Output
                       </Button>
                     )}
                     {job?.job_data?.eval_images_dir && (
@@ -437,17 +423,7 @@ const JobsList: React.FC<JobsListProps> = ({
                           disabled={stopPending}
                           startDecorator={<FileTextIcon />}
                         >
-                          <Box
-                            sx={{
-                              display: {
-                                xs: 'none',
-                                sm: 'none',
-                                md: 'inline-flex',
-                              },
-                            }}
-                          >
-                            Eval Results
-                          </Box>
+                          Eval Results
                         </Button>
                       )}
                     {(forceArtifactsButtonVisible ||
@@ -464,17 +440,7 @@ const JobsList: React.FC<JobsListProps> = ({
                           disabled={stopPending}
                           startDecorator={<ArchiveIcon />}
                         >
-                          <Box
-                            sx={{
-                              display: {
-                                xs: 'none',
-                                sm: 'none',
-                                md: 'inline-flex',
-                              },
-                            }}
-                          >
-                            Artifacts
-                          </Box>
+                          Artifacts
                         </Button>
                       )}
                     {(job?.type === 'SWEEP' || job?.job_data?.sweep_parent) &&
@@ -486,17 +452,7 @@ const JobsList: React.FC<JobsListProps> = ({
                           disabled={stopPending}
                           startDecorator={<LineChartIcon />}
                         >
-                          <Box
-                            sx={{
-                              display: {
-                                xs: 'none',
-                                sm: 'none',
-                                md: 'inline-flex',
-                              },
-                            }}
-                          >
-                            Sweep Results
-                          </Box>
+                          Sweep Results
                         </Button>
                       )}
                     {job?.job_data?.sweep_output_file && (
@@ -528,17 +484,7 @@ const JobsList: React.FC<JobsListProps> = ({
                               disabled={stopPending}
                               startDecorator={<LogsIcon />}
                             >
-                              <Box
-                                sx={{
-                                  display: {
-                                    xs: 'none',
-                                    sm: 'none',
-                                    md: 'inline-flex',
-                                  },
-                                }}
-                              >
-                                Output
-                              </Box>
+                              Output
                             </Button>
                           )}
                         </>
@@ -550,21 +496,8 @@ const JobsList: React.FC<JobsListProps> = ({
                         onClick={() => onViewCheckpoints?.(job?.id)}
                         disabled={stopPending}
                         startDecorator={<WaypointsIcon />}
-                        sx={{
-                          justifyContent: 'center',
-                        }}
                       >
-                        <Box
-                          sx={{
-                            display: {
-                              xs: 'none',
-                              sm: 'none',
-                              md: 'inline-flex',
-                            },
-                          }}
-                        >
-                          Checkpoints
-                        </Box>
+                        Checkpoints
                       </Button>
                     )}
                     {showFilesButton && !job?.placeholder && (
@@ -575,17 +508,7 @@ const JobsList: React.FC<JobsListProps> = ({
                         disabled={stopPending}
                         startDecorator={<FolderOpenIcon />}
                       >
-                        <Box
-                          sx={{
-                            display: {
-                              xs: 'none',
-                              sm: 'none',
-                              md: 'inline-flex',
-                            },
-                          }}
-                        >
-                          Files
-                        </Box>
+                        Files
                       </Button>
                     )}
                     {!job?.placeholder && (
@@ -614,6 +537,7 @@ const JobsList: React.FC<JobsListProps> = ({
                     )}
                     {!job?.placeholder && (
                       <IconButton
+                        size="sm"
                         variant="plain"
                         disabled={
                           stopPending ||
@@ -634,7 +558,11 @@ const JobsList: React.FC<JobsListProps> = ({
                         <MenuButton
                           slots={{ root: IconButton }}
                           slotProps={{
-                            root: { variant: 'plain', color: 'neutral' },
+                            root: {
+                              variant: 'plain',
+                              color: 'neutral',
+                              size: 'sm',
+                            },
                           }}
                           sx={{ minWidth: 0 }}
                           disabled={stopPending}
@@ -682,7 +610,7 @@ const JobsList: React.FC<JobsListProps> = ({
                         </Menu>
                       </Dropdown>
                     )}
-                  </ButtonGroup>
+                  </Stack>
                 </td>
               </tr>
             );

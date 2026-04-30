@@ -346,7 +346,7 @@ async def launch_sweep_jobs(
                     "user_info": user_info or None,
                     "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                 }
-                if request.file_mounts is True and request.task_id:
+                if request.task_id:
                     child_job_data["task_id"] = request.task_id
                 if trackio_project_name_for_child is not None:
                     child_job_data["trackio_project_name"] = trackio_project_name_for_child

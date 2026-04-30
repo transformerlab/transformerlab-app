@@ -36,7 +36,9 @@ class TestCheck:
     @patch("transformerlab.compute_providers.dstack.requests.request")
     def test_returns_true_on_success(self, mock_request, provider):
         mock_request.return_value = _mock_response([])
-        assert provider.check() is True
+        status, reason = provider.check()
+        assert status is True
+        assert reason is None
         call_kwargs = mock_request.call_args
         assert call_kwargs[1]["url"] == "http://localhost:3000/api/runs/list"
         assert call_kwargs[1]["json"] == {"project_name": "test-project", "only_active": False, "limit": 1}
@@ -46,7 +48,9 @@ class TestCheck:
         import requests as req_lib
 
         mock_request.side_effect = req_lib.exceptions.ConnectionError("unreachable")
-        assert provider.check() is False
+        status, reason = provider.check()
+        assert status is False
+        assert "Unable to list dstack runs" in reason
 
 
 # --- _parse_accelerators() ---

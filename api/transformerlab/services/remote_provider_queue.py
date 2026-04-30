@@ -12,7 +12,11 @@ from sqlalchemy import select, update
 from transformerlab.compute_providers.models import ClusterConfig
 from transformerlab.db.session import async_session
 from transformerlab.services import job_service, quota_service
-from transformerlab.services.provider_service import get_provider_by_id, get_provider_instance
+from transformerlab.services.provider_service import (
+    get_provider_by_id,
+    get_provider_instance,
+    normalize_provider_check_result,
+)
 from transformerlab.shared.models.models import JobQueue
 from lab import dirs as lab_dirs
 from lab.job_status import JobStatus
@@ -306,11 +310,12 @@ async def _process_launch_item(item: RemoteLaunchWorkItem) -> None:
                 try:
                     # Fail fast if the provider is unreachable before attempting launch.
                     if hasattr(provider_instance, "check"):
-                        is_healthy = await loop.run_in_executor(None, provider_instance.check)
+                        check_result = await loop.run_in_executor(None, provider_instance.check)
+                        is_healthy, reason = normalize_provider_check_result(check_result)
                         if not is_healthy:
                             raise RuntimeError(
-                                f"Provider '{provider.name}' is not reachable. "
-                                "Verify that the provider is running and accessible."
+                                f"Provider '{provider.name}' is not reachable: "
+                                f"{reason or 'verify that the provider is running and accessible.'}"
                             )
 
                     launch_result = await loop.run_in_executor(None, _launch_with_org_context)

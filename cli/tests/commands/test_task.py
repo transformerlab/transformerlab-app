@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
@@ -97,3 +98,60 @@ def test_task_queue_sends_description(_mock_exp, _mock_get, _mock_providers, moc
     assert result.exit_code == 0, result.output
     _path, body = mock_post.call_args.args
     assert body["description"] == "hypothesis: larger batch"
+
+
+@patch(
+    "transformerlab_cli.commands.task.api.post_json",
+    side_effect=[
+        _mock_resp({"detail": "task.yaml not found in repository"}, status=404),
+        _mock_resp({"id": "t1"}, status=200),
+    ],
+)
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_add_from_git_no_interactive_skips_prompt_and_retries_create_if_missing(_mock_exp, mock_post):
+    """`lab task add --from-git ... --no-interactive` should avoid prompts and retry with default task.yaml."""
+    result = runner.invoke(app, ["task", "add", "--from-git", "https://github.com/example/repo", "--no-interactive"])
+    assert result.exit_code == 0, result.output
+    assert mock_post.call_count == 2
+    retry_payload = mock_post.call_args.kwargs["json_data"]
+    assert retry_payload["create_if_missing"] is True
+
+
+@patch("transformerlab_cli.commands.task.api.post_text", return_value=_mock_resp({"valid": True}))
+@patch("transformerlab_cli.commands.task.api.put", return_value=_mock_resp({"message": "OK"}))
+@patch(
+    "transformerlab_cli.commands.task.api.get",
+    return_value=MagicMock(status_code=200, text="name: demo\nrun: echo hi\n"),
+)
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_edit_updates_yaml_from_file(_mock_exp, _mock_get, mock_put, _mock_post_text):
+    """`lab task edit --from-file` validates YAML and updates task.yaml."""
+    with runner.isolated_filesystem():
+        task_yaml = Path("task.yaml")
+        task_yaml.write_text("name: demo\nrun: echo edited\n", encoding="utf-8")
+        result = runner.invoke(app, ["task", "edit", "t1", "--from-file", str(task_yaml), "--no-interactive"])
+    assert result.exit_code == 0, result.output
+    submit_path = mock_put.call_args.args[0]
+    assert submit_path == "/experiment/exp1/task/t1/yaml"
+
+
+@patch("transformerlab_cli.commands.task.api.put", return_value=_mock_resp({"received": [0]}))
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp({"received": []}))
+@patch("transformerlab_cli.commands.task.api.post_json")
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_upload_calls_upload_endpoint(_mock_exp, mock_post_json, _mock_get, _mock_put):
+    """`lab task upload` uses upload pipeline then task upload endpoint."""
+    mock_post_json.side_effect = [
+        _mock_resp({"upload_id": "up-1"}),  # /upload/init
+        _mock_resp({"status": "ok"}),  # /upload/{id}/complete
+        _mock_resp({"id": "t1"}),  # /task/{id}/upload?upload_id=...
+    ]
+
+    with runner.isolated_filesystem():
+        payload_file = Path("extra.txt")
+        payload_file.write_text("hello", encoding="utf-8")
+        result = runner.invoke(app, ["task", "upload", "t1", str(payload_file), "--no-interactive"])
+
+    assert result.exit_code == 0, result.output
+    submit_path = mock_post_json.call_args_list[-1].args[0]
+    assert submit_path == "/experiment/exp1/task/t1/upload?upload_id=up-1"

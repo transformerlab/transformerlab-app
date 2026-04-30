@@ -268,6 +268,7 @@ async def resume_remote_job_from_checkpoint(
 
     if provider.type == ProviderType.RUNPOD.value:
         env_vars["UV_SYSTEM_PYTHON"] = "1"
+    if provider.type == ProviderType.RUNPOD.value:
         setup_commands.append("curl -LsSf https://astral.sh/uv/install.sh | sh")
 
     original_setup = job_data.get("setup")

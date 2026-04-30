@@ -1,6 +1,7 @@
 """SLURM provider implementation."""
 
 import asyncio
+import logging
 import requests
 import os
 import re
@@ -17,6 +18,8 @@ from .models import (
     JobState,
 )
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
+
+logger = logging.getLogger(__name__)
 
 
 class SLURMProvider(ComputeProvider):
@@ -995,7 +998,7 @@ class SLURMProvider(ComputeProvider):
 
         return jobs
 
-    def check(self) -> bool:
+    def check(self) -> tuple[bool, str | None]:
         """Check if the SLURM provider is active and accessible."""
         try:
             if self.mode == "ssh":
@@ -1004,12 +1007,12 @@ class SLURMProvider(ComputeProvider):
                 self._ssh_execute("echo 'SSH connection test'")
                 # Then test if SLURM is available
                 self._ssh_execute("sinfo --version")
-                return True
+                return True, None
             else:
                 # REST API - try to make a simple request
                 self._rest_request("GET", "/slurm/v0.0.39/diag")
-                return True
+                return True, None
         except Exception as e:
-            # Log the error for debugging
-            print(f"SLURM provider check failed: {type(e).__name__}: {str(e)}")
-            return False
+            reason = f"SLURM provider check failed: {type(e).__name__}: {str(e)}"
+            logger.warning(reason)
+            return False, reason

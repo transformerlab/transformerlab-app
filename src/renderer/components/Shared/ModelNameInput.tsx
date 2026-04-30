@@ -14,25 +14,12 @@ import { XIcon } from 'lucide-react';
 const MAX_HISTORY_SIZE = 10;
 const STORAGE_KEY_PREFIX = 'tlab:modelHistory:';
 
-/**
- * Map interactive_type / gallery id values to a stable storage-key suffix.
- * Gallery entries without an interactive_type use their id directly.
- */
-const TASK_TYPE_KEY_MAP: Record<string, string> = {
-  vllm: 'vllm',
-  ollama: 'ollama',
-  ollama_gradio: 'ollama',
-  mlx_gradio: 'mlx',
-  mlx_audio_tts: 'mlx',
-};
-
-/** Derive the localStorage key for a given task type / gallery id. */
+/** Derive the localStorage key for a given interactive_type. */
 export function getModelHistoryKey(
   taskTypeOrId: string | undefined | null,
 ): string {
   if (!taskTypeOrId) return `${STORAGE_KEY_PREFIX}default`;
-  const mapped = TASK_TYPE_KEY_MAP[taskTypeOrId];
-  return `${STORAGE_KEY_PREFIX}${mapped ?? taskTypeOrId}`;
+  return `${STORAGE_KEY_PREFIX}${taskTypeOrId}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -98,8 +85,8 @@ export interface ModelNameInputProps {
   /** Called whenever the input value changes (free-form typing or selection). */
   onChange: (value: string) => void;
   /**
-   * The interactive_type or gallery id used to scope the history.
-   * e.g. 'vllm', 'ollama', 'mlx_gradio'. Pass `undefined` to use the
+   * The interactive_type used to scope the history.
+   * e.g. 'vllm', 'ollama', 'mlx'. Pass `undefined` to use the
    * default (shared) bucket.
    */
   taskTypeOrId?: string | null;

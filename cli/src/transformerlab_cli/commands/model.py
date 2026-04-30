@@ -1,11 +1,14 @@
 import json
+import os
 
 import typer
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 
 import transformerlab_cli.util.api as api
 from transformerlab_cli.state import cli_state
 from transformerlab_cli.util.config import check_configs
 from transformerlab_cli.util.ui import console, render_table, render_object
+from transformerlab_cli.util import asset_paths, chunked_download, chunked_upload
 
 app = typer.Typer()
 
@@ -225,3 +228,120 @@ def command_model_create(
             raise typer.Exit(1)
         console.print(f"[error]Error:[/error] Failed to create model. {_extract_error(response)}")
         raise typer.Exit(1)
+
+
+# ──────────────────────────────────────────────
+# upload
+# ──────────────────────────────────────────────
+
+
+@app.command("upload")
+def command_model_upload(
+    model_id: str = typer.Argument(..., help="The model ID. Created if it does not exist."),
+    paths: list[str] = typer.Argument(..., help="One or more files or directories to upload."),
+    force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing server-side files."),
+):
+    """Upload local files/directories to a model on the server."""
+    check_configs(output_format=cli_state.output_format)
+
+    try:
+        pairs = list(asset_paths.walk_inputs(paths))
+    except FileNotFoundError as exc:
+        console.print(f"[error]Error:[/error] path not found: {exc}")
+        raise typer.Exit(1)
+    if not pairs:
+        console.print("[warning]No files to upload (all paths are empty/hidden/symlinks).[/warning]")
+        raise typer.Exit(1)
+
+    skipped: list[str] = []
+    failed: list[str] = []
+    with Progress(
+        TextColumn("[bold success]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        console=console,
+    ) as progress:
+        outer = progress.add_task("Uploading", total=len(pairs))
+        for local_path, relpath in pairs:
+            progress.update(outer, description=f"Uploading {relpath}")
+            try:
+                upload_id = chunked_upload.upload_one_file(local_path)
+            except Exception as exc:
+                console.print(f"[error]Error uploading {relpath}: {exc}")
+                failed.append(relpath)
+                progress.advance(outer)
+                continue
+            qs = f"model_id={model_id}&upload_id={upload_id}&relpath={relpath}&force={'true' if force else 'false'}"
+            resp = api.post_json(f"/model/fileupload?{qs}", json_data={})
+            if resp.status_code == 409:
+                console.print(f"[warning]Skipped (already exists):[/warning] {relpath}")
+                skipped.append(relpath)
+            elif resp.status_code != 200:
+                console.print(f"[error]Error uploading {relpath}: {_extract_error(resp)}")
+                failed.append(relpath)
+            progress.advance(outer)
+
+    if not failed:
+        finalize_resp = api.post_json(f"/model/finalize?model_id={model_id}", json_data={})
+        if finalize_resp.status_code == 200:
+            arch = finalize_resp.json().get("architecture", "?")
+            console.print(f"[success]✓[/success] Model [bold]{model_id}[/bold] finalized (architecture: {arch}).")
+        elif finalize_resp.status_code == 400:
+            console.print(f"[warning]Model uploaded but not finalized:[/warning] {_extract_error(finalize_resp)}")
+
+    if failed:
+        raise typer.Exit(1)
+    if skipped:
+        raise typer.Exit(2)
+
+
+# ──────────────────────────────────────────────
+# download
+# ──────────────────────────────────────────────
+
+
+@app.command("download")
+def command_model_download(
+    model_id: str = typer.Argument(..., help="The model ID on the server."),
+    dest_dir: str = typer.Argument(..., help="Local destination directory (will be created)."),
+):
+    """Download a model from the server to local disk under <dest>/<model_id>/."""
+    check_configs(output_format=cli_state.output_format)
+
+    list_resp = api.get(f"/model/files?model_id={model_id}")
+    if list_resp.status_code != 200:
+        console.print(f"[error]Error:[/error] {_extract_error(list_resp)}")
+        raise typer.Exit(1)
+    files = list_resp.json()
+    if not files:
+        console.print("[warning]Model has no files to download.[/warning]")
+        return
+
+    base = os.path.join(dest_dir, model_id)
+    os.makedirs(base, exist_ok=True)
+    total_bytes = sum(f["size"] for f in files)
+
+    with Progress(
+        TextColumn("[bold success]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        console=console,
+    ) as progress:
+        bar = progress.add_task(f"Downloading {model_id}", total=total_bytes)
+        for f in files:
+            relpath = f["relpath"]
+            size = f["size"]
+            target = os.path.join(base, *relpath.split("/"))
+            try:
+                chunked_download.download_one_file(
+                    f"/model/file?model_id={model_id}&relpath={relpath}",
+                    target_path=target,
+                    server_size=size,
+                    progress=progress,
+                    progress_task=bar,
+                )
+            except Exception as exc:
+                console.print(f"[error]Failed to download {relpath}: {exc}")
+                raise typer.Exit(1)
+
+    console.print(f"[success]✓[/success] Downloaded {len(files)} file(s) to {base}.")

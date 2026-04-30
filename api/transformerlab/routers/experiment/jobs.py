@@ -11,6 +11,7 @@ from fastapi import APIRouter, Body, Response, Request, Depends, HTTPException, 
 from fastapi.responses import StreamingResponse, FileResponse
 from json import JSONDecodeError
 from lab import Job, storage
+from lab.job_status import JobStatus
 from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.utils import secure_filename
 
@@ -67,6 +68,30 @@ def _eval_results_storage_path(stored_path: str, eval_dir: str) -> str:
     if parent != canonical:
         return storage.join(eval_dir, basename)
     return p
+
+
+def _job_logs_not_ready_payload(
+    job_data: dict,
+    tail_lines: int,
+    message: str,
+    *,
+    include_request_id: bool = False,
+) -> dict:
+    payload = {
+        "cluster_name": job_data.get("cluster_name"),
+        "provider_id": job_data.get("provider_id"),
+        "provider_job_id": None,
+        "provider_name": job_data.get("provider_name"),
+        "tail_lines": tail_lines,
+        "logs": "",
+        "job_candidates": [],
+        "message": message,
+        "retryable": True,
+        "retry_after_seconds": 10,
+    }
+    if include_request_id:
+        payload["request_id"] = None
+    return payload
 
 
 @router.get("/list")
@@ -271,15 +296,25 @@ async def get_provider_job_logs(
         raise HTTPException(status_code=404, detail="Job not found")
 
     job_data = job.get("job_data") or {}
+    job_status = str(job.get("status") or "").upper()
     if not isinstance(job_data, dict):
         try:
             job_data = json.loads(job_data)
         except JSONDecodeError:
             job_data = {}
 
+    def _logs_not_ready_response() -> dict:
+        return _job_logs_not_ready_payload(
+            job_data,
+            tail_lines,
+            "Machine logs are not available yet. Please try again shortly.",
+        )
+
     provider_id = job_data.get("provider_id")
     cluster_name = job_data.get("cluster_name")
     if not provider_id or not cluster_name:
+        if job_status in {JobStatus.LAUNCHING.value, JobStatus.WAITING.value, "CREATED"}:
+            return _logs_not_ready_response()
         raise HTTPException(
             status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
         )
@@ -372,6 +407,8 @@ async def get_provider_job_logs(
             ]
 
     if provider_job_id is None:
+        if job_status in {JobStatus.LAUNCHING.value, JobStatus.WAITING.value, "CREATED"}:
+            return _logs_not_ready_response()
         raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
 
     # For local provider, set workspace_dir (job dir) so LocalProvider can read logs.
@@ -437,6 +474,7 @@ async def get_request_logs(
         raise HTTPException(status_code=404, detail="Job not found")
 
     job_data = job.get("job_data") or {}
+    job_status = str(job.get("status") or "").upper()
     if not isinstance(job_data, dict):
         try:
             job_data = json.loads(job_data)
@@ -445,6 +483,13 @@ async def get_request_logs(
 
     provider_id = job_data.get("provider_id")
     if not provider_id:
+        if job_status in {JobStatus.LAUNCHING.value, JobStatus.WAITING.value, "CREATED"}:
+            return _job_logs_not_ready_payload(
+                job_data,
+                tail_lines,
+                "Request logs are not available yet. Please try again shortly.",
+                include_request_id=True,
+            )
         raise HTTPException(status_code=400, detail="Job does not contain provider metadata (provider_id missing)")
 
     provider_launch_result = job_data.get("provider_launch_result")
@@ -454,6 +499,13 @@ async def get_request_logs(
     if not request_id:
         request_id = job_data.get("orchestrator_request_id")
     if not request_id:
+        if job_status in {JobStatus.LAUNCHING.value, JobStatus.WAITING.value, "CREATED"}:
+            return _job_logs_not_ready_payload(
+                job_data,
+                tail_lines,
+                "Request logs are not available yet. Please try again shortly.",
+                include_request_id=True,
+            )
         raise HTTPException(status_code=400, detail="Job does not have a provider request ID")
 
     team_id = user_and_team["team_id"]
@@ -695,6 +747,7 @@ async def get_job_task_logs(
         raise HTTPException(status_code=404, detail="Job not found")
 
     job_data = job.get("job_data") or {}
+    job_status = str(job.get("status") or "").upper()
     if not isinstance(job_data, dict):
         try:
             job_data = json.loads(job_data)
@@ -711,9 +764,21 @@ async def get_job_task_logs(
         try:
             output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experimentId)
         except (ValueError, FileNotFoundError):
+            if job_status in {JobStatus.LAUNCHING.value, JobStatus.WAITING.value, "CREATED"}:
+                return _job_logs_not_ready_payload(
+                    job_data,
+                    tail_lines,
+                    "Task logs are not available yet. Please try again shortly.",
+                )
             return {"logs": "", "tail_lines": tail_lines}
 
     if not await storage.exists(output_file_name):
+        if job_status in {JobStatus.LAUNCHING.value, JobStatus.WAITING.value, "CREATED"}:
+            return _job_logs_not_ready_payload(
+                job_data,
+                tail_lines,
+                "Task logs are not available yet. Please try again shortly.",
+            )
         return {"logs": "", "tail_lines": tail_lines}
 
     async with await storage.open(output_file_name, "r") as f:
