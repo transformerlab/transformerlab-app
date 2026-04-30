@@ -358,7 +358,11 @@
     },
     "forgotPassword": {
       "method": "POST",
-      "path": "auth/forgot_password"
+      "path": "auth/forgot-password"
+    },
+    "resetPassword": {
+      "method": "POST",
+      "path": "auth/reset-password"
     },
     "apiKeys": {
       "list": {
@@ -395,6 +399,10 @@
     "me": {
       "method": "GET",
       "path": "invitations/me"
+    },
+    "byToken": {
+      "method": "GET",
+      "path": "invitations/by-token?token={token}"
     },
     "accept": {
       "method": "POST",

@@ -22,6 +22,7 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
   const { fetchWithAuth } = useAuth();
 
   const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +37,30 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
     } catch (error) {
       console.error('Error sending reset instructions:', error);
     }
-    onClose();
+    setSubmitted(true);
   };
+
+  if (submitted) {
+    return (
+      <Box sx={{ textAlign: 'center', py: 2 }}>
+        <Typography level="h4" component="div" sx={{ mb: 2 }}>
+          Check your email
+        </Typography>
+        <Typography level="body-md">
+          If an account exists for {email}, a password reset link has been sent.
+          The link expires in 1 hour.
+        </Typography>
+        <Button
+          onClick={onClose}
+          color="primary"
+          variant="solid"
+          sx={{ mt: 3 }}
+        >
+          Back to Login
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -71,9 +94,156 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
   );
 }
 
+function ResetPasswordForm({
+  token,
+  onClose,
+}: {
+  token: string;
+  onClose: () => void;
+}) {
+  const { fetchWithAuth } = useAuth();
+
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetchWithAuth(
+        getPath('auth', ['resetPassword'], {}),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, password }),
+        },
+      );
+
+      if (response.ok) {
+        setSuccess(true);
+      } else {
+        const data = await response.json().catch(() => ({}));
+        const detail = data?.detail;
+        if (detail === 'RESET_PASSWORD_BAD_TOKEN') {
+          setError(
+            'This password reset link is invalid or has expired. Please request a new one.',
+          );
+        } else if (
+          detail &&
+          typeof detail === 'object' &&
+          detail.code === 'RESET_PASSWORD_INVALID_PASSWORD'
+        ) {
+          setError(detail.reason || 'Password does not meet requirements.');
+        } else {
+          setError(
+            typeof detail === 'string'
+              ? detail
+              : 'Failed to reset password. Please try again.',
+          );
+        }
+      }
+    } catch (err) {
+      setError(
+        'Unable to connect to the server. Please check your connection and try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <Box sx={{ textAlign: 'center', py: 2 }}>
+        <Typography level="h4" component="div" sx={{ mb: 2 }}>
+          Password Reset
+        </Typography>
+        <Typography level="body-md">
+          Your password has been updated. You can now log in with your new
+          password.
+        </Typography>
+        <Button
+          onClick={onClose}
+          color="primary"
+          variant="solid"
+          sx={{ mt: 3 }}
+        >
+          Back to Login
+        </Button>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <Typography level="h4" component="div" sx={{ mb: 2 }}>
+        Reset Password
+      </Typography>
+
+      <form onSubmit={handleSubmit}>
+        <FormControl required sx={{ mb: 2 }}>
+          <FormLabel>New Password</FormLabel>
+          <Input
+            type="password"
+            placeholder="Enter new password"
+            autoFocus
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={submitting}
+            slotProps={{ input: { autoComplete: 'new-password' } }}
+          />
+        </FormControl>
+        <FormControl required>
+          <FormLabel>Confirm New Password</FormLabel>
+          <Input
+            type="password"
+            placeholder="Re-enter new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            disabled={submitting}
+            slotProps={{ input: { autoComplete: 'new-password' } }}
+          />
+        </FormControl>
+        {error && (
+          <Typography level="body-sm" color="danger" sx={{ mt: 2 }}>
+            {error}
+          </Typography>
+        )}
+        <Button
+          type="submit"
+          variant="solid"
+          loading={submitting}
+          sx={{ mt: 3 }}
+        >
+          Update Password
+        </Button>{' '}
+        <Button
+          type="button"
+          onClick={onClose}
+          color="danger"
+          variant="plain"
+          disabled={submitting}
+        >
+          Cancel
+        </Button>
+      </form>
+    </Box>
+  );
+}
+
 export default function LoginPage() {
   const [verifyMessage, setVerifyMessage] = useState('');
   const [hash, setHash] = useState(window.location.hash);
+  const [resetToken, setResetToken] = useState<string | null>(null);
 
   const authContext = useAuth();
 
@@ -99,9 +269,16 @@ export default function LoginPage() {
     const params = new URLSearchParams(queryString);
     const token = params.get('token');
     const invitationToken = params.get('invitation_token');
+    const resetTokenParam = params.get('reset_token');
 
     if (invitationToken) {
-      localStorage.setItem('pending_invitation_token', invitationToken);
+      window.location.hash = `#/invite?token=${encodeURIComponent(invitationToken)}`;
+      return;
+    }
+
+    if (resetTokenParam) {
+      setResetToken(resetTokenParam);
+      window.location.hash = '#/';
     }
 
     if (token) {
@@ -209,17 +386,27 @@ export default function LoginPage() {
               {verifyMessage}
             </Typography>
           )}
-          <Routes>
-            <Route
-              path="/register"
-              element={<RegisterForm onClose={() => navigate('/')} />}
+          {resetToken ? (
+            <ResetPasswordForm
+              token={resetToken}
+              onClose={() => {
+                setResetToken(null);
+                navigate('/');
+              }}
             />
-            <Route
-              path="/forgot-password"
-              element={<ForgotPasswordForm onClose={() => navigate('/')} />}
-            />
-            <Route path="*" element={<LoginForm />} />
-          </Routes>
+          ) : (
+            <Routes>
+              <Route
+                path="/register"
+                element={<RegisterForm onClose={() => navigate('/')} />}
+              />
+              <Route
+                path="/forgot-password"
+                element={<ForgotPasswordForm onClose={() => navigate('/')} />}
+              />
+              <Route path="*" element={<LoginForm />} />
+            </Routes>
+          )}
         </ModalDialog>
       </Modal>
     </Box>

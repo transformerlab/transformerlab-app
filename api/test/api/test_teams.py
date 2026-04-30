@@ -804,6 +804,22 @@ def test_get_pending_invitations(client, fresh_owner_user, invited_user, fresh_t
     assert invitation["invited_by_email"] == fresh_owner_user["email"]
 
 
+def test_get_invitation_by_token_without_auth(client, fresh_owner_user, fresh_test_team):
+    """Invite-link lookup should work without authentication."""
+    headers = {"Authorization": f"Bearer {fresh_owner_user['token']}", "X-Team-Id": fresh_test_team["id"]}
+    invitation_data = {"email": "lookup@test.com", "role": "member"}
+    resp = client.post(f"/teams/{fresh_test_team['id']}/members", json=invitation_data, headers=headers)
+    assert resp.status_code == 200
+
+    token = resp.json()["invitation_url"].split("token=")[1]
+    lookup = client.get(f"/invitations/by-token?token={token}")
+    assert lookup.status_code == 200
+    data = lookup.json()
+    assert data["email"] == "lookup@test.com"
+    assert data["team_id"] == fresh_test_team["id"]
+    assert data["status"] == "pending"
+
+
 def test_accept_invitation(client, fresh_owner_user, invited_user, fresh_test_team):
     """Test accepting a team invitation"""
     # Create invitation

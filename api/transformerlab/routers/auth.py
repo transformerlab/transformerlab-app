@@ -39,6 +39,7 @@ from transformerlab.schemas.auth import CurrentUserResponse
 from transformerlab.utils.api_key_utils import mask_key
 from lab.dirs import get_workspace_dir
 from lab import storage
+import transformerlab.services.team_service as team_service
 from transformerlab.schemas.secrets import (
     UserSecretsRequest,
     SpecialSecretRequest,
@@ -52,6 +53,18 @@ router = APIRouter(tags=["users"])
 # Simple Pydantic model for the refresh request body
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+
+class InvitationLookupResponse(BaseModel):
+    id: str
+    email: str
+    team_id: str
+    team_name: str
+    role: str
+    status: str
+    invited_by_email: str
+    expires_at: str
+    created_at: str
 
 
 # Include Auth and Registration Routers only if EMAIL_AUTH_ENABLED is True
@@ -190,6 +203,14 @@ async def oidc_providers_list():
         "enabled": len(OIDC_PROVIDERS) > 0,
         "providers": [{"id": p["id"], "name": p["name"]} for p in OIDC_PROVIDERS],
     }
+
+
+@router.get("/invitations/by-token", response_model=InvitationLookupResponse)
+async def get_invitation_by_token(
+    token: str,
+    session: AsyncSession = Depends(get_async_session),
+):
+    return await team_service.get_invitation_by_token(session, token)
 
 
 for _oidc in OIDC_PROVIDERS:
