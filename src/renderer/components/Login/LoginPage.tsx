@@ -272,7 +272,8 @@ export default function LoginPage() {
     const resetTokenParam = params.get('reset_token');
 
     if (invitationToken) {
-      localStorage.setItem('pending_invitation_token', invitationToken);
+      window.location.hash = `#/invite?token=${encodeURIComponent(invitationToken)}`;
+      return;
     }
 
     if (resetTokenParam) {

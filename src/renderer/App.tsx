@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { CssVarsProvider } from '@mui/joy/styles';
 import CssBaseline from '@mui/joy/CssBaseline';
 import Box from '@mui/joy/Box';
+import { useLocation } from 'react-router-dom';
 
 import Sidebar from './components/Nav/Sidebar';
 import MainAppPanel from './components/MainAppPanel';
@@ -23,6 +24,7 @@ import LoginPage from './components/Login/LoginPage';
 import { AnalyticsProvider } from './components/Shared/analytics/AnalyticsContext';
 import FullPageLoader from './components/Shared/FullPageLoader';
 import ConnectionLostModal from './components/Shared/ConnectionLostModal';
+import InvitationLanding from './components/Team/InvitationLanding';
 
 type AppContentProps = {
   connection: string;
@@ -37,9 +39,11 @@ function AppContent({
   setLogsDrawerOpen,
   themeSetter,
 }: AppContentProps) {
+  const location = useLocation();
   const authContext = useAuth();
   const { isError: connectionHealthError, isLoading: connectionHealthLoading } =
     chatAPI.useConnectionHealth(connection);
+  const isInvitePage = location.pathname === '/invite';
 
   const showConnectionLostModal =
     connection !== '' && !connectionHealthLoading && !!connectionHealthError;
@@ -59,6 +63,33 @@ function AppContent({
       }
     }
   }, [authContext.isAuthenticated]);
+
+  useEffect(() => {
+    if (isInvitePage && !authContext.isAuthenticated) {
+      const currentHash = window.location.hash;
+      if (currentHash) {
+        localStorage.setItem('redirectAfterLogin', currentHash);
+      }
+    }
+  }, [isInvitePage, authContext.isAuthenticated]);
+
+  if (isInvitePage) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          width: '100vw',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 2,
+          backgroundColor: 'background.body',
+        }}
+      >
+        <InvitationLanding />
+      </Box>
+    );
+  }
 
   if (authContext.initializing || isInitialUserLoad) {
     return <FullPageLoader />;

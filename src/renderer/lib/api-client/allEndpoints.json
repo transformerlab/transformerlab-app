@@ -400,6 +400,10 @@
       "method": "GET",
       "path": "invitations/me"
     },
+    "byToken": {
+      "method": "GET",
+      "path": "invitations/by-token?token={token}"
+    },
     "accept": {
       "method": "POST",
       "path": "invitations/accept"

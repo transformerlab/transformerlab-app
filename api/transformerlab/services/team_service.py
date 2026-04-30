@@ -364,7 +364,7 @@ async def invite_member(
         else:
             message = "Invitation already exists and was resent"
 
-        invitation_url = f"{app_url}/#/?invitation_token={existing.token}"
+        invitation_url = f"{app_url}/#/invite?token={existing.token}"
         email_sent, email_error = _send_invite_email(email, team.name, inviter_user.email, invitation_url)
         return {
             "message": message,
@@ -389,7 +389,7 @@ async def invite_member(
     await session.commit()
     await session.refresh(invitation)
 
-    invitation_url = f"{app_url}/#/?invitation_token={invitation.token}"
+    invitation_url = f"{app_url}/#/invite?token={invitation.token}"
     try:
         email_sent, email_error = _send_invite_email(email, team.name, inviter_user.email, invitation_url)
     except HTTPException:
@@ -458,6 +458,38 @@ async def get_my_invitations(session: AsyncSession, user_email: str) -> dict:
         for inv in valid
     ]
     return {"invitations": responses}
+
+
+async def get_invitation_by_token(session: AsyncSession, token: str) -> dict:
+    """Lookup invitation details by token for invite-link UX."""
+    stmt = select(TeamInvitation).where(TeamInvitation.token == token)
+    result = await session.execute(stmt)
+    invitation = result.scalar_one_or_none()
+
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    if invitation.status == InvitationStatus.PENDING.value and invitation.expires_at < datetime.utcnow():
+        invitation.status = InvitationStatus.EXPIRED.value
+        await session.commit()
+
+    result = await session.execute(select(Team).where(Team.id == invitation.team_id))
+    team = result.scalar_one_or_none()
+
+    result = await session.execute(select(User).where(User.id == invitation.invited_by_user_id))
+    inviter = result.scalar_one_or_none()
+
+    return {
+        "id": invitation.id,
+        "email": invitation.email,
+        "team_id": invitation.team_id,
+        "team_name": team.name if team else "Unknown Team",
+        "role": invitation.role,
+        "status": invitation.status,
+        "invited_by_email": inviter.email if inviter else "Unknown",
+        "expires_at": invitation.expires_at.isoformat(),
+        "created_at": invitation.created_at.isoformat(),
+    }
 
 
 async def get_team_invitations(session: AsyncSession, team_id: str) -> dict:
