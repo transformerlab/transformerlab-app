@@ -290,7 +290,6 @@ def db_record_to_provider_config(
         supported_accelerators=config_dict.get("supported_accelerators"),
         aws_profile=config_dict.get("aws_profile"),
         region=config_dict.get("region"),
-        team_id=config_dict.get("team_id") or (record.team_id if record.type == ProviderType.AWS.value else None),
         extra_config=extra_config,
         # Azure-specific config
         azure_subscription_id=config_dict.get("azure_subscription_id"),
@@ -299,7 +298,11 @@ def db_record_to_provider_config(
         azure_client_secret=config_dict.get("azure_client_secret"),
         azure_location=config_dict.get("azure_location"),
         azure_resource_group=config_dict.get("azure_resource_group"),
-        team_id=config_dict.get("team_id") or record.team_id,
+        team_id=(
+            config_dict.get("team_id") or record.team_id
+            if record.type in {ProviderType.AWS.value, ProviderType.AZURE.value}
+            else None
+        ),
     )
     # Local provider has no extra required config; workspace_dir is set at launch from get_workspace_dir()
 
