@@ -136,6 +136,26 @@ lab task add --from-git https://github.com/user/repo
 | `--from-git` | Git URL to fetch the task from           |
 | `--dry-run`  | Preview the task without creating it     |
 
+#### `task validate`
+
+Validate a `task.yaml` file against the server-side schema.
+
+```bash
+# Validate ./task.yaml
+lab task validate
+
+# Validate a specific YAML file
+lab task validate ./path/to/task.yaml
+```
+
+| Argument         | Description                                            |
+|------------------|--------------------------------------------------------|
+| `task_yaml_path` | Path to `task.yaml` (defaults to `./task.yaml`)       |
+
+| Option      | Description                                 |
+|-------------|---------------------------------------------|
+| `--timeout` | Request timeout in seconds for validation   |
+
 #### `task info`
 
 Get detailed information for a specific task.

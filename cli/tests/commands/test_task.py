@@ -155,3 +155,55 @@ def test_task_upload_calls_upload_endpoint(_mock_exp, mock_post_json, _mock_get,
     assert result.exit_code == 0, result.output
     submit_path = mock_post_json.call_args_list[-1].args[0]
     assert submit_path == "/experiment/exp1/task/t1/upload?upload_id=up-1"
+
+
+@patch("transformerlab_cli.commands.task.api.post_text", return_value=_mock_resp({"valid": True}))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_validate_uses_default_task_yaml_path(_mock_exp, mock_post_text):
+    """`lab task validate` validates ./task.yaml by default."""
+    with runner.isolated_filesystem():
+        task_yaml = Path("task.yaml")
+        task_yaml.write_text("name: demo\nrun: echo hello\n", encoding="utf-8")
+        result = runner.invoke(app, ["task", "validate"])
+    assert result.exit_code == 0, result.output
+    submit_path = mock_post_text.call_args.args[0]
+    assert submit_path == "/experiment/exp1/task/validate"
+    assert "task.yaml is valid" in strip_ansi(result.output)
+
+
+@patch("transformerlab_cli.commands.task.api.post_text", return_value=_mock_resp({"valid": True}))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_validate_accepts_custom_yaml_path(_mock_exp, mock_post_text):
+    """`lab task validate <path>` validates YAML from the provided path."""
+    with runner.isolated_filesystem():
+        custom_yaml = Path("custom.yaml")
+        custom_yaml.write_text("name: custom\nrun: python main.py\n", encoding="utf-8")
+        result = runner.invoke(app, ["task", "validate", str(custom_yaml)])
+    assert result.exit_code == 0, result.output
+    assert mock_post_text.call_args.kwargs["text"] == "name: custom\nrun: python main.py\n"
+
+
+@patch("transformerlab_cli.commands.task.api.post_text", return_value=_mock_resp({"valid": True}))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_validate_json_output_success(_mock_exp, _mock_post_text):
+    """`lab --format json task validate` returns machine-readable success output."""
+    with runner.isolated_filesystem():
+        task_yaml = Path("task.yaml")
+        task_yaml.write_text("name: demo\nrun: echo hello\n", encoding="utf-8")
+        result = runner.invoke(app, ["--format", "json", "task", "validate"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output.strip())
+    assert payload["ok"] is True
+    assert payload["path"].endswith("task.yaml")
+
+
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_validate_json_output_invalid_yaml(_mock_exp):
+    """`lab --format json task validate` returns machine-readable parse errors."""
+    with runner.isolated_filesystem():
+        task_yaml = Path("task.yaml")
+        task_yaml.write_text("name: [broken\nrun: echo hello\n", encoding="utf-8")
+        result = runner.invoke(app, ["--format", "json", "task", "validate"])
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output.strip())
+    assert "Invalid YAML in task.yaml" in payload["error"]
