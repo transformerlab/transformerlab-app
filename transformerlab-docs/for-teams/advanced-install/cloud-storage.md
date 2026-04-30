@@ -43,6 +43,15 @@ To use AWS S3 as remote storage:
 
 2. Configure AWS credentials for the `transformerlab-s3` profile.
 
+   :::note
+   If you already have an existing AWS profile you want to use instead of `transformerlab-s3`, add this line to your `.env` file:
+
+   ```bash
+   AWS_PROFILE=<your-profile-name>
+   ```
+
+   :::
+
    #### Using AWS CLI (Recommended)
 
    If you have the AWS CLI installed, run:

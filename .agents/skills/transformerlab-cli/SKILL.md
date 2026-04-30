@@ -1,6 +1,6 @@
 ---
 name: transformerlab-cli
-description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset".
+description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "add provider", "configure provider", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset".
 allowed-tools: Bash(lab *), Bash(curl *beta.lab.cloud*), Bash(curl *localhost:8338*)
 ---
 
@@ -332,6 +332,83 @@ lab dataset upload my-dataset train.jsonl eval.jsonl
 lab task queue TASK_ID --no-interactive -m "Training on my-dataset"
 ```
 
+## Managing Providers
+
+Use `lab provider` commands to list, inspect, add, configure, enable/disable, and health-check compute providers. Providers are the backends that actually run jobs (Local, SkyPilot clusters, Slurm clusters, RunPod).
+
+```bash
+# List providers (omit --include-disabled by default — only active ones show)
+lab --format json provider list
+lab --format json provider list --include-disabled
+
+# Show details for one provider
+lab --format json provider info PROVIDER_ID
+
+# Health check (verifies the CLI can reach the provider's backend)
+lab --format json provider check PROVIDER_ID
+
+# Toggle availability without deleting
+lab provider enable PROVIDER_ID
+lab provider disable PROVIDER_ID
+
+# Update fields (config is MERGED with existing — pass only the keys you change)
+lab provider update PROVIDER_ID --name "new-name"
+lab provider update PROVIDER_ID --config '{"api_token": "new-token"}'
+lab provider update PROVIDER_ID --enabled        # or --disabled
+lab provider update PROVIDER_ID --default        # mark as the team default (or --no-default to clear)
+
+# Delete (use --no-interactive to skip the confirm prompt)
+lab provider delete PROVIDER_ID --no-interactive
+```
+
+### When to add a provider
+
+**Default to listing first.** Before adding anything, run `lab provider list` to see what already exists. Most servers ship with a `local` provider already configured. Only add a new provider when:
+
+1. The user **explicitly asks** to add/configure a specific backend (Slurm, SkyPilot, RunPod).
+2. `lab provider list` shows none of the existing providers match the resources the user needs (e.g. they want H100s and only `local` is registered).
+3. A `task queue` attempt failed with "No compute providers available".
+
+**Do NOT add a provider speculatively.** Adding one writes credentials/URLs to the server and may fail health checks until configured correctly. If it's unclear which provider type the user wants, ask.
+
+### Adding a provider non-interactively
+
+`provider add` requires `--name`, `--type`, and `--config` (a JSON string) when run with `--no-interactive`. The config schema depends on the type:
+
+| Type | Required/optional config fields |
+|---|---|
+| `local` | `{}` — no config needed |
+| `skypilot` | `server_url`, `api_token` |
+| `slurm` | `mode` (`ssh` or `rest`), then either `ssh_host` + `ssh_user` + `ssh_key_path` + `ssh_port`, or `rest_url` + `api_token` |
+| `runpod` | `api_key`, plus optional `api_base_url`, `default_gpu_type`, `default_region`, `default_template_id`, `default_network_volume_id` |
+
+```bash
+# Local (rare — usually pre-installed)
+lab provider add --no-interactive --name local --type local --config '{}'
+
+# SkyPilot
+lab provider add --no-interactive --name my-skypilot --type skypilot \
+  --config '{"server_url": "https://sky.example.com", "api_token": "TOKEN"}'
+
+# Slurm over SSH
+lab provider add --no-interactive --name my-slurm --type slurm \
+  --config '{"mode": "ssh", "ssh_host": "cluster.example.com", "ssh_user": "ali", "ssh_key_path": "~/.ssh/id_rsa", "ssh_port": "22"}'
+
+# Slurm over REST
+lab provider add --no-interactive --name my-slurm --type slurm \
+  --config '{"mode": "rest", "rest_url": "https://slurm.example.com/api", "api_token": "TOKEN"}'
+
+# RunPod
+lab provider add --no-interactive --name my-runpod --type runpod \
+  --config '{"api_key": "RUNPOD_KEY", "default_gpu_type": "NVIDIA H100"}'
+```
+
+`provider add` automatically runs a health check after creation, so a successful `add` already confirms connectivity. **Re-run `lab provider check PROVIDER_ID` before queuing if you're using an existing provider** (credentials may have rotated, the backend may be down) or after a `provider update` that changed config. If a check fails, fix the config with `lab provider update` rather than deleting and re-adding.
+
+### Don't ask the user for credentials in chat
+
+Provider configs (`api_token`, `api_key`, `ssh_key_path`) contain secrets. If the user has not provided them already, ask them to either run `lab provider add` interactively themselves (the CLI prompts for each field privately) or to paste the values from a secure source. Don't request the user paste raw keys into a multi-message conversation.
+
 ## Agent-Specific Rules
 
 1. **NEVER use the REST API unless the user explicitly asks for it.** The CLI is the supported interface. If a CLI command appears missing or broken, run `lab <command> --help` first and check this skill — do not reach for `curl`. Using the REST API as a workaround is a hard rule violation.
@@ -339,7 +416,7 @@ lab task queue TASK_ID --no-interactive -m "Training on my-dataset"
 3. **Use `--format json`** when you need to parse output, but be prepared to fall back to pretty output parsing if it doesn't work
 4. **`--no-interactive` on `task queue` silently uses the DEFAULT provider (Local).** There is no `--provider` flag. To target a specific provider, you must drive the interactive prompts (see "Selecting a provider" below).
 5. **`task add` has no `--yes` flag** — pipe `echo "y"` to confirm: `echo "y" | lab task add ./my-task`
-6. **Use `--yes` / `-y`** on destructive commands (`provider delete`) to skip confirmation
+6. **Skip confirmation on destructive commands:** use `--no-interactive` for `provider delete`, and `--yes` / `-y` for `model delete` / `dataset delete` (the flag names differ — verify with `--help`)
 7. **Never use `job monitor`** — it launches a TUI that blocks; use `job list` + `job task-logs` instead
 8. **Never use `task interactive`** unless the user specifically requests an interactive session
 9. **`job task-logs --follow`** streams continuously and blocks until the job finishes — use when the user wants real-time monitoring

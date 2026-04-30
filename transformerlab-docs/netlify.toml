@@ -1,13 +1,9 @@
 [build]
   command = "npm run build"
   publish = "build"
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- transformerlab-docs/"
-
-[[plugins]]
-  package = "./src/netlify/plugins/fetch-install-script"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ."
 
 [build.environment]
-  APP_GITHUB_REPO = "transformerlab/transformerlab-app"
   NODE_VERSION = "18"
 
 # Optional: Configure build hooks that can receive parameters
@@ -17,8 +13,15 @@
 
 [[redirects]]
   from = "https://transformerlab.ai/install.sh"
-  to = "https://transformerlab.ai/install.sh"
-  status = 200
+  to = "https://github.com/transformerlab/transformerlab-app/releases/latest/download/install.sh"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "https://lab.cloud/install.sh"
+  to = "https://github.com/transformerlab/transformerlab-app/releases/latest/download/install.sh"
+  status = 302
+  force = true
 
 [[redirects]]
   from = "https://transformerlab.ai/*"

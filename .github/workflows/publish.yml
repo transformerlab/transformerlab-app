@@ -45,8 +45,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify install script exists
+        run: test -s api/install.sh
+
       - name: Upload static web assets
         run: |
-          gh release upload ${{ github.ref_name }} release/transformerlab_web.tar.gz
+          gh release upload ${{ github.ref_name }} \
+            release/transformerlab_web.tar.gz \
+            api/install.sh#install.sh \
+            --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
