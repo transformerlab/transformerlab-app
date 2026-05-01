@@ -31,6 +31,7 @@ import SlurmProviderFields from './providerForms/SlurmProviderFields';
 import SkypilotProviderFields from './providerForms/SkypilotProviderFields';
 import DstackProviderFields from './providerForms/DstackProviderFields';
 import RunpodProviderFields from './providerForms/RunpodProviderFields';
+import VastAiProviderFields from './providerForms/VastAiProviderFields';
 import AwsProviderFields from './providerForms/AwsProviderFields';
 import LocalProviderFields from './providerForms/LocalProviderFields';
 
@@ -73,6 +74,7 @@ const DEFAULT_CONFIGS = {
   aws: `{
   "region": "us-east-1"
 }`,
+  vastai: `{}`,
 } as const;
 
 const DEFAULT_SUPPORTED_ACCELERATORS: Record<string, string[]> = {
@@ -82,6 +84,7 @@ const DEFAULT_SUPPORTED_ACCELERATORS: Record<string, string[]> = {
   dstack: ['NVIDIA'],
   local: ['AppleSilicon', 'cpu'],
   aws: ['NVIDIA'],
+  vastai: ['NVIDIA'],
 };
 
 export default function ProviderDetailsModal({
@@ -142,6 +145,10 @@ export default function ProviderDetailsModal({
   const [awsAccessKeyId, setAwsAccessKeyId] = useState('');
   const [awsSecretAccessKey, setAwsSecretAccessKey] = useState('');
 
+  // Vast.ai-specific form fields
+  const [vastAiApiKey, setVastAiApiKey] = useState('');
+  const [vastAiApiKeyChanged, setVastAiApiKeyChanged] = useState(false);
+
   const { fetchWithAuth } = useAuth();
   const { data: providerData, isLoading: providerDataLoading } = useAPI(
     'compute_provider',
@@ -180,6 +187,11 @@ export default function ProviderDetailsModal({
         value: 'aws',
         label: 'AWS (beta)',
         description: 'Launch and manage compute on AWS.',
+      },
+      {
+        value: 'vastai',
+        label: 'Vast.ai',
+        description: 'Rent GPU instances from the Vast.ai marketplace.',
       },
     ];
 
@@ -410,6 +422,29 @@ export default function ProviderDetailsModal({
     return configObj;
   }, [awsRegion, supportedAccelerators]);
 
+  const parseVastAiConfig = (configObj: any) => {
+    if (configObj && typeof configObj === 'object') {
+      setVastAiApiKey(
+        configObj.api_key === '***' ? '' : configObj.api_key || '',
+      );
+      setVastAiApiKeyChanged(false);
+      if (configObj.supported_accelerators) {
+        setSupportedAccelerators(configObj.supported_accelerators);
+      }
+    }
+  };
+
+  const buildVastAiConfig = useCallback(() => {
+    const configObj: any = {};
+    if (!providerId || vastAiApiKeyChanged) {
+      configObj.api_key = vastAiApiKey;
+    }
+    if (supportedAccelerators.length > 0) {
+      configObj.supported_accelerators = supportedAccelerators;
+    }
+    return configObj;
+  }, [vastAiApiKey, vastAiApiKeyChanged, supportedAccelerators, providerId]);
+
   // if a providerId is passed then we are editing an existing provider
   // Otherwise we are creating a new provider
   useEffect(() => {
@@ -462,6 +497,9 @@ export default function ProviderDetailsModal({
       if (providerData.type === 'aws') {
         parseAwsConfig(rawConfigObj);
       }
+      if (providerData.type === 'vastai') {
+        parseVastAiConfig(rawConfigObj);
+      }
       setConfig(JSON.stringify(rawConfigObj, null, 2));
     } else if (!providerId) {
       // Reset form when in "add" mode (no providerId)
@@ -499,6 +537,8 @@ export default function ProviderDetailsModal({
       setAwsRegion('us-east-1');
       setAwsAccessKeyId('');
       setAwsSecretAccessKey('');
+      setVastAiApiKey('');
+      setVastAiApiKeyChanged(false);
     }
   }, [providerId, providerData]);
 
@@ -542,6 +582,8 @@ export default function ProviderDetailsModal({
       setAwsRegion('us-east-1');
       setAwsAccessKeyId('');
       setAwsSecretAccessKey('');
+      setVastAiApiKey('');
+      setVastAiApiKeyChanged(false);
     }
   }, [open]);
 
@@ -633,6 +675,14 @@ export default function ProviderDetailsModal({
           // Ignore parse errors
         }
       }
+      if (type === 'vastai') {
+        try {
+          const configObj = JSON.parse(defaultConfig);
+          parseVastAiConfig(configObj);
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
     }
     return undefined;
   }, [type, providerId, fetchWithAuth]);
@@ -661,6 +711,10 @@ export default function ProviderDetailsModal({
         const configObj = buildAwsConfig();
         setConfig(JSON.stringify(configObj, null, 2));
       }
+      if (type === 'vastai') {
+        const configObj = buildVastAiConfig();
+        setConfig(JSON.stringify(configObj, null, 2));
+      }
     }
   }, [
     buildSlurmConfig,
@@ -668,6 +722,7 @@ export default function ProviderDetailsModal({
     buildDstackConfig,
     buildRunpodConfig,
     buildAwsConfig,
+    buildVastAiConfig,
     type,
     providerId,
   ]);
@@ -821,6 +876,8 @@ export default function ProviderDetailsModal({
         parsedConfig = buildRunpodConfig();
       } else if (type === 'aws') {
         parsedConfig = buildAwsConfig();
+      } else if (type === 'vastai') {
+        parsedConfig = buildVastAiConfig();
       } else if (type === 'local') {
         // Local providers are configured via supported accelerators only
         parsedConfig = {};
@@ -1183,6 +1240,15 @@ export default function ProviderDetailsModal({
                     />
                   )}
 
+                  {type === 'vastai' && (
+                    <VastAiProviderFields
+                      vastAiApiKey={vastAiApiKey}
+                      setVastAiApiKey={setVastAiApiKey}
+                      providerId={providerId}
+                      setVastAiApiKeyChanged={setVastAiApiKeyChanged}
+                    />
+                  )}
+
                   {type === 'aws' && (
                     <AwsProviderFields
                       awsRegion={awsRegion}
@@ -1201,7 +1267,8 @@ export default function ProviderDetailsModal({
                     type !== 'dstack' &&
                     type !== 'runpod' &&
                     type !== 'local' &&
-                    type !== 'aws' && (
+                    type !== 'aws' &&
+                    type !== 'vastai' && (
                       <FormControl sx={{ mt: 1 }}>
                         <FormLabel>Configuration</FormLabel>
                         <Textarea
