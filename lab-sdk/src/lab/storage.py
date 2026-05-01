@@ -408,19 +408,36 @@ async def ls(path: str, detail: bool = False, fs=None):
     filesys = fs if fs is not None else await filesystem()
     try:
         paths = await asyncio.to_thread(filesys.ls, path, detail=detail)
-        # When we enable detail, we return the raw list of paths from the filesystem as they don't contain the current path
-        # and using filesys.ls on any of those would add the prefix correctly
+        is_remote = path.startswith(_REMOTE_PATH_PREFIXES)
+        protocol = (path.split("://", 1)[0] + "://") if is_remote else ""
+
         if detail:
-            return paths
+            # fsspec's detail=True returns dicts whose 'name'/'Key' field is
+            # scheme-less for remote backends (e.g. "bucket/key" for S3).
+            # Callers like asset_download_service.list_files compare these
+            # against the scheme-prefixed `path`, so normalize here.
+            if not is_remote:
+                return paths
+            normalized: list = []
+            for entry in paths:
+                if not isinstance(entry, dict):
+                    normalized.append(entry)
+                    continue
+                # fsspec uses 'name'; some backends also surface 'Key'.
+                for key in ("name", "Key"):
+                    val = entry.get(key)
+                    if isinstance(val, str) and not val.startswith(_REMOTE_PATH_PREFIXES):
+                        entry[key] = protocol + val.lstrip("/")
+                normalized.append(entry)
+            return normalized
+
         # Ensure paths are full URIs for remote filesystems
-        if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+        if is_remote:
             full_paths = []
             for p in paths:
-                if not p.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+                if not p.startswith(_REMOTE_PATH_PREFIXES):
                     # Convert relative path to full URI
-                    protocol = path.split("://")[0] + "://"
-                    full_path = protocol + p
-                    full_paths.append(full_path)
+                    full_paths.append(protocol + p)
                 else:
                     full_paths.append(p)
             full_paths = [p for p in full_paths if p != path]
