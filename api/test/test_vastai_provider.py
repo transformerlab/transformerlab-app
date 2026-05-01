@@ -29,6 +29,31 @@ class TestCheck:
 
 
 class TestFindBestOffer:
+    def test_normalizes_compact_gpu_name_variants(self, provider):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"offers": [{"id": 77, "dph_total": 0.8}]}
+        with patch.object(provider, "_make_request", return_value=mock_resp) as mock_make_request:
+            provider._find_best_offer("RTX5090", 1)
+
+        _, kwargs = mock_make_request.call_args
+        gpu_filter = kwargs["json_data"]["gpu_name"]
+        assert gpu_filter == {"in": ["RTX5090", "RTX 5090", "RTX_5090"]}
+
+    def test_sends_documented_bundles_payload_shape(self, provider):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"offers": [{"id": 42, "dph_total": 0.5}]}
+        with patch.object(provider, "_make_request", return_value=mock_resp) as mock_make_request:
+            provider._find_best_offer("RTX_4090", 1)
+
+        _, kwargs = mock_make_request.call_args
+        assert kwargs["json_data"] == {
+            "gpu_name": {"in": ["RTX_4090", "RTX 4090"]},
+            "num_gpus": {"eq": 1},
+            "rentable": {"eq": True},
+            "order": [["dph_total", "asc"]],
+            "limit": 10,
+        }
+
     def test_returns_first_offer_id(self, provider):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {

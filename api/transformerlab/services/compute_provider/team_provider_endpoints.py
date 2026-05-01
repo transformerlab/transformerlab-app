@@ -85,6 +85,7 @@ async def create_provider_for_team(
         ProviderType.LOCAL,
         ProviderType.DSTACK,
         ProviderType.AWS,
+        ProviderType.VASTAI,
     ]
     if provider_data.type not in allowed_provider_types:
         allowed_values = ", ".join(provider_type.value for provider_type in allowed_provider_types)

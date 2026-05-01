@@ -190,7 +190,7 @@ export default function ProviderDetailsModal({
       },
       {
         value: 'vastai',
-        label: 'Vast.ai',
+        label: 'Vast.ai (beta)',
         description: 'Rent GPU instances from the Vast.ai marketplace.',
       },
     ];

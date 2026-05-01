@@ -1,6 +1,7 @@
 """Vast.ai compute provider implementation."""
 
 import logging
+import re
 from typing import Any, Dict, List, Optional, Union
 
 import requests
@@ -59,15 +60,47 @@ class VastAIProvider(ComputeProvider):
                 count = 1
         return gpu_type, count
 
+    def _build_gpu_name_candidates(self, gpu_type: str) -> List[str]:
+        """
+        Build likely Vast.ai GPU-name variants.
+
+        Users may enter compact names (e.g. RTX5090) while Vast offers are
+        commonly listed as 'RTX 5090' or 'RTX_5090'.
+        """
+        base = (gpu_type or "").strip()
+        if not base:
+            return []
+
+        candidates: List[str] = [base]
+
+        underscored = base.replace(" ", "_")
+        if underscored and underscored not in candidates:
+            candidates.append(underscored)
+
+        spaced = base.replace("_", " ")
+        if spaced and spaced not in candidates:
+            candidates.append(spaced)
+
+        compact = re.sub(r"[\s_]+", "", base)
+        split_alpha_num = re.sub(r"([A-Za-z])(\d)", r"\1 \2", compact)
+        if split_alpha_num and split_alpha_num not in candidates:
+            candidates.append(split_alpha_num)
+
+        split_alpha_num_underscored = split_alpha_num.replace(" ", "_")
+        if split_alpha_num_underscored and split_alpha_num_underscored not in candidates:
+            candidates.append(split_alpha_num_underscored)
+
+        return candidates
+
     def _find_best_offer(self, gpu_type: str, num_gpus: int) -> int:
         """Search Vast.ai marketplace for the cheapest offer matching GPU type and count."""
+        gpu_candidates = self._build_gpu_name_candidates(gpu_type)
+
         query = {
-            "q": {
-                "gpu_name": {"icontains": gpu_type},
-                "num_gpus": {"eq": num_gpus},
-                "rentable": {"eq": True},
-                "cuda_max_good": {"gte": 12.0},
-            },
+            # Vast.ai POST /bundles/ expects filters at the top level.
+            "gpu_name": {"in": gpu_candidates},
+            "num_gpus": {"eq": num_gpus},
+            "rentable": {"eq": True},
             "order": [["dph_total", "asc"]],
             "limit": 10,
         }
