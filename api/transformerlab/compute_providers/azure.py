@@ -209,6 +209,19 @@ class AzureProvider(ComputeProvider):
 
         return AuthorizationManagementClient(self._get_credential(), self.subscription_id)
 
+    def _delete_cluster_nic_and_public_ip(self, network_client: Any, cluster_name: str) -> None:
+        """Delete per-cluster NIC and public IP (NIC first; tolerates missing resources)."""
+        nic_name = f"transformerlab-nic-{cluster_name}"
+        pip_name = f"transformerlab-pip-{cluster_name}"
+        try:
+            network_client.network_interfaces.begin_delete(self.resource_group, nic_name).result()
+        except Exception as e:
+            logger.warning("Failed to delete NIC %s: %s", nic_name, e)
+        try:
+            network_client.public_ip_addresses.begin_delete(self.resource_group, pip_name).result()
+        except Exception as e:
+            logger.warning("Failed to delete Public IP %s: %s", pip_name, e)
+
     def _ensure_vm_self_delete_role(self, vm: Any) -> None:
         """Best-effort: grant VM identity rights to delete itself."""
         principal_id = getattr(getattr(vm, "identity", None), "principal_id", None)
@@ -436,88 +449,94 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
         public_key_str = asyncio.run(get_org_ssh_public_key(self.team_id))
 
         pip_name = f"transformerlab-pip-{cluster_name}"
-        pip = network_client.public_ip_addresses.begin_create_or_update(
-            self.resource_group,
-            pip_name,
-            {"location": self.location, "sku": {"name": "Standard"}, "public_ip_allocation_method": "Static"},
-        ).result()
-
         nic_name = f"transformerlab-nic-{cluster_name}"
-        nic = network_client.network_interfaces.begin_create_or_update(
-            self.resource_group,
-            nic_name,
-            {
+        launch_succeeded = False
+        try:
+            pip = network_client.public_ip_addresses.begin_create_or_update(
+                self.resource_group,
+                pip_name,
+                {"location": self.location, "sku": {"name": "Standard"}, "public_ip_allocation_method": "Static"},
+            ).result()
+
+            nic = network_client.network_interfaces.begin_create_or_update(
+                self.resource_group,
+                nic_name,
+                {
+                    "location": self.location,
+                    "ip_configurations": [
+                        {"name": "ipconfig1", "subnet": {"id": subnet_id}, "public_ip_address": {"id": pip.id}}
+                    ],
+                    "network_security_group": {"id": nsg_id},
+                },
+            ).result()
+
+            user_data = self._build_user_data(config)
+            user_data_b64 = base64.b64encode(user_data.encode()).decode()
+
+            os_disk: Dict[str, Any] = {"create_option": "FromImage"}
+            if config.disk_size:
+                os_disk["disk_size_gb"] = config.disk_size
+
+            vm_params: Dict[str, Any] = {
                 "location": self.location,
-                "ip_configurations": [
-                    {"name": "ipconfig1", "subnet": {"id": subnet_id}, "public_ip_address": {"id": pip.id}}
-                ],
-                "network_security_group": {"id": nsg_id},
-            },
-        ).result()
-
-        user_data = self._build_user_data(config)
-        user_data_b64 = base64.b64encode(user_data.encode()).decode()
-
-        os_disk: Dict[str, Any] = {"create_option": "FromImage"}
-        if config.disk_size:
-            os_disk["disk_size_gb"] = config.disk_size
-
-        vm_params: Dict[str, Any] = {
-            "location": self.location,
-            "identity": {"type": "SystemAssigned"},
-            "tags": {
-                "transformerlab-team-id": self.team_id,
-                "transformerlab-cluster-name": cluster_name,
-            },
-            "hardware_profile": {"vm_size": vm_size},
-            "storage_profile": {
-                "image_reference": None,
-                "os_disk": os_disk,
-            },
-            "os_profile": {
-                "computer_name": cluster_name[:64],
-                "admin_username": "azureuser",
-                "linux_configuration": {
-                    "disable_password_authentication": True,
-                    "ssh": {
-                        "public_keys": [
-                            {
-                                "path": "/home/azureuser/.ssh/authorized_keys",
-                                "key_data": public_key_str,
-                            }
-                        ]
+                "identity": {"type": "SystemAssigned"},
+                "tags": {
+                    "transformerlab-team-id": self.team_id,
+                    "transformerlab-cluster-name": cluster_name,
+                },
+                "hardware_profile": {"vm_size": vm_size},
+                "storage_profile": {
+                    "image_reference": None,
+                    "os_disk": os_disk,
+                },
+                "os_profile": {
+                    "computer_name": cluster_name[:64],
+                    "admin_username": "azureuser",
+                    "linux_configuration": {
+                        "disable_password_authentication": True,
+                        "ssh": {
+                            "public_keys": [
+                                {
+                                    "path": "/home/azureuser/.ssh/authorized_keys",
+                                    "key_data": public_key_str,
+                                }
+                            ]
+                        },
                     },
                 },
-            },
-            "network_profile": {"network_interfaces": [{"id": nic.id, "primary": True, "delete_option": "Delete"}]},
-            "user_data": user_data_b64,
-        }
-        vm_params["storage_profile"]["os_disk"]["delete_option"] = "Delete"
+                "network_profile": {"network_interfaces": [{"id": nic.id, "primary": True, "delete_option": "Delete"}]},
+                "user_data": user_data_b64,
+            }
+            vm_params["storage_profile"]["os_disk"]["delete_option"] = "Delete"
 
-        image_refs = self._get_image_references(config)
-        last_error: Optional[Exception] = None
-        for image_ref in image_refs:
-            params_for_attempt = copy.deepcopy(vm_params)
-            params_for_attempt["storage_profile"]["image_reference"] = image_ref
-            try:
-                vm = compute_client.virtual_machines.begin_create_or_update(
-                    self.resource_group, cluster_name, params_for_attempt
-                ).result()
+            image_refs = self._get_image_references(config)
+            last_error: Optional[Exception] = None
+            for image_ref in image_refs:
+                params_for_attempt = copy.deepcopy(vm_params)
+                params_for_attempt["storage_profile"]["image_reference"] = image_ref
                 try:
-                    self._ensure_vm_self_delete_role(vm)
+                    vm = compute_client.virtual_machines.begin_create_or_update(
+                        self.resource_group, cluster_name, params_for_attempt
+                    ).result()
+                    try:
+                        self._ensure_vm_self_delete_role(vm)
+                    except Exception as e:
+                        logger.warning("Failed configuring VM self-delete RBAC: %s", e)
+                    launch_succeeded = True
+                    return {"vm_id": vm.id, "request_id": cluster_name}
                 except Exception as e:
-                    logger.warning("Failed configuring VM self-delete RBAC: %s", e)
-                return {"vm_id": vm.id, "request_id": cluster_name}
-            except Exception as e:
-                last_error = e
-                logger.warning("Azure VM launch failed with image %s: %s", image_ref, e)
-                # If image/offer/sku is unavailable, continue to fallback image.
-                error_text = str(e).lower()
-                if any(token in error_text for token in ("platformimage", "image", "offer", "sku", "not found")):
-                    continue
-                raise RuntimeError(f"Failed to launch Azure VM: {e}") from e
+                    last_error = e
+                    logger.warning("Azure VM launch failed with image %s: %s", image_ref, e)
+                    # If image/offer/sku is unavailable, continue to fallback image.
+                    error_text = str(e).lower()
+                    if any(token in error_text for token in ("platformimage", "image", "offer", "sku", "not found")):
+                        continue
+                    raise RuntimeError(f"Failed to launch Azure VM: {e}") from e
 
-        raise RuntimeError(f"Failed to launch Azure VM: {last_error}") from last_error
+            raise RuntimeError(f"Failed to launch Azure VM: {last_error}") from last_error
+        finally:
+            if not launch_succeeded:
+                self._delete_cluster_nic_and_public_ip(network_client, cluster_name)
 
     def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
         compute_client = self._get_compute_client()
@@ -528,18 +547,7 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
         except Exception as e:
             return {"status": "error", "message": str(e), "cluster_name": cluster_name}
 
-        nic_name = f"transformerlab-nic-{cluster_name}"
-        pip_name = f"transformerlab-pip-{cluster_name}"
-
-        try:
-            network_client.network_interfaces.begin_delete(self.resource_group, nic_name).result()
-        except Exception as e:
-            logger.warning("Failed to delete NIC %s: %s", nic_name, e)
-
-        try:
-            network_client.public_ip_addresses.begin_delete(self.resource_group, pip_name).result()
-        except Exception as e:
-            logger.warning("Failed to delete Public IP %s: %s", pip_name, e)
+        self._delete_cluster_nic_and_public_ip(network_client, cluster_name)
 
         return {"status": "success", "message": f"VM '{cluster_name}' deleted", "cluster_name": cluster_name}
 
