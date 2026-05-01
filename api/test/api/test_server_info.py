@@ -46,3 +46,15 @@ def test_healthz_localfs_mode(client, monkeypatch, tmp_path):
     data = response.json()
     assert data["message"] == "OK"
     assert data["mode"] == "multiuser"
+
+
+def test_healthz_includes_storage(client, monkeypatch, tmp_path):
+    """Test healthz endpoint exposes the active storage backend."""
+    monkeypatch.setenv("TFL_STORAGE_URI", str(tmp_path / "storage_root"))
+
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    data = response.json()
+    assert "storage" in data
+    assert "provider" in data["storage"]
+    assert data["storage"]["uri"] == str(tmp_path / "storage_root")

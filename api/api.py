@@ -97,6 +97,7 @@ async def lifespan(app: FastAPI):
 
     # Do the following at API Startup:
     print_launch_message()
+    _print_storage_banner()
     # Initialize directories early
     from transformerlab.shared import dirs as shared_dirs
 
@@ -346,6 +347,7 @@ async def healthz():
     Also includes version info so the frontend can detect updates without extra polling.
     """
     from transformerlab.services.version_service import get_version_info
+    from lab.storage import STORAGE_PROVIDER
 
     # MULTIUSER flag: default to true unless explicitly set to 'false'
     IS_MULTIUSER = os.getenv("MULTIUSER", "true").lower() == "true"
@@ -361,6 +363,10 @@ async def healthz():
         "version": version_info,
         "metadata": {
             "email_method": email_method,
+        },
+        "storage": {
+            "provider": STORAGE_PROVIDER,
+            "uri": os.getenv("TFL_STORAGE_URI") or None,
         },
     }
 
@@ -408,6 +414,19 @@ def print_launch_message():
         text = f.read()
         shared.print_in_rainbow(text)
     print("https://lab.cloud\nhttps://github.com/transformerlab/transformerlab-app\n")
+
+
+def _print_storage_banner():
+    """Print the active storage backend so it's obvious in API logs."""
+    from lab.storage import STORAGE_PROVIDER
+
+    uri = os.getenv("TFL_STORAGE_URI")
+    if not uri and STORAGE_PROVIDER == "localfs":
+        # Fall back to the app home dir when no explicit URI is set
+        from lab.dirs import HOME_DIR
+
+        uri = os.path.join(HOME_DIR, "workspace")
+    print(f"✅ Storage: {STORAGE_PROVIDER} ({uri or 'unset'})")
 
 
 def run():
