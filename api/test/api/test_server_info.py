@@ -48,8 +48,13 @@ def test_healthz_localfs_mode(client, monkeypatch, tmp_path):
     assert data["mode"] == "multiuser"
 
 
-def test_healthz_includes_storage(client, monkeypatch, tmp_path):
-    """Test healthz endpoint exposes the active storage backend."""
+def test_healthz_includes_storage_provider_only(client, monkeypatch, tmp_path):
+    """healthz exposes the storage provider but NOT the URI.
+
+    /healthz is unauthenticated, so leaking the bucket/path would be infra
+    reconnaissance fuel for any caller. The full URI is operator-visible
+    in the startup banner only.
+    """
     monkeypatch.setenv("TFL_STORAGE_URI", str(tmp_path / "storage_root"))
 
     response = client.get("/healthz")
@@ -57,4 +62,4 @@ def test_healthz_includes_storage(client, monkeypatch, tmp_path):
     data = response.json()
     assert "storage" in data
     assert "provider" in data["storage"]
-    assert data["storage"]["uri"] == str(tmp_path / "storage_root")
+    assert "uri" not in data["storage"], "URI must not be exposed via /healthz (unauthenticated endpoint)"

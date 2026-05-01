@@ -364,9 +364,12 @@ async def healthz():
         "metadata": {
             "email_method": email_method,
         },
+        # Only the provider is exposed here — /healthz is unauthenticated, so
+        # the bucket/path URI must NOT leak. The full URI is logged at startup
+        # (operator-visible) and can be added to authenticated endpoints if
+        # the CLI/UI ever needs it.
         "storage": {
             "provider": STORAGE_PROVIDER,
-            "uri": os.getenv("TFL_STORAGE_URI") or None,
         },
     }
 
