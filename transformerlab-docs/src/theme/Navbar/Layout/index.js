@@ -8,21 +8,24 @@ import {
 import { translate } from '@docusaurus/Translate';
 import NavbarMobileSidebar from '@theme/Navbar/MobileSidebar';
 import styles from './styles.module.css';
-function NavbarBackdrop(props) {
+
+function NavbarBackdrop({ onClick }) {
   return (
     <div
       role="presentation"
-      {...props}
-      className={clsx('navbar-sidebar__backdrop', props.className)}
+      onClick={onClick}
+      className="navbar-sidebar__backdrop"
     />
   );
 }
+
 export default function NavbarLayout({ children }) {
   const {
     navbar: { hideOnScroll, style },
   } = useThemeConfig();
   const mobileSidebar = useNavbarMobileSidebar();
   const { navbarRef, isNavbarVisible } = useHideableNavbar(hideOnScroll);
+
   return (
     <nav
       ref={navbarRef}

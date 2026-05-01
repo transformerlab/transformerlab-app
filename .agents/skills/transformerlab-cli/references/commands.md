@@ -369,6 +369,32 @@ Delete a model group and all its versions.
 |---|---|
 | `--yes` / `-y` | Skip confirmation prompt. **Always use in automated workflows.** |
 
+### `model upload <model_id> <paths...>`
+
+Upload local files or directories to a model on the server. Creates the model if it does not exist. The `model_id` is the identifier used in subsequent `lab model` commands.
+
+| Option | Description |
+|---|---|
+| `--force` | Overwrite files that already exist on the server. |
+
+```bash
+lab model upload my-model ./path/to/model-dir
+lab model upload my-model ./tokenizer.json ./config.json
+lab model upload my-model ./path --force
+```
+
+The server runs a finalize step at the end of `upload` and requires a `config.json` at the root with at least an `architectures` field (`architectures[0]` is recorded as the model architecture). Without it, finalize fails with `cannot finalize: no config.json present. Upload one first.`
+
+Re-running `upload` against the same `model_id` skips files that already exist on the server and exits with code 2 (skipped some, did not fail). Use `--force` to overwrite.
+
+### `model download <model_id> <dest>`
+
+Download every file in a model's directory on the server to `<dest>/<model_id>/`. The destination directory is created if missing.
+
+```bash
+lab model download my-model ./local-models
+```
+
 ---
 
 ## Dataset Commands
