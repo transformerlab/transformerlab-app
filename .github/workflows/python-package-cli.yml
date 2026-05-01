@@ -4,12 +4,6 @@ on:
   release:
     types: [published]
 
-  push:
-    branches:
-      - main
-    paths:
-      - "cli/**"
-
 permissions:
   contents: read
 
