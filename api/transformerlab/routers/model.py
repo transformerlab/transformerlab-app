@@ -1,8 +1,15 @@
+import logging
 from typing import Annotated
+
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from huggingface_hub import HfApi
 
-from transformerlab.services import model_service, asset_upload_service, asset_download_service
+from transformerlab.services import (
+    asset_download_service,
+    asset_upload_service,
+    asset_version_service,
+    model_service,
+)
 from transformerlab.services.cache_service import cached
 from transformerlab.services.permission_service import require_permission
 from transformerlab.services.upload_service import (
@@ -15,6 +22,8 @@ from lab import storage
 
 from werkzeug.utils import secure_filename
 
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["model"])
 
@@ -305,7 +314,31 @@ async def model_finalize(model_id: str):
     json_data.setdefault("source", "transformerlab")
     await model_obj.set_metadata(name=metadata.get("name", model_id), json_data=json_data)
 
-    return {"status": "success", "architecture": architecture}
+    # Register the model in the asset_versions registry so it appears in the
+    # Model Registry UI alongside models created via `lab model create`. We
+    # treat the model_id as both the group name (display) and asset_id (the
+    # on-disk identifier the registry resolves back to). Re-uploads are a
+    # no-op once a group exists — overwriting files in place shouldn't spawn
+    # phantom v2/v3 versions that all point at the same directory.
+    registered = False
+    try:
+        existing_groups = await asset_version_service.list_groups("model")
+        already_registered = any(g.get("group_name") == model_id for g in existing_groups)
+        if not already_registered:
+            await asset_version_service.create_version(
+                asset_type="model",
+                group_name=model_id,
+                asset_id=model_id,
+                version_label="v1",
+                tag="latest",
+            )
+            registered = True
+    except Exception as exc:
+        # Registration is a convenience layer — files are already on disk and
+        # finalize itself succeeded. Surface the warning but don't fail.
+        logger.warning("Could not register model %r in asset_versions: %s", model_id, exc)
+
+    return {"status": "success", "architecture": architecture, "registered": registered}
 
 
 @router.get("/model/files", summary="List all files within a model directory.")
