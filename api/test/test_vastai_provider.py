@@ -135,7 +135,7 @@ class TestLaunchCluster:
         payload = kwargs["json_data"]
         onstart = payload["onstart"]
         assert "trap _tfl_self_terminate EXIT" in onstart
-        assert "DELETE \"https://console.vast.ai/api/v0/instances/${CONTAINER_ID}/\"" in onstart
+        assert 'DELETE "https://console.vast.ai/api/v0/instances/${CONTAINER_ID}/"' in onstart
         assert "Authorization: Bearer ${CONTAINER_API_KEY}" in onstart
 
     def test_onstart_runs_setup_before_run_and_tees_logs(self, provider):

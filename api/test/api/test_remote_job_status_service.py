@@ -629,6 +629,93 @@ async def test_check_job_via_provider_vastai_stopping_instance_not_found_transit
     instance.get_cluster_status.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_check_job_via_provider_vastai_instance_not_found_running_debounced(monkeypatch):
+    """VastAI RUNNING + Instance not found: require N polls before terminal transition."""
+    monkeypatch.setattr(remote_job_status_service, "EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD", 2)
+
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(status="RUNNING")
+    record = _make_provider_record("vastai")
+
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.UNKNOWN
+    cluster_status.status_message = "Instance not found"
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key, value))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        AsyncMock(side_effect=AssertionError("should not be called on first poll")),
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+    assert result is False
+    assert ("kv", "provider_empty_jobs_polls", 1) in calls
+
+    job["job_data"]["provider_empty_jobs_polls"] = 1
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        AsyncMock(),
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_check_job_via_provider_vastai_instance_not_found_resets_when_instance_reappears(monkeypatch):
+    """Consecutive VastAI missing-instance polls reset if status returns to visible."""
+    monkeypatch.setattr(remote_job_status_service, "EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD", 2)
+
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(status="RUNNING")
+    job["job_data"]["provider_empty_jobs_polls"] = 1
+    record = _make_provider_record("vastai")
+
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.UP
+    cluster_status.status_message = "running"
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key, value))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        AsyncMock(side_effect=AssertionError("should not be called")),
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+    assert result is False
+    assert ("kv", "provider_empty_jobs_polls", 0) in calls
+
+
 # ---------------------------------------------------------------------------
 # _check_job_via_provider tests — interactive jobs (dead process detection)
 # ---------------------------------------------------------------------------

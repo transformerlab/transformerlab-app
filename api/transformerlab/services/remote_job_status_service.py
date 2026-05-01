@@ -223,7 +223,12 @@ async def _check_job_via_provider(
 
     is_interactive = _is_interactive_subtype_job(job)
 
-    if provider_type in (ProviderType.LOCAL.value, ProviderType.RUNPOD.value, ProviderType.AWS.value, ProviderType.VASTAI.value):
+    if provider_type in (
+        ProviderType.LOCAL.value,
+        ProviderType.RUNPOD.value,
+        ProviderType.AWS.value,
+        ProviderType.VASTAI.value,
+    ):
         # LOCAL/RUNPOD/AWS/VASTAI: cluster state directly represents job lifecycle.
         if provider_type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
             if hasattr(provider_instance, "extra_config"):
@@ -241,10 +246,11 @@ async def _check_job_via_provider(
         except (TypeError, ValueError):
             provider_empty_jobs_polls = 0
 
-        # RUNPOD: if the pod is visible again, clear consecutive "Pod not found" polls.
+        # RUNPOD/VASTAI: if the resource is visible again, clear consecutive
+        # missing-resource polls used for debounce.
         if (
-            provider_type == ProviderType.RUNPOD.value
-            and status_message != "Pod not found"
+            provider_type in (ProviderType.RUNPOD.value, ProviderType.VASTAI.value)
+            and status_message not in ("Pod not found", "Instance not found")
             and isinstance(job_data, dict)
             and provider_empty_jobs_polls > 0
         ):
@@ -307,6 +313,37 @@ async def _check_job_via_provider(
             logger.warning(
                 "Remote job status worker: RunPod reported Pod not found for cluster %s (job %s); "
                 "pod_not_found_poll_count=%s threshold=%s.",
+                cluster_name,
+                job_id,
+                empty_poll_count,
+                EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD,
+            )
+            if empty_poll_count < EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD:
+                return False
+            cluster_state = ClusterState.STOPPED
+        elif provider_type == ProviderType.VASTAI.value and status_message == "Instance not found":
+            # Debounce missing Vast.ai instances the same way as RunPod "Pod not found".
+            # This protects against transient API visibility gaps while still converging
+            # to terminal when an instance has disappeared for multiple polls.
+            empty_poll_count_raw = (
+                job_data.get("provider_empty_jobs_polls", 0) if isinstance(job_data, dict) else 0
+            ) or 0
+            try:
+                empty_poll_count = int(empty_poll_count_raw)
+            except (TypeError, ValueError):
+                empty_poll_count = 0
+            empty_poll_count += 1
+            try:
+                await job_service.job_update_job_data_insert_key_value(
+                    job_id, "provider_empty_jobs_polls", empty_poll_count, experiment_id
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"Remote job status worker: failed to update provider_empty_jobs_polls for job {job_id}: {exc}"
+                )
+            logger.warning(
+                "Remote job status worker: Vast.ai reported Instance not found for cluster %s (job %s); "
+                "instance_not_found_poll_count=%s threshold=%s.",
                 cluster_name,
                 job_id,
                 empty_poll_count,
