@@ -213,3 +213,37 @@ class TestGetJobLogs:
         with patch.object(provider, "_find_instance_by_name", return_value=None):
             logs = provider.get_job_logs("missing-cluster", "0")
         assert "not found" in logs
+
+    def test_request_logs_tail_is_sent_as_string(self, provider):
+        mock_instance = {"id": 123, "label": "my-cluster"}
+        mock_log_trigger_resp = MagicMock()
+        mock_log_trigger_resp.json.return_value = {
+            "success": True,
+            "result_url": "https://s3.example.com/logs.txt",
+        }
+        mock_s3_resp = MagicMock()
+        mock_s3_resp.text = "ok"
+
+        with (
+            patch.object(provider, "_find_instance_by_name", return_value=mock_instance),
+            patch.object(provider, "_make_request", return_value=mock_log_trigger_resp) as mock_make_request,
+            patch("transformerlab.compute_providers.vastai.requests.get", return_value=mock_s3_resp),
+        ):
+            provider.get_job_logs("my-cluster", "0", tail_lines=200)
+
+        _, kwargs = mock_make_request.call_args
+        assert kwargs["json_data"] == {"tail": "200"}
+
+
+class TestFindInstanceByName:
+    def test_handles_single_instance_object_from_instance_detail_endpoint(self, provider):
+        provider._cluster_name_to_instance_id["my-cluster"] = 123
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"instances": {"id": 123, "label": "my-cluster", "actual_status": "running"}}
+
+        with patch.object(provider, "_make_request", return_value=mock_resp):
+            instance = provider._find_instance_by_name("my-cluster")
+
+        assert instance is not None
+        assert instance["id"] == 123
+        assert instance["label"] == "my-cluster"

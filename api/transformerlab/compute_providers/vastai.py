@@ -122,7 +122,11 @@ class VastAIProvider(ComputeProvider):
                 data = response.json()
                 if isinstance(data, dict) and "instances" in data:
                     instances = data["instances"]
-                    return instances[0] if instances else None
+                    if isinstance(instances, list):
+                        return instances[0] if instances else None
+                    if isinstance(instances, dict):
+                        return instances
+                    return None
                 return data
             except requests.exceptions.HTTPError:
                 del self._cluster_name_to_instance_id[cluster_name]
@@ -288,7 +292,7 @@ class VastAIProvider(ComputeProvider):
         instance_id = instance.get("id")
         body: Dict[str, Any] = {}
         if tail_lines:
-            body["tail"] = tail_lines
+            body["tail"] = str(tail_lines)
         try:
             response = self._make_request("PUT", f"/instances/request_logs/{instance_id}/", json_data=body)
             data = response.json()
