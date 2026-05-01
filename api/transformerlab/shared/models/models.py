@@ -133,6 +133,7 @@ class ProviderType(str, enum.Enum):
     LOCAL = "local"
     DSTACK = "dstack"
     AWS = "aws"
+    VASTAI = "vastai"
 
 
 class AcceleratorType(str, enum.Enum):
