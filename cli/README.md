@@ -41,6 +41,12 @@ For a full list of all commands with detailed options and example usage, see [CO
 Want Claude Code (or other AI coding agents) to manage Transformer Lab for you? Install the skill:
 
 ```bash
+lab install-agent-skill
+```
+
+This is a thin wrapper around the underlying installer:
+
+```bash
 npx skills add transformerlab/transformerlab-app --skill transformerlab-cli
 ```
 
