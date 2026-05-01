@@ -151,6 +151,12 @@ def _instance_name(value: str) -> str:
     return normalized[:63].rstrip("-") or "tfl-job"
 
 
+def _is_missing_image_error(error: Exception) -> bool:
+    """Detect GCP 'image family not found' errors from Compute API responses."""
+    message = str(error).lower()
+    return "not found" in message and "images/family" in message
+
+
 def _ssh_read_file(host: str, key_bytes: bytes, remote_path: str, tail_lines: int = 500) -> str:
     import paramiko
 
@@ -342,12 +348,23 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
         else:
             machine_type = _resolve_cpu_machine(config.cpus, config.memory)
 
-        image = (
-            self.extra_config.get("gpu_image")
-            or "projects/deeplearning-platform-release/global/images/family/common-cu121"
-            if has_gpu
-            else self.extra_config.get("cpu_image") or "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
-        )
+        if has_gpu:
+            configured_gpu_image = self.extra_config.get("gpu_image")
+            if configured_gpu_image:
+                image_candidates = [configured_gpu_image]
+            else:
+                image_candidates = [
+                    "projects/deeplearning-platform-release/global/images/family/common-cu129-ubuntu-2404-nvidia-580",
+                    "projects/deeplearning-platform-release/global/images/family/common-cu129-ubuntu-2204-nvidia-580",
+                    "projects/deeplearning-platform-release/global/images/family/common-cu128-ubuntu-2204-nvidia-570",
+                    "projects/deeplearning-platform-release/global/images/family/common-cu124",
+                    "projects/deeplearning-platform-release/global/images/family/common-cu121",
+                    "projects/deeplearning-platform-release/global/images/family/common-cu118",
+                ]
+        else:
+            image_candidates = [
+                self.extra_config.get("cpu_image") or "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
+            ]
         startup_script = self._build_startup_script(config, self.project_id, self.zone, instance_name)
         self._ensure_ssh_firewall_rule()
 
@@ -363,7 +380,7 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
                     "boot": True,
                     "autoDelete": True,
                     "initializeParams": {
-                        "sourceImage": image,
+                        "sourceImage": image_candidates[0],
                         "diskSizeGb": str(disk_size),
                         "diskType": f"{self._zone_base_url()}/diskTypes/pd-balanced",
                     },
@@ -404,12 +421,24 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
         elif has_gpu:
             body["scheduling"] = {"onHostMaintenance": "TERMINATE", "automaticRestart": False}
 
-        try:
-            operation = self._request("POST", f"{self._zone_base_url()}/instances", json=body)
-            operation_id = operation.get("name") or instance_name
-            return {"instance_name": instance_name, "request_id": operation_id, "operation": operation}
-        except Exception as e:
-            raise RuntimeError(f"Failed to launch GCE instance: {e}") from e
+        last_error: Exception | None = None
+        for image in image_candidates:
+            body["disks"][0]["initializeParams"]["sourceImage"] = image
+            try:
+                operation = self._request("POST", f"{self._zone_base_url()}/instances", json=body)
+                operation_id = operation.get("name") or instance_name
+                return {"instance_name": instance_name, "request_id": operation_id, "operation": operation}
+            except Exception as e:
+                if has_gpu and _is_missing_image_error(e) and len(image_candidates) > 1:
+                    logger.warning("GCP image family %s not found; trying next candidate.", image)
+                    last_error = e
+                    continue
+                raise RuntimeError(f"Failed to launch GCE instance: {e}") from e
+
+        raise RuntimeError(
+            "Failed to launch GCE instance: none of the default GPU image families were found "
+            f"({', '.join(image_candidates)}). Last error: {last_error}"
+        )
 
     def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
         instance = self._find_instance_by_cluster_name(cluster_name)
