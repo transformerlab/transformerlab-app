@@ -102,6 +102,24 @@ class TestLaunchCluster:
             with pytest.raises(RuntimeError, match="Failed to create Vast.ai instance"):
                 provider.launch_cluster("my-cluster", config)
 
+    def test_sends_env_as_json_object_not_docker_string(self, provider):
+        config = ClusterConfig(
+            accelerators="RTX_3090:1",
+            run="python train.py",
+            env_vars={"HF_TOKEN": "abc 123", "MODEL_ID": "meta-llama/Llama-3-8B"},
+        )
+        mock_create_resp = MagicMock()
+        mock_create_resp.json.return_value = {"id": 123}
+        with (
+            patch.object(provider, "_find_best_offer", return_value=42),
+            patch.object(provider, "_make_request", return_value=mock_create_resp) as mock_make_request,
+        ):
+            provider.launch_cluster("my-cluster", config)
+
+        _, kwargs = mock_make_request.call_args
+        payload = kwargs["json_data"]
+        assert payload["env"] == {"HF_TOKEN": "abc 123", "MODEL_ID": "meta-llama/Llama-3-8B"}
+
 
 class TestStopCluster:
     def test_returns_success_and_clears_cache(self, provider):

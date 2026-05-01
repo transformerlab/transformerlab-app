@@ -168,7 +168,7 @@ class VastAIProvider(ComputeProvider):
         combined = " && ".join(cmds)
         onstart = f"mkdir -p /workspace && (({combined}) 2>&1 | tee {VASTAI_RUN_LOGS_PATH})" if combined else ""
 
-        env_str = " ".join(f'{k}="{v}"' if " " in str(v) else f"{k}={v}" for k, v in (config.env_vars or {}).items())
+        env_vars = {str(key): str(value) for key, value in (config.env_vars or {}).items()}
 
         payload: Dict[str, Any] = {
             "client_id": "me",
@@ -176,8 +176,9 @@ class VastAIProvider(ComputeProvider):
             "disk": config.disk_size or VASTAI_DEFAULT_DISK_GB,
             "label": cluster_name,
             "onstart": onstart,
-            "env": env_str,
         }
+        if env_vars:
+            payload["env"] = env_vars
 
         try:
             response = self._make_request("PUT", f"/asks/{offer_id}/", json_data=payload)
