@@ -2,6 +2,7 @@
 
 import logging
 import re
+import time
 from typing import Any, Dict, List, Optional, Union
 
 import requests
@@ -299,9 +300,20 @@ class VastAIProvider(ComputeProvider):
             result_url = data.get("result_url", "")
             if not result_url:
                 return "Logs not yet available — instance may still be starting."
-            log_response = requests.get(result_url, timeout=30)
-            log_response.raise_for_status()
-            return log_response.text.strip() or "No log output yet."
+            # Vast.ai log URLs can return transient 403/404 for a brief period
+            # immediately after request_logs succeeds. Retry before failing.
+            max_attempts = 4
+            for attempt in range(max_attempts):
+                log_response = requests.get(result_url, timeout=30)
+                try:
+                    log_response.raise_for_status()
+                    return log_response.text.strip() or "No log output yet."
+                except requests.exceptions.HTTPError:
+                    status = getattr(log_response, "status_code", None)
+                    if status in (403, 404) and attempt < max_attempts - 1:
+                        time.sleep(1)
+                        continue
+                    raise
         except Exception as exc:
             return f"Failed to retrieve logs: {exc}"
 

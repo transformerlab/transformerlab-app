@@ -214,6 +214,36 @@ class TestGetJobLogs:
             logs = provider.get_job_logs("missing-cluster", "0")
         assert "not found" in logs
 
+    def test_retries_transient_s3_403_then_returns_logs(self, provider):
+        mock_instance = {"id": 123, "label": "my-cluster"}
+        mock_log_trigger_resp = MagicMock()
+        mock_log_trigger_resp.json.return_value = {
+            "success": True,
+            "result_url": "https://s3.example.com/logs.txt",
+        }
+
+        mock_forbidden_resp = MagicMock()
+        mock_forbidden_resp.status_code = 403
+        mock_forbidden_resp.raise_for_status.side_effect = requests.exceptions.HTTPError(response=mock_forbidden_resp)
+
+        mock_success_resp = MagicMock()
+        mock_success_resp.status_code = 200
+        mock_success_resp.text = "Epoch 1/10\nEpoch 2/10\n"
+        mock_success_resp.raise_for_status.return_value = None
+
+        with (
+            patch.object(provider, "_find_instance_by_name", return_value=mock_instance),
+            patch.object(provider, "_make_request", return_value=mock_log_trigger_resp),
+            patch(
+                "transformerlab.compute_providers.vastai.requests.get",
+                side_effect=[mock_forbidden_resp, mock_success_resp],
+            ),
+            patch("transformerlab.compute_providers.vastai.time.sleep") as _mock_sleep,
+        ):
+            logs = provider.get_job_logs("my-cluster", "0", tail_lines=200)
+
+        assert "Epoch 1/10" in logs
+
     def test_request_logs_tail_is_sent_as_string(self, provider):
         mock_instance = {"id": 123, "label": "my-cluster"}
         mock_log_trigger_resp = MagicMock()
