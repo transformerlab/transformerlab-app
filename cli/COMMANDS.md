@@ -77,6 +77,16 @@ lab --format json whoami
 
 ---
 
+### `install-agent-skill`
+
+Install the Transformer Lab agent skill so AI coding agents (Claude Code, etc.) know how to drive the `lab` CLI for you. Wraps `npx skills add transformerlab/transformerlab-app --skill transformerlab-cli`, so Node.js (which provides `npx`) must be installed.
+
+```bash
+lab install-agent-skill
+```
+
+---
+
 ### `config`
 
 View or set configuration values.
