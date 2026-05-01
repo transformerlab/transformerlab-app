@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import (
     APIRouter,
     Body,
@@ -18,7 +19,7 @@ import os
 import posixpath
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
-from lab.dirs import get_workspace_dir
+from lab.dirs import get_experiment_task_dir, get_workspace_dir
 from lab import storage
 
 from transformerlab.services.task_service import task_service
@@ -172,8 +173,31 @@ async def task_list_files(experimentId: str, task_id: str) -> TaskFilesResponse:
       readily available.
     - If file_mounts is set, it will be returned as-is as a list of local paths.
     """
-    task = await task_service.task_get_by_id(task_id, experiment_id=experimentId)
-    if not task:
+    # Compute the task directory directly. Going through task_service.get_task_dir
+    # adds several get_dir / isdir / exists round-trips on top of the metadata
+    # read, and each storage call is a thread-pool bounce.
+    task_dir = await get_experiment_task_dir(str(experimentId), str(task_id))
+
+    async def _read_metadata() -> Optional[dict]:
+        # Read index.json directly so we skip the digit-id migration path in
+        # TaskTemplate.get_metadata, which can scan all experiments.
+        try:
+            async with await storage.open(storage.join(task_dir, "index.json"), "r", encoding="utf-8") as f:
+                content = (await f.read()).strip().rstrip("%").strip()
+            return json.loads(content) if content else {}
+        except FileNotFoundError:
+            return None
+        except json.JSONDecodeError:
+            return {}
+
+    async def _ls_local() -> list[str]:
+        try:
+            return await storage.ls(task_dir)
+        except (FileNotFoundError, OSError):
+            return []
+
+    task, entries = await asyncio.gather(_read_metadata(), _ls_local())
+    if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
     github_files: list[str] = []
@@ -213,27 +237,19 @@ async def task_list_files(experimentId: str, task_id: str) -> TaskFilesResponse:
                 elif tgt:
                     local_files.append(str(tgt))
 
-    # Always list files from the canonical per-task directory.
-    # This directory contains at minimum task.yaml and may include uploaded files.
-    try:
-        task_dir = await task_service.get_task_dir(task_id, experiment_id=experimentId)
-        if await storage.exists(task_dir):
-            entries = await storage.ls(task_dir)
-            # Build a set of basenames already in local_files for dedup.
-            existing_basenames = {os.path.basename(f.split(" -> ")[-1].strip()) for f in local_files}
-            for entry in entries:
-                # storage.ls returns full paths; compute relative path safely
-                try:
-                    name = os.path.relpath(entry, task_dir)
-                except ValueError:
-                    continue  # entry is not under task_dir; skip it
-                if not name or name == "." or name == "index.json":
-                    continue
-                if name not in existing_basenames:
-                    local_files.append(name)
-                    existing_basenames.add(name)
-    except Exception as e:  # pragma: no cover - defensive logging
-        print(f"Error listing local files for task {task_id} from task dir: {e}")
+    # Build a set of basenames already in local_files for dedup.
+    existing_basenames = {os.path.basename(f.split(" -> ")[-1].strip()) for f in local_files}
+    for entry in entries:
+        # storage.ls returns full paths; compute relative path safely
+        try:
+            name = os.path.relpath(entry, task_dir)
+        except ValueError:
+            continue  # entry is not under task_dir; skip it
+        if not name or name == "." or name == "index.json":
+            continue
+        if name not in existing_basenames:
+            local_files.append(name)
+            existing_basenames.add(name)
 
     # Return None instead of empty list when there is no data for a source.
     return TaskFilesResponse(
@@ -1046,9 +1062,10 @@ async def upload_task_files(
 
 @router.get("/{task_id}/yaml", summary="Get task.yaml from the task directory")
 async def get_task_yaml(experimentId: str, task_id: str):
-    task = await task_service.task_get_by_id(task_id, experiment_id=experimentId)
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+    # read_task_yaml already raises 404 when task.yaml is missing, so we skip
+    # the extra task_get_by_id lookup. That lookup goes through get_metadata,
+    # which can trigger an Experiment.get_all() scan for the digit-id migration
+    # and was the dominant cost on this endpoint.
     content = await task_service.read_task_yaml(task_id, experiment_id=experimentId)
     return PlainTextResponse(content, media_type="text/plain")
 
