@@ -8,10 +8,10 @@ from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services.compute_provider import team_provider_endpoints
 from transformerlab.services.compute_provider.launch_credentials import (
+    parse_gcp_service_account_json,
     write_aws_credentials_to_profile,
-    write_gcp_service_account_json,
 )
-from transformerlab.services.provider_service import build_gcp_credentials_name, get_team_provider, update_team_provider
+from transformerlab.services.provider_service import get_team_provider, update_team_provider
 from transformerlab.services.cache_service import cache, cached
 from transformerlab.schemas.compute_providers import (
     ProviderCreate,
@@ -150,21 +150,22 @@ async def set_gcp_credentials(
     owner_info=Depends(require_team_owner),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Write GCP service account credentials for a GCP compute provider."""
+    """Store GCP service account credentials for a GCP compute provider."""
     provider = await get_team_provider(session, owner_info["team_id"], provider_id)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
     if provider.type != "gcp":
         raise HTTPException(status_code=400, detail="Provider is not of type 'gcp'")
 
-    filename = build_gcp_credentials_name(owner_info["team_id"], provider_id)
     try:
-        credentials_path, parsed = write_gcp_service_account_json(filename, body.service_account_json)
+        parsed = parse_gcp_service_account_json(body.service_account_json)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     config = json.loads(provider.config) if isinstance(provider.config, str) else dict(provider.config or {})
-    config["credentials_path"] = credentials_path
+    config["service_account_json"] = parsed
+    # Keep path-based field for backward compatibility with legacy configs.
+    config.pop("credentials_path", None)
     config["project_id"] = config.get("project_id") or parsed.get("project_id")
     config["service_account_email"] = parsed.get("client_email")
     config["team_id"] = owner_info["team_id"]
@@ -172,7 +173,6 @@ async def set_gcp_credentials(
     await cache.invalidate("providers")
     return {
         "status": "ok",
-        "credentials_path": credentials_path,
         "project_id": config.get("project_id"),
         "service_account_email": config.get("service_account_email"),
     }

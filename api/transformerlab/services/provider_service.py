@@ -302,6 +302,7 @@ def db_record_to_provider_config(
         project_id=config_dict.get("project_id"),
         zone=config_dict.get("zone"),
         credentials_path=config_dict.get("credentials_path"),
+        service_account_json=config_dict.get("service_account_json"),
         service_account_email=config_dict.get("service_account_email"),
         extra_config=extra_config,
     )

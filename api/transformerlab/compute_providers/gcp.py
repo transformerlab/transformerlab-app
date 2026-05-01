@@ -188,6 +188,7 @@ class GCPProvider(ComputeProvider):
         zone: str,
         team_id: str,
         credentials_path: Optional[str] = None,
+        service_account_json: Optional[Dict[str, Any]] = None,
         service_account_email: Optional[str] = None,
         extra_config: Optional[Dict[str, Any]] = None,
     ) -> None:
@@ -195,6 +196,7 @@ class GCPProvider(ComputeProvider):
         self.zone = zone
         self.team_id = team_id
         self.credentials_path = credentials_path
+        self.service_account_json = service_account_json
         self.service_account_email = service_account_email
         self.extra_config = extra_config or {}
         self._session = None
@@ -207,7 +209,11 @@ class GCPProvider(ComputeProvider):
         from google.oauth2 import service_account
 
         scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-        if self.credentials_path:
+        if self.service_account_json:
+            credentials = service_account.Credentials.from_service_account_info(
+                self.service_account_json, scopes=scopes
+            )
+        elif self.credentials_path:
             credentials = service_account.Credentials.from_service_account_file(self.credentials_path, scopes=scopes)
         else:
             credentials, project_id = google.auth.default(scopes=scopes)

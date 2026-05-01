@@ -48,6 +48,7 @@ class ComputeProviderConfig(BaseModel):
     project_id: Optional[str] = None
     zone: Optional[str] = None  # e.g. "us-central1-a"
     credentials_path: Optional[str] = None
+    service_account_json: Optional[Dict[str, Any]] = None
     service_account_email: Optional[str] = None
 
     # Additional provider-specific config
@@ -237,6 +238,7 @@ def create_compute_provider(config: ComputeProviderConfig):
             zone=config.zone or "us-central1-a",
             team_id=config.team_id,
             credentials_path=config.credentials_path,
+            service_account_json=config.service_account_json,
             service_account_email=config.service_account_email,
             extra_config=config.extra_config,
         )

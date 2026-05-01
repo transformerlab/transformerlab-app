@@ -125,12 +125,8 @@ def _gcp_credentials_dir() -> str:
     return os.path.join(os.path.expanduser("~"), ".config", "transformerlab", "gcp")
 
 
-def write_gcp_service_account_json(filename: str, service_account_json: str) -> tuple[str, dict[str, Any]]:
-    """Write a GCP service account JSON document under Transformer Lab's config directory.
-
-    Returns the absolute credentials path and parsed JSON data. Raises ValueError
-    if the JSON is malformed or does not look like a service account key.
-    """
+def parse_gcp_service_account_json(service_account_json: str) -> dict[str, Any]:
+    """Parse and validate GCP service account JSON."""
     try:
         parsed = json.loads(service_account_json)
     except json.JSONDecodeError as exc:
@@ -142,6 +138,17 @@ def write_gcp_service_account_json(filename: str, service_account_json: str) -> 
     missing_fields = [field for field in required_fields if not parsed.get(field)]
     if missing_fields:
         raise ValueError(f"GCP service account JSON is missing required field(s): {', '.join(missing_fields)}")
+
+    return parsed
+
+
+def write_gcp_service_account_json(filename: str, service_account_json: str) -> tuple[str, dict[str, Any]]:
+    """Write a GCP service account JSON document under Transformer Lab's config directory.
+
+    Returns the absolute credentials path and parsed JSON data. Raises ValueError
+    if the JSON is malformed or does not look like a service account key.
+    """
+    parsed = parse_gcp_service_account_json(service_account_json)
 
     safe_filename = os.path.basename(filename).replace("/", "-")
     if not safe_filename.endswith(".json"):

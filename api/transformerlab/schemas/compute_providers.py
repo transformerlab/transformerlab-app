@@ -122,6 +122,8 @@ def mask_sensitive_config(config: Dict[str, Any], provider_type: str) -> Dict[st
         masked["password"] = "***"
     if "secret" in masked:
         masked["secret"] = "***"
+    if "service_account_json" in masked and masked["service_account_json"]:
+        masked["service_account_json"] = "***"
 
     return masked
 
