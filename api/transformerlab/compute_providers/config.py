@@ -39,9 +39,9 @@ class ComputeProviderConfig(BaseModel):
     # Accelerators supported by this provider
     supported_accelerators: Optional[list[str]] = Field(default=None)
 
-    # AWS-specific config
+    # AWS/GCP-specific config
     aws_profile: Optional[str] = None  # e.g. "transformerlab-compute-{team_id}"
-    region: Optional[str] = None  # e.g. "us-east-1"
+    region: Optional[str] = None  # e.g. AWS "us-east-1" or GCP "us-central1"
     team_id: Optional[str] = None  # team identifier for resource naming
 
     # GCP-specific config
@@ -233,9 +233,12 @@ def create_compute_provider(config: ComputeProviderConfig):
             raise ValueError("GCP provider requires project_id in config")
         if not config.team_id:
             raise ValueError("GCP provider requires team_id in config")
+        if not config.zone and not config.region:
+            raise ValueError("GCP provider requires either zone or region in config")
         return GCPProvider(
             project_id=config.project_id,
-            zone=config.zone or "us-central1-a",
+            zone=config.zone,
+            region=config.region,
             team_id=config.team_id,
             credentials_path=config.credentials_path,
             service_account_json=config.service_account_json,

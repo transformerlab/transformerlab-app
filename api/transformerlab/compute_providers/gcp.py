@@ -191,7 +191,8 @@ class GCPProvider(ComputeProvider):
     def __init__(
         self,
         project_id: str,
-        zone: str,
+        zone: Optional[str],
+        region: Optional[str],
         team_id: str,
         credentials_path: Optional[str] = None,
         service_account_json: Optional[Dict[str, Any]] = None,
@@ -199,7 +200,10 @@ class GCPProvider(ComputeProvider):
         extra_config: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.project_id = project_id
-        self.zone = zone
+        self.region = region
+        self.zone = zone or (f"{region}-a" if region else None)
+        if not self.zone:
+            raise ValueError("GCP provider requires zone or region")
         self.team_id = team_id
         self.credentials_path = credentials_path
         self.service_account_json = service_account_json

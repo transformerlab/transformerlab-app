@@ -4,6 +4,8 @@ import { FormControl, FormLabel, Input, Textarea, Typography } from '@mui/joy';
 interface GcpProviderFieldsProps {
   gcpProjectId: string;
   setGcpProjectId: (value: string) => void;
+  gcpRegion: string;
+  setGcpRegion: (value: string) => void;
   gcpZone: string;
   setGcpZone: (value: string) => void;
   gcpServiceAccountJson: string;
@@ -14,6 +16,8 @@ interface GcpProviderFieldsProps {
 export default function GcpProviderFields({
   gcpProjectId,
   setGcpProjectId,
+  gcpRegion,
+  setGcpRegion,
   gcpZone,
   setGcpZone,
   gcpServiceAccountJson,
@@ -34,12 +38,26 @@ export default function GcpProviderFields({
         </Typography>
       </FormControl>
       <FormControl sx={{ mt: 1 }}>
-        <FormLabel>GCP Zone *</FormLabel>
+        <FormLabel>GCP Region *</FormLabel>
+        <Input
+          value={gcpRegion}
+          onChange={(event) => setGcpRegion(event.currentTarget.value)}
+          placeholder="us-central1"
+        />
+        <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
+          Region used for launches when zone is not specified.
+        </Typography>
+      </FormControl>
+      <FormControl sx={{ mt: 1 }}>
+        <FormLabel>GCP Zone (optional)</FormLabel>
         <Input
           value={gcpZone}
           onChange={(event) => setGcpZone(event.currentTarget.value)}
           placeholder="us-central1-a"
         />
+        <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
+          Leave blank to use the region default zone (`&lt;region&gt;-a`).
+        </Typography>
       </FormControl>
       <FormControl sx={{ mt: 1 }}>
         <FormLabel>

@@ -36,12 +36,12 @@ class ProviderConfigBase(BaseModel):
     ssh_key_path: Optional[str] = None
     ssh_port: int = 22
 
-    # AWS-specific config
-    region: Optional[str] = None  # AWS region (e.g. "us-east-1")
+    # AWS/GCP-specific config
+    region: Optional[str] = None  # AWS region (e.g. "us-east-1") or GCP region (e.g. "us-central1")
 
     # GCP-specific config
     project_id: Optional[str] = None
-    zone: Optional[str] = None  # GCP zone (e.g. "us-central1-a")
+    zone: Optional[str] = None  # Optional GCP zone (e.g. "us-central1-a"); falls back to <region>-a
     credentials_path: Optional[str] = None
     service_account_email: Optional[str] = None
 
