@@ -223,8 +223,8 @@ async def _check_job_via_provider(
 
     is_interactive = _is_interactive_subtype_job(job)
 
-    if provider_type in (ProviderType.LOCAL.value, ProviderType.RUNPOD.value, ProviderType.AWS.value):
-        # LOCAL/RUNPOD/AWS: cluster state directly represents job lifecycle.
+    if provider_type in (ProviderType.LOCAL.value, ProviderType.RUNPOD.value, ProviderType.AWS.value, ProviderType.VASTAI.value):
+        # LOCAL/RUNPOD/AWS/VASTAI: cluster state directly represents job lifecycle.
         if provider_type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
             if hasattr(provider_instance, "extra_config"):
                 provider_instance.extra_config["workspace_dir"] = job_data["workspace_dir"]
@@ -276,6 +276,15 @@ async def _check_job_via_provider(
             # Local setup can be interrupted before a pid file is created.
             # If the user requested stop, treat this as terminal STOPPED so
             # the job does not remain stuck in STOPPING.
+            cluster_state = ClusterState.STOPPED
+        elif (
+            provider_type == ProviderType.VASTAI.value
+            and job_status == JobStatus.STOPPING.value
+            and cluster_state == ClusterState.UNKNOWN
+        ):
+            # Vast.ai can report UNKNOWN/Instance not found after stop_cluster because
+            # the instance has already disappeared from the API. Mirror RUNPOD behavior
+            # so STOPPING jobs do not remain stuck indefinitely.
             cluster_state = ClusterState.STOPPED
         elif provider_type == ProviderType.RUNPOD.value and status_message == "Pod not found":
             # Debounce: same threshold as empty provider job queue — avoid flapping on transient API errors.

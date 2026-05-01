@@ -587,6 +587,48 @@ async def test_check_job_via_provider_aws_stopping_terminal_transitions_stopped(
     assert ("status", "STOPPED") in calls
 
 
+@pytest.mark.asyncio
+async def test_check_job_via_provider_vastai_stopping_instance_not_found_transitions_stopped(monkeypatch):
+    """Vast.ai STOPPING + missing instance should mark job STOPPED."""
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(status="STOPPING")
+    record = _make_provider_record("vastai")
+
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.UNKNOWN
+    cluster_status.status_message = "Instance not found"
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+    instance.list_jobs = MagicMock(side_effect=NotImplementedError)
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key))
+
+    async def fake_update_status(job_id, status, experiment_id=None):
+        calls.append(("status", status))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        fake_update_status,
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+
+    assert result is True
+    assert ("status", "STOPPED") in calls
+    instance.get_cluster_status.assert_called_once()
+
+
 # ---------------------------------------------------------------------------
 # _check_job_via_provider tests — interactive jobs (dead process detection)
 # ---------------------------------------------------------------------------
