@@ -262,6 +262,22 @@ async def _check_job_via_provider(
                     f"Remote job status worker: failed to reset provider_empty_jobs_polls for job {job_id}: {exc}"
                 )
 
+        # GCP: if the instance is visible again, clear consecutive "Instance not found" polls.
+        if (
+            provider_type == ProviderType.GCP.value
+            and status_message != "Instance not found"
+            and isinstance(job_data, dict)
+            and provider_empty_jobs_polls > 0
+        ):
+            try:
+                await job_service.job_update_job_data_insert_key_value(
+                    job_id, "provider_empty_jobs_polls", 0, experiment_id
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"Remote job status worker: failed to reset provider_empty_jobs_polls for job {job_id}: {exc}"
+                )
+
         # For RUNPOD, when the user requested stop (job in STOPPING), treat any non-UP
         # state as terminal STOPPED so the job does not stay stuck in STOPPING. This
         # covers: "Pod not found" (pod already deleted), "TERMINATING", or any other
@@ -303,6 +319,36 @@ async def _check_job_via_provider(
             logger.warning(
                 "Remote job status worker: RunPod reported Pod not found for cluster %s (job %s); "
                 "pod_not_found_poll_count=%s threshold=%s.",
+                cluster_name,
+                job_id,
+                empty_poll_count,
+                EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD,
+            )
+            if empty_poll_count < EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD:
+                return False
+            cluster_state = ClusterState.STOPPED
+        elif provider_type == ProviderType.GCP.value and status_message == "Instance not found":
+            # Debounce GCP eventual-consistency and startup races. A just-launched instance can
+            # temporarily fail to appear in list calls; do not mark terminal until threshold is hit.
+            empty_poll_count_raw = (
+                job_data.get("provider_empty_jobs_polls", 0) if isinstance(job_data, dict) else 0
+            ) or 0
+            try:
+                empty_poll_count = int(empty_poll_count_raw)
+            except (TypeError, ValueError):
+                empty_poll_count = 0
+            empty_poll_count += 1
+            try:
+                await job_service.job_update_job_data_insert_key_value(
+                    job_id, "provider_empty_jobs_polls", empty_poll_count, experiment_id
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"Remote job status worker: failed to update provider_empty_jobs_polls for job {job_id}: {exc}"
+                )
+            logger.warning(
+                "Remote job status worker: GCP reported Instance not found for cluster %s (job %s); "
+                "instance_not_found_poll_count=%s threshold=%s.",
                 cluster_name,
                 job_id,
                 empty_poll_count,
