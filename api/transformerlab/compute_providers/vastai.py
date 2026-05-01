@@ -156,6 +156,34 @@ class VastAIProvider(ComputeProvider):
         }
         return mapping.get((status or "").lower(), ClusterState.UNKNOWN)
 
+    @staticmethod
+    def _build_onstart_script(setup: Optional[str], run: Optional[str]) -> str:
+        """Build Vast onstart script with EXIT trap that destroys the instance."""
+        cmds: List[str] = []
+        if setup:
+            cmds.append(setup)
+        if run:
+            cmds.append(run)
+        combined = " && ".join(cmds)
+        if not combined:
+            return ""
+
+        # Vast injects CONTAINER_ID and CONTAINER_API_KEY into the container.
+        # Use those to self-destroy on EXIT so failed setup/run doesn't leak costs.
+        return (
+            "set -eo pipefail; "
+            "_tfl_self_terminate() { "
+            'if [ -n "${CONTAINER_ID:-}" ] && [ -n "${CONTAINER_API_KEY:-}" ]; then '
+            'curl -sS -X DELETE "https://console.vast.ai/api/v0/instances/${CONTAINER_ID}/" '
+            '-H "Authorization: Bearer ${CONTAINER_API_KEY}" '
+            '-H "Content-Type: application/json" >/dev/null 2>&1 || true; '
+            "fi; "
+            "return 0; "
+            "}; "
+            "trap _tfl_self_terminate EXIT; "
+            f"mkdir -p /workspace && (({combined}) 2>&1 | tee {VASTAI_RUN_LOGS_PATH})"
+        )
+
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         if not config.accelerators:
             raise ValueError(
@@ -165,13 +193,7 @@ class VastAIProvider(ComputeProvider):
         gpu_type, num_gpus = self._parse_accelerators(config.accelerators)
         offer_id = self._find_best_offer(gpu_type, num_gpus)
 
-        cmds = []
-        if config.setup:
-            cmds.append(config.setup)
-        if config.run:
-            cmds.append(config.run)
-        combined = " && ".join(cmds)
-        onstart = f"mkdir -p /workspace && (({combined}) 2>&1 | tee {VASTAI_RUN_LOGS_PATH})" if combined else ""
+        onstart = self._build_onstart_script(config.setup, config.run)
 
         env_vars = {str(key): str(value) for key, value in (config.env_vars or {}).items()}
 

@@ -120,6 +120,45 @@ class TestLaunchCluster:
         payload = kwargs["json_data"]
         assert payload["env"] == {"HF_TOKEN": "abc 123", "MODEL_ID": "meta-llama/Llama-3-8B"}
 
+    def test_onstart_contains_exit_trap_for_self_termination(self, provider):
+        config = ClusterConfig(accelerators="RTX_3090:1", run="python train.py")
+        mock_create_resp = MagicMock()
+        mock_create_resp.json.return_value = {"id": 123}
+
+        with (
+            patch.object(provider, "_find_best_offer", return_value=42),
+            patch.object(provider, "_make_request", return_value=mock_create_resp) as mock_make_request,
+        ):
+            provider.launch_cluster("my-cluster", config)
+
+        _, kwargs = mock_make_request.call_args
+        payload = kwargs["json_data"]
+        onstart = payload["onstart"]
+        assert "trap _tfl_self_terminate EXIT" in onstart
+        assert "DELETE \"https://console.vast.ai/api/v0/instances/${CONTAINER_ID}/\"" in onstart
+        assert "Authorization: Bearer ${CONTAINER_API_KEY}" in onstart
+
+    def test_onstart_runs_setup_before_run_and_tees_logs(self, provider):
+        config = ClusterConfig(
+            accelerators="RTX_3090:1",
+            setup="echo setup",
+            run="python train.py",
+        )
+        mock_create_resp = MagicMock()
+        mock_create_resp.json.return_value = {"id": 123}
+
+        with (
+            patch.object(provider, "_find_best_offer", return_value=42),
+            patch.object(provider, "_make_request", return_value=mock_create_resp) as mock_make_request,
+        ):
+            provider.launch_cluster("my-cluster", config)
+
+        _, kwargs = mock_make_request.call_args
+        payload = kwargs["json_data"]
+        onstart = payload["onstart"]
+        assert "(echo setup && python train.py)" in onstart
+        assert "tee /workspace/run_logs.txt" in onstart
+
 
 class TestStopCluster:
     def test_returns_success_and_clears_cache(self, provider):
