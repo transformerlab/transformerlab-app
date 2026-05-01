@@ -7,6 +7,10 @@ import Button from '@site/src/components/Button';
 
 # Advanced: Setting up an AMD Computer for Machine Learning
 
+:::warning
+This page is no longer maintained. See the latest setup steps on the [For Teams install page](/for-teams/install).
+:::
+
 ## Table of Contents
 
 - [Linux Instructions](#linux-instructions)
