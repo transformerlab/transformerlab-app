@@ -24,8 +24,16 @@ The agent will walk you through logging in and picking a current experiment the 
 From your project directory, install the skill with:
 
 ```bash
+lab install-agent-skill
+```
+
+This is a thin wrapper that runs the following on your behalf:
+
+```bash
 npx skills add transformerlab/transformerlab-app --skill transformerlab-cli
 ```
+
+You can run that `npx` command directly if you'd rather. Either way, you'll need [Node.js](https://nodejs.org) installed — `npx` ships with it.
 
 This teaches your agent how to use `lab` to check job status, stream logs, download artifacts, queue tasks, manage providers, and more.
 

@@ -107,29 +107,40 @@ lab --format json task queue TASK_ID --no-interactive
 
 ## 5. Provider Management
 
-Add, configure, and monitor compute providers.
+Add, configure, and monitor compute providers. **Always run `lab provider list` first** — most servers ship with a `local` provider already configured, and adding a new one only makes sense when the user explicitly asks or when an existing provider can't satisfy the requested resources.
 
 ```bash
-# List current providers
+# 1. List current providers (defaults to active only)
 lab --format json provider list
+lab --format json provider list --include-disabled
 
-# Add a new provider (non-interactive)
-lab --format json provider add --name my-slurm --type slurm --config '{"host": "cluster.example.com", "user": "admin"}' --no-interactive
+# 2. Add a new provider (non-interactive — see SKILL.md "Managing Providers"
+#    for the per-type config schema). Examples:
 
-# Check provider health
+# SkyPilot
+lab --format json provider add --no-interactive --name my-skypilot --type skypilot \
+  --config '{"server_url": "https://sky.example.com", "api_token": "TOKEN"}'
+
+# Slurm over SSH
+lab --format json provider add --no-interactive --name my-slurm --type slurm \
+  --config '{"mode": "ssh", "ssh_host": "cluster.example.com", "ssh_user": "admin", "ssh_key_path": "~/.ssh/id_rsa", "ssh_port": "22"}'
+
+# RunPod
+lab --format json provider add --no-interactive --name my-runpod --type runpod \
+  --config '{"api_key": "RUNPOD_KEY", "default_gpu_type": "NVIDIA H100"}'
+
+# 3. Health-check immediately after creating
 lab --format json provider check PROVIDER_ID
 
-# Disable a provider temporarily
+# 4. Toggle without deleting
 lab provider disable PROVIDER_ID
-
-# Re-enable it
 lab provider enable PROVIDER_ID
 
-# Update provider config (merges with existing)
-lab --format json provider update PROVIDER_ID --config '{"partition": "gpu"}'
+# 5. Update fields (config is MERGED — pass only changed keys)
+lab --format json provider update PROVIDER_ID --config '{"api_token": "NEW_TOKEN"}'
 
-# Delete a provider
-lab provider delete PROVIDER_ID --yes
+# 6. Delete (note: --no-interactive, NOT --yes)
+lab provider delete PROVIDER_ID --no-interactive
 ```
 
 ---
