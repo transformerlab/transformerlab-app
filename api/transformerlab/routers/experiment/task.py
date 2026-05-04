@@ -1,4 +1,6 @@
 import asyncio
+import logging
+
 from fastapi import (
     APIRouter,
     Body,
@@ -49,6 +51,8 @@ from pydantic import ValidationError
 from fastapi.responses import PlainTextResponse, JSONResponse
 import tempfile
 import zipfile
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/task", tags=["task"])
 
@@ -207,9 +211,9 @@ async def task_list_files(experimentId: str, task_id: str) -> TaskFilesResponse:
         except HTTPException:
             # Surface GitHub errors directly to the client
             raise
-        except Exception as e:
+        except Exception:
             # Unexpected errors should not break the whole endpoint; log and continue.
-            print(f"Error listing GitHub files for task {task_id}: {e}")
+            logger.exception("Error listing GitHub files for task %s", task_id)
 
     file_mounts = task.get("file_mounts")
     if isinstance(file_mounts, list):

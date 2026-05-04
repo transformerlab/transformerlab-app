@@ -118,7 +118,9 @@ class BaseLabResource(ABC):
                 # File doesn't exist, return empty dict
                 return {}
             except json.JSONDecodeError:
-                # Invalid JSON, return empty dict
+                # Corrupt JSON: log so the corruption is diagnosable in the wild,
+                # but degrade to {} so callers don't 500 on a single bad index.json.
+                logger.warning("Corrupt JSON in %s; treating as empty.", json_file)
                 return {}
             except Exception as e:
                 # Check if this is the Etag mismatch error
