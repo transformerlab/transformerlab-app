@@ -9,6 +9,7 @@ import {
   Modal,
   ModalClose,
   ModalDialog,
+  Stack,
   Table,
   Tooltip,
   Typography,
@@ -138,32 +139,39 @@ export default function ExperimentsManagerModal({
             maxHeight: '90vh',
             display: 'flex',
             flexDirection: 'column',
-            // Reserve space for ModalClose (absolute top-right) so header actions do not overlap.
+            // Room for ModalClose (absolute top-right); extra top padding for header block.
+            pt: 2.5,
             pr: 5.5,
-            pt: 0.5,
+            pb: 2,
+            px: 2.5,
           }}
         >
           <ModalClose />
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              mb: 1,
-              pr: 0.5,
-            }}
-          >
-            <Typography level="h3">Experiments</Typography>
-            <Button
-              size="sm"
-              onClick={() => {
-                onClose();
-                onNewExperiment();
+          <Stack spacing={2} sx={{ mb: 2 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                minHeight: 32,
+                pr: 0.5,
               }}
             >
-              + New Experiment
-            </Button>
-          </Box>
+              <Typography level="h3" component="h2">
+                Experiments
+              </Typography>
+            </Box>
+            <Box>
+              <Button
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onNewExperiment();
+                }}
+              >
+                + New Experiment
+              </Button>
+            </Box>
+          </Stack>
           <Input
             placeholder="Search experiments…"
             value={search}

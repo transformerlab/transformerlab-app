@@ -5,6 +5,7 @@ Revises: 6ccd4a4d9ca1
 Create Date: 2026-05-04 13:23:27.122716
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -13,8 +14,8 @@ from transformerlab.db.migration_utils import table_exists
 
 
 # revision identifiers, used by Alembic.
-revision: str = '46378c10f132'
-down_revision: Union[str, Sequence[str], None] = '6ccd4a4d9ca1'
+revision: str = "46378c10f132"
+down_revision: Union[str, Sequence[str], None] = "6ccd4a4d9ca1"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -36,7 +37,9 @@ def upgrade() -> None:
             ),
             sa.PrimaryKeyConstraint("id"),
             sa.UniqueConstraint(
-                "user_id", "team_id", "experiment_id",
+                "user_id",
+                "team_id",
+                "experiment_id",
                 name="uq_user_experiment_access",
             ),
         )
