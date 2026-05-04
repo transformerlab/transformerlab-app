@@ -44,7 +44,17 @@ One-time setup. Five things to gather (ask only what you can't infer from contex
 3. **Secondary metrics** — names only; tradeoff monitors that don't gate keep/discard.
 4. **Task** — either an existing task ID, or a workload to scaffold via `lab task init`.
 5. **Parallelism** — max concurrent jobs (default `1`; ask before going higher because each running job consumes provider capacity). On non-Local providers (SkyPilot, RunPod, Slurm) **never raise parallelism past 1 without explicit user approval** — each concurrent job costs real money.
-6. **Max iterations** — optional cap to bound cost. If set, the agent stops the loop and reports when reached.
+6. **Provider** — ask the user once, up front, which compute provider to target (run `lab provider list` first so you can name the options). If the user has no preference, use the team default (whatever `lab task queue --no-interactive` picks). Record the choice in `autoresearch.md` so resuming agents don't re-ask.
+7. **Max iterations** — optional cap to bound cost. If set, the agent stops the loop and reports when reached.
+
+### Search strategy depends on parallelism
+
+The parallelism budget changes the *kind* of session you're running, not just throughput:
+
+- **N = 1 — depth.** One experiment at a time means each iteration is expensive. Pick deliberate, high-leverage edits. Read the code, study the last result, form a hypothesis. Greedy hill-climb up the metric.
+- **N ≥ 4 — breadth.** Many concurrent experiments mean individual losses are cheap. Cast wider — vary multiple axes at once, accept regressions as data, cross-reference results. The loop becomes grid search instead of hill-climbing. Bias toward sweeps over agent-driven param tweaking when the change is purely numeric.
+
+Tell the user this when they pick N. Don't run a high-N session with low-N habits (or vice versa).
 
 ### The fixed-evaluator / mutable-implementation split
 
@@ -110,8 +120,10 @@ This is the **only file** the workflow writes. A fresh agent (after a context re
 **Primary metric:** `<name>` — <unit>, <lower|higher> is better
 **Secondary metrics:** `<name>`, `<name>`, ...
 **Task:** `<task_id>`
+**Provider:** `<provider_name>` (or "team default")
 **Parallelism:** <N>
 **Max iterations:** <N or "unbounded">
+**Stale-job timeout:** <minutes> — runs exceeding this are stopped via `lab job stop`
 
 ## Objective
 <One paragraph: what's being optimized and the workload behind the metric.>
@@ -157,28 +169,42 @@ The agent loops autonomously. Never ask "should I continue?" — keep going unti
 
 1. **Pick the next idea.** Read `autoresearch.md` (Backlog + What's been tried) and recent results. Prefer simple structural changes over random hyperparameter jiggling. If stuck, re-read the task code and the best/worst job's logs.
 2. **Edit task code or compose param overrides.** For one-off changes, prefer `lab task edit <id> --from-file ./task.yaml --no-interactive` or per-queue `--param key=value`. Use `lab task upload` for new files. Don't mutate `task.yaml` mid-flight if jobs are queued — race-prone.
-3. **Respect the parallelism budget** before queuing:
+3. **Sweep the stale-job timeout** (see `Stale-job timeout` in `autoresearch.md`). Any running job past the timeout is stopped — `minutes_requested` in `task.yaml` is *guidance*, not enforcement, so the agent has to actually kill stragglers itself or they'll consume the parallelism budget forever.
+   ```bash
+   NOW=$(date +%s)
+   STALE_SECS=$(( <minutes> * 60 ))
+   lab --format json job list --running | \
+     jq -r --argjson now "$NOW" --argjson stale "$STALE_SECS" \
+        '.[] | select((.created_at | fromdateiso8601) < ($now - $stale)) | .id' | \
+     xargs -r -I {} lab job stop {}
+   ```
+4. **Respect the parallelism budget** before queuing:
    ```bash
    RUNNING=$(lab --format json job list --running | jq 'length')
-   # If RUNNING >= N, wait — don't queue more.
+   # If RUNNING >= N, do not queue more this iteration.
    ```
-4. **Queue.** Always include `-m/--description` with a short, specific note (see "Run descriptions" below).
+5. **Queue.** Always include `-m/--description` with a short, specific note (see "Run descriptions" below).
    ```bash
    lab task queue <TASK_ID> --no-interactive \
      --param lr=3e-5 --param warmup_steps=500 \
      -m "Bumped lr 1e-5→3e-5, warmup 100→500. Testing whether higher lr clears the eval/loss=2.1 plateau seen in baseline."
    ```
-5. **Wait for completion** of at least one running job before re-entering step 1, so the loop doesn't fire-and-forget. Poll with `lab --format json job list --running`.
-6. **Score → keep or discard.**
+6. **Advance.** What this means depends on parallelism:
+   - **N = 1 (sequential):** wait for the just-queued job to finish, then go to step 7. Poll with `lab --format json job list --running`.
+   - **N ≥ 2 (parallel / fire-and-advance):** **do not wait.** Return to step 0 and pick the next idea immediately, until `RUNNING >= N`. Only block when the queue is full. This is what enables grid-style search; waiting after every queue collapses parallelism back to 1.
+7. **Score → keep or discard** any *completed* jobs whose results haven't been processed yet. In parallel mode, this means scanning recently-finished jobs at the start of each cycle, not just the one you queued last.
    ```bash
-   # Pull the score for the just-completed job
+   # Find COMPLETE jobs we haven't acted on yet (no discard flag set, not the current best).
+   lab --format json job list | jq -r '.[] | select(.status=="COMPLETE") | .id'
+
+   # For each: pull the score and compare to current best.
    lab --format json job info <JOB_ID> | jq '.job_data.score'
 
-   # If primary metric did NOT improve over current best → discard.
-   lab job discard <JOB_ID>
-   # If it did improve, leave it as-is (no action needed; jobs are kept by default).
+   # If FAILED: leave it. FAILED jobs are naturally excluded from "best" — no action needed.
+   # If COMPLETE but primary metric did NOT improve over current best → lab job discard <JOB_ID>.
+   # If COMPLETE and improved → leave kept. Jobs are kept by default.
    ```
-7. **Loop.**
+8. **Loop.**
 
 The agent stops the loop only when:
 - The user interrupts.
