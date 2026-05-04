@@ -75,14 +75,21 @@ const DEFAULT_CONFIGS = {
   "region": "us-east-1"
 }`,
   nebius: `{
-  "parent_id": "<Nebius project ID>",
-  "subnet_id": "<Nebius subnet ID>",
-  "default_platform": "gpu-h100-sxm",
-  "default_preset": "1gpu-16vcpu-200gb",
-  "boot_image_family": "ubuntu24.04-cuda13.0",
-  "disk_size_gib": 200
+  "parent_id": "",
+  "subnet_id": ""
 }`,
 } as const;
+
+/** Nebius config keys edited via structured form (rest is preserved as passthrough). */
+const NEBIUS_MANAGED_CONFIG_KEYS = [
+  'parent_id',
+  'subnet_id',
+  'region',
+  'default_platform',
+  'default_preset',
+  'boot_image_family',
+  'disk_size_gib',
+] as const;
 
 const DEFAULT_SUPPORTED_ACCELERATORS: Record<string, string[]> = {
   skypilot: ['NVIDIA'],
@@ -156,6 +163,16 @@ export default function ProviderDetailsModal({
   const [nebiusServiceAccountId, setNebiusServiceAccountId] = useState('');
   const [nebiusPublicKeyId, setNebiusPublicKeyId] = useState('');
   const [nebiusPrivateKey, setNebiusPrivateKey] = useState('');
+  const [nebiusParentId, setNebiusParentId] = useState('');
+  const [nebiusSubnetId, setNebiusSubnetId] = useState('');
+  const [nebiusRegion, setNebiusRegion] = useState('');
+  const [nebiusDefaultPlatform, setNebiusDefaultPlatform] = useState('');
+  const [nebiusDefaultPreset, setNebiusDefaultPreset] = useState('');
+  const [nebiusBootImageFamily, setNebiusBootImageFamily] = useState('');
+  const [nebiusDiskSizeGib, setNebiusDiskSizeGib] = useState('');
+  const [nebiusPassthrough, setNebiusPassthrough] = useState<
+    Record<string, unknown>
+  >({});
 
   const { fetchWithAuth } = useAuth();
   const { data: providerData, isLoading: providerDataLoading } = useAPI(
@@ -430,6 +447,93 @@ export default function ProviderDetailsModal({
     return configObj;
   }, [awsRegion, supportedAccelerators]);
 
+  const parseNebiusConfig = (configObj: Record<string, unknown>) => {
+    if (!configObj || typeof configObj !== 'object') {
+      return;
+    }
+    setNebiusParentId(
+      configObj.parent_id != null ? String(configObj.parent_id) : '',
+    );
+    setNebiusSubnetId(
+      configObj.subnet_id != null ? String(configObj.subnet_id) : '',
+    );
+    setNebiusRegion(configObj.region != null ? String(configObj.region) : '');
+    setNebiusDefaultPlatform(
+      configObj.default_platform != null
+        ? String(configObj.default_platform)
+        : '',
+    );
+    setNebiusDefaultPreset(
+      configObj.default_preset != null ? String(configObj.default_preset) : '',
+    );
+    setNebiusBootImageFamily(
+      configObj.boot_image_family != null
+        ? String(configObj.boot_image_family)
+        : '',
+    );
+    setNebiusDiskSizeGib(
+      configObj.disk_size_gib != null ? String(configObj.disk_size_gib) : '',
+    );
+  };
+
+  const buildNebiusConfig = useCallback(() => {
+    const configObj: Record<string, unknown> = { ...nebiusPassthrough };
+    if (nebiusParentId.trim()) {
+      configObj.parent_id = nebiusParentId.trim();
+    } else {
+      delete configObj.parent_id;
+    }
+    if (nebiusSubnetId.trim()) {
+      configObj.subnet_id = nebiusSubnetId.trim();
+    } else {
+      delete configObj.subnet_id;
+    }
+    if (nebiusRegion.trim()) {
+      configObj.region = nebiusRegion.trim();
+    } else {
+      delete configObj.region;
+    }
+    if (nebiusDefaultPlatform.trim()) {
+      configObj.default_platform = nebiusDefaultPlatform.trim();
+    } else {
+      delete configObj.default_platform;
+    }
+    if (nebiusDefaultPreset.trim()) {
+      configObj.default_preset = nebiusDefaultPreset.trim();
+    } else {
+      delete configObj.default_preset;
+    }
+    if (nebiusBootImageFamily.trim()) {
+      configObj.boot_image_family = nebiusBootImageFamily.trim();
+    } else {
+      delete configObj.boot_image_family;
+    }
+    if (nebiusDiskSizeGib.trim()) {
+      const parsed = parseInt(nebiusDiskSizeGib.trim(), 10);
+      if (!Number.isNaN(parsed)) {
+        configObj.disk_size_gib = parsed;
+      } else {
+        delete configObj.disk_size_gib;
+      }
+    } else {
+      delete configObj.disk_size_gib;
+    }
+    if (supportedAccelerators.length > 0) {
+      configObj.supported_accelerators = supportedAccelerators;
+    }
+    return configObj;
+  }, [
+    nebiusPassthrough,
+    nebiusParentId,
+    nebiusSubnetId,
+    nebiusRegion,
+    nebiusDefaultPlatform,
+    nebiusDefaultPreset,
+    nebiusBootImageFamily,
+    nebiusDiskSizeGib,
+    supportedAccelerators,
+  ]);
+
   // if a providerId is passed then we are editing an existing provider
   // Otherwise we are creating a new provider
   useEffect(() => {
@@ -482,7 +586,17 @@ export default function ProviderDetailsModal({
       if (providerData.type === 'aws') {
         parseAwsConfig(rawConfigObj);
       }
-      setConfig(JSON.stringify(rawConfigObj, null, 2));
+      if (providerData.type === 'nebius') {
+        parseNebiusConfig(rawConfigObj);
+        const passthrough: Record<string, unknown> = { ...rawConfigObj };
+        for (const k of NEBIUS_MANAGED_CONFIG_KEYS) {
+          delete passthrough[k];
+        }
+        setNebiusPassthrough(passthrough);
+        setConfig('{}');
+      } else {
+        setConfig(JSON.stringify(rawConfigObj, null, 2));
+      }
     } else if (!providerId) {
       // Reset form when in "add" mode (no providerId)
       setName('');
@@ -522,6 +636,14 @@ export default function ProviderDetailsModal({
       setNebiusServiceAccountId('');
       setNebiusPublicKeyId('');
       setNebiusPrivateKey('');
+      setNebiusParentId('');
+      setNebiusSubnetId('');
+      setNebiusRegion('');
+      setNebiusDefaultPlatform('');
+      setNebiusDefaultPreset('');
+      setNebiusBootImageFamily('');
+      setNebiusDiskSizeGib('');
+      setNebiusPassthrough({});
     }
   }, [providerId, providerData]);
 
@@ -568,6 +690,14 @@ export default function ProviderDetailsModal({
       setNebiusServiceAccountId('');
       setNebiusPublicKeyId('');
       setNebiusPrivateKey('');
+      setNebiusParentId('');
+      setNebiusSubnetId('');
+      setNebiusRegion('');
+      setNebiusDefaultPlatform('');
+      setNebiusDefaultPreset('');
+      setNebiusBootImageFamily('');
+      setNebiusDiskSizeGib('');
+      setNebiusPassthrough({});
     }
   }, [open]);
 
@@ -658,6 +788,15 @@ export default function ProviderDetailsModal({
         } catch (e) {
           // Ignore parse errors
         }
+      }
+      if (type === 'nebius') {
+        try {
+          const configObj = JSON.parse(DEFAULT_CONFIGS.nebius);
+          parseNebiusConfig(configObj);
+        } catch (e) {
+          // Ignore parse errors
+        }
+        setNebiusPassthrough({});
       }
     }
     return undefined;
@@ -869,6 +1008,8 @@ export default function ProviderDetailsModal({
         parsedConfig = buildRunpodConfig();
       } else if (type === 'aws') {
         parsedConfig = buildAwsConfig();
+      } else if (type === 'nebius') {
+        parsedConfig = buildNebiusConfig();
       } else if (type === 'local') {
         // Local providers are configured via supported accelerators only
         parsedConfig = {};
@@ -929,6 +1070,15 @@ export default function ProviderDetailsModal({
           type: 'danger',
           message:
             'Nebius service-account credentials are required when creating a Nebius provider.',
+        });
+        return;
+      }
+
+      if (type === 'nebius' && !nebiusSubnetId.trim()) {
+        addNotification({
+          type: 'danger',
+          message:
+            'Nebius subnet ID is required. VMs need a VPC subnet to attach a network interface.',
         });
         return;
       }
@@ -1307,6 +1457,20 @@ export default function ProviderDetailsModal({
                       setNebiusPublicKeyId={setNebiusPublicKeyId}
                       nebiusPrivateKey={nebiusPrivateKey}
                       setNebiusPrivateKey={setNebiusPrivateKey}
+                      nebiusParentId={nebiusParentId}
+                      setNebiusParentId={setNebiusParentId}
+                      nebiusSubnetId={nebiusSubnetId}
+                      setNebiusSubnetId={setNebiusSubnetId}
+                      nebiusRegion={nebiusRegion}
+                      setNebiusRegion={setNebiusRegion}
+                      nebiusDefaultPlatform={nebiusDefaultPlatform}
+                      setNebiusDefaultPlatform={setNebiusDefaultPlatform}
+                      nebiusDefaultPreset={nebiusDefaultPreset}
+                      setNebiusDefaultPreset={setNebiusDefaultPreset}
+                      nebiusBootImageFamily={nebiusBootImageFamily}
+                      setNebiusBootImageFamily={setNebiusBootImageFamily}
+                      nebiusDiskSizeGib={nebiusDiskSizeGib}
+                      setNebiusDiskSizeGib={setNebiusDiskSizeGib}
                       providerId={providerId}
                     />
                   )}
@@ -1317,7 +1481,8 @@ export default function ProviderDetailsModal({
                     type !== 'dstack' &&
                     type !== 'runpod' &&
                     type !== 'local' &&
-                    type !== 'aws' && (
+                    type !== 'aws' &&
+                    type !== 'nebius' && (
                       <FormControl sx={{ mt: 1 }}>
                         <FormLabel>Configuration</FormLabel>
                         <Textarea
