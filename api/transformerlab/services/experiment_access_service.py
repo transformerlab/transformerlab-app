@@ -1,0 +1,48 @@
+import logging
+from datetime import datetime, timezone
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from transformerlab.shared.models.models import UserExperimentAccess
+
+logger = logging.getLogger(__name__)
+
+
+async def touch_experiment(session: AsyncSession, user_id: str, team_id: str, experiment_id: str) -> None:
+    """Upsert last_opened_at for a user-experiment pair."""
+    result = await session.execute(
+        select(UserExperimentAccess).where(
+            UserExperimentAccess.user_id == user_id,
+            UserExperimentAccess.team_id == team_id,
+            UserExperimentAccess.experiment_id == experiment_id,
+        )
+    )
+    record = result.scalars().first()
+
+    if record is None:
+        record = UserExperimentAccess(
+            user_id=user_id,
+            team_id=team_id,
+            experiment_id=experiment_id,
+            last_opened_at=datetime.now(timezone.utc),
+        )
+        session.add(record)
+    else:
+        record.last_opened_at = datetime.now(timezone.utc)
+
+    await session.commit()
+
+
+async def get_recent_experiment_ids(session: AsyncSession, user_id: str, team_id: str, limit: int = 3) -> list[str]:
+    """Return experiment IDs ordered by last_opened_at DESC for a user."""
+    result = await session.execute(
+        select(UserExperimentAccess)
+        .where(
+            UserExperimentAccess.user_id == user_id,
+            UserExperimentAccess.team_id == team_id,
+        )
+        .order_by(UserExperimentAccess.last_opened_at.desc())
+        .limit(limit)
+    )
+    return [row.experiment_id for row in result.scalars().all()]

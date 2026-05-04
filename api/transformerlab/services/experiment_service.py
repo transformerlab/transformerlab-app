@@ -3,6 +3,7 @@ import logging
 import json
 import os
 
+from werkzeug.utils import secure_filename
 from lab import Experiment
 from lab import dirs as lab_dirs
 from lab import storage
@@ -100,7 +101,9 @@ async def experiment_get_all():
     return experiments
 
 
-async def experiment_create(name: str, config: dict) -> str:
+async def experiment_create(name: str, config: dict, created_by: str | None = None) -> str:
+    if created_by:
+        config = {**config, "created_by": created_by}
     await Experiment.create_with_config(name, config)
     # Ensure the experiment dropdown refreshes immediately after creation.
     await cache.invalidate("experiments")
@@ -136,6 +139,20 @@ async def experiment_delete(id):
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error deleting experiment {id}: {e}")
+
+
+async def experiment_rename(id: str, new_name: str) -> dict | None:
+    """Update the display name of an experiment in index.json."""
+    secure_name = secure_filename(new_name)
+    if not secure_name:
+        raise ValueError("Invalid experiment name")
+    try:
+        exp = await Experiment.get(id)
+        await exp.update_config({"name": secure_name})
+        await cache.invalidate("experiments")
+        return await experiment_get(id)
+    except FileNotFoundError:
+        return None
 
 
 async def experiment_update(id, config):

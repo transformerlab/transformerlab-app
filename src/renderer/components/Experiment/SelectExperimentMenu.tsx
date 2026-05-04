@@ -4,6 +4,7 @@ import MenuItem from '@mui/joy/MenuItem';
 import {
   CheckIcon,
   ChevronDownIcon,
+  LayoutGridIcon,
   PlusCircleIcon,
   SettingsIcon,
   StopCircleIcon,
@@ -35,6 +36,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { getAPIFullPath, fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import ExperimentsManagerModal from './ExperimentsManagerModal';
 
 function ExperimentSettingsMenu({
   experimentInfo,
@@ -98,6 +100,7 @@ function ExperimentSettingsMenu({
 
 export default function SelectExperimentMenu({ models }) {
   const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [isManagerOpen, setIsManagerOpen] = useState<boolean>(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { experimentInfo, setExperimentId } = useExperimentInfo();
@@ -105,7 +108,7 @@ export default function SelectExperimentMenu({ models }) {
 
   // This gets all the available experiments
   const { data, isLoading, mutate } = useSWR(
-    chatAPI.API_URL() === null ? null : chatAPI.Endpoints.Experiment.GetAll(),
+    chatAPI.API_URL() === null ? null : chatAPI.Endpoints.Experiment.Recent(),
     fetcher,
   );
 
@@ -127,8 +130,17 @@ export default function SelectExperimentMenu({ models }) {
     mutate();
   }, [experimentInfo]);
 
-  const createHandleClose = (experimentId: string | number) => () => {
+  const createHandleClose = (experimentId: string | number) => async () => {
     setExperimentId(String(experimentId));
+    try {
+      await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Experiment.Touch(String(experimentId)),
+        { method: 'POST' },
+      );
+      mutate();
+    } catch {
+      // non-critical, don't block the switch
+    }
     // If currently on an experiment page, update the URL to reflect the new experiment
     const match = location.pathname.match(/^\/experiment\/[^/]+\/(.+)$/);
     if (match) {
@@ -175,21 +187,21 @@ export default function SelectExperimentMenu({ models }) {
         newId = responseJson?.data?.experiment_id;
       }
 
-      // After creation, refresh the list and ensure the new experiment is in it before updating state
-      await mutate();
-      const updatedData = await mutate(); // Wait for mutate to complete and get fresh data
-      const newExperimentExists = updatedData?.some(
-        (exp: any) => exp.id === newId,
+      // Recent dropdown only shows a few experiments; membership there is not a valid
+      // "exists" check. Confirm the experiment is readable, then refresh the menu.
+      const existsRes = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Experiment.Get(String(newId)),
       );
-      if (!newExperimentExists) {
+      if (!existsRes.ok) {
         alert(
-          'Experiment created, but failed to load in the list. Please refresh and try again.',
+          'Experiment created, but it could not be loaded. Please refresh and try again.',
         );
         return;
       }
 
+      await mutate();
       setExperimentId(String(newId));
-      createHandleClose(newId)();
+      void createHandleClose(String(newId))();
 
       // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
       if (fromRecipeId !== null && fromRecipeId !== -1) {
@@ -369,7 +381,7 @@ export default function SelectExperimentMenu({ models }) {
                             ? 'soft'
                             : undefined
                         }
-                        onClick={createHandleClose(experiment.name)}
+                        onClick={createHandleClose(experiment.id)}
                         key={experiment.id}
                         sx={{
                           display: 'flex',
@@ -398,6 +410,12 @@ export default function SelectExperimentMenu({ models }) {
                     );
                   })}
             </Box>
+            <MenuItem onClick={() => setIsManagerOpen(true)}>
+              <ListItemDecorator>
+                <LayoutGridIcon strokeWidth={1} />
+              </ListItemDecorator>
+              See all experiments
+            </MenuItem>
             <Divider />
             <MenuItem onClick={() => setModalOpen(true)} disabled={isLoading}>
               <ListItemDecorator>
@@ -455,6 +473,19 @@ export default function SelectExperimentMenu({ models }) {
           </Sheet>
         </ModalDialog>
       </Modal>
+      <ExperimentsManagerModal
+        open={isManagerOpen}
+        onClose={() => setIsManagerOpen(false)}
+        onExperimentSelect={(experimentId: string) => {
+          createHandleClose(experimentId)();
+          setIsManagerOpen(false);
+        }}
+        onNewExperiment={() => {
+          setIsManagerOpen(false);
+          setModalOpen(true);
+        }}
+        mutateRecent={mutate}
+      />
     </div>
   );
 }
