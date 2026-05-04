@@ -44,6 +44,15 @@ class ComputeProviderConfig(BaseModel):
     region: Optional[str] = None  # e.g. "us-east-1"
     team_id: Optional[str] = None  # team identifier for resource naming
 
+    # Nebius-specific config
+    nebius_profile: Optional[str] = None  # Nebius CLI profile name
+    parent_id: Optional[str] = None  # Nebius project/parent ID
+    subnet_id: Optional[str] = None  # Nebius VPC subnet ID
+    default_platform: Optional[str] = None  # e.g. "gpu-h100-sxm" or "cpu-d3"
+    default_preset: Optional[str] = None  # e.g. "1gpu-16vcpu-200gb"
+    boot_image_family: Optional[str] = None  # e.g. "ubuntu24.04-cuda13.0"
+    disk_size_gib: Optional[int] = None
+
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
 
@@ -217,6 +226,26 @@ def create_compute_provider(config: ComputeProviderConfig):
             aws_profile=config.aws_profile,
             region=config.region or "us-east-1",
             team_id=config.team_id,
+            extra_config=config.extra_config,
+        )
+    elif config.type == "nebius":
+        from .nebius import NebiusProvider
+
+        if not config.team_id:
+            raise ValueError("Nebius provider requires team_id in config")
+        if not config.subnet_id:
+            raise ValueError("Nebius provider requires subnet_id in config")
+        return NebiusProvider(
+            team_id=config.team_id,
+            parent_id=config.parent_id,
+            subnet_id=config.subnet_id,
+            profile=config.nebius_profile,
+            region=config.region,
+            default_platform=config.default_platform,
+            default_preset=config.default_preset,
+            boot_image_family=config.boot_image_family,
+            disk_size_gib=config.disk_size_gib,
+            ssh_user=config.ssh_user,
             extra_config=config.extra_config,
         )
     else:

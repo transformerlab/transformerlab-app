@@ -36,8 +36,17 @@ class ProviderConfigBase(BaseModel):
     ssh_key_path: Optional[str] = None
     ssh_port: int = 22
 
-    # AWS-specific config
-    region: Optional[str] = None  # AWS region (e.g. "us-east-1")
+    # AWS/Nebius region config
+    region: Optional[str] = None  # AWS region (e.g. "us-east-1") or Nebius region
+
+    # Nebius-specific config
+    nebius_profile: Optional[str] = None  # Nebius CLI profile name
+    parent_id: Optional[str] = None  # Nebius project/parent ID
+    subnet_id: Optional[str] = None  # Nebius VPC subnet ID
+    default_platform: Optional[str] = None  # e.g. "gpu-h100-sxm" or "cpu-d3"
+    default_preset: Optional[str] = None  # e.g. "1gpu-16vcpu-200gb"
+    boot_image_family: Optional[str] = None  # e.g. "ubuntu24.04-cuda13.0"
+    disk_size_gib: Optional[int] = None
 
     # Runpod-specific config
     api_key: Optional[str] = None  # Runpod API key (sensitive)

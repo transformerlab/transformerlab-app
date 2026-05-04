@@ -73,6 +73,15 @@ const DEFAULT_CONFIGS = {
   aws: `{
   "region": "us-east-1"
 }`,
+  nebius: `{
+  "nebius_profile": "",
+  "parent_id": "<Nebius project ID>",
+  "subnet_id": "<Nebius subnet ID>",
+  "default_platform": "gpu-h100-sxm",
+  "default_preset": "1gpu-16vcpu-200gb",
+  "boot_image_family": "ubuntu24.04-cuda13.0",
+  "disk_size_gib": 200
+}`,
 } as const;
 
 const DEFAULT_SUPPORTED_ACCELERATORS: Record<string, string[]> = {
@@ -82,6 +91,7 @@ const DEFAULT_SUPPORTED_ACCELERATORS: Record<string, string[]> = {
   dstack: ['NVIDIA'],
   local: ['AppleSilicon', 'cpu'],
   aws: ['NVIDIA'],
+  nebius: ['NVIDIA'],
 };
 
 export default function ProviderDetailsModal({
@@ -180,6 +190,11 @@ export default function ProviderDetailsModal({
         value: 'aws',
         label: 'AWS (beta)',
         description: 'Launch and manage compute on AWS.',
+      },
+      {
+        value: 'nebius',
+        label: 'Nebius (beta)',
+        description: 'Launch and manage VMs on Nebius AI Cloud.',
       },
     ];
 

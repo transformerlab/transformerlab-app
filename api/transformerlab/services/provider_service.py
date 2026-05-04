@@ -290,7 +290,15 @@ def db_record_to_provider_config(
         supported_accelerators=config_dict.get("supported_accelerators"),
         aws_profile=config_dict.get("aws_profile"),
         region=config_dict.get("region"),
-        team_id=config_dict.get("team_id") or (record.team_id if record.type == ProviderType.AWS.value else None),
+        team_id=config_dict.get("team_id")
+        or (record.team_id if record.type in (ProviderType.AWS.value, ProviderType.NEBIUS.value) else None),
+        nebius_profile=config_dict.get("nebius_profile"),
+        parent_id=config_dict.get("parent_id"),
+        subnet_id=config_dict.get("subnet_id"),
+        default_platform=config_dict.get("default_platform"),
+        default_preset=config_dict.get("default_preset"),
+        boot_image_family=config_dict.get("boot_image_family"),
+        disk_size_gib=config_dict.get("disk_size_gib"),
         extra_config=extra_config,
     )
     # Local provider has no extra required config; workspace_dir is set at launch from get_workspace_dir()

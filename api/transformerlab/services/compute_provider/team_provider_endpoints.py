@@ -85,6 +85,7 @@ async def create_provider_for_team(
         ProviderType.LOCAL,
         ProviderType.DSTACK,
         ProviderType.AWS,
+        ProviderType.NEBIUS,
     ]
     if provider_data.type not in allowed_provider_types:
         allowed_values = ", ".join(provider_type.value for provider_type in allowed_provider_types)
@@ -105,8 +106,8 @@ async def create_provider_for_team(
 
     config_dict = provider_data.config.model_dump(exclude_none=True)
 
-    # Auto-inject team_id for AWS providers; aws_profile is finalized after provider ID exists.
-    if provider_data.type == ProviderType.AWS:
+    # Auto-inject team_id for cloud VM providers.
+    if provider_data.type in (ProviderType.AWS, ProviderType.NEBIUS):
         config_dict["team_id"] = team_id
 
     provider = await create_team_provider(
@@ -212,7 +213,7 @@ async def update_provider_for_team(
         if new_config.get("api_key") == "***":
             new_config.pop("api_key", None)
         update_config = {**existing_config, **new_config}
-        if provider.type == ProviderType.AWS.value:
+        if provider.type in (ProviderType.AWS.value, ProviderType.NEBIUS.value):
             update_config["team_id"] = team_id
 
     update_disabled = provider_data.disabled if provider_data.disabled is not None else None

@@ -107,6 +107,27 @@ Integration with RunPod cloud GPU platform.
 
 ---
 
+## Nebius Provider
+
+**Source:** `api/transformerlab/compute_providers/nebius.py`
+
+Launches ephemeral Nebius AI Cloud Compute VMs using the documented Nebius CLI JSON API (`nebius compute instance create --format json -`). The provider creates a managed boot disk, injects org SSH keys via cloud-init, runs the task through `tfl-remote-trap`, and shuts the VM down after the command completes.
+
+Required provider config:
+
+- `subnet_id`: Nebius VPC subnet for the VM network interface.
+- `team_id`: injected automatically by the API.
+
+Common optional config:
+
+- `nebius_profile`: Nebius CLI profile name.
+- `parent_id`: Nebius project/parent ID; if omitted, the active CLI profile must provide it.
+- `default_platform` / `default_preset`: e.g. `gpu-h100-sxm` / `1gpu-16vcpu-200gb`.
+- `boot_image_family`: defaults to `ubuntu24.04-cuda13.0` for GPU platforms and `ubuntu24.04-driverless` for CPU.
+- `disk_size_gib`: managed boot disk size; defaults to 200 GiB.
+
+---
+
 ## Provider interface
 
 All providers implement these methods:
@@ -136,4 +157,5 @@ class ComputeProvider(ABC):
 | `api/transformerlab/compute_providers/slurm.py` | SLURM SSH/REST integration |
 | `api/transformerlab/compute_providers/skypilot.py` | SkyPilot multi-cloud |
 | `api/transformerlab/compute_providers/runpod.py` | RunPod cloud GPUs |
+| `api/transformerlab/compute_providers/nebius.py` | Nebius AI Cloud VMs via Nebius CLI |
 | `api/transformerlab/services/provider_service.py` | Provider lookup and instantiation |
