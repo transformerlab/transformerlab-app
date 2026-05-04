@@ -956,11 +956,34 @@ def _prompt_parameters(parameters: dict) -> dict:
     return values
 
 
+def _parse_param_overrides(raw_params: list[str] | None) -> dict:
+    """Parse `key=value` strings into a dict, with values as YAML scalars.
+
+    Splits on the first `=` only so values may contain `=`. Raises
+    typer.BadParameter on malformed input.
+    """
+    if not raw_params:
+        return {}
+    parsed: dict = {}
+    for raw in raw_params:
+        if "=" not in raw:
+            raise typer.BadParameter(f"Expected key=value, got: {raw!r}")
+        key, _, value = raw.partition("=")
+        if not key:
+            raise typer.BadParameter(f"Empty key in: {raw!r}")
+        try:
+            parsed[key] = yaml.safe_load(value)
+        except yaml.YAMLError as e:
+            raise typer.BadParameter(f"Failed to parse value for {key!r}: {e}") from e
+    return parsed
+
+
 def queue_task(
     task_id: str,
     experiment_id: str,
     interactive: bool = True,
     description: str | None = None,
+    param_overrides: dict | None = None,
 ) -> None:
     """Queue a task on a compute provider."""
     with console.status("[bold success]Fetching task...[/bold success]", spinner="dots"):
@@ -996,10 +1019,21 @@ def queue_task(
         console.print(f"[dim]Using provider: {provider.get('name')}[/dim]")
 
     parameters = task.get("parameters", {})
+    overrides = param_overrides or {}
+    if overrides:
+        if not parameters:
+            raise typer.BadParameter(
+                "Task has no parameters declared, cannot use --param. Add a `parameters:` block to task.yaml first."
+            )
+        unknown = sorted(set(overrides) - set(parameters))
+        if unknown:
+            valid = ", ".join(sorted(parameters)) or "(none)"
+            raise typer.BadParameter(f"Unknown parameter(s): {', '.join(unknown)}. Valid keys: {valid}")
     if interactive and parameters:
         param_values = _prompt_parameters(parameters)
     else:
         param_values = {k: (v.get("default", "") if isinstance(v, dict) else v) for k, v in parameters.items()}
+    param_values.update(overrides)
 
     payload = build_launch_payload(
         task, provider.get("name"), param_values, resource_overrides, description=description
@@ -1029,6 +1063,16 @@ def command_task_queue(
             "Pass '-' to read from stdin."
         ),
     ),
+    params: list[str] = typer.Option(
+        None,
+        "--param",
+        "-p",
+        metavar="KEY=VALUE",
+        help=(
+            "Override a task parameter for this queue (repeatable). Value is parsed as a YAML "
+            "scalar (e.g. score=0.42 -> float, enabled=true -> bool). Unknown keys fail."
+        ),
+    ),
 ):
     """Queue a task on a compute provider."""
     current_experiment = require_current_experiment()
@@ -1036,11 +1080,13 @@ def command_task_queue(
         if sys.stdin.isatty():
             raise typer.BadParameter('-m - reads the description from stdin; pipe content in or pass -m "...".')
         description = sys.stdin.read()
+    param_overrides = _parse_param_overrides(params)
     queue_task(
         task_id,
         experiment_id=current_experiment,
         interactive=not no_interactive,
         description=description,
+        param_overrides=param_overrides,
     )
 
 

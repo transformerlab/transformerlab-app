@@ -187,6 +187,11 @@
     "webpack-dev-server": "^4.15.0",
     "webpack-merge": "^5.9.0"
   },
+  "overrides": {
+    "serialize-javascript": "^7.0.3",
+    "minimatch": "^10.2.3",
+    "postcss": "^8.5.10"
+  },
   "engines": {
     "node": ">=14.x",
     "npm": ">=7.x"
