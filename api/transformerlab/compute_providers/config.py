@@ -234,8 +234,11 @@ def create_compute_provider(config: ComputeProviderConfig):
 
         if not config.team_id:
             raise ValueError("Nebius provider requires team_id in config")
-        if not config.subnet_id:
-            raise ValueError("Nebius provider requires subnet_id in config")
+        if not config.subnet_id and not config.parent_id:
+            raise ValueError(
+                "Nebius provider requires parent_id (Nebius project) for automatic default network/subnet, "
+                "or subnet_id if you use your own VPC subnet"
+            )
         return NebiusProvider(
             team_id=config.team_id,
             parent_id=config.parent_id,

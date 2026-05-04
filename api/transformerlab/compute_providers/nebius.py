@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 NEBIUS_RUN_LOGS_PATH = "/workspace/run_logs.txt"
 DEFAULT_NEBIUS_USER = "tflab"
+NEBIUS_AUTO_SUBNET_NAME = "transformerlab-default"
 
 
 _NEBIUS_STATE_TO_CLUSTER_STATE: Dict[str, ClusterState] = {
@@ -217,6 +218,8 @@ class NebiusProvider(ComputeProvider):
         self.disk_size_gib = disk_size_gib or 200
         self.ssh_user = ssh_user or DEFAULT_NEBIUS_USER
         self.extra_config = extra_config or {}
+        # Filled on first launch when subnet_id is omitted (automatic VPC setup).
+        self._resolved_subnet_id: Optional[str] = None
 
     def _base_cmd(self) -> List[str]:
         cmd = ["nebius"]
@@ -338,7 +341,7 @@ runcmd:
         if isinstance(response, list):
             return [item for item in response if isinstance(item, dict)]
         if isinstance(response, dict):
-            for key in ("items", "instances", "resources"):
+            for key in ("items", "instances", "resources", "networks", "subnets"):
                 value = response.get(key)
                 if isinstance(value, list):
                     return [item for item in value if isinstance(item, dict)]
@@ -359,11 +362,125 @@ runcmd:
     def _get_instance(self, instance_id: str) -> Dict[str, Any]:
         return self._run_nebius(["compute", "instance", "get", "--id", instance_id, "--format", "json"], timeout=60)
 
+    def _subnet_id_from_resource(self, subnet: Dict[str, Any]) -> Optional[str]:
+        return _extract_resource_id(subnet)
+
+    def _list_subnets_for_parent(self, parent_id: str) -> List[Dict[str, Any]]:
+        response = self._run_nebius(
+            ["vpc", "subnet", "list", "--parent-id", parent_id, "--format", "json", "--all"],
+            timeout=120,
+        )
+        return self._extract_list_response(response)
+
+    def _list_networks_for_parent(self, parent_id: str) -> List[Dict[str, Any]]:
+        response = self._run_nebius(
+            ["vpc", "network", "list", "--parent-id", parent_id, "--format", "json", "--all"],
+            timeout=120,
+        )
+        return self._extract_list_response(response)
+
+    def _ensure_network(self, parent_id: str) -> str:
+        networks = self._list_networks_for_parent(parent_id)
+        if networks:
+            net_id = _extract_resource_id(networks[0])
+            if net_id:
+                return net_id
+        try:
+            created = self._run_nebius(
+                ["vpc", "network", "create-default", "--parent-id", parent_id, "--format", "json"],
+                timeout=180,
+            )
+        except RuntimeError as first_exc:
+            # Another process may have created the default network; re-list.
+            logger.info("Nebius create-default network failed (%s); re-listing networks", first_exc)
+            networks = self._list_networks_for_parent(parent_id)
+            if networks:
+                net_id = _extract_resource_id(networks[0])
+                if net_id:
+                    return net_id
+            raise
+        if isinstance(created, dict):
+            net_id = _extract_resource_id(created)
+            if net_id:
+                return net_id
+        networks = self._list_networks_for_parent(parent_id)
+        if not networks:
+            raise RuntimeError("Nebius vpc network create-default did not return a network id and list is still empty.")
+        net_id = _extract_resource_id(networks[0])
+        if not net_id:
+            raise RuntimeError("Could not read network id from Nebius after create-default.")
+        return net_id
+
+    def _create_subnet(self, parent_id: str, network_id: str) -> str:
+        response = self._run_nebius(
+            [
+                "vpc",
+                "subnet",
+                "create",
+                "--network-id",
+                network_id,
+                "--parent-id",
+                parent_id,
+                "--name",
+                NEBIUS_AUTO_SUBNET_NAME,
+                "--ipv4-private-pools-use-network-pools",
+                "true",
+                "--ipv4-public-pools-use-network-pools",
+                "true",
+                "--format",
+                "json",
+            ],
+            timeout=180,
+        )
+        if isinstance(response, dict):
+            sid = _extract_resource_id(response)
+            if sid:
+                return sid
+        subnets = self._list_subnets_for_parent(parent_id)
+        for sn in subnets:
+            name = _nested_get(sn, ["metadata", "name"]) or sn.get("name")
+            if name == NEBIUS_AUTO_SUBNET_NAME:
+                sid = self._subnet_id_from_resource(sn)
+                if sid:
+                    return sid
+        raise RuntimeError(f"Nebius subnet create did not return a subnet id: {response!r}")
+
+    def _resolve_subnet_id_for_launch(self) -> str:
+        """Return configured subnet_id or ensure a project subnet via default network + subnet."""
+        if self.subnet_id:
+            return self.subnet_id
+        if self._resolved_subnet_id:
+            return self._resolved_subnet_id
+        if not self.parent_id:
+            raise ValueError(
+                "Nebius provider needs parent_id (Nebius project) to create a default network/subnet automatically, "
+                "or set subnet_id in the provider config."
+            )
+        parent_id = self.parent_id.strip()
+        subnets = self._list_subnets_for_parent(parent_id)
+        if subnets:
+            sid = self._subnet_id_from_resource(subnets[0])
+            if sid:
+                self._resolved_subnet_id = sid
+                logger.info("Nebius using existing subnet %s under project %s", sid, parent_id)
+                return sid
+        network_id = self._ensure_network(parent_id)
+        subnets = self._list_subnets_for_parent(parent_id)
+        if subnets:
+            sid = self._subnet_id_from_resource(subnets[0])
+            if sid:
+                self._resolved_subnet_id = sid
+                logger.info("Nebius using subnet %s after ensuring network %s", sid, network_id)
+                return sid
+        sid = self._create_subnet(parent_id, network_id)
+        self._resolved_subnet_id = sid
+        logger.info("Nebius created subnet %s on network %s", sid, network_id)
+        return sid
+
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         from transformerlab.services.ssh_key_service import get_or_create_org_ssh_key_pair, get_org_ssh_public_key
 
-        if not self.subnet_id:
-            raise ValueError("Nebius provider requires subnet_id in config")
+        subnet_id = self._resolve_subnet_id_for_launch()
 
         async def _ensure_and_get_public_key() -> str:
             await get_or_create_org_ssh_key_pair(self.team_id)
@@ -395,9 +512,7 @@ runcmd:
                     },
                 },
             },
-            "network_interfaces": [
-                {"name": "eth0", "subnet_id": self.subnet_id, "ip_address": {}, "public_ip_address": {}}
-            ],
+            "network_interfaces": [{"name": "eth0", "subnet_id": subnet_id, "ip_address": {}, "public_ip_address": {}}],
         }
         if self.parent_id:
             spec["boot_disk"]["managed_disk"]["spec"]["source_image_family"]["parent_id"] = self.parent_id

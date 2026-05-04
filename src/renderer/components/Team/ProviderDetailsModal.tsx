@@ -1074,11 +1074,15 @@ export default function ProviderDetailsModal({
         return;
       }
 
-      if (type === 'nebius' && !nebiusSubnetId.trim()) {
+      if (
+        type === 'nebius' &&
+        !nebiusSubnetId.trim() &&
+        !nebiusParentId.trim()
+      ) {
         addNotification({
           type: 'danger',
           message:
-            'Nebius subnet ID is required. VMs need a VPC subnet to attach a network interface.',
+            'Nebius needs a project (parent) ID so the API can create a default VPC network and subnet automatically, or paste an existing subnet ID instead.',
         });
         return;
       }

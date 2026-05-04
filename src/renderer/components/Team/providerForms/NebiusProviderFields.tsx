@@ -115,27 +115,30 @@ export default function NebiusProviderFields({
       <Typography level="title-sm" sx={{ mt: 1 }}>
         Infrastructure
       </Typography>
-      <FormControl>
-        <FormLabel>Project (parent) ID</FormLabel>
+      <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
+        Enter your <strong>Nebius project ID</strong> and leave subnet empty:
+        the API creates a default VPC network and subnet on first launch when
+        needed. Or paste a <strong>Subnet ID</strong> to use your own subnet.
+      </Typography>
+      <FormControl required>
+        <FormLabel>
+          Project (parent) ID{nebiusSubnetId.trim() ? '' : ' *'}
+        </FormLabel>
         <Input
           value={nebiusParentId}
           onChange={(event) => setNebiusParentId(event.currentTarget.value)}
-          placeholder="Optional — Nebius project / parent resource id"
+          placeholder="Nebius project id — required unless subnet id is set"
           fullWidth
         />
       </FormControl>
-      <FormControl required>
-        <FormLabel>Subnet ID *</FormLabel>
+      <FormControl>
+        <FormLabel>Subnet ID (optional)</FormLabel>
         <Input
           value={nebiusSubnetId}
           onChange={(event) => setNebiusSubnetId(event.currentTarget.value)}
-          placeholder="VPC subnet for the VM network interface (required to launch)"
+          placeholder="Blank = automatic default subnet under the project"
           fullWidth
         />
-        <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
-          Required for launches. The API rejects jobs without a configured
-          subnet.
-        </Typography>
       </FormControl>
       <FormControl>
         <FormLabel>Region</FormLabel>
