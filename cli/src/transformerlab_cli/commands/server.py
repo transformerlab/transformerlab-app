@@ -913,6 +913,181 @@ def server_version() -> None:
             console.print("[dim]Could not check for updates.[/dim]")
 
 
+def _find_server_pids(port: int) -> list[int]:
+    """Find PIDs of processes listening on the given port."""
+    pids: list[int] = []
+    try:
+        result = subprocess.run(
+            ["lsof", "-ti", f":{port}"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            for line in result.stdout.strip().splitlines():
+                line = line.strip()
+                if line.isdigit():
+                    pids.append(int(line))
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        # lsof not available, try ss/netstat as fallback (Linux)
+        try:
+            result = subprocess.run(
+                ["ss", "-tlnp", f"sport = :{port}"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                import re
+
+                for match in re.finditer(r"pid=(\d+)", result.stdout):
+                    pids.append(int(match.group(1)))
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+    return sorted(set(pids))
+
+
+@app.command("stop")
+def server_stop(
+    port: int = typer.Option(8338, "--port", help="Port the server is running on"),
+    force: bool = typer.Option(False, "--force", "-f", help="Force kill (SIGKILL) instead of graceful shutdown"),
+) -> None:
+    """Stop the Transformer Lab server."""
+    pids = _find_server_pids(port)
+    if not pids:
+        console.print(f"[warning]No server process found on port {port}.[/warning]")
+        raise typer.Exit(0)
+
+    import signal
+
+    sig = signal.SIGKILL if force else signal.SIGTERM
+    sig_name = "SIGKILL" if force else "SIGTERM"
+
+    for pid in pids:
+        try:
+            os.kill(pid, sig)
+            console.print(f"[success]✓[/success] Sent {sig_name} to process {pid}")
+        except ProcessLookupError:
+            console.print(f"[dim]Process {pid} already exited.[/dim]")
+        except PermissionError:
+            console.print(f"[error]Error:[/error] Permission denied killing process {pid}. Try with sudo.")
+            raise typer.Exit(1)
+
+    # Wait briefly and verify
+    import time
+
+    time.sleep(1)
+    remaining = _find_server_pids(port)
+    if remaining:
+        console.print(f"[warning]Processes still running on port {port}: {remaining}[/warning]")
+        if not force:
+            console.print("[dim]Try [bold]lab server stop --force[/bold] to force kill.[/dim]")
+    else:
+        console.print(f"[success]✓[/success] Server stopped on port {port}.")
+
+
+@app.command("start")
+def server_start(
+    port: int = typer.Option(8338, "--port", help="Port to start the server on"),
+    foreground: bool = typer.Option(False, "--foreground", help="Run in the foreground instead of background"),
+) -> None:
+    """Start the Transformer Lab server."""
+    existing = _find_server_pids(port)
+    if existing:
+        console.print(f"[warning]Server already running on port {port} (PIDs: {existing}).[/warning]")
+        console.print("[dim]Run [bold]lab server stop[/bold] first, or use [bold]lab server restart[/bold].[/dim]")
+        raise typer.Exit(1)
+
+    src_dir = os.path.join(os.path.expanduser("~"), ".transformerlab", "src")
+    run_sh = os.path.join(src_dir, "run.sh")
+
+    if not os.path.isfile(run_sh):
+        console.print("[error]Error:[/error] Server not installed. Run [bold]lab server install[/bold] first.")
+        raise typer.Exit(1)
+
+    # run.sh sets PORT="8338" unconditionally, so the env var is ignored.
+    # Pass the port via the script's -p flag instead.
+    cmd = ["bash", run_sh, "-p", str(port)]
+
+    if foreground:
+        console.print(f"[success]Starting server on port {port} (foreground)...[/success]")
+        result = subprocess.run(cmd, cwd=src_dir)
+        raise typer.Exit(result.returncode)
+    else:
+        import time
+
+        log_path = os.path.join(os.path.expanduser("~"), ".transformerlab", "server.log")
+        log_file = open(log_path, "a", encoding="utf-8")
+        proc = subprocess.Popen(
+            cmd,
+            cwd=src_dir,
+            stdout=log_file,
+            stderr=log_file,
+            start_new_session=True,
+        )
+
+        # Give the launcher a moment, then verify it didn't die immediately.
+        # We don't wait for uvicorn to bind the port (that can take many seconds);
+        # we only catch the case where run.sh exits before the server is even up.
+        time.sleep(1)
+        if proc.poll() is not None:
+            console.print(f"[error]Error:[/error] Server failed to start (run.sh exited with code {proc.returncode}).")
+            console.print(f"[dim]Check logs: {log_path}[/dim]")
+            raise typer.Exit(1)
+
+        console.print(f"[success]✓[/success] Server starting in background (PID {proc.pid}) on port {port}.")
+        console.print(f"[dim]Logs: {log_path}[/dim]")
+
+
+@app.command("restart")
+def server_restart(
+    port: int = typer.Option(8338, "--port", help="Port the server is running on"),
+) -> None:
+    """Restart the Transformer Lab server (stop then start)."""
+    pids = _find_server_pids(port)
+    if pids:
+        import signal
+        import time
+
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGTERM)
+                console.print(f"[success]✓[/success] Sent SIGTERM to process {pid}")
+            except ProcessLookupError:
+                pass
+
+        # Wait for graceful shutdown
+        for _ in range(10):
+            time.sleep(0.5)
+            if not _find_server_pids(port):
+                break
+        else:
+            remaining = _find_server_pids(port)
+            if remaining:
+                console.print("[warning]Graceful shutdown timed out, force killing...[/warning]")
+                for pid in remaining:
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                time.sleep(0.5)
+
+        # Verify the server is actually stopped before trying to start a new one.
+        still_running = _find_server_pids(port)
+        if still_running:
+            console.print(
+                f"[error]Error:[/error] Could not stop processes on port {port}: {still_running}. Aborting restart."
+            )
+            raise typer.Exit(1)
+
+        console.print("[success]✓[/success] Server stopped.")
+    else:
+        console.print(f"[dim]No server running on port {port}.[/dim]")
+
+    # Start
+    server_start(port=port, foreground=False)
+
+
 @app.command("update")
 def server_update() -> None:
     """Update Transformer Lab to the latest version."""

@@ -204,7 +204,27 @@ def test_lab_finish(tmp_path, monkeypatch):
     job_data = lab.get_job_data()
     assert job_data["completion_status"] == "success"
     assert job_data["completion_details"] == "Job completed"
-    assert job_data["score"] == {"accuracy": 0.95}
+    assert job_data["score"] == {"accuracy": 0.95, "discard": False}
+
+
+def test_lab_finish_preserves_explicit_discard_value(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+
+    lab = Lab()
+    lab.init(experiment_id="test_exp")
+
+    lab.finish(message="Job completed", score={"accuracy": 0.95, "discard": True})
+
+    job_data = lab.get_job_data()
+    assert job_data["score"] == {"accuracy": 0.95, "discard": True}
 
 
 def test_lab_finish_with_paths(tmp_path, monkeypatch):
