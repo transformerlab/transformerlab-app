@@ -15,10 +15,10 @@ import json
 import logging
 import re
 import shlex
-import shutil
 import subprocess
 from typing import Any, Dict, List, Optional, Union
 
+from transformerlab.services.nebius_cli_resolve import nebius_cli_argv_prefix, nebius_cli_available
 from transformerlab.services.ssh_key_service import get_org_ssh_private_key
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
@@ -222,7 +222,7 @@ class NebiusProvider(ComputeProvider):
         self._resolved_subnet_id: Optional[str] = None
 
     def _base_cmd(self) -> List[str]:
-        cmd = ["nebius"]
+        cmd = list(nebius_cli_argv_prefix())
         if self.config_path:
             cmd.extend(["--config", self.config_path])
         if self.profile:
@@ -230,8 +230,11 @@ class NebiusProvider(ComputeProvider):
         return cmd
 
     def _run_nebius(self, args: List[str], stdin_json: Optional[Dict[str, Any]] = None, timeout: int = 120) -> Any:
-        if not shutil.which("nebius"):
-            raise RuntimeError("Nebius CLI is not installed or not on PATH. Install and authenticate `nebius` first.")
+        if not nebius_cli_available():
+            raise RuntimeError(
+                "Nebius CLI is not available in this Python environment. "
+                "Install API dependencies (package `nebius` in api/pyproject.toml) and run the API with that venv."
+            )
 
         cmd = self._base_cmd() + args
         input_text = json.dumps(stdin_json) if stdin_json is not None else None
@@ -258,6 +261,7 @@ class NebiusProvider(ComputeProvider):
         try:
             args = ["profile", "current", "--format", "json"]
             self._run_nebius(args, timeout=30)
+
             return True, None
         except Exception as exc:
             reason = f"Nebius provider check failed: {exc}"

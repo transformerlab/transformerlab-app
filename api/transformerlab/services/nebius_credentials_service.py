@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 import stat
 import subprocess
 from typing import Optional
 
 from lab.dirs import HOME_DIR
+
+from transformerlab.services.nebius_cli_resolve import nebius_cli_argv_prefix, nebius_cli_available
 
 NEBIUS_CREDENTIALS_ROOT = os.path.normpath(os.path.join(HOME_DIR, "nebius_credentials"))
 DEFAULT_NEBIUS_ENDPOINT = "api.nebius.cloud"
@@ -78,8 +79,12 @@ def write_nebius_service_account_credentials(
         raise ValueError("Nebius public_key_id is required")
     if not private_key.strip():
         raise ValueError("Nebius private_key is required")
-    if not shutil.which("nebius"):
-        raise RuntimeError("Nebius CLI is not installed or not on PATH. Install `nebius` on the API server first.")
+    if not nebius_cli_available():
+        raise RuntimeError(
+            "Nebius CLI is not available in this Python environment. "
+            "Install the API dependencies (e.g. `nebius` is listed in api/pyproject.toml) "
+            "and run the API with that same interpreter/venv."
+        )
 
     credentials_dir = get_nebius_credentials_dir(team_id, provider_id)
     os.makedirs(credentials_dir, exist_ok=True)
@@ -95,8 +100,7 @@ def write_nebius_service_account_credentials(
     temp_config_path = _ensure_under_nebius_root(f"{config_path}.tmp")
     if os.path.exists(temp_config_path):
         os.remove(temp_config_path)
-    cmd = [
-        "nebius",
+    cmd = nebius_cli_argv_prefix() + [
         "--config",
         temp_config_path,
         "profile",
