@@ -19,8 +19,9 @@ import os
 import posixpath
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
-from lab.dirs import get_experiment_task_dir, get_workspace_dir
+from lab.dirs import get_workspace_dir
 from lab import storage
+from lab.task_template import TaskTemplate
 
 from transformerlab.services.task_service import task_service
 from transformerlab.services.cache_service import cache, cached
@@ -173,31 +174,16 @@ async def task_list_files(experimentId: str, task_id: str) -> TaskFilesResponse:
       readily available.
     - If file_mounts is set, it will be returned as-is as a list of local paths.
     """
-    # Compute the task directory directly. Going through task_service.get_task_dir
-    # adds several get_dir / isdir / exists round-trips on top of the metadata
-    # read, and each storage call is a thread-pool bounce.
-    task_dir = await get_experiment_task_dir(str(experimentId), str(task_id))
-
-    async def _read_metadata() -> Optional[dict]:
-        # Read index.json directly so we skip the digit-id migration path in
-        # TaskTemplate.get_metadata, which can scan all experiments.
-        try:
-            async with await storage.open(storage.join(task_dir, "index.json"), "r", encoding="utf-8") as f:
-                content = (await f.read()).strip().rstrip("%").strip()
-            return json.loads(content) if content else {}
-        except FileNotFoundError:
-            return None
-        except json.JSONDecodeError:
-            return {}
-
-    async def _ls_local() -> list[str]:
-        try:
-            return await storage.ls(task_dir)
-        except (FileNotFoundError, OSError):
-            return []
-
-    task, entries = await asyncio.gather(_read_metadata(), _ls_local())
-    if task is None:
+    # Read index.json via the SDK helper (skips the digit-id migration path
+    # in TaskTemplate.get_metadata, which can scan all experiments) and list
+    # the task dir contents in parallel.
+    task_template = TaskTemplate(str(task_id), experiment_id=str(experimentId))
+    task_dir = await task_template.get_dir()
+    task, entries = await asyncio.gather(
+        task_template.get_json_data(),
+        task_template.list_files(),
+    )
+    if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
     github_files: list[str] = []
