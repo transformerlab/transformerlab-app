@@ -638,8 +638,11 @@ class Lab:
         except Exception:
             # Never let optional Trackio integration break finish()
             logger.debug("Trackio integration failed during finish()", exc_info=True)
-        if score is not None:
-            _run_async(self._job.update_job_data_field("score", score))  # type: ignore[union-attr]
+        resolved_score: Dict[str, Any] = {}
+        if isinstance(score, dict):
+            resolved_score.update(score)
+        resolved_score.setdefault("discard", False)
+        _run_async(self._job.update_job_data_field("score", resolved_score))  # type: ignore[union-attr]
         if additional_output_path is not None and additional_output_path.strip() != "":
             _run_async(self._job.update_job_data_field("additional_output_path", additional_output_path))  # type: ignore[union-attr]
         if plot_data_path is not None and plot_data_path.strip() != "":

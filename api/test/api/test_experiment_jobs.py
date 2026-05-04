@@ -30,11 +30,11 @@ def test_job_creation_and_management(client):
     assert resp.status_code in (200, 404)
 
     # Test job delete
-    resp = client.get("/experiment/alpha/jobs/delete/1")
+    resp = client.delete("/experiment/alpha/jobs/1")
     assert resp.status_code in (200, 404)
 
     # Test delete all jobs
-    resp = client.get("/experiment/alpha/jobs/delete_all")
+    resp = client.delete("/experiment/alpha/jobs/delete_all")
     assert resp.status_code == 200
 
 

@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "docs: install",
+      "type": "shell",
+      "command": "yarn install",
+      "options": {
+        "cwd": "${workspaceFolder}/transformerlab-docs"
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}

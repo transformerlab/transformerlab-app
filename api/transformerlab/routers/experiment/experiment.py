@@ -15,7 +15,8 @@ from transformerlab.routers.experiment import (
     task as task_router,
 )
 from transformerlab.routers.auth import get_user_and_team
-from transformerlab.services.permission_service import check_permission, require_permission
+from transformerlab.services.permission_service import check_permission, get_user_team, require_permission
+from transformerlab.shared.models.models import TeamRole
 from transformerlab.shared.models.user_model import get_async_session
 
 from werkzeug.utils import secure_filename
@@ -57,6 +58,13 @@ async def experiments_get_all(
     experiments = await experiment_service.experiment_get_all()
     user = user_and_team["user"]
     team_id = user_and_team["team_id"]
+    user_id = str(user.id)
+
+    user_team = await get_user_team(session, user_id, team_id)
+    if user_team is None:
+        return []
+    if user_team.role == TeamRole.OWNER.value:
+        return experiments
 
     filtered_experiments = []
     for experiment in experiments:
@@ -65,11 +73,12 @@ async def experiments_get_all(
             continue
         allowed = await check_permission(
             session=session,
-            user_id=str(user.id),
+            user_id=user_id,
             team_id=team_id,
             resource_type="experiment",
             resource_id=experiment_id,
             action="read",
+            user_team=user_team,
         )
         if allowed:
             filtered_experiments.append(experiment)
