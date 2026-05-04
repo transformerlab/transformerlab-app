@@ -51,7 +51,11 @@ class TaskTemplate(BaseLabResource):
     @classmethod
     async def get(cls, id, experiment_id: str | None = None):
         newobj = cls(id, experiment_id=experiment_id)
-        resource_dir = await newobj.get_dir()
+        # Probe with the no-create variant so a missing task with an arbitrary
+        # experiment_id doesn't leak experiments/<id>/tasks/. Subsequent calls
+        # to _get_json_file are safe: the dir exists, so the makedirs in
+        # get_experiment_tasks_dir is a no-op.
+        resource_dir = await newobj.get_dir_nocreate()
         if not await storage.isdir(resource_dir):
             raise FileNotFoundError(f"Directory for {cls.__name__} with id '{id}' not found")
         json_file = await newobj._get_json_file()
