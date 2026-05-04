@@ -43,7 +43,27 @@ One-time setup. Five things to gather (ask only what you can't infer from contex
 2. **Primary metric** — name (e.g. `eval/loss`), unit, direction (`lower` / `higher` is better).
 3. **Secondary metrics** — names only; tradeoff monitors that don't gate keep/discard.
 4. **Task** — either an existing task ID, or a workload to scaffold via `lab task init`.
-5. **Parallelism** — max concurrent jobs (default `1`; ask before going higher because each running job consumes provider capacity).
+5. **Parallelism** — max concurrent jobs (default `1`; ask before going higher because each running job consumes provider capacity). On non-Local providers (SkyPilot, RunPod, Slurm) **never raise parallelism past 1 without explicit user approval** — each concurrent job costs real money.
+6. **Max iterations** — optional cap to bound cost. If set, the agent stops the loop and reports when reached.
+
+### The fixed-evaluator / mutable-implementation split
+
+The single most important property of the loop is that the agent **cannot cheat the metric**. Structure the task so that:
+
+- The **score computation** — whatever feeds `lab.finish(score=…)` — is treated as a fixed evaluator. List it under **Off limits** in `autoresearch.md`.
+- The **implementation under test** is the only thing the agent edits. List it under **Files in scope**.
+
+For non-trivial workloads, split the task directory into two files:
+
+```
+my-task/
+  score.py      # OFF LIMITS — computes the metric, calls lab.finish(score=…)
+  solve.py      # MUTABLE   — the implementation the agent optimizes
+  main.py       # entrypoint: imports solve, hands result to score
+  task.yaml
+```
+
+If the metric and implementation can't be cleanly separated (e.g. ML training loss is computed inside the training step), pin the **lines** that compute and report the score as off-limits, and call this out explicitly in `autoresearch.md`.
 
 Then execute:
 
@@ -91,6 +111,7 @@ This is the **only file** the workflow writes. A fresh agent (after a context re
 **Secondary metrics:** `<name>`, `<name>`, ...
 **Task:** `<task_id>`
 **Parallelism:** <N>
+**Max iterations:** <N or "unbounded">
 
 ## Objective
 <One paragraph: what's being optimized and the workload behind the metric.>
@@ -100,10 +121,12 @@ The task calls `lab.finish(score={"<primary>": value, ...})`. Use
 `lab job list --score-metric <primary>` to rank.
 
 ## Files in scope
-<Files the agent may modify between iterations.>
+<Files the agent may modify between iterations — the **mutable implementation under test**.>
 
 ## Off limits
-<Files / tasks / providers that must not be touched.>
+<The **fixed evaluator** — the score-computation code that feeds `lab.finish(score=…)` —
+plus any other files / tasks / providers that must not be touched. The agent
+must not modify these even to "fix" a metric regression.>
 
 ## Constraints
 <Hard rules: tests must pass, no new deps, no GPU > X, etc.>
@@ -124,6 +147,13 @@ Update **What's been tried** every ~5 iterations or when a meaningful insight la
 ## `/autoresearch run` — the loop
 
 The agent loops autonomously. Never ask "should I continue?" — keep going until the user interrupts or `/autoresearch off`. One iteration:
+
+0. **Rehydrate.** Don't trust your in-context memory of the session — it drifts and gets compacted away. At the **start of every iteration**, re-read:
+   - `autoresearch.md` (Objective, Files in scope, Off limits, Constraints, Backlog, What's been tried, Max iterations)
+   - The current best + last few runs: `lab --format json job list --score-metric "<primary>" --score-order asc | jq '.[:10]'` (use `desc` if higher is better)
+   - For surprising recent results, the relevant run's description: `lab --format json job info <id> | jq '.description, .job_data.score'`
+
+   This is cheap (a few CLI calls) and is the difference between a coherent 100-iteration session and one that loses the plot at iteration 30.
 
 1. **Pick the next idea.** Read `autoresearch.md` (Backlog + What's been tried) and recent results. Prefer simple structural changes over random hyperparameter jiggling. If stuck, re-read the task code and the best/worst job's logs.
 2. **Edit task code or compose param overrides.** For one-off changes, prefer `lab task edit <id> --from-file ./task.yaml --no-interactive` or per-queue `--param key=value`. Use `lab task upload` for new files. Don't mutate `task.yaml` mid-flight if jobs are queued — race-prone.
@@ -153,6 +183,7 @@ The agent loops autonomously. Never ask "should I continue?" — keep going unti
 The agent stops the loop only when:
 - The user interrupts.
 - `/autoresearch off` is invoked.
+- **Max iterations reached.** If `autoresearch.md` declares a max, count `lab --format json job list | jq 'length'` against it (excluding the baseline) and stop when the cap is hit. Report the cap, the best result, and ask whether to extend.
 - The Backlog is exhausted **and** no new ideas surface after deep re-reading of the task and recent jobs. In that case, write a final summary to **What's been tried** and report.
 
 ### Picking the next idea
