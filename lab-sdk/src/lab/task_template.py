@@ -1,7 +1,13 @@
 from datetime import datetime
 from werkzeug.utils import secure_filename
 
-from .dirs import get_experiment_task_dir, get_experiment_tasks_dir, get_experiments_dir, get_task_dir
+from .dirs import (
+    get_experiment_task_dir,
+    get_experiment_task_dir_nocreate,
+    get_experiment_tasks_dir,
+    get_experiments_dir,
+    get_task_dir,
+)
 from .labresource import BaseLabResource
 from . import storage
 import json
@@ -20,6 +26,19 @@ class TaskTemplate(BaseLabResource):
         task_id_safe = secure_filename(str(self.id))
         if self.experiment_id is not None:
             return await get_experiment_task_dir(self.experiment_id, task_id_safe)
+        task_dir = await get_task_dir()
+        return storage.join(task_dir, task_id_safe)
+
+    async def get_dir_nocreate(self):
+        """
+        Compute the resource directory without creating any parent dirs.
+
+        Use for read/existence checks where the caller passes a possibly
+        invalid experiment_id and we don't want to leak empty directories.
+        """
+        task_id_safe = secure_filename(str(self.id))
+        if self.experiment_id is not None:
+            return await get_experiment_task_dir_nocreate(self.experiment_id, task_id_safe)
         task_dir = await get_task_dir()
         return storage.join(task_dir, task_id_safe)
 
