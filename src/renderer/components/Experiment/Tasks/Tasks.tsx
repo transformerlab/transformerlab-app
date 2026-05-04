@@ -567,7 +567,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       const response = await fetchWithAuth(
         chatAPI.Endpoints.Jobs.Delete(experimentInfo.id, jobId),
         {
-          method: 'GET',
+          method: 'DELETE',
         },
       );
 

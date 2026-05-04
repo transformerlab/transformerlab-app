@@ -663,3 +663,144 @@ def test_job_publish_model_interactive_selects_model_from_job(_mock_require, moc
     mock_get.assert_called_once_with("/experiment/exp1/jobs/10/models")
     called_endpoint = mock_post.call_args.args[0]
     assert "/experiment/exp1/jobs/10/models/adapter-b/save_to_registry?" in called_endpoint
+
+
+# ---------------------------------------------------------------------------
+# Delete command tests
+# ---------------------------------------------------------------------------
+
+
+@patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK"}))
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_delete_no_interactive(_mock_check, _mock_require, mock_delete):
+    """`job delete <id> --no-interactive` deletes without prompting."""
+    result = runner.invoke(app, ["job", "delete", "42", "--no-interactive"])
+    assert result.exit_code == 0, result.output
+    out = strip_ansi(result.output)
+    assert "deleted" in out
+    mock_delete.assert_called_once_with("/experiment/exp1/jobs/42")
+
+
+@patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK"}))
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_delete_interactive_aborts_on_no(_mock_check, _mock_require, mock_delete):
+    """Without `--no-interactive`, replying 'n' aborts the deletion."""
+    result = runner.invoke(app, ["job", "delete", "42"], input="n\n")
+    assert result.exit_code != 0
+    mock_delete.assert_not_called()
+
+
+@patch("transformerlab_cli.commands.job.api.delete")
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_delete_not_found(_mock_check, _mock_require, mock_delete):
+    """A 404 from the API should produce a non-zero exit and a helpful message."""
+    not_found = MagicMock()
+    not_found.status_code = 404
+    not_found.json.return_value = {"detail": "Job not found"}
+    not_found.text = ""
+    mock_delete.return_value = not_found
+
+    result = runner.invoke(app, ["job", "delete", "999", "--no-interactive"])
+    assert result.exit_code == 1
+    out = strip_ansi(result.output)
+    assert "999" in out
+
+
+@patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK"}))
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_delete_json_output(_mock_check, _mock_require, _mock_delete):
+    """`job delete --format json` returns {"deleted": <id>}."""
+    result = runner.invoke(
+        app,
+        ["--format", "json", "job", "delete", "42", "--no-interactive"],
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output.strip())
+    assert data == {"deleted": "42"}
+
+
+@patch("transformerlab_cli.commands.job.api.delete")
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_delete_json_error(_mock_check, _mock_require, mock_delete):
+    """`job delete --format json` emits {"error": ...} on API failure."""
+    err = MagicMock()
+    err.status_code = 500
+    err.json.return_value = {"detail": "boom"}
+    err.text = ""
+    mock_delete.return_value = err
+
+    result = runner.invoke(
+        app,
+        ["--format", "json", "job", "delete", "42", "--no-interactive"],
+    )
+    assert result.exit_code == 1
+    data = json.loads(result.output.strip())
+    assert "error" in data
+
+
+# ---------------------------------------------------------------------------
+# Delete-all command tests
+# ---------------------------------------------------------------------------
+
+
+@patch("transformerlab_cli.commands.job.api.get")
+@patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK"}))
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_delete_all_no_interactive(_mock_check, _mock_require, mock_delete, mock_get):
+    """`job delete-all --no-interactive` deletes all jobs in the current experiment."""
+    mock_get.return_value = _mock_api_response(SAMPLE_JOBS)
+
+    result = runner.invoke(app, ["job", "delete-all", "--no-interactive"])
+    assert result.exit_code == 0, result.output
+    out = strip_ansi(result.output)
+    assert "5" in out
+    mock_delete.assert_called_once_with("/experiment/exp1/jobs/delete_all")
+
+
+@patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response([]))
+@patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK"}))
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_delete_all_interactive_aborts_on_no(_mock_check, _mock_require, mock_delete, _mock_get):
+    """Without `--no-interactive`, replying 'n' aborts delete-all."""
+    result = runner.invoke(app, ["job", "delete-all"], input="n\n")
+    assert result.exit_code != 0
+    mock_delete.assert_not_called()
+
+
+@patch("transformerlab_cli.commands.job.api.get")
+@patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK", "deleted": 5}))
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_delete_all_json_output(_mock_check, _mock_require, _mock_delete, mock_get):
+    """`job delete-all --format json` returns {"deleted": N}."""
+    mock_get.return_value = _mock_api_response(SAMPLE_JOBS)
+
+    result = runner.invoke(
+        app,
+        ["--format", "json", "job", "delete-all", "--no-interactive"],
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output.strip())
+    assert data == {"deleted": 5}
+
+
+@patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response([]))
+@patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK", "deleted": 0}))
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_delete_all_zero_jobs(_mock_check, _mock_require, _mock_delete, _mock_get):
+    """`job delete-all` on an empty experiment reports 0 and exits cleanly."""
+    result = runner.invoke(
+        app,
+        ["--format", "json", "job", "delete-all", "--no-interactive"],
+    )
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip())
+    assert data == {"deleted": 0}

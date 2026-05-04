@@ -909,6 +909,111 @@ def command_job_stop(
         raise typer.Exit(1)
 
 
+def _extract_error_detail(response) -> str:
+    try:
+        payload = response.json()
+        if isinstance(payload, dict):
+            return str(payload.get("detail") or payload.get("message") or response.text or "")
+    except Exception:
+        pass
+    return response.text or ""
+
+
+@app.command("delete")
+def command_job_delete(
+    job_id: str = typer.Argument(..., help="Job ID to delete"),
+    no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
+):
+    """Delete a job."""
+    check_configs(output_format=cli_state.output_format)
+    current_experiment = require_current_experiment()
+    output_format = cli_state.output_format
+
+    if not no_interactive:
+        typer.confirm(f"Delete job {job_id}?", abort=True)
+
+    if output_format != "json":
+        with console.status(f"[bold success]Deleting job {job_id}...[/bold success]", spinner="dots"):
+            response = api.delete(f"/experiment/{current_experiment}/jobs/{job_id}")
+    else:
+        response = api.delete(f"/experiment/{current_experiment}/jobs/{job_id}")
+
+    if response.status_code == 200:
+        if output_format == "json":
+            print(json.dumps({"deleted": job_id}))
+        else:
+            console.print(f"[success]✓[/success] Job [bold]{job_id}[/bold] deleted.")
+        return
+
+    detail = _extract_error_detail(response)
+
+    if response.status_code == 404:
+        if output_format == "json":
+            print(json.dumps({"error": f"Job {job_id} not found", "status_code": 404}))
+        else:
+            console.print(f"[error]Error:[/error] Job {job_id} not found.")
+        raise typer.Exit(1)
+
+    if output_format == "json":
+        print(json.dumps({"error": detail or "Failed to delete job", "status_code": response.status_code}))
+    else:
+        console.print(f"[error]Error:[/error] Failed to delete job. Status code: {response.status_code}")
+        if detail:
+            console.print(f"[error]Detail:[/error] {detail}")
+    raise typer.Exit(1)
+
+
+@app.command("delete-all")
+def command_job_delete_all(
+    no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
+):
+    """Delete all jobs in the current experiment."""
+    check_configs(output_format=cli_state.output_format)
+    current_experiment = require_current_experiment()
+    output_format = cli_state.output_format
+
+    list_response = api.get(f"/experiment/{current_experiment}/jobs/list")
+    existing_count = len(list_response.json()) if list_response.status_code == 200 else 0
+
+    if not no_interactive:
+        typer.confirm(
+            f"Delete all jobs in experiment '{current_experiment}' ({existing_count} jobs)?",
+            abort=True,
+        )
+
+    if output_format != "json":
+        with console.status(
+            f"[bold success]Deleting all jobs in experiment {current_experiment}...[/bold success]",
+            spinner="dots",
+        ):
+            response = api.delete(f"/experiment/{current_experiment}/jobs/delete_all")
+    else:
+        response = api.delete(f"/experiment/{current_experiment}/jobs/delete_all")
+
+    if response.status_code == 200:
+        try:
+            payload = response.json()
+        except Exception:
+            payload = {}
+        deleted_count = existing_count
+        if isinstance(payload, dict) and isinstance(payload.get("deleted"), int):
+            deleted_count = payload["deleted"]
+        if output_format == "json":
+            print(json.dumps({"deleted": deleted_count}))
+        else:
+            console.print(f"[success]✓[/success] Deleted [bold]{deleted_count}[/bold] job(s).")
+        return
+
+    detail = _extract_error_detail(response)
+    if output_format == "json":
+        print(json.dumps({"error": detail or "Failed to delete jobs", "status_code": response.status_code}))
+    else:
+        console.print(f"[error]Error:[/error] Failed to delete jobs. Status code: {response.status_code}")
+        if detail:
+            console.print(f"[error]Detail:[/error] {detail}")
+    raise typer.Exit(1)
+
+
 @app.command("monitor")
 def command_job_monitor():
     """Launch interactive job monitor TUI."""

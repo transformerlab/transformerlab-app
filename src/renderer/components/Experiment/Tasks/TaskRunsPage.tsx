@@ -164,7 +164,7 @@ export default function TaskRunsPage() {
     try {
       const response = await fetchWithAuth(
         chatAPI.Endpoints.Jobs.Delete(experimentInfo.id, jobId),
-        { method: 'GET' },
+        { method: 'DELETE' },
       );
       if (response.ok) {
         addNotification({ type: 'success', message: 'Job deleted.' });

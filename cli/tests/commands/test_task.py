@@ -100,6 +100,152 @@ def test_task_queue_sends_description(_mock_exp, _mock_get, _mock_providers, moc
     assert body["description"] == "hypothesis: larger batch"
 
 
+SAMPLE_TASK_WITH_PARAMS = {
+    "id": "t1",
+    "name": "finetune",
+    "experiment_id": "exp1",
+    "run": "python main.py",
+    "parameters": {
+        "description": "default description",
+        "score": 0.0,
+        "enabled": False,
+        "tag": "baseline",
+    },
+    "config": {},
+}
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_param_override_lands_in_config(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """`lab task queue --param k=v` sends the override in the launch payload's config field."""
+    result = runner.invoke(
+        app,
+        ["task", "queue", "t1", "--no-interactive", "--param", "description=iteration 7"],
+    )
+    assert result.exit_code == 0, result.output
+    _path, body = mock_post.call_args.args
+    assert body["config"]["description"] == "iteration 7"
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_param_yaml_coercion(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """--param values are parsed as YAML scalars: floats, bools, and bare strings."""
+    result = runner.invoke(
+        app,
+        [
+            "task",
+            "queue",
+            "t1",
+            "--no-interactive",
+            "--param",
+            "score=0.42",
+            "--param",
+            "enabled=true",
+            "--param",
+            "tag=baseline",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    _path, body = mock_post.call_args.args
+    cfg = body["config"]
+    assert cfg["score"] == 0.42
+    assert isinstance(cfg["score"], float)
+    assert cfg["enabled"] is True
+    assert cfg["tag"] == "baseline"
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_param_short_flag_overrides_default(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """`-p k=v` (short alias) overrides the default value from task.yaml."""
+    result = runner.invoke(
+        app,
+        ["task", "queue", "t1", "--no-interactive", "-p", "score=9.9"],
+    )
+    assert result.exit_code == 0, result.output
+    _path, body = mock_post.call_args.args
+    assert body["config"]["score"] == 9.9
+    # Other params still get their defaults
+    assert body["config"]["tag"] == "baseline"
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_param_value_with_equals_sign(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """Value containing '=' is preserved (split on first '=' only)."""
+    result = runner.invoke(
+        app,
+        ["task", "queue", "t1", "--no-interactive", "--param", "description=key=value pairs"],
+    )
+    assert result.exit_code == 0, result.output
+    _path, body = mock_post.call_args.args
+    assert body["config"]["description"] == "key=value pairs"
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_param_missing_equals_errors(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """`--param foo` (no '=') fails with a clear error and does not call the API."""
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "--param", "foo"])
+    assert result.exit_code != 0
+    assert "key=value" in strip_ansi(result.output).lower()
+    mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_param_empty_key_errors(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """`--param =5` fails with a clear error."""
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "--param", "=5"])
+    assert result.exit_code != 0
+    assert "empty key" in strip_ansi(result.output).lower()
+    mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_param_unknown_key_errors(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """`--param notdeclared=1` fails hard when key isn't in the task's parameters block."""
+    result = runner.invoke(
+        app,
+        ["task", "queue", "t1", "--no-interactive", "--param", "notdeclared=1"],
+    )
+    assert result.exit_code != 0
+    out = strip_ansi(result.output)
+    assert "notdeclared" in out
+    # Error should list the valid keys so the user can spot a typo
+    assert "score" in out or "description" in out
+    mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_param_when_task_has_no_parameters_errors(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """Passing `--param` when the task declares no parameters fails clearly."""
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "--param", "x=1"])
+    assert result.exit_code != 0
+    assert "no parameters" in strip_ansi(result.output).lower()
+    mock_post.assert_not_called()
+
+
 @patch(
     "transformerlab_cli.commands.task.api.post_json",
     side_effect=[
