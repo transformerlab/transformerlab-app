@@ -139,10 +139,38 @@ async def _job_delete_handler(job_id: str, experimentId: str) -> dict:
 
 @router.put("/{job_id}/job_data")
 async def job_update_job_data(job_id: str, experimentId: str, body: dict = Body(...)):
-    """Update user-facing metadata fields in job_data (favorite, hidden, tags)."""
+    """Update user-facing metadata fields in job_data (favorite, hidden, tags, discard)."""
     updates = body.get("updates", {})
-    ALLOWED_KEYS = {"favorite", "hidden", "tags"}
-    filtered = {k: v for k, v in updates.items() if k in ALLOWED_KEYS}
+    allowed_keys = {"favorite", "hidden", "tags", "discard"}
+    filtered = {k: v for k, v in updates.items() if k in allowed_keys}
+
+    # Keep discard under job_data.score.discard to avoid introducing a new top-level field.
+    if "discard" in filtered:
+        raw_discard_value = filtered.pop("discard")
+        if isinstance(raw_discard_value, bool):
+            discard_value = raw_discard_value
+        elif isinstance(raw_discard_value, int):
+            if raw_discard_value not in (0, 1):
+                raise HTTPException(status_code=422, detail="discard must be a boolean value")
+            discard_value = bool(raw_discard_value)
+        elif isinstance(raw_discard_value, str):
+            normalized_discard_value = raw_discard_value.strip().lower()
+            if normalized_discard_value in {"true", "false"}:
+                discard_value = normalized_discard_value == "true"
+            elif normalized_discard_value:
+                try:
+                    numeric_discard_value = int(normalized_discard_value)
+                except ValueError as exc:
+                    raise HTTPException(status_code=422, detail="discard must be a boolean value") from exc
+                if numeric_discard_value not in (0, 1):
+                    raise HTTPException(status_code=422, detail="discard must be a boolean value")
+                discard_value = bool(numeric_discard_value)
+            else:
+                raise HTTPException(status_code=422, detail="discard must be a boolean value")
+        else:
+            raise HTTPException(status_code=422, detail="discard must be a boolean value")
+        await job_service.job_update_job_data_score_field(job_id, "discard", discard_value, experimentId)
+
     if not filtered:
         return {"message": "No valid keys to update"}
     await job_service.job_update_job_data_insert_key_values(job_id, filtered, experimentId)

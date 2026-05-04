@@ -435,6 +435,27 @@ async def job_update_job_data_insert_key_values(job_id, updates: Dict[str, Any],
         print(f"Error updating job {job_id}: {e}")
 
 
+async def job_update_job_data_score_field(job_id: str, score_key: str, value: Any, experiment_id: str) -> None:
+    """
+    Merge a single key into job_data.score for a job.
+    """
+    try:
+        resolved_id = await _resolve_full_job_id(str(job_id), str(experiment_id))
+        actual_id = resolved_id or str(job_id)
+
+        job = await Job.get(actual_id, experiment_id)
+        current = (await job.get_job_data()) or {}
+        score = current.get("score") if isinstance(current, dict) else {}
+        merged_score = dict(score) if isinstance(score, dict) else {}
+        merged_score[score_key] = value
+        await job.update_job_data_field("score", merged_score)
+
+        await cache.invalidate(f"job:{actual_id}")
+        await cache.delete(_job_cache_key(actual_id))
+    except Exception as e:
+        print(f"Error updating job {job_id} score field {score_key}: {e}")
+
+
 async def job_stop(job_id, experiment_id):
     print("Stopping job: " + str(job_id))
     await job_update_job_data_insert_key_value(job_id, "stop", True, experiment_id)
