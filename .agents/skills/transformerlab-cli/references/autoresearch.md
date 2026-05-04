@@ -18,20 +18,15 @@ Trigger on requests like:
 
 ## Subcommands
 
+Only three commands earn dedicated treatment because they bundle multi-step rituals that aren't obvious from the parent skill alone:
+
 | Subcommand | Purpose |
 |---|---|
-| `/autoresearch init <goal>` | Set up a new session: create experiment, scaffold task + `autoresearch.md`, queue baseline. |
-| `/autoresearch run` | Enter the loop: pick next idea, queue up to N parallel jobs, score, keep/discard, repeat. |
-| `/autoresearch sweep <key=v1,v2,…>` | Add a `sweeps:` block to the task and launch a parallel hyperparameter sweep. |
-| `/autoresearch status` | Print ranked job list for the current session, with best vs baseline summary. |
-| `/autoresearch keep <job_id>` | Mark a job as kept (`lab job discard <id> --undo`). |
-| `/autoresearch discard <job_id>` | Mark a job as discarded (`lab job discard <id>`). |
-| `/autoresearch idea <text>` | Append to the **Backlog** section of `autoresearch.md`. |
-| `/autoresearch finalize` | Summarize best run, update `autoresearch.md`, offer to publish model/dataset. |
-| `/autoresearch stop` | Stop all running jobs in the current autoresearch experiment. |
-| `/autoresearch off` | Exit loop mode. Experiment, jobs, and `autoresearch.md` are preserved. |
+| `/autoresearch init <goal>` | Set up a new session: create experiment, ask provider, scaffold task + `autoresearch.md`, queue baseline. |
+| `/autoresearch run` | Enter the loop: rehydrate, pick next idea, queue up to N parallel jobs, score, keep/discard, sweep stale jobs, repeat. |
+| `/autoresearch finalize` | Summarize best run, update **What's been tried** in `autoresearch.md`, offer to publish model/dataset. |
 
-The workflow is **agent-driven** — these are not real `lab` subcommands. Each one expands into a sequence of `lab` calls described below. Always use `lab --no-interactive`, never `--yes`/`-y`.
+Everything else during a session — checking status, marking a run kept or discarded, adding an idea, stopping running jobs, exiting the loop, launching a sweep — is just the agent running the right `lab` call from the parent skill. See **During-session operations** below for the natural-language → `lab` mapping. Always use `lab --no-interactive`, never `--yes`/`-y`.
 
 ---
 
@@ -144,7 +139,7 @@ must not modify these even to "fix" a metric regression.>
 <Hard rules: tests must pass, no new deps, no GPU > X, etc.>
 
 ## Backlog
-<Promising ideas not yet tried. Use `/autoresearch idea <text>` to append.>
+<Promising ideas not yet tried. Append plain bullets here whenever an idea surfaces but isn't being pursued right now.>
 
 ## What's been tried
 <Updated periodically by the agent. One bullet per cluster of related runs:
@@ -158,7 +153,7 @@ Update **What's been tried** every ~5 iterations or when a meaningful insight la
 
 ## `/autoresearch run` — the loop
 
-The agent loops autonomously. Never ask "should I continue?" — keep going until the user interrupts or `/autoresearch off`. One iteration:
+The agent loops autonomously. Never ask "should I continue?" — keep going until the user interrupts. One iteration:
 
 0. **Rehydrate.** Don't trust your in-context memory of the session — it drifts and gets compacted away. At the **start of every iteration**, re-read:
    - `autoresearch.md` (Objective, Files in scope, Off limits, Constraints, Backlog, What's been tried, Max iterations)
@@ -207,8 +202,7 @@ The agent loops autonomously. Never ask "should I continue?" — keep going unti
 8. **Loop.**
 
 The agent stops the loop only when:
-- The user interrupts.
-- `/autoresearch off` is invoked.
+- The user interrupts or asks to stop the loop.
 - **Max iterations reached.** If `autoresearch.md` declares a max, count `lab --format json job list | jq 'length'` against it (excluding the baseline) and stop when the cap is hit. Report the cap, the best result, and ask whether to extend.
 - The Backlog is exhausted **and** no new ideas surface after deep re-reading of the task and recent jobs. In that case, write a final summary to **What's been tried** and report.
 
@@ -222,9 +216,9 @@ The agent stops the loop only when:
 
 ---
 
-## `/autoresearch sweep <key=v1,v2,…> [<key=v1,v2,…> …]`
+## Hyperparameter sweeps
 
-When testing hyperparameters in parallel, **prefer a Transformer Lab sweep** over manually queuing N jobs. Sweeps are first-class and run as a single coordinated job that fans out internally — better dashboards, single description, single artifact bundle.
+When the user asks to "try a sweep across these params" or the loop hits a pure-hyperparameter idea, **prefer a Transformer Lab sweep** over manually queuing N jobs. Sweeps are first-class and run as a single coordinated job that fans out internally — better dashboards, single description, single artifact bundle.
 
 Edit the task's `task.yaml` to add a `sweeps:` block, then re-apply with `lab task edit`:
 
@@ -248,44 +242,36 @@ lab task queue <TASK_ID> --no-interactive \
 
 Use the agent-driven loop (queue many `lab task queue --param ...` jobs) only for ideas that are **not pure hyperparameter combinations** — e.g. swapping the optimizer, adding a scheduler, restructuring the model. The rule of thumb: if the only thing changing is values inside `parameters:`, use a sweep.
 
-After a sweep job completes, the per-cell results are inside the parent job's artifacts; surface the winning cell with `/autoresearch status`.
+After a sweep job completes, the per-cell results are inside the parent job's artifacts; surface the winning cell using the same ranked list the agent uses everywhere else (see "Show me status" below).
 
 ---
 
-## `/autoresearch status`
+## During-session operations
+
+Once the loop is running, the user will ask for things in plain language. None of these need a dedicated subcommand — the agent runs the right `lab` call from the parent skill and (where useful) synthesizes a short summary on top.
+
+### "Show me status" / "where are we"
 
 ```bash
-# Ranked by primary metric, best first.
+# Ranked by primary metric, best first (use --score-order desc if higher is better).
 lab --format json job list --score-metric "<primary>" --score-order asc | \
   jq -r '.[] | select(.discarded != true)
          | [.id, .status, (.job_data.score // {} | tostring), .description]
          | @tsv' | head -20
 ```
 
-Then synthesize a 5–10 line summary covering:
+Then synthesize 5–10 lines: **Baseline** (the `-m "Baseline …"` run) value, **best non-discarded** run + % improvement vs baseline, **kept vs discarded** counts, **currently running** count (`lab --format json job list --running | jq 'length'`), **top 3 backlog ideas** from `autoresearch.md`.
 
-- **Baseline** (the run with `-m "Baseline …"`): metric value.
-- **Best non-discarded** run: ID, metric, % improvement vs baseline.
-- **Total runs**: kept vs discarded.
-- **Currently running**: count from `lab --format json job list --running | jq 'length'`.
-- **Top 3 ideas in backlog** (from `autoresearch.md`).
-
----
-
-## `/autoresearch keep <job_id>` / `/autoresearch discard <job_id>`
+### "Keep job X" / "discard job X"
 
 ```bash
-lab job discard <JOB_ID>          # mark as discarded
-lab job discard <JOB_ID> --undo   # un-discard (= keep)
+lab job discard <JOB_ID>          # discard
+lab job discard <JOB_ID> --undo   # keep (un-discard)
 ```
 
-Discarded jobs stay in `lab job list` but are excluded from the "best" calculation. They are **not deleted** — their description, score, and logs are preserved as a record of what failed.
+Discarded jobs stay in `lab job list` (description, score, logs preserved) but are excluded from the "best" calculation. The loop already auto-discards any non-baseline run that doesn't beat the current best — explicit user requests usually mean *override* that auto-decision. **Never** `lab job delete` a job; discarding is reversible and preserves the audit trail.
 
-By convention, the agent auto-discards any non-baseline run whose primary metric is equal-or-worse than the current best. Don't delete jobs (`lab job delete`) — discarding is reversible and preserves the audit trail.
-
----
-
-## `/autoresearch idea <text>`
+### "Add an idea: …" / "remember to try …"
 
 Append to the **Backlog** section of `autoresearch.md`:
 
@@ -293,7 +279,19 @@ Append to the **Backlog** section of `autoresearch.md`:
 printf '\n- %s\n' "<text>" >> autoresearch.md
 ```
 
-The agent should also do this proactively whenever a non-trivial idea surfaces during the loop but isn't being pursued right now.
+Also do this proactively whenever a promising idea surfaces during the loop but isn't being pursued right now — don't wait to be asked.
+
+### "Stop everything" / "kill the running jobs"
+
+```bash
+lab --format json job list --running | jq -r '.[].id' | xargs -r -I {} lab job stop {}
+```
+
+Confirm with the user before stopping more than 3 jobs at once. Distinct from the loop's stale-job sweep (which kills only jobs past the configured timeout) — this stops *all* running jobs, on demand.
+
+### "Stop the loop" / "exit autoresearch"
+
+There is no daemon — the loop only runs while this conversation is active. When the user asks to stop, just stop iterating. The experiment, jobs, and `autoresearch.md` are untouched. To resume later: `lab experiment set-default <session-experiment-id>`, re-read `autoresearch.md` + `lab job list --score-metric <primary>`, then `/autoresearch run`.
 
 ---
 
@@ -301,7 +299,7 @@ The agent should also do this proactively whenever a non-trivial idea surfaces d
 
 End-of-session. The agent:
 
-1. Runs `/autoresearch status` to identify the best non-discarded run.
+1. Identifies the best non-discarded run via `lab job list --score-metric <primary>` (see "Show me status" above for the exact incantation).
 2. Updates **What's been tried** in `autoresearch.md` with a final summary: best result, key wins, dead ends, leftover Backlog.
 3. Asks the user whether to publish:
    ```bash
@@ -313,26 +311,6 @@ End-of-session. The agent:
 4. Reports the experiment ID so the user can re-enter via `lab experiment set-default`.
 
 Do **not** delete the experiment. Do **not** delete jobs. The session record is the deliverable.
-
----
-
-## `/autoresearch stop`
-
-Stop all running jobs in the current autoresearch experiment:
-
-```bash
-lab --format json job list --running | \
-  jq -r '.[].id' | \
-  xargs -I {} lab job stop {}
-```
-
-Confirms with the user before stopping more than 3 jobs at once.
-
----
-
-## `/autoresearch off`
-
-Just exits the loop in this conversation — there is no daemon. The experiment, jobs, and `autoresearch.md` are untouched. To resume later: `lab experiment set-default <session-experiment-id>`, re-read `autoresearch.md` + `lab job list --score-metric <primary>`, then `/autoresearch run`.
 
 ---
 

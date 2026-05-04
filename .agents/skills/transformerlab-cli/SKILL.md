@@ -737,9 +737,9 @@ When the user says **"run autoresearch"**, **"optimize X in a loop"**, **"set up
 
 State lives entirely on Transformer Lab — one **experiment** per session, one **job** per iteration (its `-m/--description` is the iteration note, its `score` dict is the result, `lab job discard` is the keep/discard flag). The only file the workflow writes is `autoresearch.md` (objective, files in scope, constraints, backlog, what's been tried).
 
-Subcommands: `init <goal>`, `run`, `sweep <key=v1,v2,…>`, `status`, `keep <job_id>`, `discard <job_id>`, `idea <text>`, `finalize`, `stop`, `off`.
+Subcommands worth naming: `init <goal>`, `run`, `finalize`. Everything else mid-session (status, keep/discard, sweeps, ideas, stopping running jobs, exiting the loop) is just the agent running the right `lab` call from this skill in response to natural-language requests — no dedicated subcommand needed.
 
-**Read `references/autoresearch.md` before running any of these.** It has the full subcommand spec, the `autoresearch.md` template, loop rules (parallelism, keep/discard policy, run-description discipline), and how this maps onto `lab` primitives differently from `pi-autoresearch`.
+**Read `references/autoresearch.md` before doing any of this.** It has the three subcommand workflows, the during-session natural-language → `lab` mapping, the `autoresearch.md` template, loop rules (parallelism, fire-and-advance, stale-job sweep, keep/discard policy, run-description discipline), and how this maps onto `lab` primitives differently from `pi-autoresearch`.
 
 ## Deep-Dive References
 
