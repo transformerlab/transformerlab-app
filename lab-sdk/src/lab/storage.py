@@ -121,7 +121,7 @@ _current_tfl_storage_uri: contextvars.ContextVar[str | None] = contextvars.Conte
     "current_tfl_storage_uri", default=None
 )
 
-# Single source: aws | gcp | azure | localfs (default aws for backward compatibility)
+# Single source: aws | gcp | azure | localfs | juicefs (default aws for backward compatibility)
 STORAGE_PROVIDER = (os.getenv("TFL_STORAGE_PROVIDER") or "aws").strip().lower()
 _AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
 _GCP_PROJECT = os.getenv("GCP_PROJECT", "transformerlab-workspace")
@@ -129,6 +129,7 @@ _AZURE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 _AZURE_ACCOUNT_NAME = os.getenv("AZURE_STORAGE_ACCOUNT")
 _AZURE_ACCOUNT_KEY = os.getenv("AZURE_STORAGE_KEY")
 _AZURE_SAS_TOKEN = os.getenv("AZURE_STORAGE_SAS_TOKEN")
+_JUICEFS_MOUNT_POINT = os.getenv("TFL_JUICEFS_MOUNT_POINT", "/mnt/juicefs")
 
 # Common prefixes that represent remote storage locations handled by this module
 _REMOTE_PATH_PREFIXES: tuple[str, ...] = ("s3://", "gs://", "gcs://", "abfs://")

@@ -9,8 +9,9 @@ import asyncio
 import logging
 import os
 import re
-from typing import List, Optional, Tuple
+import subprocess
 import sys
+from typing import List, Optional, Tuple
 
 from lab.storage import STORAGE_PROVIDER
 
@@ -32,6 +33,10 @@ def validate_cloud_credentials() -> None:
     """
     # If NFS or other non-cloud storage is configured, skip validation
     if STORAGE_PROVIDER == "localfs":
+        return
+
+    if STORAGE_PROVIDER == "juicefs":
+        _validate_juicefs_config()
         return
 
     # Check if cloud storage is enabled
@@ -171,6 +176,27 @@ def _validate_gcp_credentials() -> None:
         sys.exit(1)
 
 
+def _validate_juicefs_config() -> None:
+    """
+    Validate that JuiceFS configuration is present and the volume is mounted.
+
+    Raises:
+        SystemExit: If any required env var is missing or the mount point is not active.
+    """
+    for required in ("TFL_JUICEFS_METADATA_URL", "TFL_JUICEFS_VOLUME_NAME", "TFL_JUICEFS_STORAGE_BACKEND"):
+        if not os.getenv(required):
+            print(f"❌ ERROR: {required} is required when TFL_STORAGE_PROVIDER=juicefs", file=sys.stderr)
+            sys.exit(1)
+    mount_point = os.getenv("TFL_JUICEFS_MOUNT_POINT", "/mnt/juicefs")
+    if not os.path.ismount(mount_point):
+        print(
+            f"❌ ERROR: JuiceFS mount point {mount_point} is not mounted. "
+            "Ensure the JuiceFS volume is mounted before starting the API server.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def _validate_azure_credentials() -> None:
     """
     Validate that Azure storage credentials are available.
@@ -271,6 +297,9 @@ def create_bucket_for_team(team_id: str, profile_name: Optional[str] = None) -> 
             print(f"❌ Failed to create local workspace folder for team {team_id}: {e}")
             return False
 
+    if STORAGE_PROVIDER == "juicefs":
+        return _create_juicefs_directory(team_id)
+
     # Check if TFL_REMOTE_STORAGE_ENABLED is enabled
     tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
     if not tfl_remote_storage_enabled:
@@ -307,7 +336,7 @@ def create_bucket_for_team(team_id: str, profile_name: Optional[str] = None) -> 
         return _create_azure_container(bucket_name, team_id)
 
     print(
-        f"Unsupported TFL_STORAGE_PROVIDER: {STORAGE_PROVIDER}. Supported values: 'aws', 'gcp', 'azure', or 'localfs'"
+        f"Unsupported TFL_STORAGE_PROVIDER: {STORAGE_PROVIDER}. Supported values: 'aws', 'gcp', 'azure', 'localfs', or 'juicefs'"
     )
     return False
 
@@ -472,6 +501,30 @@ def _create_azure_container(container_name: str, team_id: str) -> bool:
         return False
 
 
+def _create_juicefs_directory(team_id: str) -> bool:
+    mount_point = os.getenv("TFL_JUICEFS_MOUNT_POINT", "/mnt/juicefs")
+    quota_gb = int(os.getenv("TFL_JUICEFS_QUOTA_GB", "100"))
+    org_path = os.path.join(mount_point, "orgs", team_id)
+    try:
+        os.makedirs(org_path, exist_ok=True)
+    except OSError as e:
+        print(f"❌ Failed to create JuiceFS directory {org_path}: {e}")
+        return False
+    try:
+        subprocess.run(
+            ["juicefs", "quota", "set", org_path, "--capacity", str(quota_gb)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except Exception as e:
+        stderr_output = e.stderr if hasattr(e, "stderr") else ""
+        print(f"❌ Failed to set JuiceFS quota on {org_path}: {e}\n{stderr_output}".rstrip())
+        return False
+    print(f"✅ Created JuiceFS directory for team {team_id}: {org_path} (quota: {quota_gb} GB)")
+    return True
+
+
 async def create_buckets_for_all_teams(session, profile_name: Optional[str] = None) -> Tuple[int, int, List[str]]:
     """
     Create buckets for all existing teams that don't have buckets yet.
@@ -505,6 +558,8 @@ async def create_buckets_for_all_teams(session, profile_name: Optional[str] = No
             remote_label = "GCS"
         elif STORAGE_PROVIDER == "azure":
             remote_label = "Azure"
+        elif STORAGE_PROVIDER == "juicefs":
+            remote_label = "JuiceFS"
         else:
             remote_label = "S3"
         print(f"Creating buckets for all teams using {remote_label} (TFL_STORAGE_PROVIDER={STORAGE_PROVIDER})")
@@ -551,6 +606,6 @@ async def create_buckets_for_all_teams(session, profile_name: Optional[str] = No
             error_messages.append(error_msg)
             print(f"❌ {error_msg}")
 
-    storage_type = "workspace" if STORAGE_PROVIDER == "localfs" else "bucket"
+    storage_type = "workspace" if STORAGE_PROVIDER in ("localfs", "juicefs") else "bucket"
     print(f"Storage init summary: {success_count} {storage_type}(s) succeeded, {failure_count} failed")
     return (success_count, failure_count, error_messages)

@@ -54,6 +54,32 @@ from lab.storage import STORAGE_PROVIDER
 from werkzeug.utils import secure_filename
 
 
+def _build_juicefs_pod_config(
+    team_id: str,
+    mount_point: str,
+) -> tuple[dict[str, str], str, str]:
+    """
+    Returns (env_vars, mount_command, tfl_storage_uri) for a JuiceFS pod launch.
+
+    The mount command mounts only this org's subdir so the pod cannot access
+    other orgs' data. tfl_storage_uri equals mount_point (already org-scoped).
+    """
+    volume_name = os.getenv("TFL_JUICEFS_VOLUME_NAME", "")
+    if not volume_name:
+        raise ValueError("TFL_JUICEFS_VOLUME_NAME must be set when TFL_STORAGE_PROVIDER=juicefs")
+    env_vars = {
+        "TFL_JUICEFS_METADATA_URL": os.getenv("TFL_JUICEFS_METADATA_URL", ""),
+        "TFL_JUICEFS_VOLUME_NAME": volume_name,
+        "TFL_JUICEFS_MOUNT_POINT": mount_point,
+        "TFL_REMOTE_STORAGE_ENABLED": "true",
+    }
+    mount_cmd = (
+        f"juicefs mount {shlex.quote(volume_name)} {shlex.quote(mount_point)}"
+        f" --subdir {shlex.quote(f'orgs/{team_id}')} --background"
+    )
+    return env_vars, mount_cmd, mount_point
+
+
 async def launch_template_on_provider(
     provider_id: str,
     request: ProviderTemplateLaunchRequest,
@@ -262,6 +288,47 @@ async def launch_template_on_provider(
                 if azure_sas:
                     env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
 
+    # JuiceFS: inject backing object-storage credentials unconditionally
+    # (TFL_REMOTE_STORAGE_ENABLED guards cloud-bucket providers, not JuiceFS).
+    if STORAGE_PROVIDER == "juicefs":
+        juicefs_backend = os.getenv("TFL_JUICEFS_STORAGE_BACKEND", "")
+        if juicefs_backend == "aws":
+            from transformerlab.shared.remote_workspace import get_default_aws_profile
+
+            aws_profile = get_default_aws_profile()
+            aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
+                get_aws_credentials_from_file, aws_profile
+            )
+            if aws_access_key_id and aws_secret_access_key:
+                aws_credentials_dir = RUNPOD_AWS_CREDENTIALS_DIR if provider.type == ProviderType.RUNPOD.value else None
+                aws_setup = generate_aws_credentials_setup(
+                    aws_access_key_id, aws_secret_access_key, aws_profile, aws_credentials_dir=aws_credentials_dir
+                )
+                setup_commands.append(aws_setup)
+                if aws_credentials_dir:
+                    env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
+        elif juicefs_backend == "gcp":
+            gcp_sa_json_path = os.getenv("TFL_GCP_SERVICE_ACCOUNT_JSON_PATH")
+            if gcp_sa_json_path:
+                setup_commands.append(generate_gcp_credentials_setup(gcp_sa_json_path))
+        elif juicefs_backend == "azure":
+            azure_connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+            azure_account = os.getenv("AZURE_STORAGE_ACCOUNT")
+            azure_key = os.getenv("AZURE_STORAGE_KEY")
+            azure_sas = os.getenv("AZURE_STORAGE_SAS_TOKEN")
+            if azure_connection_string or azure_account:
+                setup_commands.append(
+                    generate_azure_credentials_setup(azure_connection_string, azure_account, azure_key, azure_sas)
+                )
+                if azure_connection_string:
+                    env_vars["AZURE_STORAGE_CONNECTION_STRING"] = azure_connection_string
+                if azure_account:
+                    env_vars["AZURE_STORAGE_ACCOUNT"] = azure_account
+                if azure_key:
+                    env_vars["AZURE_STORAGE_KEY"] = azure_key
+                if azure_sas:
+                    env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
+
     # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
     # This runs after AWS credentials are configured so we have access to any remote storage if needed.
     if provider.type != ProviderType.LOCAL.value:
@@ -382,7 +449,14 @@ async def launch_template_on_provider(
     # For localfs, explicitly provide an org-scoped URI so subprocess code can
     # resolve storage without relying on contextvar propagation.
     tfl_storage_uri = None
-    if STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
+    if STORAGE_PROVIDER == "juicefs" and team_id:
+        juicefs_mount_point = os.getenv("TFL_JUICEFS_MOUNT_POINT", "/mnt/juicefs")
+        juicefs_env, juicefs_mount_cmd, tfl_storage_uri = _build_juicefs_pod_config(
+            team_id=str(team_id), mount_point=juicefs_mount_point
+        )
+        env_vars.update(juicefs_env)  # sets TFL_REMOTE_STORAGE_ENABLED=true for pod
+        setup_commands.insert(0, juicefs_mount_cmd)
+    elif STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
         tfl_storage_uri = storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", str(team_id), "workspace")
     else:
         try:
