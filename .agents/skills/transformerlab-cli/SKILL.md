@@ -1,6 +1,6 @@
 ---
 name: transformerlab-cli
-description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "add provider", "configure provider", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset".
+description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, run autonomous experiment loops (autoresearch), or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "add provider", "configure provider", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset", "run autoresearch", "optimize X in a loop", "set up autoresearch", "/autoresearch".
 allowed-tools: Bash(lab *), Bash(curl *beta.lab.cloud*), Bash(curl *localhost:8338*)
 ---
 
@@ -731,11 +731,22 @@ With non-zero exit code.
 
 **If a CLI command appears missing, broken, or returns unexpected output:** investigate (run `--help`, re-read this skill, read the relevant router/service under `api/transformerlab/`), then tell the user what you found. **Don't** silently fall back to `curl` against the REST API or `/openapi.json` — that's the workaround pattern this skill explicitly forbids.
 
+## `/autoresearch` — autonomous experiment loop
+
+When the user says **"run autoresearch"**, **"optimize X in a loop"**, **"set up autoresearch for …"**, or types **`/autoresearch …`**, enter the autoresearch workflow. It's an agent-driven optimization loop layered on top of the `lab` CLI: pick an idea → queue it as a job → score via `lab.finish(score=…)` → keep or `lab job discard` → repeat, up to a parallelism budget. For hyperparameter fan-out, prefer the task's `sweeps:` block over manually queuing N jobs.
+
+State lives entirely on Transformer Lab — one **experiment** per session, one **job** per iteration (its `-m/--description` is the iteration note, its `score` dict is the result, `lab job discard` is the keep/discard flag). The only file the workflow writes is `autoresearch.md` (objective, files in scope, constraints, backlog, what's been tried).
+
+Subcommands: `init <goal>`, `run`, `sweep <key=v1,v2,…>`, `status`, `keep <job_id>`, `discard <job_id>`, `idea <text>`, `finalize`, `stop`, `off`.
+
+**Read `references/autoresearch.md` before running any of these.** It has the full subcommand spec, the `autoresearch.md` template, loop rules (parallelism, keep/discard policy, run-description discipline), and how this maps onto `lab` primitives differently from `pi-autoresearch`.
+
 ## Deep-Dive References
 
 - `references/commands.md` — Full command reference with all options
 - `references/workflows.md` — End-to-end workflow patterns
 - `references/troubleshooting.md` — Error patterns and recovery
+- `references/autoresearch.md` — `/autoresearch` autonomous experiment loop spec
 
 ## Ready-to-Use Templates
 
