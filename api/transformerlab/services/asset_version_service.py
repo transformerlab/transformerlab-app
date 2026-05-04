@@ -174,7 +174,7 @@ async def _list_group_ids(asset_type: str) -> list[str]:
     return ids
 
 
-async def _find_group_by_name(asset_type: str, name: str) -> Optional[str]:
+async def find_group_by_name(asset_type: str, name: str) -> Optional[str]:
     """Look up a group_id by its display name.  Returns None if not found."""
     for gid in await _list_group_ids(asset_type):
         try:
@@ -222,7 +222,7 @@ async def create_version(
 
     if group_id is None:
         # Try to find existing group by name, or create a new one
-        group_id = await _find_group_by_name(asset_type, group_name)
+        group_id = await find_group_by_name(asset_type, group_name)
         if group_id is None:
             group_id = str(uuid.uuid4())
 
@@ -314,7 +314,7 @@ async def update_group(
     index = await _read_index(asset_type, group_id)
 
     if name is not ...:
-        existing_id = await _find_group_by_name(asset_type, name)
+        existing_id = await find_group_by_name(asset_type, name)
         if existing_id is not None and existing_id != group_id:
             raise ValueError(f"A group named '{name}' already exists")
         index["name"] = name

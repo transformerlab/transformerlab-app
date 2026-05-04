@@ -800,9 +800,8 @@ async def create_upload_file(
         # upload — the existence check below keeps re-uploads from spawning
         # phantom v2/v3 versions that all point at the same directory.
         try:
-            existing_groups = await asset_version_service.list_groups("dataset")
-            already_registered = any(g.get("group_name") == dataset_id for g in existing_groups)
-            if not already_registered:
+            existing_group_id = await asset_version_service.find_group_by_name("dataset", dataset_id)
+            if existing_group_id is None:
                 await asset_version_service.create_version(
                     asset_type="dataset",
                     group_name=dataset_id,
