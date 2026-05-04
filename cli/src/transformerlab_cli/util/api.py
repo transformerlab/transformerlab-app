@@ -75,7 +75,7 @@ def _send(
     content: bytes | str | None = None,
     data=None,
     files=None,
-    json=None,
+    json_body=None,
     reraise_transport: bool | None = None,
 ) -> httpx.Response:
     url = f"{BASE_URL()}{path}"
@@ -96,7 +96,7 @@ def _send(
                 content=content,
                 data=data,
                 files=files,
-                json=json,
+                json=json_body,
             )
     except httpx.RequestError as e:
         _transport_failure(e, reraise=reraise)
@@ -178,7 +178,7 @@ def post_json(
     Returns:
         httpx.Response: The response object from the HTTP request.
     """
-    return _send("POST", path, timeout=timeout, json=json_data, reraise_transport=reraise_transport)
+    return _send("POST", path, timeout=timeout, json_body=json_data, reraise_transport=reraise_transport)
 
 
 def post_text(
@@ -261,7 +261,7 @@ def patch(
     Returns:
         httpx.Response: The response object from the HTTP request.
     """
-    return _send("PATCH", path, timeout=timeout, json=json_data, reraise_transport=reraise_transport)
+    return _send("PATCH", path, timeout=timeout, json_body=json_data, reraise_transport=reraise_transport)
 
 
 def delete(path: str, timeout: float = 10.0, reraise_transport: bool | None = None) -> httpx.Response:
