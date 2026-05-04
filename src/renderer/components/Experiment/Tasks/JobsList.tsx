@@ -11,6 +11,7 @@ import MenuItem from '@mui/joy/MenuItem';
 import Dropdown from '@mui/joy/Dropdown';
 import Checkbox from '@mui/joy/Checkbox';
 import Tooltip from '@mui/joy/Tooltip';
+import Chip from '@mui/joy/Chip';
 import {
   Trash2Icon,
   LineChartIcon,
@@ -24,6 +25,7 @@ import {
   EyeOffIcon,
   EyeIcon,
   LinkIcon,
+  BanIcon,
 } from 'lucide-react';
 import { Typography } from '@mui/joy';
 import {
@@ -63,12 +65,40 @@ interface JobsListProps {
   onToggleJobSelected?: (jobId: string) => void;
   onToggleFavorite?: (jobId: string, currentValue: boolean) => void;
   onToggleHidden?: (jobId: string, currentValue: boolean) => void;
+  onToggleDiscard?: (jobId: string, currentValue: boolean) => void;
   hideJobId?: boolean;
   showInteractiveType?: boolean;
   showFilesButton?: boolean;
   forceArtifactsButtonVisible?: boolean;
   onStopPendingChange?: (jobId: string, stopPending: boolean) => void;
 }
+
+const parseDiscardValue = (value: unknown): boolean => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    if (value === 0 || value === 1) {
+      return Boolean(value);
+    }
+    return false;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') {
+      return true;
+    }
+    if (normalized === 'false') {
+      return false;
+    }
+    const numeric = Number.parseInt(normalized, 10);
+    if (Number.isNaN(numeric)) {
+      return false;
+    }
+    return numeric === 1;
+  }
+  return false;
+};
 
 const JobsList: React.FC<JobsListProps> = ({
   jobs,
@@ -92,6 +122,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onToggleJobSelected,
   onToggleFavorite,
   onToggleHidden,
+  onToggleDiscard,
   hideJobId = false,
   showInteractiveType = false,
   showFilesButton = true,
@@ -117,6 +148,61 @@ const JobsList: React.FC<JobsListProps> = ({
     const key = type.toLowerCase();
     if (labels[key]) return labels[key];
     return type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
+  const formatScoreValue = (value: number): string => {
+    if (!Number.isFinite(value)) return String(value);
+    if (Math.abs(value) >= 1000) return value.toFixed(1);
+    if (Math.abs(value) >= 100) return value.toFixed(2);
+    if (Math.abs(value) >= 1) return value.toFixed(3);
+    return value.toFixed(4);
+  };
+
+  const getScoreDisplay = (
+    score: unknown,
+  ): { label: string; tooltip?: string } | null => {
+    if (typeof score === 'number') {
+      return { label: `Score: ${formatScoreValue(score)}` };
+    }
+
+    if (typeof score === 'string') {
+      const parsed = Number.parseFloat(score);
+      if (Number.isFinite(parsed)) {
+        return { label: `Score: ${formatScoreValue(parsed)}` };
+      }
+      if (score.trim()) {
+        return { label: `Score: ${score.trim()}` };
+      }
+      return null;
+    }
+
+    if (score && typeof score === 'object') {
+      const numericEntries = Object.entries(score as Record<string, unknown>)
+        .filter(([key]) => key.toLowerCase() !== 'discard')
+        .map(([key, val]) => [key, Number(val)] as const)
+        .filter(([, val]) => Number.isFinite(val));
+
+      if (numericEntries.length === 0) return null;
+
+      const preferredMetric =
+        numericEntries.find(([key]) => key.toLowerCase() === 'score') ??
+        numericEntries[0];
+      const [firstMetric, firstValue] = preferredMetric;
+
+      const tooltip =
+        numericEntries.length > 1
+          ? numericEntries
+              .map(([metric, val]) => `${metric}: ${formatScoreValue(val)}`)
+              .join(' | ')
+          : undefined;
+
+      return {
+        label: `${firstMetric}: ${formatScoreValue(firstValue)}`,
+        tooltip,
+      };
+    }
+
+    return null;
   };
 
   const formatJobConfig = (job: any) => {
@@ -173,6 +259,7 @@ const JobsList: React.FC<JobsListProps> = ({
     const userInfo = jobData.user_info || {};
     const userDisplay = userInfo.name || userInfo.email || '';
     const providerDisplay = jobData.provider_name || job?.provider_name || '';
+    const scoreDisplay = getScoreDisplay(jobData?.score);
 
     if (job?.placeholder) {
       return (
@@ -212,6 +299,21 @@ const JobsList: React.FC<JobsListProps> = ({
               <b>Title:</b> {taskName}
             </Typography>
           )}
+          {scoreDisplay && (
+            <Tooltip
+              title={scoreDisplay.tooltip || ''}
+              disableHoverListener={!scoreDisplay.tooltip}
+            >
+              <Chip
+                size="sm"
+                color="success"
+                variant="soft"
+                sx={{ mt: 0.5, width: 'fit-content' }}
+              >
+                {scoreDisplay.label}
+              </Chip>
+            </Tooltip>
+          )}
         </>
       );
     }
@@ -238,6 +340,21 @@ const JobsList: React.FC<JobsListProps> = ({
             <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
               <b>Provider:</b> {providerDisplay}
             </Typography>
+          )}
+          {scoreDisplay && (
+            <Tooltip
+              title={scoreDisplay.tooltip || ''}
+              disableHoverListener={!scoreDisplay.tooltip}
+            >
+              <Chip
+                size="sm"
+                color="success"
+                variant="soft"
+                sx={{ mt: 0.5, width: 'fit-content' }}
+              >
+                {scoreDisplay.label}
+              </Chip>
+            </Tooltip>
           )}
         </>
       );
@@ -604,6 +721,28 @@ const JobsList: React.FC<JobsListProps> = ({
                             ) : (
                               <>
                                 <EyeOffIcon size={16} /> Hide
+                              </>
+                            )}
+                          </MenuItem>
+                          <MenuItem
+                            onClick={() =>
+                              onToggleDiscard?.(
+                                String(job.id),
+                                parseDiscardValue(
+                                  job?.job_data?.score?.discard,
+                                ),
+                              )
+                            }
+                          >
+                            {parseDiscardValue(
+                              job?.job_data?.score?.discard,
+                            ) ? (
+                              <>
+                                <BanIcon size={16} /> Unmark discard
+                              </>
+                            ) : (
+                              <>
+                                <BanIcon size={16} /> Mark discard
                               </>
                             )}
                           </MenuItem>
