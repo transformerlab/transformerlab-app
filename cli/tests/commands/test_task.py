@@ -135,6 +135,45 @@ def test_task_edit_updates_yaml_from_file(_mock_exp, _mock_get, mock_put, _mock_
     assert submit_path == "/experiment/exp1/task/t1/yaml"
 
 
+@patch("transformerlab_cli.commands.task.api.post_text", return_value=_mock_resp({"valid": True}))
+@patch("transformerlab_cli.commands.task.api.put", return_value=_mock_resp({"received": [0]}))
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp({"received": []}))
+@patch("transformerlab_cli.commands.task.api.post_json")
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_edit_from_dir_uploads_directory_zip(_mock_exp, mock_post_json, _mock_get, _mock_put, _mock_post_text):
+    """`lab task edit --from-dir` zips the directory and POSTs to the /edit endpoint."""
+    mock_post_json.side_effect = [
+        _mock_resp({"upload_id": "up-1", "chunk_size": 64 * 1024 * 1024}),
+        _mock_resp({"status": "ok"}),
+        _mock_resp({"id": "t1"}),
+    ]
+    with runner.isolated_filesystem():
+        task_dir = Path("task")
+        task_dir.mkdir()
+        (task_dir / "task.yaml").write_text("name: demo\nrun: python main.py\n", encoding="utf-8")
+        (task_dir / "main.py").write_text("print('hi')\n", encoding="utf-8")
+        result = runner.invoke(app, ["task", "edit", "t1", "--from-dir", str(task_dir), "--no-interactive"])
+    assert result.exit_code == 0, result.output
+    submit_path = mock_post_json.call_args_list[-1].args[0]
+    assert submit_path == "/experiment/exp1/task/t1/edit?upload_id=up-1"
+
+
+def test_task_edit_rejects_from_file_and_from_dir_together():
+    """`lab task edit --from-file ... --from-dir ...` is rejected as mutually exclusive."""
+    with runner.isolated_filesystem():
+        task_yaml = Path("task.yaml")
+        task_yaml.write_text("name: demo\n", encoding="utf-8")
+        task_dir = Path("task")
+        task_dir.mkdir()
+        (task_dir / "task.yaml").write_text("name: demo\n", encoding="utf-8")
+        result = runner.invoke(
+            app,
+            ["task", "edit", "t1", "--from-file", str(task_yaml), "--from-dir", str(task_dir)],
+        )
+    assert result.exit_code != 0
+    assert "mutually exclusive" in strip_ansi(result.output)
+
+
 @patch("transformerlab_cli.commands.task.api.put", return_value=_mock_resp({"received": [0]}))
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp({"received": []}))
 @patch("transformerlab_cli.commands.task.api.post_json")
