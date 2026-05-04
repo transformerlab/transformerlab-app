@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from transformerlab.compute_providers.models import ClusterConfig
 from transformerlab.compute_providers.nebius import NEBIUS_AUTO_SUBNET_NAME, NebiusProvider
 
 
@@ -16,9 +17,7 @@ def test_resolve_subnet_uses_configured_id() -> None:
 
 def test_resolve_subnet_reuses_existing_list() -> None:
     p = NebiusProvider(team_id="t1", parent_id="proj-a", subnet_id=None)
-    p._run_nebius = MagicMock(
-        return_value={"subnets": [{"metadata": {"id": "sn-1", "name": "s1"}}]}
-    )
+    p._run_nebius = MagicMock(return_value={"subnets": [{"metadata": {"id": "sn-1", "name": "s1"}}]})
     assert p._resolve_subnet_id_for_launch() == "sn-1"
     p._run_nebius.assert_called_once()
     assert p._resolved_subnet_id == "sn-1"
@@ -52,3 +51,21 @@ def test_resolve_subnet_requires_parent_when_no_subnet() -> None:
     p = NebiusProvider(team_id="t1", parent_id=None, subnet_id=None)
     with pytest.raises(ValueError, match="parent_id"):
         p._resolve_subnet_id_for_launch()
+
+
+def test_cloud_init_includes_self_termination_trap() -> None:
+    p = NebiusProvider(team_id="t1")
+    user_data = p._build_cloud_init("cluster-a", ClusterConfig(run="echo hello"), public_key="ssh-ed25519 AAAATEST")
+    assert "_tfl_self_terminate" in user_data
+    assert "trap _tfl_self_terminate EXIT" in user_data
+
+
+def test_cloud_init_self_termination_fallbacks() -> None:
+    p = NebiusProvider(team_id="t1")
+    user_data = p._build_cloud_init("cluster-a", ClusterConfig(run="echo hello"), public_key="ssh-ed25519 AAAATEST")
+    assert "_tfl_self_delete_instance" in user_data
+    assert "_tfl_ensure_nebius_cli" in user_data
+    assert "https://storage.eu-north1.nebius.cloud/cli/install.sh | bash" in user_data
+    assert 'export PATH="$HOME/.nebius/bin:$PATH"' in user_data
+    assert 'nebius compute instance delete --id "$_iid" --async' in user_data
+    assert "shutdown -h now || poweroff || true" in user_data

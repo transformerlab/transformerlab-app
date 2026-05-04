@@ -293,7 +293,7 @@ class NebiusProvider(ComputeProvider):
             return "ubuntu24.04-cuda13.0"
         return "ubuntu24.04-driverless"
 
-    def _build_cloud_init(self, config: ClusterConfig, public_key: str) -> str:
+    def _build_cloud_init(self, cluster_name: str, config: ClusterConfig, public_key: str) -> str:
         env_exports_lines = []
         for key, value in config.env_vars.items():
             if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
@@ -302,7 +302,57 @@ class NebiusProvider(ComputeProvider):
         env_exports = "\n".join(env_exports_lines)
         setup_block = config.setup or ""
         run_cmd = config.run or ""
+        parent_id_env = shlex.quote(self.parent_id) if self.parent_id else ""
         script = f"""set -eo pipefail
+# Best-effort self-delete on EXIT (success or crash) via Nebius control plane.
+# Fallback is guest shutdown if delete is unavailable.
+TFL_CLUSTER_NAME={shlex.quote(cluster_name)}
+TFL_NEBIUS_PARENT_ID={parent_id_env}
+
+_tfl_self_delete_instance() {{
+  local _iid=""
+
+  _tfl_ensure_nebius_cli() {{
+    if command -v nebius >/dev/null 2>&1; then
+      return 0
+    fi
+    # Best effort: install Nebius CLI using the same installer used by api/install.sh.
+    if command -v curl >/dev/null 2>&1; then
+      curl -sSL https://storage.eu-north1.nebius.cloud/cli/install.sh | bash >/dev/null 2>&1 || true
+      export PATH="$HOME/.nebius/bin:$PATH"
+    fi
+    command -v nebius >/dev/null 2>&1
+  }}
+
+  # Try common metadata endpoints first.
+  _iid=$(curl -sf http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || true)
+  if [ -z "$_iid" ]; then
+    _iid=$(curl -sf -H "Metadata-Flavor: Google" \
+      "http://169.254.169.254/computeMetadata/v1/instance/id" 2>/dev/null || true)
+  fi
+
+  # Fallback: resolve id by cluster name when parent_id and CLI are available.
+  if [ -z "$_iid" ] && [ -n "$TFL_NEBIUS_PARENT_ID" ] && _tfl_ensure_nebius_cli; then
+    _iid=$(nebius compute instance list --parent-id "$TFL_NEBIUS_PARENT_ID" --format json 2>/dev/null | \
+      python3 -c 'import json,sys; data=json.load(sys.stdin); items=(data.get("items") or data.get("instances") or []); \
+name="'$TFL_CLUSTER_NAME'"; print(next((str((i.get("metadata") or {{}}).get("id") or i.get("id") or "") for i in items if ((i.get("metadata") or {{}}).get("name") or i.get("name"))==name), ""))' \
+      2>/dev/null || true)
+  fi
+
+  if [ -n "$_iid" ] && _tfl_ensure_nebius_cli; then
+    nebius compute instance delete --id "$_iid" --async >/dev/null 2>&1 || true
+  fi
+  return 0
+}}
+
+_tfl_self_terminate() {{
+  _tfl_self_delete_instance || true
+  sync || true
+  shutdown -h now || poweroff || true
+  return 0
+}}
+trap _tfl_self_terminate EXIT
+
 mkdir -p /workspace
 apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3 python3-venv python3-pip curl ca-certificates >/dev/null 2>&1
@@ -318,9 +368,6 @@ set +e
 ({run_cmd}) 2>&1 | tee {NEBIUS_RUN_LOGS_PATH}
 _exit_code=${{PIPESTATUS[0]}}
 set -e
-sync
-# With recovery_policy=FAIL, guest shutdown stops the VM after the task finishes.
-shutdown -h now || true
 exit $_exit_code
 """
         indented_script = "\n".join(f"      {line}" for line in script.splitlines())
@@ -493,7 +540,7 @@ runcmd:
         public_key = asyncio.run(_ensure_and_get_public_key())
         platform, preset = self._resolve_platform_preset(config)
         image_family = self._image_family_for_platform(platform)
-        cloud_init_user_data = self._build_cloud_init(config, public_key)
+        cloud_init_user_data = self._build_cloud_init(cluster_name, config, public_key)
 
         metadata: Dict[str, Any] = {"name": cluster_name}
         if self.parent_id:
