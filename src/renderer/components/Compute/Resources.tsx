@@ -230,14 +230,13 @@ const Resources = () => {
 
     if (isFixed) {
       fixedClusters.push(cluster);
-      fixedClusters.backend_type = cluster.backend_type;
     } else {
       elasticClusters.push(cluster);
-      elasticClusters.backend_type = cluster.backend_type;
 
       // Group by cloud provider (use cloud_provider field if available, otherwise cluster_name)
       const cloudName =
         cluster.cloud_provider?.toUpperCase() ||
+        cluster.backend_type?.toUpperCase() ||
         cluster.cluster_name.toUpperCase();
       if (!cloudGroups[cloudName]) {
         cloudGroups[cloudName] = [];
@@ -268,7 +267,6 @@ const Resources = () => {
       </Box>
     );
   }
-  console.log(providers);
   return (
     <Box sx={{ maxHeight: '80vh', overflowY: 'auto', p: 3, pb: 10 }}>
       <Stack
@@ -679,6 +677,7 @@ const Resources = () => {
                         const cloudType = isFixed
                           ? backendType
                           : cluster.cloud_provider?.toUpperCase() ||
+                            cluster.backend_type?.toUpperCase() ||
                             cluster?.cluster_name.toUpperCase();
 
                         return (
