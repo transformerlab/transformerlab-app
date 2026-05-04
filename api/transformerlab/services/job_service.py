@@ -347,18 +347,51 @@ async def job_count_running():
     return await Job.count_running_jobs()
 
 
-async def job_delete_all(experiment_id):
-    if experiment_id is not None:
-        experiment = Experiment(experiment_id)
-        await experiment.delete_all_jobs()
+async def job_delete_all(experiment_id) -> int:
+    """Soft-delete all jobs in an experiment.
+
+    Returns the number of jobs that existed when the operation started so the
+    caller can report progress. Per-job cache entries are invalidated so terminal
+    statuses cached for 7 days don't keep deleted jobs visible in /jobs/list.
+    """
+    if experiment_id is None:
+        return 0
+
+    job_ids = await _list_experiment_job_ids(experiment_id)
+    if not job_ids:
+        return 0
+
+    experiment = Experiment(experiment_id)
+    await experiment.delete_all_jobs()
+
+    for job_id in job_ids:
+        try:
+            await cache.invalidate(f"job:{job_id}")
+            await cache.delete(_job_cache_key(job_id))
+        except Exception:
+            logger.exception("Failed to invalidate cache after delete_all (job_id=%s)", job_id)
+
+    return len(job_ids)
 
 
 async def job_delete(job_id, experiment_id):
+    """Soft-delete a job (sets status to DELETED).
+
+    Raises FileNotFoundError if the job directory does not exist; other exceptions
+    propagate so the caller can return a meaningful HTTP error.
+    """
+    resolved_id = await _resolve_full_job_id(str(job_id), str(experiment_id))
+    actual_id = resolved_id or str(job_id)
+
+    job = await Job.get(actual_id, experiment_id)
+    await job.delete()
+
+    # Invalidate cache so subsequent listings/reads see the DELETED status.
     try:
-        job = await Job.get(job_id, experiment_id)
-        await job.delete()
-    except Exception as e:
-        print(f"Error deleting job {job_id}: {e}")
+        await cache.invalidate(f"job:{actual_id}")
+        await cache.delete(_job_cache_key(actual_id))
+    except Exception:
+        logger.exception("Failed to invalidate cache after job delete (job_id=%s)", actual_id)
 
 
 async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id):
@@ -400,6 +433,27 @@ async def job_update_job_data_insert_key_values(job_id, updates: Dict[str, Any],
         await cache.delete(key)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
+
+
+async def job_update_job_data_score_field(job_id: str, score_key: str, value: Any, experiment_id: str) -> None:
+    """
+    Merge a single key into job_data.score for a job.
+    """
+    try:
+        resolved_id = await _resolve_full_job_id(str(job_id), str(experiment_id))
+        actual_id = resolved_id or str(job_id)
+
+        job = await Job.get(actual_id, experiment_id)
+        current = (await job.get_job_data()) or {}
+        score = current.get("score") if isinstance(current, dict) else {}
+        merged_score = dict(score) if isinstance(score, dict) else {}
+        merged_score[score_key] = value
+        await job.update_job_data_field("score", merged_score)
+
+        await cache.invalidate(f"job:{actual_id}")
+        await cache.delete(_job_cache_key(actual_id))
+    except Exception as e:
+        print(f"Error updating job {job_id} score field {score_key}: {e}")
 
 
 async def job_stop(job_id, experiment_id):
