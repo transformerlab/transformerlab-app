@@ -196,6 +196,7 @@ class NebiusProvider(ComputeProvider):
         parent_id: Optional[str] = None,
         subnet_id: Optional[str] = None,
         profile: Optional[str] = None,
+        config_path: Optional[str] = None,
         region: Optional[str] = None,
         default_platform: Optional[str] = None,
         default_preset: Optional[str] = None,
@@ -208,6 +209,7 @@ class NebiusProvider(ComputeProvider):
         self.parent_id = parent_id
         self.subnet_id = subnet_id
         self.profile = profile
+        self.config_path = config_path
         self.region = region
         self.default_platform = default_platform
         self.default_preset = default_preset
@@ -218,6 +220,8 @@ class NebiusProvider(ComputeProvider):
 
     def _base_cmd(self) -> List[str]:
         cmd = ["nebius"]
+        if self.config_path:
+            cmd.extend(["--config", self.config_path])
         if self.profile:
             cmd.extend(["--profile", self.profile])
         return cmd

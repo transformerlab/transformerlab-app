@@ -293,6 +293,7 @@ def db_record_to_provider_config(
         team_id=config_dict.get("team_id")
         or (record.team_id if record.type in (ProviderType.AWS.value, ProviderType.NEBIUS.value) else None),
         nebius_profile=config_dict.get("nebius_profile"),
+        nebius_config_path=config_dict.get("nebius_config_path"),
         parent_id=config_dict.get("parent_id"),
         subnet_id=config_dict.get("subnet_id"),
         default_platform=config_dict.get("default_platform"),

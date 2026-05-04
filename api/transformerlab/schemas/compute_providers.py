@@ -41,6 +41,7 @@ class ProviderConfigBase(BaseModel):
 
     # Nebius-specific config
     nebius_profile: Optional[str] = None  # Nebius CLI profile name
+    nebius_config_path: Optional[str] = None  # Provider-scoped Nebius CLI config path
     parent_id: Optional[str] = None  # Nebius project/parent ID
     subnet_id: Optional[str] = None  # Nebius VPC subnet ID
     default_platform: Optional[str] = None  # e.g. "gpu-h100-sxm" or "cpu-d3"

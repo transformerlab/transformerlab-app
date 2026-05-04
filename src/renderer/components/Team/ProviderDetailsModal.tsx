@@ -33,6 +33,7 @@ import DstackProviderFields from './providerForms/DstackProviderFields';
 import RunpodProviderFields from './providerForms/RunpodProviderFields';
 import AwsProviderFields from './providerForms/AwsProviderFields';
 import LocalProviderFields from './providerForms/LocalProviderFields';
+import NebiusProviderFields from './providerForms/NebiusProviderFields';
 
 interface ProviderDetailsModalProps {
   open: boolean;
@@ -74,7 +75,6 @@ const DEFAULT_CONFIGS = {
   "region": "us-east-1"
 }`,
   nebius: `{
-  "nebius_profile": "",
   "parent_id": "<Nebius project ID>",
   "subnet_id": "<Nebius subnet ID>",
   "default_platform": "gpu-h100-sxm",
@@ -151,6 +151,11 @@ export default function ProviderDetailsModal({
   const [awsRegion, setAwsRegion] = useState('us-east-1');
   const [awsAccessKeyId, setAwsAccessKeyId] = useState('');
   const [awsSecretAccessKey, setAwsSecretAccessKey] = useState('');
+
+  // Nebius-specific credential fields. Non-sensitive Nebius settings stay in the JSON config.
+  const [nebiusServiceAccountId, setNebiusServiceAccountId] = useState('');
+  const [nebiusPublicKeyId, setNebiusPublicKeyId] = useState('');
+  const [nebiusPrivateKey, setNebiusPrivateKey] = useState('');
 
   const { fetchWithAuth } = useAuth();
   const { data: providerData, isLoading: providerDataLoading } = useAPI(
@@ -514,6 +519,9 @@ export default function ProviderDetailsModal({
       setAwsRegion('us-east-1');
       setAwsAccessKeyId('');
       setAwsSecretAccessKey('');
+      setNebiusServiceAccountId('');
+      setNebiusPublicKeyId('');
+      setNebiusPrivateKey('');
     }
   }, [providerId, providerData]);
 
@@ -557,6 +565,9 @@ export default function ProviderDetailsModal({
       setAwsRegion('us-east-1');
       setAwsAccessKeyId('');
       setAwsSecretAccessKey('');
+      setNebiusServiceAccountId('');
+      setNebiusPublicKeyId('');
+      setNebiusPrivateKey('');
     }
   }, [open]);
 
@@ -814,6 +825,28 @@ export default function ProviderDetailsModal({
     );
   }
 
+  function saveNebiusCredentials(
+    providerIdToSave: string,
+    serviceAccountId: string,
+    publicKeyId: string,
+    privateKey: string,
+  ) {
+    return fetchWithAuth(
+      Endpoints.ComputeProvider.NebiusCredentials(providerIdToSave),
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          service_account_id: serviceAccountId,
+          public_key_id: publicKeyId,
+          private_key: privateKey,
+        }),
+      },
+    );
+  }
+
   const saveProvider = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -869,6 +902,33 @@ export default function ProviderDetailsModal({
           type: 'danger',
           message:
             'Enter both AWS Access Key ID and Secret Access Key, or leave both blank.',
+        });
+        return;
+      }
+
+      const trimmedNebiusServiceAccountId = nebiusServiceAccountId.trim();
+      const trimmedNebiusPublicKeyId = nebiusPublicKeyId.trim();
+      const trimmedNebiusPrivateKey = nebiusPrivateKey.trim();
+      const nebiusCredValues = [
+        trimmedNebiusServiceAccountId,
+        trimmedNebiusPublicKeyId,
+        trimmedNebiusPrivateKey,
+      ];
+      const hasAnyNebiusCreds = nebiusCredValues.some(Boolean);
+      const hasAllNebiusCreds = nebiusCredValues.every(Boolean);
+      if (type === 'nebius' && hasAnyNebiusCreds && !hasAllNebiusCreds) {
+        addNotification({
+          type: 'danger',
+          message:
+            'Enter Nebius Service Account ID, Public Key ID, and Private Key, or leave all credential fields blank.',
+        });
+        return;
+      }
+      if (type === 'nebius' && !providerId && !hasAllNebiusCreds) {
+        addNotification({
+          type: 'danger',
+          message:
+            'Nebius service-account credentials are required when creating a Nebius provider.',
         });
         return;
       }
@@ -930,6 +990,35 @@ export default function ProviderDetailsModal({
               type: 'danger',
               message:
                 'Provider was saved, but saving AWS credentials failed. Open the provider and try again.',
+            });
+            return;
+          }
+        }
+
+        if (type === 'nebius' && hasAllNebiusCreds) {
+          if (!savedProviderId) {
+            addNotification({
+              type: 'danger',
+              message:
+                'Provider was saved, but could not determine provider ID to save Nebius credentials.',
+            });
+            return;
+          }
+          const nebiusCredsResponse = await saveNebiusCredentials(
+            savedProviderId,
+            trimmedNebiusServiceAccountId,
+            trimmedNebiusPublicKeyId,
+            trimmedNebiusPrivateKey,
+          );
+          if (!nebiusCredsResponse.ok) {
+            const errorData = await nebiusCredsResponse
+              .json()
+              .catch(() => ({}));
+            addNotification({
+              type: 'danger',
+              message:
+                (errorData && (errorData.detail || errorData.message)) ||
+                'Provider was saved, but saving Nebius credentials failed. Open the provider and try again.',
             });
             return;
           }
@@ -1207,6 +1296,18 @@ export default function ProviderDetailsModal({
                       awsSecretAccessKey={awsSecretAccessKey}
                       setAwsSecretAccessKey={setAwsSecretAccessKey}
                       awsProfile={awsProfile}
+                    />
+                  )}
+
+                  {type === 'nebius' && (
+                    <NebiusProviderFields
+                      nebiusServiceAccountId={nebiusServiceAccountId}
+                      setNebiusServiceAccountId={setNebiusServiceAccountId}
+                      nebiusPublicKeyId={nebiusPublicKeyId}
+                      setNebiusPublicKeyId={setNebiusPublicKeyId}
+                      nebiusPrivateKey={nebiusPrivateKey}
+                      setNebiusPrivateKey={setNebiusPrivateKey}
+                      providerId={providerId}
                     />
                   )}
 
