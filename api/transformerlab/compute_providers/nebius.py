@@ -518,8 +518,8 @@ runcmd:
             },
             "network_interfaces": [{"name": "eth0", "subnet_id": subnet_id, "ip_address": {}, "public_ip_address": {}}],
         }
-        if self.parent_id:
-            spec["boot_disk"]["managed_disk"]["spec"]["source_image_family"]["parent_id"] = self.parent_id
+        # Note: do NOT set parent_id on source_image_family — public image families are
+        # not scoped to the project and Nebius will reject the request if project ID is used.
         if config.use_spot:
             spec["preemptible"] = {"on_preemption": "STOP"}
         if self.extra_config.get("service_account_id"):
