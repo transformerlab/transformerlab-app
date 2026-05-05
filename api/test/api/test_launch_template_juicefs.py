@@ -1,6 +1,4 @@
-import os
 import pytest
-from unittest.mock import patch
 
 
 def test_build_juicefs_pod_config_env_vars(monkeypatch):
