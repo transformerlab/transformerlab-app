@@ -107,7 +107,7 @@ lab experiment create "autoresearch-${SLUG}-${DATE}" --set-default
 # 2. Scaffold or confirm the task. The task MUST call lab.finish(score={...}).
 mkdir -p "autoresearch-${SLUG}" && cd "autoresearch-${SLUG}"
 lab task init   # if no task exists yet — then edit main.py to compute & report the metric
-echo "y" | lab task add . --no-interactive
+lab task add . --no-interactive
 
 # 3. Write the session plan to experiment notes (template below).
 #    Notes are empty after `lab experiment create`, so a single `append` writes
