@@ -281,3 +281,93 @@ Launch the interactive job monitor TUI.
 ```bash
 lab job monitor
 ```
+
+---
+
+### `model`
+
+Manage versioned model groups on the server. A **group** is a named collection of versions (`v1`, `v2`, …); each version points at an underlying asset (e.g. a HuggingFace model ID). Group directories are keyed by UUID, so the display name is freely editable and group lookups by name resolve to the UUID internally.
+
+#### `model list`
+
+List all model groups.
+
+```bash
+lab --format json model list
+```
+
+#### `model info`
+
+Show details for a single group (by `group_id` or `group_name`).
+
+```bash
+lab --format json model info GROUP
+```
+
+#### `model create`
+
+Create a model group version. If no group with `--name` exists, a new group is created with version `v1`. If the group already exists, a new version is appended with an auto-incremented `vN` label (or `--version-label` to override).
+
+```bash
+# New group + first version (v1)
+lab model create my-hf-model-id --name "My Fine-tuned Model" --description "SFT on custom data"
+
+# Append v2 (and v3, v4, …) by re-using --name. The server scans existing
+# v\d+ labels in the group and picks the next one.
+lab model create my-hf-model-id-v2 --name "My Fine-tuned Model"
+
+# Pin a specific label instead of auto-incrementing. Free-form strings are allowed
+# (only the v\d+ pattern auto-increments). Collisions within a group are rejected.
+lab model create my-hf-model-id-exp --name "My Fine-tuned Model" --version-label "experimental-2026-05"
+```
+
+| Option              | Description                                                                                              |
+|---------------------|----------------------------------------------------------------------------------------------------------|
+| `--name`            | Display name for the model group (required). Re-use to append a new version.                            |
+| `--description`     | Optional description.                                                                                    |
+| `--tag`             | Tag to assign to this version (default: `latest`). Tag is moved off any prior holder in the same group. |
+| `--version-label`   | Explicit label for this version. Omit to let the server auto-compute the next `vN`.                     |
+
+#### `model edit`
+
+Edit a model group's display name or description.
+
+```bash
+lab model edit GROUP --name "New Name" --description "Updated description"
+```
+
+#### `model upload`
+
+Upload local files or directories into a model's storage. Creates the model entry if it doesn't exist.
+
+```bash
+lab model upload MODEL_ID ./path/to/model-dir
+lab model upload MODEL_ID ./tokenizer.json ./config.json
+lab model upload MODEL_ID ./path/to/model-dir --force
+```
+
+| Option        | Description                                       |
+|---------------|---------------------------------------------------|
+| `-f, --force` | Overwrite server-side files that already exist.   |
+
+The upload finalizes by reading `config.json` from the upload root; finalization fails (`cannot finalize: no config.json present`) if one isn't present. Re-running upload against the same `MODEL_ID` skips files that already exist (exit code 2) — pass `--force` to overwrite.
+
+#### `model download`
+
+Download a previously-uploaded model's files to `<dest>/<MODEL_ID>/`.
+
+```bash
+lab model download MODEL_ID ./local-models
+```
+
+#### `model delete`
+
+Delete a model group and all its versions.
+
+```bash
+lab model delete GROUP --yes
+```
+
+| Option   | Description                          |
+|----------|--------------------------------------|
+| `--yes`  | Skip the interactive confirmation.   |
