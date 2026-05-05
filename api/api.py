@@ -446,7 +446,8 @@ def _print_storage_banner():
         # in both cases the SDK uses ~/.transformerlab/workspace.
         from lab.dirs import HOME_DIR
 
-        uri = os.path.join(HOME_DIR, "workspace")
+        # uri = os.path.join(HOME_DIR, "workspace")
+        uri = os.path.join(HOME_DIR, "orgs", "<org_id>", "workspace")
     if effective != STORAGE_PROVIDER:
         # Surface the misconfiguration so operators don't think remote is live.
         print(
