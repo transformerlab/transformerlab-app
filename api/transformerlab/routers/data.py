@@ -1,5 +1,6 @@
 import contextlib
 import json
+import logging
 from PIL import Image as PILImage
 from datasets import load_dataset, load_dataset_builder
 from fastapi import APIRouter, HTTPException, UploadFile, Query, Depends
@@ -24,10 +25,13 @@ from werkzeug.utils import secure_filename
 
 from fastapi import Header
 
-from transformerlab.services import asset_download_service, asset_upload_service
+from transformerlab.services import asset_download_service, asset_upload_service, asset_version_service
 from transformerlab.services import dataset_service as dataset_service_module
 from transformerlab.services.permission_service import require_permission
 from transformerlab.services.upload_service import get_assembled_path, get_filename, delete_upload
+
+
+logger = logging.getLogger(__name__)
 
 
 async def log(msg):
@@ -772,6 +776,7 @@ async def create_upload_file(
                 raise HTTPException(status_code=403, detail="There was a problem uploading the file")
 
     # Update dataset metadata with uploaded files
+    registered = False
     if uploaded_filenames:
         try:
             ds = await dataset_service.get(dataset_id)
@@ -788,7 +793,29 @@ async def create_upload_file(
         except Exception as e:
             print(f"Failed to update dataset metadata with files: {type(e).__name__}: {e}")
 
-    return {"status": "success"}
+        # Register the dataset in the asset_versions registry so it appears in
+        # the Dataset Registry UI alongside datasets created via `lab dataset
+        # download` / job publish. There's no separate `/data/finalize` step
+        # for chunked uploads, so we register here on every successful file
+        # upload — the existence check below keeps re-uploads from spawning
+        # phantom v2/v3 versions that all point at the same directory.
+        try:
+            existing_group_id = await asset_version_service.find_group_by_name("dataset", dataset_id)
+            if existing_group_id is None:
+                await asset_version_service.create_version(
+                    asset_type="dataset",
+                    group_name=dataset_id,
+                    asset_id=dataset_id,
+                    version_label="v1",
+                    tag="latest",
+                )
+                registered = True
+        except Exception as exc:
+            # Registration is a convenience layer — files are already on disk.
+            # Surface the warning but don't fail the upload.
+            logger.warning("Could not register dataset %r in asset_versions: %s", dataset_id, exc)
+
+    return {"status": "success", "registered": registered}
 
 
 class FlushFile:

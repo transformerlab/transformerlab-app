@@ -204,7 +204,27 @@ def test_lab_finish(tmp_path, monkeypatch):
     job_data = lab.get_job_data()
     assert job_data["completion_status"] == "success"
     assert job_data["completion_details"] == "Job completed"
-    assert job_data["score"] == {"accuracy": 0.95}
+    assert job_data["score"] == {"accuracy": 0.95, "discard": False}
+
+
+def test_lab_finish_preserves_explicit_discard_value(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+
+    lab = Lab()
+    lab.init(experiment_id="test_exp")
+
+    lab.finish(message="Job completed", score={"accuracy": 0.95, "discard": True})
+
+    job_data = lab.get_job_data()
+    assert job_data["score"] == {"accuracy": 0.95, "discard": True}
 
 
 def test_lab_finish_with_paths(tmp_path, monkeypatch):
@@ -1206,7 +1226,7 @@ def test_lab_save_model_does_not_call_sync_log_in_async_path(tmp_path, monkeypat
 
 @pytest.mark.asyncio
 async def test_copy_file_mounts_without_lab_init(tmp_path, monkeypatch):
-    """Provider setup runs copy_file_mounts without lab.init(); env matches launch_template."""
+    """Provider setup runs copy_file_mounts without lab.init(); uses experiments/<exp>/tasks/<id> like the API."""
     _fresh(monkeypatch)
     home = tmp_path / "home"
     ws = tmp_path / ".tfl_ws"
@@ -1219,15 +1239,14 @@ async def test_copy_file_mounts_without_lab_init(tmp_path, monkeypatch):
 
     from lab.experiment import Experiment
     from lab.lab_facade import Lab
-    from lab.dirs import get_task_dir
+    from lab.dirs import get_experiment_task_dir
     from lab import storage
 
     exp = await Experiment.create("exp_mounts")
     job = await exp.create_job()
     await job.update_job_data_field("task_id", "mytask")
 
-    task_root = await get_task_dir()
-    task_path = storage.join(task_root, "mytask")
+    task_path = await get_experiment_task_dir(str(exp.id), "mytask")
     await storage.makedirs(task_path, exist_ok=True)
     hello = storage.join(task_path, "hello.txt")
     async with await storage.open(hello, "w") as f:
