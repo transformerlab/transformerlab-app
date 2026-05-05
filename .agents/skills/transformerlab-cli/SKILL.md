@@ -818,7 +818,7 @@ State lives entirely on Transformer Lab — one **experiment** per session, one 
 
 Subcommands worth naming: `init <goal>`, `run`, `finalize`. Everything else mid-session (status, keep/discard, sweeps, ideas, stopping running jobs, exiting the loop) is just the agent running the right `lab` call from this skill in response to natural-language requests — no dedicated subcommand needed.
 
-**Read `references/autoresearch.md` before doing any of this.** It has the three subcommand workflows, the during-session natural-language → `lab` mapping, the experiment-notes template, loop rules (parallelism, fire-and-advance, stale-job sweep, keep/discard policy, run-description discipline), and how this maps onto `lab` primitives differently from `pi-autoresearch`.
+**Read `references/autoresearch.md` before doing any of this.** It has the three subcommand workflows, the during-session natural-language → `lab` mapping, the experiment-notes template, and loop rules (parallelism, fire-and-advance, stale-job sweep, keep/discard policy, run-description discipline).
 
 ## Deep-Dive References
 

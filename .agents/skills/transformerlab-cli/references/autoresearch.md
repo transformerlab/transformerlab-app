@@ -351,7 +351,7 @@ Do **not** delete the experiment. Do **not** delete jobs. The session record is 
 
 ## Run descriptions are the durable record
 
-Because Transformer Lab persists per-job descriptions, **`-m/--description` carries everything pi-autoresearch put in `autoresearch.jsonl`**. Treat each description as a mini commit message for that iteration:
+Because Transformer Lab persists per-job descriptions, **`-m/--description` is the per-run log** — there is no separate `autoresearch.jsonl` to maintain. Treat each description as a mini commit message for that iteration:
 
 1. **What changed vs the prior best run** (params, code, infra). If nothing changed, say so.
 2. **What hypothesis is being tested** (why this run is worth doing).
@@ -368,7 +368,7 @@ Bad descriptions (`"train model"`, `"another run"`) defeat the entire point — 
 
 ---
 
-## Loop discipline (cribbed from pi-autoresearch, adapted)
+## Loop discipline
 
 - **Never stop the loop unless the user interrupts.** The user expects autonomous work.
 - **One iteration per running job slot.** Don't queue past the parallelism budget.
@@ -379,15 +379,15 @@ Bad descriptions (`"train model"`, `"another run"`) defeat the entire point — 
 
 ---
 
-## What this skill does NOT do
+## How common autoresearch concerns are handled
 
-| pi-autoresearch feature | Why it's not here |
+| Concern | How it's handled here |
 |---|---|
-| `autoresearch.jsonl` (per-run log file) | Replaced by job descriptions + `lab job list --score-metric`. |
-| `autoresearch.md` (local plan file) | Replaced by experiment notes (`lab notes`). The plan lives on the experiment record itself; any agent that joins the experiment rehydrates with `lab notes show --raw`. |
-| `autoresearch.sh` benchmark script | Replaced by the task itself: the task computes the metric and calls `lab.finish(score=…)`. |
-| `autoresearch.checks.sh` (correctness gating) | The task should fail (`lab.error(…)`) on correctness violations. The job ends `FAILED`, not `COMPLETE`, and is naturally excluded from "best". |
-| `autoresearch.hooks/` (before/after) | Not yet — possible future addition. For now, agent-side logic in `/lab-autoresearch run` is sufficient. |
+| Per-run log file | Job descriptions (`-m/--description`) + `lab job list --score-metric`. No separate log file. |
+| Session plan file | Experiment notes (`lab notes`). The plan lives on the experiment record itself; any agent that joins the experiment rehydrates with `lab notes show --raw`. |
+| Benchmark script | The task itself computes the metric and calls `lab.finish(score=…)`. |
+| Correctness gating | The task fails (`lab.error(…)`) on correctness violations. The job ends `FAILED`, not `COMPLETE`, and is naturally excluded from "best". |
+| Before/after hooks | Not supported — agent-side logic in `/lab-autoresearch run` covers the needed cases. |
 | Live widget / dashboard | Use the Transformer Lab web UI's job view, or `lab job list --score-metric <primary>`. |
 | Auto-commit on `keep` | Not applicable — task code lives on the server, not in a local git repo. The job record itself is the commit. |
-| Confidence scoring (MAD-based noise floor) | Possible future addition. For now, suggest re-queuing a suspicious-looking improvement once before keeping it. |
+| Confidence scoring (e.g. MAD-based noise floor) | Possible future addition. For now, suggest re-queuing a suspicious-looking improvement once before keeping it. |
