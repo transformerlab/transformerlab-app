@@ -1,4 +1,4 @@
-# `/autoresearch` — Autonomous Experiment Loop
+# `/lab-autoresearch` — Autonomous Experiment Loop
 
 Autonomous optimization loop that runs as a workflow on top of the `lab` CLI: pick an idea, queue it as a job, score it, keep what works, discard what doesn't, repeat. Inspired by [`pi-autoresearch`](https://github.com/davebcn87/pi-autoresearch) but adapted to Transformer Lab — there is no extension, no `autoresearch.jsonl`, no local `autoresearch.md` file, and no separate widget. Everything is stored on the **experiment** and on each **job** record:
 
@@ -40,7 +40,7 @@ The plan lives in experiment notes. See the parent skill's "Experiment Notes" se
 Trigger on requests like:
 
 - "run autoresearch on …", "optimize X in a loop", "set up an autoresearch experiment for …"
-- explicit `/autoresearch …` slash-style invocations the user types
+- explicit `/lab-autoresearch …` slash-style invocations the user types
 
 ## Subcommands
 
@@ -48,15 +48,15 @@ Only three commands earn dedicated treatment because they bundle multi-step ritu
 
 | Subcommand | Purpose |
 |---|---|
-| `/autoresearch init <goal>` | Set up a new session: create experiment, ask provider, scaffold task, **write the plan to `lab notes`**, queue baseline. |
-| `/autoresearch run` | Enter the loop: **`lab notes show --raw` to rehydrate**, pick next idea, queue up to N parallel jobs, score, keep/discard, sweep stale jobs, repeat. |
-| `/autoresearch finalize` | Summarize best run, update **What's been tried** in experiment notes, offer to publish model/dataset. |
+| `/lab-autoresearch init <goal>` | Set up a new session: create experiment, ask provider, scaffold task, **write the plan to `lab notes`**, queue baseline. |
+| `/lab-autoresearch run` | Enter the loop: **`lab notes show --raw` to rehydrate**, pick next idea, queue up to N parallel jobs, score, keep/discard, sweep stale jobs, repeat. |
+| `/lab-autoresearch finalize` | Summarize best run, update **What's been tried** in experiment notes, offer to publish model/dataset. |
 
 Everything else during a session — checking status, marking a run kept or discarded, adding an idea, stopping running jobs, exiting the loop, launching a sweep — is just the agent running the right `lab` call from the parent skill. See **During-session operations** below for the natural-language → `lab` mapping. Always use `lab --no-interactive`, never `--yes`/`-y`.
 
 ---
 
-## `/autoresearch init <goal>`
+## `/lab-autoresearch init <goal>`
 
 One-time setup. Five things to gather (ask only what you can't infer from context):
 
@@ -139,7 +139,7 @@ lab.finish(
 
 ### Experiment notes template
 
-The experiment notes hold the entire session plan — the **single source of truth** that any future agent reads to continue the work. A fresh agent (after a context reset, restart, or `/autoresearch run` resume) runs `lab notes show --raw` plus `lab job list --score-metric <primary>` and continues exactly where the prior session stopped. There is no `autoresearch.md` file; do not create one.
+The experiment notes hold the entire session plan — the **single source of truth** that any future agent reads to continue the work. A fresh agent (after a context reset, restart, or `/lab-autoresearch run` resume) runs `lab notes show --raw` plus `lab job list --score-metric <primary>` and continues exactly where the prior session stopped. There is no `autoresearch.md` file; do not create one.
 
 ```markdown
 # Autoresearch: <goal>
@@ -184,7 +184,7 @@ Update **What's been tried** every ~5 iterations or when a meaningful insight la
 
 ---
 
-## `/autoresearch run` — the loop
+## `/lab-autoresearch run` — the loop
 
 The agent loops autonomously. Never ask "should I continue?" — keep going until the user interrupts. One iteration:
 
@@ -326,11 +326,11 @@ Confirm with the user before stopping more than 3 jobs at once. Distinct from th
 
 ### "Stop the loop" / "exit autoresearch"
 
-There is no daemon — the loop only runs while this conversation is active. When the user asks to stop, just stop iterating. The experiment, jobs, and experiment notes are untouched. To resume later: `lab experiment set-default <session-experiment-id>`, then `lab notes show --raw` + `lab job list --score-metric <primary>` to rehydrate, then `/autoresearch run`.
+There is no daemon — the loop only runs while this conversation is active. When the user asks to stop, just stop iterating. The experiment, jobs, and experiment notes are untouched. To resume later: `lab experiment set-default <session-experiment-id>`, then `lab notes show --raw` + `lab job list --score-metric <primary>` to rehydrate, then `/lab-autoresearch run`.
 
 ---
 
-## `/autoresearch finalize`
+## `/lab-autoresearch finalize`
 
 End-of-session. The agent:
 
@@ -387,7 +387,7 @@ Bad descriptions (`"train model"`, `"another run"`) defeat the entire point — 
 | `autoresearch.md` (local plan file) | Replaced by experiment notes (`lab notes`). The plan lives on the experiment record itself; any agent that joins the experiment rehydrates with `lab notes show --raw`. |
 | `autoresearch.sh` benchmark script | Replaced by the task itself: the task computes the metric and calls `lab.finish(score=…)`. |
 | `autoresearch.checks.sh` (correctness gating) | The task should fail (`lab.error(…)`) on correctness violations. The job ends `FAILED`, not `COMPLETE`, and is naturally excluded from "best". |
-| `autoresearch.hooks/` (before/after) | Not yet — possible future addition. For now, agent-side logic in `/autoresearch run` is sufficient. |
+| `autoresearch.hooks/` (before/after) | Not yet — possible future addition. For now, agent-side logic in `/lab-autoresearch run` is sufficient. |
 | Live widget / dashboard | Use the Transformer Lab web UI's job view, or `lab job list --score-metric <primary>`. |
 | Auto-commit on `keep` | Not applicable — task code lives on the server, not in a local git repo. The job record itself is the commit. |
 | Confidence scoring (MAD-based noise floor) | Possible future addition. For now, suggest re-queuing a suspicious-looking improvement once before keeping it. |
