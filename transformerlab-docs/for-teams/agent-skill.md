@@ -1,5 +1,5 @@
 ---
-sidebar_position: 16
+sidebar_position: 65
 ---
 
 # Agent Skill (for AI Coding Agents)
