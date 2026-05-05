@@ -1,13 +1,16 @@
 import pytest
 
+from transformerlab.services.compute_provider.launch_juicefs import (
+    build_juicefs_install_command,
+    build_juicefs_pod_config,
+)
+
 
 def test_build_juicefs_pod_config_env_vars(monkeypatch):
     monkeypatch.setenv("TFL_JUICEFS_METADATA_URL", "redis://localhost:6379/1")
     monkeypatch.setenv("TFL_JUICEFS_VOLUME_NAME", "myvol")
 
-    from transformerlab.services.compute_provider.launch_template import _build_juicefs_pod_config
-
-    env_vars, mount_cmd, storage_uri = _build_juicefs_pod_config(
+    env_vars, mount_cmd, storage_uri = build_juicefs_pod_config(
         team_id="team-abc",
         mount_point="/mnt/juicefs",
     )
@@ -24,9 +27,7 @@ def test_build_juicefs_pod_config_mount_command(monkeypatch):
     monkeypatch.delenv("TFL_JUICEFS_TOKEN", raising=False)
     monkeypatch.delenv("TFL_JUICEFS_CONSOLE_URL", raising=False)
 
-    from transformerlab.services.compute_provider.launch_template import _build_juicefs_pod_config
-
-    _, mount_cmd, _ = _build_juicefs_pod_config(
+    _, mount_cmd, _ = build_juicefs_pod_config(
         team_id="team-abc",
         mount_point="/mnt/juicefs",
     )
@@ -38,9 +39,7 @@ def test_build_juicefs_pod_config_mount_command_includes_token(monkeypatch):
     monkeypatch.setenv("TFL_JUICEFS_VOLUME_NAME", "myvol")
     monkeypatch.setenv("TFL_JUICEFS_TOKEN", "hosted-token")
 
-    from transformerlab.services.compute_provider.launch_template import _build_juicefs_pod_config
-
-    env_vars, mount_cmd, _ = _build_juicefs_pod_config(
+    env_vars, mount_cmd, _ = build_juicefs_pod_config(
         team_id="team-abc",
         mount_point="/mnt/juicefs",
     )
@@ -62,9 +61,7 @@ def test_build_juicefs_pod_config_mount_command_includes_console_url(monkeypatch
     monkeypatch.setenv("TFL_JUICEFS_TOKEN", "hosted-token")
     monkeypatch.setenv("TFL_JUICEFS_CONSOLE_URL", "http://juicefs-console:8080")
 
-    from transformerlab.services.compute_provider.launch_template import _build_juicefs_pod_config
-
-    env_vars, mount_cmd, _ = _build_juicefs_pod_config(
+    env_vars, mount_cmd, _ = build_juicefs_pod_config(
         team_id="team-abc",
         mount_point="/mnt/juicefs",
     )
@@ -76,9 +73,7 @@ def test_build_juicefs_pod_config_mount_command_includes_console_url(monkeypatch
 def test_build_juicefs_pod_config_custom_mount_point(monkeypatch):
     monkeypatch.setenv("TFL_JUICEFS_VOLUME_NAME", "testvol")
 
-    from transformerlab.services.compute_provider.launch_template import _build_juicefs_pod_config
-
-    env_vars, mount_cmd, storage_uri = _build_juicefs_pod_config(
+    env_vars, mount_cmd, storage_uri = build_juicefs_pod_config(
         team_id="team-xyz",
         mount_point="/custom/mount",
     )
@@ -91,16 +86,12 @@ def test_build_juicefs_pod_config_custom_mount_point(monkeypatch):
 def test_build_juicefs_pod_config_raises_on_empty_volume_name(monkeypatch):
     monkeypatch.delenv("TFL_JUICEFS_VOLUME_NAME", raising=False)
 
-    from transformerlab.services.compute_provider.launch_template import _build_juicefs_pod_config
-
     with pytest.raises(ValueError, match="TFL_JUICEFS_VOLUME_NAME"):
-        _build_juicefs_pod_config(team_id="team-abc", mount_point="/mnt/juicefs")
+        build_juicefs_pod_config(team_id="team-abc", mount_point="/mnt/juicefs")
 
 
 def test_build_juicefs_install_command_installs_when_missing():
-    from transformerlab.services.compute_provider.launch_template import _build_juicefs_install_command
-
-    install_cmd = _build_juicefs_install_command()
+    install_cmd = build_juicefs_install_command()
 
     assert "command -v juicefs" in install_cmd
     assert "https://juicefs.com/static/juicefs" in install_cmd
