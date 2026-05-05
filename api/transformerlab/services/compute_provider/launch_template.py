@@ -571,6 +571,13 @@ async def launch_template_on_provider(
         if await storage.isdir(task_src):
             workspace_job_dir = await get_job_dir(job_id, request.experiment_id)
             await copy_task_files_to_dir(task_src, workspace_job_dir)
+            # The local provider runs the user command with cwd=local_provider_job_dir,
+            # which is a separate directory from workspace_job_dir. Copy task files
+            # there too so commands like `python main.py` resolve relative to cwd.
+            if provider.type == ProviderType.LOCAL.value:
+                local_job_dir = provider_config_dict.get("workspace_dir")
+                if local_job_dir:
+                    await copy_task_files_to_dir(task_src, local_job_dir)
 
     job_data = {
         "task_name": request.task_name,
