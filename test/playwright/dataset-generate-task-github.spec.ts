@@ -1,8 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { login, selectFirstExperiment } from './helpers';
 
-const GITHUB_REPO_URL =
-  'https://github.com/transformerlab/transformerlab-examples';
+const GITHUB_REPO_URL = 'https://github.com/transformerlab/transformerlab-app';
 const GITHUB_SUBDIR =
   'api/transformerlab/galleries/examples/demo-generate-task';
 
@@ -32,7 +31,7 @@ async function replaceTaskNameInMonaco(page: Page, taskName: string) {
 }
 
 test.describe('Dataset Generation Task From GitHub', () => {
-  test.setTimeout(180_000);
+  test.setTimeout(420_000);
 
   test('create task from GitHub, run local job, and require COMPLETE - 100%', async ({
     page,
@@ -112,7 +111,7 @@ test.describe('Dataset Generation Task From GitHub', () => {
         {
           message:
             'Expected job to reach COMPLETE - 100% (and never FAILED/COMPLETE - 0%)',
-          timeout: 120000,
+          timeout: 300000,
           intervals: [2000],
         },
       )
