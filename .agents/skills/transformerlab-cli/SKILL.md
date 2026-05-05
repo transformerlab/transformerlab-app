@@ -162,19 +162,26 @@ github_repo_branch: main
 
 To validate without creating, use `lab task add ./my-task --dry-run`.
 
-### Editing task.yaml for an existing task
+### Editing an existing task
 
-Use `lab task edit` to update the `task.yaml` for a task that already exists on the server:
+Use `lab task edit` to update an existing task on the server. Three modes:
 
 ```bash
-# Interactive editor flow
+# Interactive editor flow (opens $EDITOR with current task.yaml)
 lab task edit TASK_ID
 
-# Apply a local task.yaml directly
+# Replace ONLY task.yaml (leaves main.py and other attachments untouched)
 lab task edit TASK_ID --from-file ./task.yaml --no-interactive
+
+# Replace task.yaml AND attachments (main.py, configs, etc.) from a directory
+lab task edit TASK_ID --from-dir ./my-task --no-interactive
 ```
 
-`lab task edit` expects a `TASK_ID` and supports `--from-file`, `--no-interactive`, and `--timeout`.
+**Choosing between `--from-file` and `--from-dir`:**
+- `--from-file <task.yaml>` only updates the YAML. Use it when you're tweaking parameters or the `run` command and the rest of the task directory is unchanged.
+- `--from-dir <directory>` zips and uploads the whole directory (must contain `task.yaml`), replacing the task's files server-side. Use it when you've also modified `main.py` or any sibling files. **If the task's `run` references a script (e.g. `python main.py`), reuploading just the YAML will leave the old script in place — use `--from-dir` to keep them in sync.**
+
+`--from-file` and `--from-dir` are mutually exclusive. `lab task edit` also supports `--no-interactive`, `--dry-run` (with `--from-dir`), and `--timeout`.
 
 ### Uploading extra files to an existing task
 
@@ -690,7 +697,7 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab task info <id>` | Get task details | Yes |
 | `lab task init` | Scaffold `task.yaml` + `main.py` in the current directory (`--interactive` to prompt) | No |
 | `lab task add [dir]` | Add task from directory or `--from-git` URL (`--no-interactive`, `--dry-run`) | Yes |
-| `lab task edit <id>` | Edit an existing task's `task.yaml` (`--from-file`, `--no-interactive`, `--timeout`) | Yes |
+| `lab task edit <id>` | Edit an existing task. `--from-file <task.yaml>` for YAML-only; `--from-dir <dir>` to also replace attachments like `main.py` (`--no-interactive`, `--dry-run`, `--timeout`) | Yes |
 | `lab task upload <id> <path>` | Upload files/directories into an existing task (`--no-interactive`) | Yes |
 | `lab task delete <id>` | Delete a task (`--no-interactive` to skip confirmation) | Yes |
 | `lab task queue <id>` | Queue task on compute provider (`-m/--description` for a markdown run note; `-p/--param key=value` to override task parameters per run; required for agents, see "Always write a run description") | Yes |
