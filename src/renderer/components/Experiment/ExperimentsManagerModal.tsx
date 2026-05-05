@@ -23,6 +23,7 @@ import {
 } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import RenameExperimentModal from './RenameExperimentModal';
 import ShareExperimentModal from './ShareExperimentModal';
 
@@ -67,6 +68,7 @@ export default function ExperimentsManagerModal({
   mutateRecent,
 }: ExperimentsManagerModalProps) {
   const { user, team } = useAuth();
+  const { experimentInfoMutate } = useExperimentInfo();
   const [search, setSearch] = useState('');
   const [renameTarget, setRenameTarget] = useState<Experiment | null>(null);
   const [shareTarget, setShareTarget] = useState<Experiment | null>(null);
@@ -318,6 +320,7 @@ export default function ExperimentsManagerModal({
           onRenamed={() => {
             mutate();
             mutateRecent();
+            experimentInfoMutate();
             setRenameTarget(null);
           }}
         />
