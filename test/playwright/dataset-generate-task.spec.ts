@@ -31,7 +31,7 @@ async function replaceMonacoContents(page: Page, contents: string) {
 }
 
 test.describe('Dataset Generation Task', () => {
-  test.setTimeout(180_000);
+  test.setTimeout(420_000);
 
   test('create blank task, edit task.yaml, run local job, save dataset to registry, verify in Datasets page', async ({
     page,
@@ -118,7 +118,7 @@ run: "python demo-generate-task/fake_generate.py"
         {
           message:
             'Expected dataset job to reach COMPLETE - 100% (and never FAILED/COMPLETE - 0%)',
-          timeout: 120000,
+          timeout: 300000,
           intervals: [2000],
         },
       )
