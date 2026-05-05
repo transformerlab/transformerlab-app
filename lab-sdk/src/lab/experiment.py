@@ -220,10 +220,20 @@ class Experiment(BaseLabResource):
         """
         Creates a new job with a blank template and returns a Job object.
         """
-        # New job IDs are UUIDs so they are globally unique across experiments.
-        new_job_id = str(uuid.uuid4())
+        # New job IDs are UUIDs and should be globally unique, but some shared
+        # filesystems can surface stale metadata/races. Retry with a fresh UUID
+        # if a just-created index file appears to already exist.
+        new_job = None
+        for _ in range(5):
+            new_job_id = str(uuid.uuid4())
+            try:
+                new_job = await Job.create(new_job_id, self.id)
+                break
+            except FileExistsError:
+                continue
+        if new_job is None:
+            raise RuntimeError(f"Unable to create a unique job ID for experiment '{self.id}' after retries")
 
-        new_job = await Job.create(new_job_id, self.id)
         await new_job._update_json_data_field("type", type)
         await new_job.update_job_data_field("experiment_name", self.id)
         return new_job

@@ -199,6 +199,39 @@ async def test_create_job_uses_uuid_and_experiment_dir(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_create_job_retries_after_file_exists_error(tmp_path, monkeypatch):
+    for mod in list(importlib.sys.modules.keys()):
+        if mod.startswith("lab."):
+            importlib.sys.modules.pop(mod)
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.experiment import Experiment
+    from lab.job import Job
+
+    ids = iter(["collision-id", "unique-id"])
+    monkeypatch.setattr("lab.experiment.uuid.uuid4", lambda: next(ids))
+
+    original_create = Job.create
+    attempts = {"count": 0}
+
+    async def flaky_create(job_id, experiment_id):
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise FileExistsError("simulated duplicate job id")
+        return await original_create(job_id, experiment_id)
+
+    monkeypatch.setattr(Job, "create", flaky_create)
+
+    exp = Experiment("alpha")
+    job = await exp.create_job("TRAIN")
+    assert str(job.id) == "unique-id"
+    assert attempts["count"] == 2
+
+
+@pytest.mark.asyncio
 async def test_get_jobs_lists_from_directory(tmp_path, monkeypatch):
     for mod in list(importlib.sys.modules.keys()):
         if mod.startswith("lab."):
