@@ -47,7 +47,10 @@ def test_build_juicefs_pod_config_mount_command_includes_token(monkeypatch):
 
     assert env_vars["TFL_JUICEFS_TOKEN"] == "hosted-token"
     assert 'if [ -n "$ACCESS_KEY" ] && [ -n "$SECRET_KEY" ]; then ' in mount_cmd
-    assert 'juicefs auth myvol --token "$TFL_JUICEFS_TOKEN" --access-key "$ACCESS_KEY" --secret-key "$SECRET_KEY"' in mount_cmd
+    assert (
+        'juicefs auth myvol --token "$TFL_JUICEFS_TOKEN" --access-key "$ACCESS_KEY" --secret-key "$SECRET_KEY"'
+        in mount_cmd
+    )
     assert 'else juicefs auth myvol --token "$TFL_JUICEFS_TOKEN"; fi' in mount_cmd
     assert '--access-key "$ACCESS_KEY" --secret-key "$SECRET_KEY"' in mount_cmd
     assert mount_cmd.endswith("juicefs mount myvol /mnt/juicefs --subdir orgs/team-abc --background")

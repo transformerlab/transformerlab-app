@@ -303,7 +303,9 @@ def _get_fs_and_root():
     env_scoped_remote = tfl_remote_storage_enabled and _is_remote_team_workspace_uri(tfl_uri)
     # JuiceFS pod subprocesses: mount is already org-scoped via --subdir, so TFL_STORAGE_URI
     # is the org workspace root and no context var is needed.
-    env_scoped_juicefs = STORAGE_PROVIDER == "juicefs" and tfl_remote_storage_enabled and bool(os.getenv("TFL_STORAGE_URI"))
+    env_scoped_juicefs = (
+        STORAGE_PROVIDER == "juicefs" and tfl_remote_storage_enabled and bool(os.getenv("TFL_STORAGE_URI"))
+    )
     if (tfl_remote_storage_enabled or uses_localfs_multi_org) and _current_tfl_storage_uri.get() is None:
         # Subprocesses may get an explicit org-scoped URI without contextvars: localfs
         # .../orgs/<id>/workspace, remote s3|gs|abfs://workspace-<team_id>/..., or juicefs pod mount.

@@ -96,9 +96,7 @@ async def build_juicefs_backend_credentials_setup(
         from transformerlab.shared.remote_workspace import get_default_aws_profile
 
         aws_profile = get_default_aws_profile()
-        aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(
-            get_aws_credentials_from_file, aws_profile
-        )
+        aws_access_key_id, aws_secret_access_key = await asyncio.to_thread(get_aws_credentials_from_file, aws_profile)
         if aws_access_key_id and aws_secret_access_key:
             aws_credentials_dir = RUNPOD_AWS_CREDENTIALS_DIR if provider_type == ProviderType.RUNPOD.value else None
             setup_commands.append(
