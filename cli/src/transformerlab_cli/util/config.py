@@ -20,6 +20,32 @@ REQUIRED_CONFIG_KEYS = ["server", "team_id", "user_email"]
 # to avoid repeated file reads
 cached_config = None
 
+# Cached /healthz response so the header doesn't refetch per-process.
+# Sentinel: None = not yet attempted; {} = fetch failed (don't retry).
+_cached_healthz: dict[str, Any] | None = None
+
+
+def _get_storage_label() -> str:
+    """Return a short storage backend label for the header, e.g. 'aws' or '?'."""
+    global _cached_healthz
+    if _cached_healthz is None:
+        _cached_healthz = {}
+        try:
+            # Imported lazily so config import doesn't pull httpx at startup
+            from transformerlab_cli.util.api import get
+
+            response = get("/healthz", timeout=2.0)
+            if response.status_code == 200:
+                _cached_healthz = response.json() or {}
+        except Exception:
+            _cached_healthz = {}
+
+    storage = _cached_healthz.get("storage") if isinstance(_cached_healthz, dict) else None
+    if not isinstance(storage, dict):
+        return "?"
+    provider = storage.get("provider")
+    return str(provider) if provider else "?"
+
 
 def load_config() -> dict[str, Any]:
     """Load config from file, return empty dict if not found.
@@ -222,6 +248,7 @@ def check_configs(output_format: str = "pretty") -> None:
     team_name = config.get("team_id", "N/A")
     server = config.get("server", "N/A")
     experiment = config.get("current_experiment", "N/A")
+    storage = _get_storage_label()
 
     table = Table(show_header=True, header_style="header", box=None, title_justify="left")
 
@@ -229,8 +256,9 @@ def check_configs(output_format: str = "pretty") -> None:
     table.add_column("Team ID", style="value")
     table.add_column("Server", style="value")
     table.add_column("Experiment", style="value")
+    table.add_column("Storage", style="value")
 
-    table.add_row(user_email, team_name, server, experiment)
+    table.add_row(user_email, team_name, server, experiment, storage)
     console.rule()
     one_liner_logo(console)
     console.print(table)
