@@ -202,12 +202,15 @@ lab.log("message")                            # Write to job output log
 lab.update_progress(50)                       # Set progress 0-100
 config = lab.get_config()                     # Read parameters from task.yaml
 
-lab.finish(message="Done!")                   # Mark job as SUCCESS
-lab.error(message="Something went wrong")     # Mark job as FAILED
+lab.finish(message="Done!")                              # success, no score
+lab.finish(message="Done!", score={"accuracy": 0.78})    # success with metric(s)
+lab.finish(score={"accuracy": 0.78, "f1": 0.83})         # multiple metrics
+lab.error(message="Something went wrong")                # Mark job as FAILED
 ```
 
 **Common mistakes:**
 - `lab.finish()` has NO `status` parameter — just `message`. For failures, use `lab.error()`.
+- `score=` takes a **dict** of named metrics, not a scalar. Use `score={"accuracy": 0.78}`, never `score=0.78`. The dict populates `job_data.score`, visible in `lab job list` (Score column) and `lab job info`, and is read by sweep / autoresearch flows.
 - Always call `lab.init()` before any other SDK call.
 - Always call `lab.finish()` or `lab.error()` at the end — otherwise the job stays in RUNNING state.
 
