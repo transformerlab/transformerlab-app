@@ -307,7 +307,7 @@ lab --format json model list
 # Get details for a specific model (by group_id or group_name)
 lab --format json model info GROUP_ID
 
-# Register a new model (e.g. a HuggingFace model ID)
+# Register a new model (e.g. a HuggingFace model ID) — creates a new group with version v1
 lab --format json model create my-hf-model-id --name "My Fine-tuned Model" --description "SFT on custom data"
 
 # Edit a model group's name or description
@@ -316,6 +316,23 @@ lab model edit GROUP_ID --name "New Name" --description "Updated description"
 # Delete a model group and all its versions (--yes to skip confirmation)
 lab model delete GROUP_ID --yes
 ```
+
+### Adding a new version to an existing model group
+
+Re-run `lab model create` with the **same `--name`** as an existing group. The server resolves the group by name and appends a new version with an auto-incremented label (`v2`, `v3`, …). The `latest` tag (or whatever you pass via `--tag`) is moved to the new version automatically.
+
+```bash
+# Adds version v2 to "My Fine-tuned Model" (assuming v1 already exists).
+# The server scans existing v\d+ labels and picks the next one.
+lab --format json model create my-hf-model-id-v2 --name "My Fine-tuned Model" --description "Retrained with more data"
+
+# Pin a specific version label instead of auto-incrementing.
+# Labels are free-form strings — server only auto-increments the v\d+ pattern.
+# Collisions within a group are rejected with an error.
+lab model create my-hf-model-id-exp --name "My Fine-tuned Model" --version-label "experimental-2026-05"
+```
+
+The version label is the human-readable identifier in `lab model info` output. The internal `id` (UUID) remains unique per version regardless of label.
 
 ### Uploading model files
 
@@ -378,19 +395,42 @@ lab --format json dataset list
 # Get details for a specific dataset (by group_id or group_name)
 lab --format json dataset info GROUP_ID
 
-# Upload local files to a dataset (creates it if it doesn't exist)
-lab dataset upload my-dataset train.jsonl eval.jsonl
-
-# Download a dataset from HuggingFace Hub to the server
-lab dataset download Trelis/touch-rugby-rules
-lab dataset download Trelis/touch-rugby-rules --config default
-
 # Edit a dataset group's name or description
 lab dataset edit GROUP_ID --name "New Name" --description "Updated description"
 
 # Delete a dataset group and all its versions (--yes to skip confirmation)
 lab dataset delete GROUP_ID --yes
 ```
+
+### Uploading dataset files
+
+```bash
+# Upload local files/directories to a dataset on the server.
+# Creates the dataset if it doesn't exist; DATASET_ID is what you'll use
+# in subsequent lab dataset commands.
+lab dataset upload DATASET_ID ./train.jsonl ./eval.jsonl
+
+# Upload a directory (preserves relative paths under DATASET_ID/)
+lab dataset upload DATASET_ID ./my-dataset-dir
+
+# Overwrite server-side files that already exist
+lab dataset upload DATASET_ID ./train.jsonl --force
+```
+
+Re-running `lab dataset upload` against the same `DATASET_ID` skips files that already exist on the server and exits with code 2 (skipped some, did not fail). Use `--force` to overwrite. Adding a brand-new file to an existing dataset is a normal upload (no conflict, exit 0) — just include the new path in the command.
+
+The first successful upload registers the dataset in the asset_versions registry as `v1`/`latest`, which is what makes it appear in `lab dataset list`, `lab dataset info`, and the Dataset Registry UI. Re-uploads (with or without `--force`) do **not** spawn a new version — the registry stays at `v1`/`latest` and points at the same on-disk directory. To explicitly create a new version, use `lab job publish dataset` from a job that produced new outputs.
+
+### Downloading dataset files
+
+```bash
+# Download a previously-uploaded dataset to <dest>/<DATASET_ID>/
+lab dataset download DATASET_ID ./local-datasets
+```
+
+Both `DATASET_ID` and `DEST_DIR` are required. The server streams every file in the dataset directory; the destination is created if missing, and files land under `<dest>/<DATASET_ID>/` (including a server-generated `index.json`).
+
+**Note:** `lab dataset download` no longer pulls from HuggingFace Hub — it only downloads a dataset that already lives on the server. To get a HuggingFace dataset onto the server, either (a) upload it via `lab dataset upload` after fetching it locally, or (b) reference it from inside a task's code using `datasets.load_dataset("user/repo")`.
 
 ### Publishing a dataset from a job
 
@@ -412,10 +452,8 @@ When a task needs a specific dataset, ensure it exists on the server **before** 
 # 1. Check if the dataset already exists
 lab --format json dataset list
 
-# 2. If not, download from HuggingFace or upload local files
-lab dataset download user/my-dataset
-# or
-lab dataset upload my-dataset train.jsonl eval.jsonl
+# 2. If not, upload local files (creates the dataset)
+lab dataset upload my-dataset ./train.jsonl ./eval.jsonl
 
 # 3. Reference the dataset in task.yaml parameters
 #    The task code uses lab.get_config()["dataset_id"] to access it
@@ -508,7 +546,7 @@ Provider configs (`api_token`, `api_key`, `ssh_key_path`) contain secrets. If th
 3. **Use `--format json`** when you need to parse output, but be prepared to fall back to pretty output parsing if it doesn't work
 4. **`--no-interactive` on `task queue` silently uses the DEFAULT provider (Local).** There is no `--provider` flag. To target a specific provider, you must drive the interactive prompts (see "Selecting a provider" below).
 5. **`task add` has no `--yes` flag** — pipe `echo "y"` to confirm: `echo "y" | lab task add ./my-task`
-6. **Skip confirmation on destructive commands:** use `--no-interactive` for `provider delete`, and `--yes` / `-y` for `model delete` / `dataset delete` (the flag names differ — verify with `--help`)
+6. **Skip confirmation on destructive commands:** use `--no-interactive` for `provider delete`, `job delete`, and `job delete-all`; use `--yes` / `-y` for `model delete` / `dataset delete` (the flag names differ — verify with `--help`)
 7. **Never use `job monitor`** — it launches a TUI that blocks; use `job list` + `job task-logs` instead
 8. **Never use `task interactive`** unless the user specifically requests an interactive session
 9. **`job task-logs --follow`** streams continuously and blocks until the job finishes — use when the user wants real-time monitoring
@@ -665,6 +703,8 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab job artifacts <id>` | List job artifacts | Yes |
 | `lab job download <id>` | Download artifacts (`--file` for glob) | Yes |
 | `lab job stop <id>` | Stop a running job | Yes |
+| `lab job delete <id>` | Delete a job (`--no-interactive` to skip prompt) | Yes |
+| `lab job delete-all` | Delete all jobs in the current experiment (`--no-interactive` to skip prompt) | Yes |
 | `lab provider list` | List compute providers | No |
 | `lab provider info <id>` | Show provider details | No |
 | `lab provider add` | Add a new provider | No |
@@ -675,15 +715,15 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab provider disable <id>` | Disable a provider | No |
 | `lab model list` | List all model groups | No |
 | `lab model info <id>` | Show model group details (by group_id or group_name) | No |
-| `lab model create <asset_id>` | Create a new model group + first version (`--name`, `--description`, `--tag`) | No |
+| `lab model create <asset_id>` | Create a model group version. New group if `--name` is unused; otherwise appends a new version with auto-incremented `vN` label (or `--version-label` to override). Supports `--description`, `--tag`. | No |
 | `lab model edit <id>` | Edit model group name or description | No |
 | `lab model delete <id>` | Delete a model group and all versions (`--yes` to skip prompt) | No |
 | `lab model upload <id> <path...>` | Upload local files/dirs to a model (creates if needed; `--force` to overwrite) | No |
 | `lab model download <id> <dest>` | Download a model's files to `<dest>/<id>/` | No |
 | `lab dataset list` | List all dataset groups | No |
 | `lab dataset info <id>` | Show dataset group details (by group_id or group_name) | No |
-| `lab dataset upload <id> <files...>` | Upload local files to a dataset (creates if needed) | No |
-| `lab dataset download <id>` | Download a dataset from HuggingFace Hub (`--config` for subset) | No |
+| `lab dataset upload <id> <path...>` | Upload local files/dirs to a dataset (creates if needed; `--force` to overwrite) | No |
+| `lab dataset download <id> <dest>` | Download a dataset's files from the server to `<dest>/<id>/` | No |
 | `lab dataset edit <id>` | Edit dataset group name or description | No |
 | `lab dataset delete <id>` | Delete a dataset group and all versions (`--yes` to skip prompt) | No |
 | `lab job publish model <job_id>` | Publish a model from a job to the registry | Yes |

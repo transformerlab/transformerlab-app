@@ -378,7 +378,9 @@ class Lab:
         task_id = job_data.get("task_id")
         if not task_id:
             return
-        task_template = TaskTemplate(task_id)
+        # Use the same experiment scope as Job.get(); otherwise TaskTemplate falls back to
+        # legacy workspace/task/<id> and misses files under experiments/<exp>/tasks/<id>.
+        task_template = TaskTemplate(task_id, experiment_id=experiment_id)
         task_dir = await task_template.get_dir()
         if not await storage.exists(task_dir):
             return
@@ -660,8 +662,11 @@ class Lab:
         except Exception:
             # Never let optional Trackio integration break finish()
             logger.debug("Trackio integration failed during finish()", exc_info=True)
-        if score is not None:
-            _run_async(self._job.update_job_data_field("score", score))  # type: ignore[union-attr]
+        resolved_score: Dict[str, Any] = {}
+        if isinstance(score, dict):
+            resolved_score.update(score)
+        resolved_score.setdefault("discard", False)
+        _run_async(self._job.update_job_data_field("score", resolved_score))  # type: ignore[union-attr]
         if additional_output_path is not None and additional_output_path.strip() != "":
             _run_async(self._job.update_job_data_field("additional_output_path", additional_output_path))  # type: ignore[union-attr]
         if plot_data_path is not None and plot_data_path.strip() != "":
