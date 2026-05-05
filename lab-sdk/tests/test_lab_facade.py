@@ -1226,7 +1226,7 @@ def test_lab_save_model_does_not_call_sync_log_in_async_path(tmp_path, monkeypat
 
 @pytest.mark.asyncio
 async def test_copy_file_mounts_without_lab_init(tmp_path, monkeypatch):
-    """Provider setup runs copy_file_mounts without lab.init(); env matches launch_template."""
+    """Provider setup runs copy_file_mounts without lab.init(); uses experiments/<exp>/tasks/<id> like the API."""
     _fresh(monkeypatch)
     home = tmp_path / "home"
     ws = tmp_path / ".tfl_ws"
@@ -1239,15 +1239,14 @@ async def test_copy_file_mounts_without_lab_init(tmp_path, monkeypatch):
 
     from lab.experiment import Experiment
     from lab.lab_facade import Lab
-    from lab.dirs import get_task_dir
+    from lab.dirs import get_experiment_task_dir
     from lab import storage
 
     exp = await Experiment.create("exp_mounts")
     job = await exp.create_job()
     await job.update_job_data_field("task_id", "mytask")
 
-    task_root = await get_task_dir()
-    task_path = storage.join(task_root, "mytask")
+    task_path = await get_experiment_task_dir(str(exp.id), "mytask")
     await storage.makedirs(task_path, exist_ok=True)
     hello = storage.join(task_path, "hello.txt")
     async with await storage.open(hello, "w") as f:
