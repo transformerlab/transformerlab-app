@@ -141,7 +141,7 @@ async def _job_delete_handler(job_id: str, experimentId: str) -> dict:
 async def job_update_job_data(job_id: str, experimentId: str, body: dict = Body(...)):
     """Update user-facing metadata fields in job_data (favorite, hidden, tags, discard)."""
     updates = body.get("updates", {})
-    allowed_keys = {"favorite", "hidden", "tags", "discard"}
+    allowed_keys = {"favorite", "hidden", "tags", "discard", "notes"}
     filtered = {k: v for k, v in updates.items() if k in allowed_keys}
 
     # Keep discard under job_data.score.discard to avoid introducing a new top-level field.
@@ -569,7 +569,7 @@ async def get_request_logs(
         raise HTTPException(status_code=500, detail=f"Failed to instantiate provider: {exc}") from exc
 
     try:
-        logs_text = await asyncio.to_thread(provider_instance.get_request_logs, request_id, tail_lines=tail_lines)
+        logs_text = provider_instance.get_request_logs(request_id, tail_lines=tail_lines)
     except NotImplementedError:
         raise HTTPException(
             status_code=400, detail=f"Provider type '{provider_record.type}' does not support request logs"

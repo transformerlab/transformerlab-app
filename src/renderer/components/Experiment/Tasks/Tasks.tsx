@@ -663,6 +663,35 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     }
   };
 
+  const handleSaveNotes = async (jobId: string, notes: string) => {
+    if (!experimentInfo?.id) return;
+    const trimmed = notes;
+    const previousJob = jobsWithPlaceholders.find(
+      (job: any) => String(job?.id) === String(jobId),
+    );
+    const previousNotes =
+      typeof previousJob?.job_data?.notes === 'string'
+        ? previousJob.job_data.notes
+        : '';
+    updateJobDataOptimistic(jobId, 'notes', trimmed);
+    try {
+      const response = await fetchWithAuth(
+        chatAPI.Endpoints.Jobs.UpdateJobData(experimentInfo.id, jobId),
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updates: { notes: trimmed } }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to save notes: ${response.status}`);
+      }
+    } catch (error) {
+      updateJobDataOptimistic(jobId, 'notes', previousNotes);
+      throw error;
+    }
+  };
+
   const handleToggleDiscard = async (jobId: string, currentValue: boolean) => {
     if (!experimentInfo?.id) return;
     const newValue = !currentValue;
@@ -1544,6 +1573,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             onToggleFavorite={handleToggleFavorite}
             onToggleHidden={handleToggleHidden}
             onToggleDiscard={handleToggleDiscard}
+            onSaveNotes={handleSaveNotes}
             showFilesButton={false}
             forceArtifactsButtonVisible
             onStopPendingChange={handleStopPendingChange}

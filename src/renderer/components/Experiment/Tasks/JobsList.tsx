@@ -26,6 +26,7 @@ import {
   EyeIcon,
   LinkIcon,
   BanIcon,
+  NotebookPenIcon,
 } from 'lucide-react';
 import { Typography } from '@mui/joy';
 import {
@@ -36,6 +37,7 @@ import {
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { generateJobPermalink } from '../Jobs/jobDetailUtils';
 import JobProgress from './JobProgress';
+import JobNotesModal from './JobNotesModal';
 
 export interface LaunchProgressInfo {
   phase?: string;
@@ -66,6 +68,7 @@ interface JobsListProps {
   onToggleFavorite?: (jobId: string, currentValue: boolean) => void;
   onToggleHidden?: (jobId: string, currentValue: boolean) => void;
   onToggleDiscard?: (jobId: string, currentValue: boolean) => void;
+  onSaveNotes?: (jobId: string, notes: string) => Promise<void>;
   hideJobId?: boolean;
   showInteractiveType?: boolean;
   showFilesButton?: boolean;
@@ -123,6 +126,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onToggleFavorite,
   onToggleHidden,
   onToggleDiscard,
+  onSaveNotes,
   hideJobId = false,
   showInteractiveType = false,
   showFilesButton = true,
@@ -130,6 +134,22 @@ const JobsList: React.FC<JobsListProps> = ({
   onStopPendingChange,
 }) => {
   const { experimentInfo } = useExperimentInfo();
+  const [notesModalJobId, setNotesModalJobId] = React.useState<string | null>(
+    null,
+  );
+
+  const getJobNotes = (job: any): string => {
+    const raw = job?.job_data?.notes;
+    return typeof raw === 'string' ? raw : '';
+  };
+
+  const notesModalJob = React.useMemo(
+    () =>
+      notesModalJobId
+        ? jobs?.find((j: any) => String(j?.id) === notesModalJobId)
+        : null,
+    [notesModalJobId, jobs],
+  );
 
   const showTrackioForStatus = (status?: string): boolean => {
     return String(status || '') === 'RUNNING' || isTerminalJobStatus(status);
@@ -417,360 +437,428 @@ const JobsList: React.FC<JobsListProps> = ({
   }
 
   return (
-    <Table style={{ tableLayout: 'auto' }} stickyHeader>
-      {tableHead}
-      <tbody style={{ overflow: 'auto', height: '100%' }}>
-        {jobs?.length > 0 ? (
-          jobs?.map((job) => {
-            const fullJobId = String(job?.id ?? '');
-            const displayJobId =
-              String(job?.short_id ?? '').trim() || fullJobId.slice(0, 8);
-            const stopPending = isJobStopPending(
-              job?.status,
-              job?.job_data?.stop_requested,
-            );
-            return (
-              <tr
-                key={job.id}
-                style={{
-                  ...(job?.job_data?.hidden ? { opacity: 0.45 } : {}),
-                  ...(stopPending
-                    ? { opacity: 0.6, pointerEvents: 'none' }
-                    : {}),
-                }}
-              >
-                <td style={{ verticalAlign: 'top', border: 'none' }}>
-                  {selectMode &&
-                    job?.job_data?.eval_results &&
-                    Array.isArray(job.job_data.eval_results) &&
-                    job.job_data.eval_results.length > 0 && (
-                      <Checkbox
-                        size="sm"
-                        checked={selectedJobIds.includes(String(job.id))}
-                        onChange={() => onToggleJobSelected?.(String(job.id))}
-                        disabled={stopPending}
-                        sx={{ mr: 1 }}
-                      />
-                    )}
-                  {!hideJobId && <b title={fullJobId}>{displayJobId}</b>}
-                </td>
-                <td style={{ verticalAlign: 'top', border: 'none' }}>
-                  {formatJobConfig(job)}
-                </td>
-                <td style={{ verticalAlign: 'top', border: 'none' }}>
-                  <JobProgress
-                    job={job}
-                    launchProgress={
-                      launchProgressByJobId?.[String(job.id)] ??
-                      job?.job_data?.launch_progress
-                    }
-                    onStopPendingChange={onStopPendingChange}
-                  />
-                </td>
-                <td
+    <>
+      <Table style={{ tableLayout: 'auto' }} stickyHeader>
+        {tableHead}
+        <tbody style={{ overflow: 'auto', height: '100%' }}>
+          {jobs?.length > 0 ? (
+            jobs?.map((job) => {
+              const fullJobId = String(job?.id ?? '');
+              const displayJobId =
+                String(job?.short_id ?? '').trim() || fullJobId.slice(0, 8);
+              const stopPending = isJobStopPending(
+                job?.status,
+                job?.job_data?.stop_requested,
+              );
+              return (
+                <tr
+                  key={job.id}
                   style={{
-                    verticalAlign: 'top',
-                    width: 'fit-content',
-                    border: 'none',
+                    ...(job?.job_data?.hidden ? { opacity: 0.45 } : {}),
+                    ...(stopPending
+                      ? { opacity: 0.6, pointerEvents: 'none' }
+                      : {}),
                   }}
                 >
-                  <Stack
-                    direction="row"
-                    gap={0.5}
-                    flexWrap="wrap"
-                    justifyContent="flex-end"
-                  >
-                    {job?.placeholder && (
-                      <Skeleton variant="rectangular" width={100} height={28} />
-                    )}
-                    {job?.job_data?.wandb_run_url && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => {
-                          window.open(job.job_data.wandb_run_url, '_blank');
-                        }}
-                        disabled={stopPending}
-                        startDecorator={<LineChartIcon />}
-                      >
-                        W&B Tracking
-                      </Button>
-                    )}
-                    {(job?.job_data?.trackio_db_artifact_path ||
-                      job?.job_data?.trackio_project_name) &&
-                      showTrackioForStatus(job?.status) && (
-                        <Button
-                          size="sm"
-                          variant="plain"
-                          onClick={() => onViewTrackio?.(String(job?.id))}
-                          disabled={stopPending}
-                          startDecorator={<LineChartIcon />}
-                        >
-                          Trackio
-                        </Button>
-                      )}
-                    {!hideOutputButton && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewOutput?.(job?.id)}
-                        disabled={stopPending}
-                        startDecorator={<LogsIcon />}
-                      >
-                        Output
-                      </Button>
-                    )}
-                    {job?.job_data?.eval_images_dir && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewEvalImages?.(job?.id)}
-                        disabled={stopPending}
-                      >
-                        View Eval Images
-                      </Button>
-                    )}
-                    {job?.job_data?.eval_results &&
+                  <td style={{ verticalAlign: 'top', border: 'none' }}>
+                    {selectMode &&
+                      job?.job_data?.eval_results &&
                       Array.isArray(job.job_data.eval_results) &&
                       job.job_data.eval_results.length > 0 && (
-                        <Button
+                        <Checkbox
                           size="sm"
-                          variant="plain"
-                          onClick={() => onViewEvalResults?.(job?.id)}
+                          checked={selectedJobIds.includes(String(job.id))}
+                          onChange={() => onToggleJobSelected?.(String(job.id))}
                           disabled={stopPending}
-                          startDecorator={<FileTextIcon />}
-                        >
-                          Eval Results
-                        </Button>
+                          sx={{ mr: 1 }}
+                        />
                       )}
-                    {(forceArtifactsButtonVisible ||
-                      job?.job_data?.artifacts ||
-                      job?.job_data?.artifacts_dir ||
-                      job?.job_data?.generated_datasets ||
-                      job?.job_data?.models ||
-                      job?.job_data?.has_profiling) &&
-                      !job?.placeholder && (
+                    {!hideJobId && <b title={fullJobId}>{displayJobId}</b>}
+                  </td>
+                  <td style={{ verticalAlign: 'top', border: 'none' }}>
+                    <Stack direction="row" gap={0.5} alignItems="flex-start">
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        {formatJobConfig(job)}
+                      </Box>
+                      {!job?.placeholder && getJobNotes(job) && (
+                        <Tooltip
+                          variant="outlined"
+                          title={
+                            <Box
+                              sx={{
+                                maxWidth: 320,
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                              }}
+                            >
+                              {getJobNotes(job)}
+                            </Box>
+                          }
+                        >
+                          <IconButton
+                            size="sm"
+                            variant="plain"
+                            color="neutral"
+                            onClick={
+                              onSaveNotes
+                                ? () => setNotesModalJobId(String(job.id))
+                                : undefined
+                            }
+                            sx={{
+                              mt: -0.25,
+                              cursor: onSaveNotes ? 'pointer' : 'default',
+                            }}
+                          >
+                            <NotebookPenIcon size={14} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Stack>
+                  </td>
+                  <td style={{ verticalAlign: 'top', border: 'none' }}>
+                    <JobProgress
+                      job={job}
+                      launchProgress={
+                        launchProgressByJobId?.[String(job.id)] ??
+                        job?.job_data?.launch_progress
+                      }
+                      onStopPendingChange={onStopPendingChange}
+                    />
+                  </td>
+                  <td
+                    style={{
+                      verticalAlign: 'top',
+                      width: 'fit-content',
+                      border: 'none',
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      gap={0.5}
+                      flexWrap="wrap"
+                      justifyContent="flex-end"
+                    >
+                      {job?.placeholder && (
+                        <Skeleton
+                          variant="rectangular"
+                          width={100}
+                          height={28}
+                        />
+                      )}
+                      {job?.job_data?.wandb_run_url && (
                         <Button
                           size="sm"
                           variant="plain"
-                          onClick={() => onViewAllArtifacts?.(String(job?.id))}
-                          disabled={stopPending}
-                          startDecorator={<ArchiveIcon />}
-                        >
-                          Artifacts
-                        </Button>
-                      )}
-                    {(job?.type === 'SWEEP' || job?.job_data?.sweep_parent) &&
-                      job?.status === 'COMPLETE' && (
-                        <Button
-                          size="sm"
-                          variant="plain"
-                          onClick={() => onViewSweepResults?.(job?.id)}
+                          onClick={() => {
+                            window.open(job.job_data.wandb_run_url, '_blank');
+                          }}
                           disabled={stopPending}
                           startDecorator={<LineChartIcon />}
                         >
-                          Sweep Results
+                          W&B Tracking
                         </Button>
                       )}
-                    {job?.job_data?.sweep_output_file && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewSweepOutput?.(job?.id)}
-                        disabled={stopPending}
-                      >
-                        Sweep Output
-                      </Button>
-                    )}
-                    {job?.status === 'INTERACTIVE' &&
-                      job?.job_data?.subtype === 'interactive' && (
-                        <>
+                      {(job?.job_data?.trackio_db_artifact_path ||
+                        job?.job_data?.trackio_project_name) &&
+                        showTrackioForStatus(job?.status) && (
                           <Button
                             size="sm"
                             variant="plain"
-                            onClick={() => onViewInteractive?.(job?.id)}
+                            onClick={() => onViewTrackio?.(String(job?.id))}
                             disabled={stopPending}
+                            startDecorator={<LineChartIcon />}
                           >
-                            Interactive Setup
+                            Trackio
                           </Button>
-                          {!hideOutputButton && (
+                        )}
+                      {!hideOutputButton && (
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewOutput?.(job?.id)}
+                          disabled={stopPending}
+                          startDecorator={<LogsIcon />}
+                        >
+                          Output
+                        </Button>
+                      )}
+                      {job?.job_data?.eval_images_dir && (
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewEvalImages?.(job?.id)}
+                          disabled={stopPending}
+                        >
+                          View Eval Images
+                        </Button>
+                      )}
+                      {job?.job_data?.eval_results &&
+                        Array.isArray(job.job_data.eval_results) &&
+                        job.job_data.eval_results.length > 0 && (
+                          <Button
+                            size="sm"
+                            variant="plain"
+                            onClick={() => onViewEvalResults?.(job?.id)}
+                            disabled={stopPending}
+                            startDecorator={<FileTextIcon />}
+                          >
+                            Eval Results
+                          </Button>
+                        )}
+                      {(forceArtifactsButtonVisible ||
+                        job?.job_data?.artifacts ||
+                        job?.job_data?.artifacts_dir ||
+                        job?.job_data?.generated_datasets ||
+                        job?.job_data?.models ||
+                        job?.job_data?.has_profiling) &&
+                        !job?.placeholder && (
+                          <Button
+                            size="sm"
+                            variant="plain"
+                            onClick={() =>
+                              onViewAllArtifacts?.(String(job?.id))
+                            }
+                            disabled={stopPending}
+                            startDecorator={<ArchiveIcon />}
+                          >
+                            Artifacts
+                          </Button>
+                        )}
+                      {(job?.type === 'SWEEP' || job?.job_data?.sweep_parent) &&
+                        job?.status === 'COMPLETE' && (
+                          <Button
+                            size="sm"
+                            variant="plain"
+                            onClick={() => onViewSweepResults?.(job?.id)}
+                            disabled={stopPending}
+                            startDecorator={<LineChartIcon />}
+                          >
+                            Sweep Results
+                          </Button>
+                        )}
+                      {job?.job_data?.sweep_output_file && (
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewSweepOutput?.(job?.id)}
+                          disabled={stopPending}
+                        >
+                          Sweep Output
+                        </Button>
+                      )}
+                      {job?.status === 'INTERACTIVE' &&
+                        job?.job_data?.subtype === 'interactive' && (
+                          <>
                             <Button
                               size="sm"
                               variant="plain"
-                              onClick={() => onViewOutput?.(job?.id)}
+                              onClick={() => onViewInteractive?.(job?.id)}
                               disabled={stopPending}
-                              startDecorator={<LogsIcon />}
                             >
-                              Output
+                              Interactive Setup
                             </Button>
-                          )}
-                        </>
+                            {!hideOutputButton && (
+                              <Button
+                                size="sm"
+                                variant="plain"
+                                onClick={() => onViewOutput?.(job?.id)}
+                                disabled={stopPending}
+                                startDecorator={<LogsIcon />}
+                              >
+                                Output
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      {job?.job_data?.checkpoints && (
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewCheckpoints?.(job?.id)}
+                          disabled={stopPending}
+                          startDecorator={<WaypointsIcon />}
+                        >
+                          Checkpoints
+                        </Button>
                       )}
-                    {job?.job_data?.checkpoints && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewCheckpoints?.(job?.id)}
-                        disabled={stopPending}
-                        startDecorator={<WaypointsIcon />}
-                      >
-                        Checkpoints
-                      </Button>
-                    )}
-                    {showFilesButton && !job?.placeholder && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewFileBrowser?.(job?.id)}
-                        disabled={stopPending}
-                        startDecorator={<FolderOpenIcon />}
-                      >
-                        Files
-                      </Button>
-                    )}
-                    {!job?.placeholder && (
-                      <Tooltip title="Copy permalink" variant="outlined">
+                      {showFilesButton && !job?.placeholder && (
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewFileBrowser?.(job?.id)}
+                          disabled={stopPending}
+                          startDecorator={<FolderOpenIcon />}
+                        >
+                          Files
+                        </Button>
+                      )}
+                      {!job?.placeholder && (
+                        <Tooltip title="Copy permalink" variant="outlined">
+                          <IconButton
+                            size="sm"
+                            variant="plain"
+                            color="neutral"
+                            onClick={() => {
+                              const url =
+                                window.location.href.split('#')[0] +
+                                generateJobPermalink(
+                                  experimentInfo?.name ?? '',
+                                  job.id,
+                                );
+                              navigator.clipboard
+                                .writeText(url)
+                                .catch((err) =>
+                                  console.error(
+                                    'Failed to copy permalink:',
+                                    err,
+                                  ),
+                                );
+                            }}
+                          >
+                            <LinkIcon size={14} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {!job?.placeholder && (
                         <IconButton
                           size="sm"
                           variant="plain"
-                          color="neutral"
-                          onClick={() => {
-                            const url =
-                              window.location.href.split('#')[0] +
-                              generateJobPermalink(
-                                experimentInfo?.name ?? '',
-                                job.id,
-                              );
-                            navigator.clipboard
-                              .writeText(url)
-                              .catch((err) =>
-                                console.error('Failed to copy permalink:', err),
-                              );
-                          }}
-                        >
-                          <LinkIcon size={14} />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    {!job?.placeholder && (
-                      <IconButton
-                        size="sm"
-                        variant="plain"
-                        disabled={
-                          stopPending ||
-                          !isDeletableJobRecordStatus(job?.status)
-                        }
-                        onClick={() => {
-                          if (!isDeletableJobRecordStatus(job?.status)) {
-                            return;
+                          disabled={
+                            stopPending ||
+                            !isDeletableJobRecordStatus(job?.status)
                           }
-                          onDeleteJob?.(job.id);
-                        }}
-                      >
-                        <Trash2Icon style={{ cursor: 'pointer' }} />
-                      </IconButton>
-                    )}
-                    {!job?.placeholder && (
-                      <Dropdown>
-                        <MenuButton
-                          slots={{ root: IconButton }}
-                          slotProps={{
-                            root: {
-                              variant: 'plain',
-                              color: 'neutral',
-                              size: 'sm',
-                            },
+                          onClick={() => {
+                            if (!isDeletableJobRecordStatus(job?.status)) {
+                              return;
+                            }
+                            onDeleteJob?.(job.id);
                           }}
-                          sx={{ minWidth: 0 }}
-                          disabled={stopPending}
                         >
-                          <MoreVerticalIcon size={16} />
-                        </MenuButton>
-                        <Menu>
-                          <MenuItem
-                            onClick={() =>
-                              onToggleFavorite?.(
-                                String(job.id),
-                                !!job?.job_data?.favorite,
-                              )
-                            }
+                          <Trash2Icon style={{ cursor: 'pointer' }} />
+                        </IconButton>
+                      )}
+                      {!job?.placeholder && (
+                        <Dropdown>
+                          <MenuButton
+                            slots={{ root: IconButton }}
+                            slotProps={{
+                              root: {
+                                variant: 'plain',
+                                color: 'neutral',
+                                size: 'sm',
+                              },
+                            }}
+                            sx={{ minWidth: 0 }}
+                            disabled={stopPending}
                           >
-                            {job?.job_data?.favorite ? (
-                              <>
-                                <BookmarkIcon size={16} fill="currentColor" />{' '}
-                                Unfavorite
-                              </>
-                            ) : (
-                              <>
-                                <BookmarkIcon size={16} /> Favorite
-                              </>
+                            <MoreVerticalIcon size={16} />
+                          </MenuButton>
+                          <Menu>
+                            <MenuItem
+                              onClick={() =>
+                                onToggleFavorite?.(
+                                  String(job.id),
+                                  !!job?.job_data?.favorite,
+                                )
+                              }
+                            >
+                              {job?.job_data?.favorite ? (
+                                <>
+                                  <BookmarkIcon size={16} fill="currentColor" />{' '}
+                                  Unfavorite
+                                </>
+                              ) : (
+                                <>
+                                  <BookmarkIcon size={16} /> Favorite
+                                </>
+                              )}
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() =>
+                                onToggleHidden?.(
+                                  String(job.id),
+                                  !!job?.job_data?.hidden,
+                                )
+                              }
+                            >
+                              {job?.job_data?.hidden ? (
+                                <>
+                                  <EyeIcon size={16} /> Unhide
+                                </>
+                              ) : (
+                                <>
+                                  <EyeOffIcon size={16} /> Hide
+                                </>
+                              )}
+                            </MenuItem>
+                            {onSaveNotes && (
+                              <MenuItem
+                                onClick={() =>
+                                  setNotesModalJobId(String(job.id))
+                                }
+                              >
+                                <NotebookPenIcon size={16} />{' '}
+                                {getJobNotes(job) ? 'Edit Notes' : 'Add Notes'}
+                              </MenuItem>
                             )}
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              onToggleHidden?.(
-                                String(job.id),
-                                !!job?.job_data?.hidden,
-                              )
-                            }
-                          >
-                            {job?.job_data?.hidden ? (
-                              <>
-                                <EyeIcon size={16} /> Unhide
-                              </>
-                            ) : (
-                              <>
-                                <EyeOffIcon size={16} /> Hide
-                              </>
-                            )}
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() =>
-                              onToggleDiscard?.(
-                                String(job.id),
-                                parseDiscardValue(
-                                  job?.job_data?.score?.discard,
-                                ),
-                              )
-                            }
-                          >
-                            {parseDiscardValue(
-                              job?.job_data?.score?.discard,
-                            ) ? (
-                              <>
-                                <BanIcon size={16} /> Unmark discard
-                              </>
-                            ) : (
-                              <>
-                                <BanIcon size={16} /> Mark discard
-                              </>
-                            )}
-                          </MenuItem>
-                        </Menu>
-                      </Dropdown>
-                    )}
-                  </Stack>
-                </td>
-              </tr>
-            );
-          })
-        ) : (
-          <tr>
-            <td
-              colSpan={4}
-              style={{
-                textAlign: 'center',
-                padding: '20px',
-                verticalAlign: 'top',
-                border: 'none',
-              }}
-            >
-              No jobs found
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </Table>
+                            <MenuItem
+                              onClick={() =>
+                                onToggleDiscard?.(
+                                  String(job.id),
+                                  parseDiscardValue(
+                                    job?.job_data?.score?.discard,
+                                  ),
+                                )
+                              }
+                            >
+                              {parseDiscardValue(
+                                job?.job_data?.score?.discard,
+                              ) ? (
+                                <>
+                                  <BanIcon size={16} /> Unmark discard
+                                </>
+                              ) : (
+                                <>
+                                  <BanIcon size={16} /> Mark discard
+                                </>
+                              )}
+                            </MenuItem>
+                          </Menu>
+                        </Dropdown>
+                      )}
+                    </Stack>
+                  </td>
+                </tr>
+              );
+            })
+          ) : (
+            <tr>
+              <td
+                colSpan={4}
+                style={{
+                  textAlign: 'center',
+                  padding: '20px',
+                  verticalAlign: 'top',
+                  border: 'none',
+                }}
+              >
+                No jobs found
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </Table>
+      <JobNotesModal
+        open={notesModalJobId !== null}
+        onClose={() => setNotesModalJobId(null)}
+        jobId={notesModalJobId}
+        initialNotes={getJobNotes(notesModalJob)}
+        onSave={async (jobId, notes) => {
+          if (!onSaveNotes) return;
+          await onSaveNotes(jobId, notes);
+        }}
+      />
+    </>
   );
 };
 
