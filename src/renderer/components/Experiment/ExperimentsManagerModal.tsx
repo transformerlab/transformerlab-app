@@ -14,7 +14,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/joy';
-import { PencilIcon, Share2Icon, Trash2Icon } from 'lucide-react';
+import { Share2Icon, Trash2Icon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   useSWRWithAuth as useSWR,
@@ -23,8 +23,6 @@ import {
 } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-import RenameExperimentModal from './RenameExperimentModal';
 import ShareExperimentModal from './ShareExperimentModal';
 
 interface Experiment {
@@ -68,9 +66,7 @@ export default function ExperimentsManagerModal({
   mutateRecent,
 }: ExperimentsManagerModalProps) {
   const { user, team } = useAuth();
-  const { experimentInfoMutate } = useExperimentInfo();
   const [search, setSearch] = useState('');
-  const [renameTarget, setRenameTarget] = useState<Experiment | null>(null);
   const [shareTarget, setShareTarget] = useState<Experiment | null>(null);
 
   const {
@@ -278,15 +274,6 @@ export default function ExperimentsManagerModal({
                                     <Share2Icon size={14} />
                                   </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Rename">
-                                  <IconButton
-                                    size="sm"
-                                    variant="plain"
-                                    onClick={() => setRenameTarget(exp)}
-                                  >
-                                    <PencilIcon size={14} />
-                                  </IconButton>
-                                </Tooltip>
                                 <Tooltip title="Delete">
                                   <IconButton
                                     size="sm"
@@ -310,21 +297,6 @@ export default function ExperimentsManagerModal({
           )}
         </ModalDialog>
       </Modal>
-
-      {renameTarget && (
-        <RenameExperimentModal
-          open={Boolean(renameTarget)}
-          experimentId={renameTarget.id}
-          currentName={renameTarget.name}
-          onClose={() => setRenameTarget(null)}
-          onRenamed={() => {
-            mutate();
-            mutateRecent();
-            experimentInfoMutate();
-            setRenameTarget(null);
-          }}
-        />
-      )}
 
       {shareTarget && (
         <ShareExperimentModal

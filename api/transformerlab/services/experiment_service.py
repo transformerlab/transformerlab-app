@@ -4,7 +4,6 @@ import json
 import os
 
 from sqlalchemy import delete
-from werkzeug.utils import secure_filename
 from lab import Experiment
 from lab import dirs as lab_dirs
 from lab import storage
@@ -145,20 +144,6 @@ async def experiment_delete(id):
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error deleting experiment {id}: {e}")
-
-
-async def experiment_rename(id: str, new_name: str) -> dict | None:
-    """Update the display name of an experiment in index.json."""
-    secure_name = secure_filename(new_name)
-    if not secure_name:
-        raise ValueError("Invalid experiment name")
-    try:
-        exp = await Experiment.get(id)
-        await exp.update_config({"name": secure_name})
-        await cache.invalidate("experiments")
-        return await experiment_get(id)
-    except FileNotFoundError:
-        return None
 
 
 async def experiment_update(id, config):

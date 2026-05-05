@@ -249,7 +249,6 @@ Endpoints.Experiment = {
   Delete: (id: string) => `${API_URL()}experiment/${id}/delete`,
   Touch: (id: string) => `${API_URL()}experiment/${id}/touch`,
   Recent: () => `${API_URL()}experiment/recent`,
-  Rename: (id: string) => `${API_URL()}experiment/${id}/rename`,
   SavePrompt: (id: string) => `${API_URL()}experiment/${id}/prompt`,
   GetFile: (id: string, filename: string) =>
     `${API_URL()}experiment/${id}/file_contents?filename=${filename}`,

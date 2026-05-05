@@ -179,24 +179,6 @@ async def experiments_delete(
     return {"message": f"Experiment {id} deleted"}
 
 
-@router.patch("/{id}/rename", summary="Rename an experiment", tags=["experiment"])
-async def experiment_rename(
-    id: str,
-    body: Annotated[dict, Body()],
-    _: None = Depends(require_permission("experiment", "write")),
-):
-    new_name = body.get("name", "").strip()
-    if not new_name:
-        raise HTTPException(status_code=422, detail="name is required")
-    try:
-        result = await experiment_service.experiment_rename(id, new_name)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
-    if result is None:
-        raise HTTPException(status_code=404, detail=f"Experiment {id} not found")
-    return result
-
-
 @router.get("/{id}/update", tags=["experiment"])
 async def experiments_update(
     id: str,
