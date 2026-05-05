@@ -304,7 +304,7 @@ lab --format json model list
 # Get details for a specific model (by group_id or group_name)
 lab --format json model info GROUP_ID
 
-# Register a new model (e.g. a HuggingFace model ID)
+# Register a new model (e.g. a HuggingFace model ID) — creates a new group with version v1
 lab --format json model create my-hf-model-id --name "My Fine-tuned Model" --description "SFT on custom data"
 
 # Edit a model group's name or description
@@ -313,6 +313,23 @@ lab model edit GROUP_ID --name "New Name" --description "Updated description"
 # Delete a model group and all its versions (--yes to skip confirmation)
 lab model delete GROUP_ID --yes
 ```
+
+### Adding a new version to an existing model group
+
+Re-run `lab model create` with the **same `--name`** as an existing group. The server resolves the group by name and appends a new version with an auto-incremented label (`v2`, `v3`, …). The `latest` tag (or whatever you pass via `--tag`) is moved to the new version automatically.
+
+```bash
+# Adds version v2 to "My Fine-tuned Model" (assuming v1 already exists).
+# The server scans existing v\d+ labels and picks the next one.
+lab --format json model create my-hf-model-id-v2 --name "My Fine-tuned Model" --description "Retrained with more data"
+
+# Pin a specific version label instead of auto-incrementing.
+# Labels are free-form strings — server only auto-increments the v\d+ pattern.
+# Collisions within a group are rejected with an error.
+lab model create my-hf-model-id-exp --name "My Fine-tuned Model" --version-label "experimental-2026-05"
+```
+
+The version label is the human-readable identifier in `lab model info` output. The internal `id` (UUID) remains unique per version regardless of label.
 
 ### Uploading model files
 
@@ -695,7 +712,7 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab provider disable <id>` | Disable a provider | No |
 | `lab model list` | List all model groups | No |
 | `lab model info <id>` | Show model group details (by group_id or group_name) | No |
-| `lab model create <asset_id>` | Create a new model group + first version (`--name`, `--description`, `--tag`) | No |
+| `lab model create <asset_id>` | Create a model group version. New group if `--name` is unused; otherwise appends a new version with auto-incremented `vN` label (or `--version-label` to override). Supports `--description`, `--tag`. | No |
 | `lab model edit <id>` | Edit model group name or description | No |
 | `lab model delete <id>` | Delete a model group and all versions (`--yes` to skip prompt) | No |
 | `lab model upload <id> <path...>` | Upload local files/dirs to a model (creates if needed; `--force` to overwrite) | No |

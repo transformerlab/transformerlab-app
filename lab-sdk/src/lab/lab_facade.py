@@ -378,7 +378,9 @@ class Lab:
         task_id = job_data.get("task_id")
         if not task_id:
             return
-        task_template = TaskTemplate(task_id)
+        # Use the same experiment scope as Job.get(); otherwise TaskTemplate falls back to
+        # legacy workspace/task/<id> and misses files under experiments/<exp>/tasks/<id>.
+        task_template = TaskTemplate(task_id, experiment_id=experiment_id)
         task_dir = await task_template.get_dir()
         if not await storage.exists(task_dir):
             return
