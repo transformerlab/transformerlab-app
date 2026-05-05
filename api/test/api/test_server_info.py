@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_is_wsl_false(monkeypatch):
     # Simulate subprocess.CalledProcessError
     import subprocess
@@ -70,7 +73,11 @@ def test_healthz_storage_reports_localfs_when_remote_not_enabled(client, monkeyp
     the SDK falls back to the local filesystem — /healthz must reflect that
     rather than reporting the configured-but-inactive cloud backend.
     """
-    monkeypatch.setenv("TFL_STORAGE_PROVIDER", "aws")
+    # STORAGE_PROVIDER is captured at lab.storage import time, so setenv on
+    # TFL_STORAGE_PROVIDER would be a no-op here — patch the module attribute.
+    import lab.storage
+
+    monkeypatch.setattr(lab.storage, "STORAGE_PROVIDER", "aws")
     monkeypatch.delenv("TFL_REMOTE_STORAGE_ENABLED", raising=False)
 
     response = client.get("/healthz")
@@ -79,12 +86,15 @@ def test_healthz_storage_reports_localfs_when_remote_not_enabled(client, monkeyp
     assert data["storage"]["provider"] == "localfs"
 
 
-def test_healthz_storage_reports_cloud_when_remote_enabled(client, monkeypatch):
+@pytest.mark.parametrize("provider", ["aws", "gcp", "azure"])
+def test_healthz_storage_reports_cloud_when_remote_enabled(client, monkeypatch, provider):
     """When TFL_REMOTE_STORAGE_ENABLED=true, /healthz reports the configured cloud provider."""
-    monkeypatch.setenv("TFL_STORAGE_PROVIDER", "aws")
+    import lab.storage
+
+    monkeypatch.setattr(lab.storage, "STORAGE_PROVIDER", provider)
     monkeypatch.setenv("TFL_REMOTE_STORAGE_ENABLED", "true")
 
     response = client.get("/healthz")
     assert response.status_code == 200
     data = response.json()
-    assert data["storage"]["provider"] == "aws"
+    assert data["storage"]["provider"] == provider
