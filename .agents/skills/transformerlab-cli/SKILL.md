@@ -296,6 +296,41 @@ lab --format json experiment list | jq -r '.experiments[] | select(.name=="my-ex
 }
 ```
 
+## Experiment Notes
+
+Each experiment has a single shared markdown document — the "experiment notes" — that persists on the server. It's separate from per-job `-m/--description` notes: those describe one run, the experiment notes describe the experiment as a whole (hypothesis, running findings, decisions, links to key job IDs).
+
+```bash
+# Render the notes (markdown, with formatting)
+lab notes show
+lab notes show --raw           # plain markdown, no rendering — better for piping/grepping
+
+# Edit interactively in $EDITOR (defaults to nano if unset)
+lab notes edit
+
+# Append a single line, non-interactive — best for agents
+lab notes append "2026-05-05: switched provider from local to skypilot; queue depth was >12"
+```
+
+All three commands operate on the **current experiment** (`require_current_experiment` — set it first via `lab experiment set-default`). There is no `--format json` output; `show` returns the raw string and `append`/`edit` write it back.
+
+### When agents should use it
+
+Experiment notes are the right place for context that future conversations (or teammates) will need but that doesn't belong on a single job:
+
+- **Running hypothesis log** — append after each batch of runs: "Tried lr ∈ {1e-5, 3e-5, 5e-5}; 3e-5 wins on eval/loss. Next: try larger batch."
+- **Decisions and their rationale** — "Dropped baseline-v1 from comparison; tokenizer mismatch made eval scores incomparable."
+- **Pointers** — "Best run so far: job 7f21abcd, score 0.83. Worst: 9c12, diverged at step 500."
+- **Open questions / next steps** — so the next session picks up where this one stopped.
+
+**Default flow for agents working in an experiment:**
+
+1. At the start of a session, run `lab notes show --raw` to load prior context.
+2. After each meaningful action (queueing a sweep, finding a winning config, hitting a blocker), `lab notes append "..."` with a dated one-liner. Always lead with today's date (e.g. `2026-05-05:`) so the log stays chronological.
+3. Use `lab notes edit` only when the user asks to reorganize or rewrite — appending is safer because it never destroys prior content.
+
+Don't duplicate per-run details (those go in `lab task queue -m`). Don't use experiment notes as a TODO list for the conversation — that's what plans/tasks are for. Keep entries terse and specific.
+
 ## Managing Models
 
 Use `lab model` commands to list, inspect, create, edit, and delete model groups on the server. Models are organized as **groups** — each group can contain multiple versions (e.g. v1, v2, …).
@@ -686,6 +721,9 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab experiment create <name>` | Create a new experiment (`--set-default` to also switch to it) | No |
 | `lab experiment delete <id>` | Delete an experiment (`--no-interactive` to skip prompt) | No |
 | `lab experiment set-default <id>` | Set the default experiment (validates server-side, then writes `current_experiment` to `~/.lab/config.json`) | No |
+| `lab notes show` | Render the current experiment's shared markdown notes (`--raw` for plain markdown) | Yes |
+| `lab notes edit` | Open the current experiment's notes in `$EDITOR` (defaults to nano) | Yes |
+| `lab notes append <text>` | Append a line to the current experiment's notes non-interactively — preferred for agents | Yes |
 | `lab task list` | List tasks in current experiment | Yes |
 | `lab task info <id>` | Get task details | Yes |
 | `lab task init` | Scaffold `task.yaml` + `main.py` in the current directory (`--interactive` to prompt) | No |
