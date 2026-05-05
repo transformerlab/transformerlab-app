@@ -1,7 +1,7 @@
 ---
 name: lab-autoresearch
 description: Autonomous experiment loop on top of the Transformer Lab `lab` CLI — pick an idea, queue a job, score it, keep or discard, repeat. Use when the user types `/lab-autoresearch`, says "run autoresearch", "optimize X in a loop", "set up autoresearch for …", or asks to run an autonomous experimentation / optimization loop against Transformer Lab.
-allowed-tools: Bash(lab *), Bash(curl *beta.lab.cloud*), Bash(curl *localhost:8338*)
+allowed-tools: Bash(lab *), Bash(curl *lab.cloud*), Bash(curl *localhost:8338*)
 ---
 
 # /lab-autoresearch

@@ -58,7 +58,7 @@ Everything else during a session — checking status, marking a run kept or disc
 
 ## `/lab-autoresearch init <goal>`
 
-One-time setup. Five things to gather (ask only what you can't infer from context):
+One-time setup. Key details to gather (ask only what you can't infer from context):
 
 1. **Goal** — what is being optimized, in plain language.
 2. **Primary metric** — name (e.g. `eval/loss`), unit, direction (`lower` / `higher` is better).
@@ -107,7 +107,7 @@ lab experiment create "autoresearch-${SLUG}-${DATE}" --set-default
 # 2. Scaffold or confirm the task. The task MUST call lab.finish(score={...}).
 mkdir -p "autoresearch-${SLUG}" && cd "autoresearch-${SLUG}"
 lab task init   # if no task exists yet — then edit main.py to compute & report the metric
-echo "y" | lab task add . --no-interactive
+lab task add . --no-interactive
 
 # 3. Write the session plan to experiment notes (template below).
 #    Notes are empty after `lab experiment create`, so a single `append` writes
