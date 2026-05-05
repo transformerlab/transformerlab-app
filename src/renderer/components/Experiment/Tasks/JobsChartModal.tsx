@@ -576,7 +576,8 @@ export default function JobsChartModal({
               }}
             >
               <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
-                No jobs with a date + score to plot. Create jobs and record scores for them to appear here.
+                No jobs with a date + score to plot. Create jobs and record
+                scores for them to appear here.
               </Typography>
             </Box>
           )}
