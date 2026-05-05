@@ -527,7 +527,7 @@ export default function Interactive() {
       const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Jobs.Delete(experimentInfo.id, jobId),
         {
-          method: 'GET',
+          method: 'DELETE',
         },
       );
 

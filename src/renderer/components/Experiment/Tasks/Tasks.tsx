@@ -10,7 +10,12 @@ import {
   Typography,
 } from '@mui/joy';
 
-import { PlusIcon, TerminalIcon, BookmarkIcon } from 'lucide-react';
+import {
+  PlusIcon,
+  TerminalIcon,
+  BookmarkIcon,
+  LineChartIcon,
+} from 'lucide-react';
 import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -39,6 +44,7 @@ import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
 import TrackioModal from './TrackioModal';
+import JobsChartModal from './JobsChartModal';
 import {
   isDeletableJobRecordStatus,
   isJobStopPending,
@@ -91,6 +97,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
+  const [chartModalOpen, setChartModalOpen] = useState(false);
   const [viewTaskFilesFromTask, setViewTaskFilesFromTask] = useState<{
     id: string | null;
     name?: string | null;
@@ -567,7 +574,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       const response = await fetchWithAuth(
         chatAPI.Endpoints.Jobs.Delete(experimentInfo.id, jobId),
         {
-          method: 'GET',
+          method: 'DELETE',
         },
       );
 
@@ -653,6 +660,41 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       console.error('Error toggling hidden:', error);
       // Revert on failure
       updateJobDataOptimistic(jobId, 'hidden', currentValue);
+    }
+  };
+
+  const handleToggleDiscard = async (jobId: string, currentValue: boolean) => {
+    if (!experimentInfo?.id) return;
+    const newValue = !currentValue;
+    const currentJob = jobsWithPlaceholders.find(
+      (job: any) => String(job?.id) === String(jobId),
+    );
+    const currentScore =
+      currentJob?.job_data && typeof currentJob.job_data === 'object'
+        ? currentJob.job_data.score
+        : {};
+    const nextScore = {
+      ...(typeof currentScore === 'object' && currentScore ? currentScore : {}),
+      discard: newValue,
+    };
+    updateJobDataOptimistic(jobId, 'score', nextScore);
+    try {
+      await fetchWithAuth(
+        chatAPI.Endpoints.Jobs.UpdateJobData(experimentInfo.id, jobId),
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updates: { discard: newValue } }),
+        },
+      );
+    } catch (error) {
+      console.error('Error toggling discard:', error);
+      updateJobDataOptimistic(jobId, 'score', {
+        ...(typeof currentScore === 'object' && currentScore
+          ? currentScore
+          : {}),
+        discard: currentValue,
+      });
     }
   };
 
@@ -1405,6 +1447,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             )}
             <IconButton
               size="sm"
+              variant="outlined"
+              color="neutral"
+              onClick={() => setChartModalOpen(true)}
+              title="View jobs chart"
+            >
+              <LineChartIcon size={16} />
+            </IconButton>
+            <IconButton
+              size="sm"
               variant={showFavoritesOnly ? 'solid' : 'outlined'}
               color={showFavoritesOnly ? 'warning' : 'neutral'}
               onClick={() => setShowFavoritesOnly((prev) => !prev)}
@@ -1492,6 +1543,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             }}
             onToggleFavorite={handleToggleFavorite}
             onToggleHidden={handleToggleHidden}
+            onToggleDiscard={handleToggleDiscard}
             showFilesButton={false}
             forceArtifactsButtonVisible
             onStopPendingChange={handleStopPendingChange}
@@ -1501,6 +1553,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       <ViewSweepResultsModal
         jobId={viewSweepResultsFromJob}
         setJobId={(jobId: string | null) => setViewSweepResultsFromJob(jobId)}
+      />
+      <JobsChartModal
+        open={chartModalOpen}
+        onClose={() => setChartModalOpen(false)}
+        jobs={filteredJobsForDisplay}
       />
       {(() => {
         const outputJob = jobs?.find(

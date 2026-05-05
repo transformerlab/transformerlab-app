@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Optional
 
 import typer
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
@@ -190,11 +191,25 @@ def command_model_edit(
 @app.command("create")
 def command_model_create(
     asset_id: str = typer.Argument(..., help="The underlying asset/model ID (e.g. a HuggingFace model ID)"),
-    group_name: str = typer.Option(..., "--name", help="Display name for the new model group"),
+    group_name: str = typer.Option(
+        ...,
+        "--name",
+        help="Display name for the model group. Re-using an existing group name appends a new version to that group.",
+    ),
     description: str = typer.Option(None, "--description", help="Optional description"),
     tag: str = typer.Option("latest", "--tag", help="Tag to apply to this version (default: latest)"),
+    version_label: Optional[str] = typer.Option(
+        None,
+        "--version-label",
+        help="Explicit version label (e.g. 'v3', 'experimental'). If omitted, the server auto-computes the next vN.",
+    ),
 ):
-    """Create a new model group and register its first version (version label is auto-generated)."""
+    """Create a model group version.
+
+    If no group with ``--name`` exists, a new group is created. If one already
+    exists, a new version is appended to it. The version label is
+    auto-incremented (``v1``, ``v2``, …) unless ``--version-label`` is set.
+    """
     check_configs(output_format=cli_state.output_format)
 
     payload = {
@@ -205,9 +220,13 @@ def command_model_create(
     }
     if description:
         payload["description"] = description
+    if version_label:
+        payload["version_label"] = version_label
 
     if cli_state.output_format != "json":
-        with console.status(f"[bold success]Creating model group '{group_name}'...[/bold success]", spinner="dots"):
+        with console.status(
+            f"[bold success]Adding version to model group '{group_name}'...[/bold success]", spinner="dots"
+        ):
             response = api.post_json("/asset_versions/versions", json_data=payload)
     else:
         response = api.post_json("/asset_versions/versions", json_data=payload)
@@ -217,10 +236,11 @@ def command_model_create(
         if cli_state.output_format == "json":
             print(json.dumps(body, indent=2, default=str))
         else:
-            version_label = body.get("version_label", "v?")
+            new_version_label = body.get("version_label", "v?")
             console.print(
-                f"[success]✓[/success] Model group [bold]{group_name}[/bold] created "
-                f"(group_id: {body.get('group_id', '?')}, version: {version_label})."
+                f"[success]✓[/success] Model group [bold]{group_name}[/bold] "
+                f"now has version [bold]{new_version_label}[/bold] "
+                f"(group_id: {body.get('group_id', '?')})."
             )
     else:
         if cli_state.output_format == "json":

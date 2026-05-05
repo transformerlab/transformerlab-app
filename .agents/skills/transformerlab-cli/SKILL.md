@@ -37,7 +37,10 @@ lab config set server https://your-server-url
 # Step 2: Login with an API key
 lab login --api-key YOUR_API_KEY --server https://your-server-url
 
-# Step 3: Set the current experiment
+# Step 3: Set the current experiment.
+#   Use `lab experiment list` to see existing experiments.
+#   If yours doesn't exist yet, run `lab experiment create your_experiment_name` first.
+#   `lab experiment set-default <id>` is a convenience equivalent to this command.
 lab config set current_experiment your_experiment_name
 
 # Step 4: Verify connectivity
@@ -242,6 +245,54 @@ lab.finish(message="Hello world complete!")
 lab task add ./hello-world-task --no-interactive
 ```
 
+## Managing Experiments
+
+Use `lab experiment` commands to list, create, delete, and set the default experiment. **Experiments are the container for tasks and jobs** — most `lab task` / `lab job` commands operate against the *current* experiment (the one stored in `~/.lab/config.json` as `current_experiment`).
+
+```bash
+# List all experiments. The current default is marked with `*`.
+lab experiment list
+lab --format json experiment list
+
+# Create a new experiment
+lab experiment create my-experiment
+
+# Create and immediately set as the default
+lab experiment create my-experiment --set-default
+
+# Delete an experiment (`--no-interactive` to skip confirmation)
+lab experiment delete my-experiment --no-interactive
+
+# Switch which experiment is the default. This writes to ~/.lab/config.json.
+lab experiment set-default my-experiment
+```
+
+### `lab experiment set-default` vs `lab config set current_experiment`
+
+Both write the same key (`current_experiment`) to `~/.lab/config.json`. Differences:
+
+- `lab experiment set-default <id>` validates that the experiment exists on the server before writing. Prefer this when scripting — it fails fast on a typo.
+- `lab config set current_experiment <id>` is a raw config write and does not validate. Useful when bootstrapping a config (e.g. before the server is reachable) or when you've already confirmed the experiment exists.
+
+### Finding an experiment ID by name
+
+`lab experiment list` (and the JSON form) is the only sanctioned way to discover experiment IDs. **Do not fall back to `curl /experiment/`** — even when you only have a name and need the ID, this CLI surface covers it:
+
+```bash
+# Get just the ID for a given name
+lab --format json experiment list | jq -r '.experiments[] | select(.name=="my-experiment") | .id'
+```
+
+`lab --format json experiment list` returns:
+```json
+{
+  "current_experiment": "my-experiment",
+  "experiments": [
+    {"id": "my-experiment", "name": "my-experiment", "config": {}}
+  ]
+}
+```
+
 ## Managing Models
 
 Use `lab model` commands to list, inspect, create, edit, and delete model groups on the server. Models are organized as **groups** — each group can contain multiple versions (e.g. v1, v2, …).
@@ -253,7 +304,7 @@ lab --format json model list
 # Get details for a specific model (by group_id or group_name)
 lab --format json model info GROUP_ID
 
-# Register a new model (e.g. a HuggingFace model ID)
+# Register a new model (e.g. a HuggingFace model ID) — creates a new group with version v1
 lab --format json model create my-hf-model-id --name "My Fine-tuned Model" --description "SFT on custom data"
 
 # Edit a model group's name or description
@@ -262,6 +313,23 @@ lab model edit GROUP_ID --name "New Name" --description "Updated description"
 # Delete a model group and all its versions (--yes to skip confirmation)
 lab model delete GROUP_ID --yes
 ```
+
+### Adding a new version to an existing model group
+
+Re-run `lab model create` with the **same `--name`** as an existing group. The server resolves the group by name and appends a new version with an auto-incremented label (`v2`, `v3`, …). The `latest` tag (or whatever you pass via `--tag`) is moved to the new version automatically.
+
+```bash
+# Adds version v2 to "My Fine-tuned Model" (assuming v1 already exists).
+# The server scans existing v\d+ labels and picks the next one.
+lab --format json model create my-hf-model-id-v2 --name "My Fine-tuned Model" --description "Retrained with more data"
+
+# Pin a specific version label instead of auto-incrementing.
+# Labels are free-form strings — server only auto-increments the v\d+ pattern.
+# Collisions within a group are rejected with an error.
+lab model create my-hf-model-id-exp --name "My Fine-tuned Model" --version-label "experimental-2026-05"
+```
+
+The version label is the human-readable identifier in `lab model info` output. The internal `id` (UUID) remains unique per version regardless of label.
 
 ### Uploading model files
 
@@ -454,7 +522,7 @@ Provider configs (`api_token`, `api_key`, `ssh_key_path`) contain secrets. If th
 3. **Use `--format json`** when you need to parse output, but be prepared to fall back to pretty output parsing if it doesn't work
 4. **`--no-interactive` on `task queue` silently uses the DEFAULT provider (Local).** There is no `--provider` flag. To target a specific provider, you must drive the interactive prompts (see "Selecting a provider" below).
 5. **`task add` has no `--yes` flag** — pipe `echo "y"` to confirm: `echo "y" | lab task add ./my-task`
-6. **Skip confirmation on destructive commands:** use `--no-interactive` for `provider delete`, and `--yes` / `-y` for `model delete` / `dataset delete` (the flag names differ — verify with `--help`)
+6. **Skip confirmation on destructive commands:** use `--no-interactive` for `provider delete`, `job delete`, and `job delete-all`; use `--yes` / `-y` for `model delete` / `dataset delete` (the flag names differ — verify with `--help`)
 7. **Never use `job monitor`** — it launches a TUI that blocks; use `job list` + `job task-logs` instead
 8. **Never use `task interactive`** unless the user specifically requests an interactive session
 9. **`job task-logs --follow`** streams continuously and blocks until the job finishes — use when the user wants real-time monitoring
@@ -492,6 +560,25 @@ lab task queue abc123 -m "train model"
 ```
 
 Don't restate the task name, full hyperparameter dict, or file paths — those are already on the job record. Don't copy the user's last message verbatim — synthesize. If the conversation is truly empty of signal, fall back to `"Rerun of <id>, no changes"`.
+
+### Overriding task parameters per queue: `--param key=value`
+
+`lab task queue` accepts repeatable `--param key=value` (alias `-p`) to override values from the task's `parameters:` block for a single job, without mutating `task.yaml`. Values are parsed as YAML scalars: `score=0.42` is a float, `enabled=true` is a bool, `tag=baseline` is a string. Unknown keys (not declared in the task's `parameters:`) fail hard so typos are caught at queue time.
+
+```bash
+# Sweep the same task with different hyperparameters
+for i in $(seq 1 10); do
+  lab task queue TASK_ID --no-interactive \
+    --param description="iteration $i" \
+    --param score=$(python -c "print(0.4 + 0.04*$i)") \
+    -m "Iteration $i"
+done
+
+# Quoting tip: values may contain '=' (split on first '=' only)
+lab task queue TASK_ID --no-interactive --param notes="key=value pairs OK"
+```
+
+Use this instead of `lab task edit --from-file` between queue calls — editing the task affects already-queued-but-not-yet-dispatched jobs and is racy.
 
 ### Selecting a provider when queuing a task
 
@@ -571,6 +658,10 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab logout` | Remove stored API key | No |
 | `lab whoami` | Show current user and team | No |
 | `lab version` | Show CLI version | No |
+| `lab experiment list` | List all experiments (current default marked with `*`) | No |
+| `lab experiment create <name>` | Create a new experiment (`--set-default` to also switch to it) | No |
+| `lab experiment delete <id>` | Delete an experiment (`--no-interactive` to skip prompt) | No |
+| `lab experiment set-default <id>` | Set the default experiment (validates server-side, then writes `current_experiment` to `~/.lab/config.json`) | No |
 | `lab task list` | List tasks in current experiment | Yes |
 | `lab task info <id>` | Get task details | Yes |
 | `lab task init` | Scaffold `task.yaml` + `main.py` in the current directory (`--interactive` to prompt) | No |
@@ -578,7 +669,7 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab task edit <id>` | Edit an existing task's `task.yaml` (`--from-file`, `--no-interactive`, `--timeout`) | Yes |
 | `lab task upload <id> <path>` | Upload files/directories into an existing task (`--no-interactive`) | Yes |
 | `lab task delete <id>` | Delete a task (`--no-interactive` to skip confirmation) | Yes |
-| `lab task queue <id>` | Queue task on compute provider (`-m/--description` for a markdown run note; required for agents, see "Always write a run description") | Yes |
+| `lab task queue <id>` | Queue task on compute provider (`-m/--description` for a markdown run note; `-p/--param key=value` to override task parameters per run; required for agents, see "Always write a run description") | Yes |
 | `lab task gallery` | Browse/import from task gallery | Yes |
 | `lab job list` | List jobs (`--running` for active only) | Yes |
 | `lab job info <id>` | Get detailed job information | Yes |
@@ -588,6 +679,8 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab job artifacts <id>` | List job artifacts | Yes |
 | `lab job download <id>` | Download artifacts (`--file` for glob) | Yes |
 | `lab job stop <id>` | Stop a running job | Yes |
+| `lab job delete <id>` | Delete a job (`--no-interactive` to skip prompt) | Yes |
+| `lab job delete-all` | Delete all jobs in the current experiment (`--no-interactive` to skip prompt) | Yes |
 | `lab provider list` | List compute providers | No |
 | `lab provider info <id>` | Show provider details | No |
 | `lab provider add` | Add a new provider | No |
@@ -598,7 +691,7 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab provider disable <id>` | Disable a provider | No |
 | `lab model list` | List all model groups | No |
 | `lab model info <id>` | Show model group details (by group_id or group_name) | No |
-| `lab model create <asset_id>` | Create a new model group + first version (`--name`, `--description`, `--tag`) | No |
+| `lab model create <asset_id>` | Create a model group version. New group if `--name` is unused; otherwise appends a new version with auto-incremented `vN` label (or `--version-label` to override). Supports `--description`, `--tag`. | No |
 | `lab model edit <id>` | Edit model group name or description | No |
 | `lab model delete <id>` | Delete a model group and all versions (`--yes` to skip prompt) | No |
 | `lab model upload <id> <path...>` | Upload local files/dirs to a model (creates if needed; `--force` to overwrite) | No |
@@ -639,7 +732,7 @@ With non-zero exit code.
 - Commands exit with non-zero status on failure
 - With `--format json`, errors return `{"error": "<message>"}`
 - "config not set" errors → run `lab login` first
-- "current_experiment not set" → run `lab config set current_experiment <id>`
+- "current_experiment not set" → run `lab experiment list` to find an existing experiment, then `lab experiment set-default <id>` (or `lab experiment create <name> --set-default` if none exists)
 - Connection refused → check server URL with `lab config`, verify server is running
 - "No compute providers available" → add a provider in team settings first, or check `provider list`
 

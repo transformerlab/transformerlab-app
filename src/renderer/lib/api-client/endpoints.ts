@@ -368,7 +368,7 @@ Endpoints.Jobs = {
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/list?type=${type}&status=${status}`,
   Delete: (experimentId: string, jobId: string) =>
-    `${API_URL()}experiment/${experimentId}/jobs/delete/${jobId}`,
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}`,
   Stop: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stop`,
   Update: (experimentId: string, jobId: string, status: string) =>
