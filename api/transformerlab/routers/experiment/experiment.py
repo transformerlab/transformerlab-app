@@ -2,7 +2,7 @@ import os
 
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import transformerlab.services.experiment_service as experiment_service
