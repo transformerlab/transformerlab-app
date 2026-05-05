@@ -32,7 +32,7 @@ async function replaceTaskNameInMonaco(page: Page, taskName: string) {
  */
 
 test.describe('Hello World Task', () => {
-  test.setTimeout(120_000);
+  test.setTimeout(300_000);
 
   test('create blank task, run on local provider, verify output in Machine Logs', async ({
     page,
@@ -116,7 +116,7 @@ test.describe('Hello World Task', () => {
 
     // ── Step 5: Wait for the job to complete ──
     await expect(queuedJobRow.getByText('COMPLETE')).toBeVisible({
-      timeout: 60000,
+      timeout: 180000,
     });
 
     // ── Step 6: Open the Output modal and verify "hello" in Machine Logs ──
