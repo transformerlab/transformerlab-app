@@ -728,7 +728,11 @@ def command_task_edit(
         "--from-dir",
         help="Path to a directory containing task.yaml (and any attachments) to fully replace task contents",
     ),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview the task update without submitting it"),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview the task update without submitting it (only applies with --from-dir)",
+    ),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
     timeout: int = typer.Option(300, "--timeout", help="Request timeout in seconds for fetch/validate/save"),
 ):
@@ -740,6 +744,8 @@ def command_task_edit(
     if from_file and from_dir:
         console.print("[error]Error:[/error] --from-file and --from-dir are mutually exclusive")
         raise typer.Exit(1)
+    if dry_run and not from_dir:
+        console.print("[warning]Warning:[/warning] --dry-run only applies with --from-dir; ignoring.")
 
     current_experiment = require_current_experiment()
 
