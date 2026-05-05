@@ -48,7 +48,6 @@ class ComputeProviderConfig(BaseModel):
     # AWS-specific config
     aws_profile: Optional[str] = None  # e.g. "transformerlab-compute-{team_id}"
     region: Optional[str] = None  # e.g. "us-east-1"
-    team_id: Optional[str] = None  # team identifier for resource naming
 
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
@@ -61,7 +60,7 @@ class ComputeProviderConfig(BaseModel):
     azure_location: Optional[str] = None
     azure_resource_group: Optional[str] = None
 
-    # Shared cross-provider field
+    # Used by AWS and Azure for resource naming
     team_id: Optional[str] = None
 
 
