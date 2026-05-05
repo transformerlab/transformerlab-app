@@ -475,6 +475,7 @@ def _validate_task_yaml_content(
             response = api.post_text(f"/experiment/{experiment_id}/task/validate", **post_kwargs)
     else:
         response = api.post_text(f"/experiment/{experiment_id}/task/validate", **post_kwargs)
+
     if response.status_code != 200:
         try:
             detail = response.json().get("detail", response.text)
@@ -723,11 +724,42 @@ def command_task_validate(
 def command_task_edit(
     task_id: str = typer.Argument(..., help="Task ID to update"),
     from_file: str | None = typer.Option(None, "--from-file", help="Path to task.yaml to apply directly"),
+    from_dir: str | None = typer.Option(
+        None,
+        "--from-dir",
+        help="Path to a directory containing task.yaml (and any attachments) to fully replace task contents",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview the task update without submitting it (only applies with --from-dir)",
+    ),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
     timeout: int = typer.Option(300, "--timeout", help="Request timeout in seconds for fetch/validate/save"),
 ):
-    """Edit an existing task's task.yaml (interactive by default)."""
+    """Edit an existing task's task.yaml (interactive by default).
+
+    Use --from-file to replace only task.yaml, or --from-dir to replace task.yaml
+    plus any sibling files (e.g. main.py) in the task directory.
+    """
+    if from_file and from_dir:
+        console.print("[error]Error:[/error] --from-file and --from-dir are mutually exclusive")
+        raise typer.Exit(1)
+    if dry_run and not from_dir:
+        console.print("[warning]Warning:[/warning] --dry-run only applies with --from-dir; ignoring.")
+
     current_experiment = require_current_experiment()
+
+    if from_dir:
+        edit_task_from_directory(
+            task_id=task_id,
+            task_directory_path=from_dir,
+            experiment_id=current_experiment,
+            dry_run=dry_run,
+            interactive=not no_interactive,
+        )
+        return
+
     edit_task_yaml(
         task_id=task_id,
         experiment_id=current_experiment,

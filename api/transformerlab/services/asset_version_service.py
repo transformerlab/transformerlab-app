@@ -25,6 +25,7 @@ Group directories are keyed by UUID so the display name is freely editable.
 
 import json
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -174,7 +175,7 @@ async def _list_group_ids(asset_type: str) -> list[str]:
     return ids
 
 
-async def _find_group_by_name(asset_type: str, name: str) -> Optional[str]:
+async def find_group_by_name(asset_type: str, name: str) -> Optional[str]:
     """Look up a group_id by its display name.  Returns None if not found."""
     for gid in await _list_group_ids(asset_type):
         try:
@@ -190,13 +191,30 @@ async def _find_group_by_name(asset_type: str, name: str) -> Optional[str]:
 # --- Public API ---------------------------------------------------------------
 
 
+_VERSION_LABEL_PATTERN = re.compile(r"^v(\d+)$")
+
+
+def _next_version_label(versions: list[dict]) -> str:
+    """Return the next ``vN`` label given an existing list of version dicts.
+
+    Scans existing ``version_label`` values for the ``^v(\\d+)$`` pattern and
+    returns ``v{highest+1}``. Non-matching labels are ignored.
+    """
+    highest = 0
+    for v in versions:
+        match = _VERSION_LABEL_PATTERN.match(v.get("version_label") or "")
+        if match:
+            highest = max(highest, int(match.group(1)))
+    return f"v{highest + 1}"
+
+
 async def create_version(
     *,
     asset_type: str,
     group_name: str,
     group_id: Optional[str] = None,
     asset_id: str,
-    version_label: str = "v1",
+    version_label: Optional[str] = None,
     job_id: Optional[str] = None,
     description: Optional[str] = None,
     title: Optional[str] = None,
@@ -212,6 +230,10 @@ async def create_version(
     Otherwise a group is looked up by ``group_name``, or a new one is created
     with a fresh UUID.
 
+    If ``version_label`` is None, the next ``vN`` label is auto-computed from
+    the group's existing versions. If provided explicitly, it must not already
+    exist in the group (raises ``ValueError`` on collision).
+
     By default the new version is tagged ``'latest'`` and any previous holder
     of that tag in the same group has the tag cleared.
 
@@ -222,7 +244,7 @@ async def create_version(
 
     if group_id is None:
         # Try to find existing group by name, or create a new one
-        group_id = await _find_group_by_name(asset_type, group_name)
+        group_id = await find_group_by_name(asset_type, group_name)
         if group_id is None:
             group_id = str(uuid.uuid4())
 
@@ -234,6 +256,11 @@ async def create_version(
         await _write_index(asset_type, group_id, index)
 
     versions = await _read_versions(asset_type, group_id)
+
+    if version_label is None:
+        version_label = _next_version_label(versions)
+    elif any(v.get("version_label") == version_label for v in versions):
+        raise ValueError(f"Version '{version_label}' already exists in group '{group_name}' (group_id: {group_id})")
 
     # Clear the tag from any other version in this group (one holder per tag)
     if tag is not None:
@@ -314,7 +341,7 @@ async def update_group(
     index = await _read_index(asset_type, group_id)
 
     if name is not ...:
-        existing_id = await _find_group_by_name(asset_type, name)
+        existing_id = await find_group_by_name(asset_type, name)
         if existing_id is not None and existing_id != group_id:
             raise ValueError(f"A group named '{name}' already exists")
         index["name"] = name
