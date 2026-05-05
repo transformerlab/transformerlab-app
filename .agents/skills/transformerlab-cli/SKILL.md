@@ -1,7 +1,7 @@
 ---
 name: transformerlab-cli
 description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, run autonomous experiment loops (autoresearch), or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "add provider", "configure provider", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset", "run autoresearch", "optimize X in a loop", "set up autoresearch", "/lab-autoresearch".
-allowed-tools: Bash(lab *), Bash(curl *beta.lab.cloud*), Bash(curl *localhost:8338*)
+allowed-tools: Bash(lab *), Bash(curl *lab.cloud*), Bash(curl *localhost:8338*)
 ---
 
 # Transformer Lab CLI
