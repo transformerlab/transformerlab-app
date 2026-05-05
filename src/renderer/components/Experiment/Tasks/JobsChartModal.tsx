@@ -254,8 +254,7 @@ export default function JobsChartModal({
 }: JobsChartModalProps) {
   const [hoveredPointData, setHoveredPointData] =
     useState<HoveredPointData | null>(null);
-  const { experimentInfo } = useExperimentInfo();
-  const experimentName = experimentInfo?.name ?? '';
+  const { experimentId } = useExperimentInfo();
   const autoLowerIsBetter = useMemo(
     () => (Array.isArray(jobs) ? resolveLowerIsBetter(jobs) : false),
     [jobs],
@@ -603,9 +602,9 @@ export default function JobsChartModal({
               {hoveredPointData ? (
                 renderPointDetails(
                   hoveredPointData,
-                  hoveredPointData.jobId && experimentName
+                  hoveredPointData.jobId && experimentId
                     ? {
-                        to: `/experiment/${experimentName}/jobs/${hoveredPointData.jobId}`,
+                        to: `/experiment/${experimentId}/jobs/${hoveredPointData.jobId}`,
                         onClick: onClose,
                       }
                     : undefined,
