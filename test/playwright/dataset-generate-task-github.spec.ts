@@ -1,8 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { login, selectFirstExperiment } from './helpers';
 
-const GITHUB_REPO_URL =
-  'https://github.com/transformerlab/transformerlab-examples';
+const GITHUB_REPO_URL = 'https://github.com/transformerlab/transformerlab-app';
 const GITHUB_SUBDIR =
   'api/transformerlab/galleries/examples/demo-generate-task';
 
