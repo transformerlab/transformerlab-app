@@ -37,15 +37,15 @@ There is no separate UI widget; the deliverable is the experiment itself, which 
 
 Trigger the agent with `/lab-autoresearch init <your goal>` (or just say "run autoresearch on …"). The agent will gather a few things from you, asking only what it can't infer from context:
 
-| Question | Example answer |
-|---|---|
-| **Goal** — what's being optimized, in plain language | "minimize validation loss on shakespeare_char with nanoGPT" |
-| **Primary metric** — name, unit, direction | `val_bpb`, bits per byte, *lower is better* |
-| **Secondary metrics** — tradeoff monitors that don't gate keep/discard | `val_loss`, `elapsed_seconds` |
-| **Task** — existing task ID, or a new task to scaffold via `lab task init` | scaffold from local dir |
-| **Provider** — which Compute Provider to target | `skypilot1` |
-| **Parallelism** — max concurrent jobs (default `1`) | `2` |
-| **Max iterations** — optional cap to bound cost | `20` |
+| Question                                                                   | Example answer                                              |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **Goal** — what's being optimized, in plain language                       | "minimize validation loss on shakespeare_char with nanoGPT" |
+| **Primary metric** — name, unit, direction                                 | `val_bpb`, bits per byte, _lower is better_                 |
+| **Secondary metrics** — tradeoff monitors that don't gate keep/discard     | `val_loss`, `elapsed_seconds`                               |
+| **Task** — existing task ID, or a new task to scaffold via `lab task init` | scaffold from local dir                                     |
+| **Provider** — which Compute Provider to target                            | `skypilot1`                                                 |
+| **Parallelism** — max concurrent jobs (default `1`)                        | `2`                                                         |
+| **Max iterations** — optional cap to bound cost                            | `20`                                                        |
 
 Once these are set, the agent:
 
@@ -78,22 +78,28 @@ The agent writes the plan in this shape:
 **Max iterations:** <N or "unbounded">
 
 ## Objective
+
 <One paragraph: what's being optimized and the workload.>
 
 ## Files in scope
+
 <Files the agent may modify — the mutable implementation under test.>
 
 ## Off limits
+
 <The fixed evaluator — the score-computation code that feeds lab.finish(score=…).
 The agent must not modify these even to "fix" a regression.>
 
 ## Constraints
+
 <Hard rules: tests must pass, no new deps, no GPU > X, etc.>
 
 ## Backlog
+
 <Promising ideas not yet tried.>
 
 ## What's been tried
+
 <Updated by the agent every ~5 iterations: hypothesis, result, what was learned.>
 ```
 
@@ -107,19 +113,19 @@ Each iteration the agent:
 
 1. Re-reads the session plan with `lab notes show --raw` and pulls the current best + last few runs from `lab job list --score-metric <primary>`.
 2. Picks the next idea (from Backlog, or from inspecting the task code).
-3. Queues a job with `lab task queue` — including a short, specific `--description` that captures *what changed*, *what hypothesis is being tested*, and *what to remember if it fails*.
+3. Queues a job with `lab task queue` — including a short, specific `--description` that captures _what changed_, _what hypothesis is being tested_, and _what to remember if it fails_.
 4. In parallel mode, immediately picks the next idea (fire-and-advance) until the parallelism budget is full.
 5. Scores completed jobs and discards anything that didn't beat the current best.
 
 You can intervene at any time with plain language:
 
-| Say… | The agent runs… |
-|---|---|
-| "show me status" | `lab job list --score-metric <primary> --score-order asc` + a short summary |
-| "keep job X" / "discard job X" | `lab job discard <id>` (with `--undo` for keep) |
+| Say…                               | The agent runs…                                                             |
+| ---------------------------------- | --------------------------------------------------------------------------- |
+| "show me status"                   | `lab job list --score-metric <primary> --score-order asc` + a short summary |
+| "keep job X" / "discard job X"     | `lab job discard <id>` (with `--undo` for keep)                             |
 | "add an idea: try cosine LR decay" | `lab notes append "- try cosine LR decay"` (appends to the Backlog section) |
-| "stop everything" | `lab job stop` on every running job |
-| "stop the loop" | just stops iterating; experiment and jobs are untouched |
+| "stop everything"                  | `lab job stop` on every running job                                         |
+| "stop the loop"                    | just stops iterating; experiment and jobs are untouched                     |
 
 ## Hyperparameter sweeps
 
@@ -132,13 +138,13 @@ parameters:
   batch_size: 32
 sweeps:
   sweep_config:
-    learning_rate: ["1e-5", "3e-5", "1e-4"]
-    batch_size: ["16", "32", "64"]
-  sweep_metric: "eval/loss"
+    learning_rate: ['1e-5', '3e-5', '1e-4']
+    batch_size: ['16', '32', '64']
+  sweep_metric: 'eval/loss'
   lower_is_better: true
 ```
 
-Sweeps run as one coordinated job that fans out internally — single description, single artifact bundle, cleaner dashboards. Use the per-iteration `--param key=value` flow only for ideas that are *not* pure hyperparameter combinations (swapping the optimizer, restructuring the model, changing setup steps).
+Sweeps run as one coordinated job that fans out internally — single description, single artifact bundle, cleaner dashboards. Use the per-iteration `--param key=value` flow only for ideas that are _not_ pure hyperparameter combinations (swapping the optimizer, restructuring the model, changing setup steps).
 
 ## Wrapping up: `/lab-autoresearch finalize`
 
@@ -165,5 +171,5 @@ lab experiment set-default <session-experiment-id>
 ## Tips
 
 - **Run descriptions are the durable record.** Every job's `--description` is a mini commit message: what changed vs the prior best, the hypothesis, and what to remember if it fails. The agent two iterations from now relies on these to avoid re-treading dead ends.
-- **Update *What's been tried* every ~5 runs.** Discarded runs lose their code — this section is the only durable record of why dead ends were dead.
+- **Update _What's been tried_ every ~5 runs.** Discarded runs lose their code — this section is the only durable record of why dead ends were dead.
 - **The agent uses the `lab` CLI for everything.** If something seems broken, run the corresponding `lab` command yourself to verify — there is no hidden REST workaround the agent is using.
