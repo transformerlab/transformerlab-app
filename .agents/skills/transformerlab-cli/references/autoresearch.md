@@ -58,7 +58,7 @@ Everything else during a session — checking status, marking a run kept or disc
 
 ## `/lab-autoresearch init <goal>`
 
-One-time setup. Five things to gather (ask only what you can't infer from context):
+One-time setup. Key details to gather (ask only what you can't infer from context):
 
 1. **Goal** — what is being optimized, in plain language.
 2. **Primary metric** — name (e.g. `eval/loss`), unit, direction (`lower` / `higher` is better).
