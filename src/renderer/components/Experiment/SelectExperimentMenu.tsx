@@ -132,10 +132,9 @@ export default function SelectExperimentMenu({ models }) {
   const DEV_MODE = experimentInfo?.name === 'dev';
   const experimentItems: ExperimentMenuItem[] = Array.isArray(data)
     ? data.filter(
-        (
-          experiment,
-        ): experiment is ExperimentMenuItem =>
-          typeof experiment?.id === 'string' && typeof experiment?.name === 'string',
+        (experiment): experiment is ExperimentMenuItem =>
+          typeof experiment?.id === 'string' &&
+          typeof experiment?.name === 'string',
       )
     : [];
 
@@ -384,7 +383,9 @@ export default function SelectExperimentMenu({ models }) {
                 return (
                   <MenuItem
                     selected={experimentInfo?.id === experiment.id}
-                    variant={experimentInfo?.id === experiment.id ? 'soft' : undefined}
+                    variant={
+                      experimentInfo?.id === experiment.id ? 'soft' : undefined
+                    }
                     onClick={createHandleClose(experiment.id)}
                     key={experiment.id}
                     sx={{

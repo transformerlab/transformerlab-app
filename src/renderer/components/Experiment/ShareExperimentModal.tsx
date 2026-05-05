@@ -133,9 +133,12 @@ export default function ShareExperimentModal({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetchWithAuth(`teams/${team.id}/permissions/${ruleId}`, {
-        method: 'DELETE',
-      });
+      const res = await fetchWithAuth(
+        `teams/${team.id}/permissions/${ruleId}`,
+        {
+          method: 'DELETE',
+        },
+      );
       if (!res.ok) throw new Error(await res.text());
       setRules((prev) => prev.filter((r) => r.id !== ruleId));
       onShared?.();
