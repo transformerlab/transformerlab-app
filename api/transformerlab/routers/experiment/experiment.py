@@ -2,7 +2,7 @@ import os
 
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import transformerlab.services.experiment_service as experiment_service
@@ -150,9 +150,14 @@ async def experiments_create(
 ):
     # Apply secure filename validation to the experiment name
     secure_name = secure_filename(name)
+    if not secure_name:
+        raise HTTPException(status_code=422, detail="Invalid experiment name")
     user_id = str(user_and_team["user"].id)
 
-    newid = await experiment_service.experiment_create(secure_name, {}, created_by=user_id)
+    try:
+        newid = await experiment_service.experiment_create(secure_name, {}, created_by=user_id)
+    except FileExistsError as e:
+        raise HTTPException(status_code=409, detail=f"Experiment '{secure_name}' already exists") from e
     return newid
 
 

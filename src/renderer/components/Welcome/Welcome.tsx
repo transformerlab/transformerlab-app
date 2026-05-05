@@ -52,6 +52,11 @@ export default function Welcome() {
       const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Experiment.Create(name),
       );
+      if (!response.ok) {
+        const errorText = await response.text();
+        alert(errorText || 'Failed to create experiment.');
+        return;
+      }
       newId = await response.json();
     } else {
       const response = await chatAPI.authenticatedFetch(

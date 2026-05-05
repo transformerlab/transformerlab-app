@@ -168,7 +168,7 @@ export default function SelectExperimentMenu({ models }) {
       // Allow creation if data is an empty array (no experiments yet)
       if (isLoading || data === null || data === undefined) {
         alert('Please wait for experiments to load before creating a new one.');
-        return;
+        return false;
       }
 
       let newId = 0;
@@ -177,6 +177,11 @@ export default function SelectExperimentMenu({ models }) {
         const response = await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Experiment.Create(name),
         );
+        if (!response.ok) {
+          const errorText = await response.text();
+          alert(errorText || 'Failed to create experiment.');
+          return false;
+        }
         newId = await response.json();
       } else {
         const response = await chatAPI.authenticatedFetch(
@@ -194,7 +199,7 @@ export default function SelectExperimentMenu({ models }) {
           alert(
             `Error creating experiment from recipe: ${responseJson?.message || 'Unknown error'}`,
           );
-          return;
+          return false;
         }
         newId = responseJson?.data?.experiment_id;
       }
@@ -208,7 +213,7 @@ export default function SelectExperimentMenu({ models }) {
         alert(
           'Experiment created, but it could not be loaded. Please refresh and try again.',
         );
-        return;
+        return false;
       }
 
       await mutate();
@@ -219,6 +224,7 @@ export default function SelectExperimentMenu({ models }) {
       if (fromRecipeId !== null && fromRecipeId !== -1) {
         navigate(`/experiment/${encodeURIComponent(name)}/notes`);
       }
+      return true;
     },
     [setExperimentId, mutate, navigate, isLoading, data],
   );
@@ -463,8 +469,10 @@ export default function SelectExperimentMenu({ models }) {
                   alert('Experiment name already exists.');
                   return;
                 }
-                await createNewExperiment(name);
-                setModalOpen(false);
+                const created = await createNewExperiment(name);
+                if (created) {
+                  setModalOpen(false);
+                }
               }}
             >
               <Input
