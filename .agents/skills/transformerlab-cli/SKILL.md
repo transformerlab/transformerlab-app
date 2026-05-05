@@ -202,12 +202,15 @@ lab.log("message")                            # Write to job output log
 lab.update_progress(50)                       # Set progress 0-100
 config = lab.get_config()                     # Read parameters from task.yaml
 
-lab.finish(message="Done!")                   # Mark job as SUCCESS
-lab.error(message="Something went wrong")     # Mark job as FAILED
+lab.finish(message="Done!")                              # success, no score
+lab.finish(message="Done!", score={"accuracy": 0.78})    # success with metric(s)
+lab.finish(score={"accuracy": 0.78, "f1": 0.83})         # multiple metrics
+lab.error(message="Something went wrong")                # Mark job as FAILED
 ```
 
 **Common mistakes:**
 - `lab.finish()` has NO `status` parameter — just `message`. For failures, use `lab.error()`.
+- `score=` takes a **dict** of named metrics, not a scalar. Use `score={"accuracy": 0.78}`, never `score=0.78`. The dict populates `job_data.score`, visible in `lab job list` (Score column) and `lab job info`, and is read by sweep / autoresearch flows.
 - Always call `lab.init()` before any other SDK call.
 - Always call `lab.finish()` or `lab.error()` at the end — otherwise the job stays in RUNNING state.
 
@@ -392,19 +395,42 @@ lab --format json dataset list
 # Get details for a specific dataset (by group_id or group_name)
 lab --format json dataset info GROUP_ID
 
-# Upload local files to a dataset (creates it if it doesn't exist)
-lab dataset upload my-dataset train.jsonl eval.jsonl
-
-# Download a dataset from HuggingFace Hub to the server
-lab dataset download Trelis/touch-rugby-rules
-lab dataset download Trelis/touch-rugby-rules --config default
-
 # Edit a dataset group's name or description
 lab dataset edit GROUP_ID --name "New Name" --description "Updated description"
 
 # Delete a dataset group and all its versions (--yes to skip confirmation)
 lab dataset delete GROUP_ID --yes
 ```
+
+### Uploading dataset files
+
+```bash
+# Upload local files/directories to a dataset on the server.
+# Creates the dataset if it doesn't exist; DATASET_ID is what you'll use
+# in subsequent lab dataset commands.
+lab dataset upload DATASET_ID ./train.jsonl ./eval.jsonl
+
+# Upload a directory (preserves relative paths under DATASET_ID/)
+lab dataset upload DATASET_ID ./my-dataset-dir
+
+# Overwrite server-side files that already exist
+lab dataset upload DATASET_ID ./train.jsonl --force
+```
+
+Re-running `lab dataset upload` against the same `DATASET_ID` skips files that already exist on the server and exits with code 2 (skipped some, did not fail). Use `--force` to overwrite. Adding a brand-new file to an existing dataset is a normal upload (no conflict, exit 0) — just include the new path in the command.
+
+The first successful upload registers the dataset in the asset_versions registry as `v1`/`latest`, which is what makes it appear in `lab dataset list`, `lab dataset info`, and the Dataset Registry UI. Re-uploads (with or without `--force`) do **not** spawn a new version — the registry stays at `v1`/`latest` and points at the same on-disk directory. To explicitly create a new version, use `lab job publish dataset` from a job that produced new outputs.
+
+### Downloading dataset files
+
+```bash
+# Download a previously-uploaded dataset to <dest>/<DATASET_ID>/
+lab dataset download DATASET_ID ./local-datasets
+```
+
+Both `DATASET_ID` and `DEST_DIR` are required. The server streams every file in the dataset directory; the destination is created if missing, and files land under `<dest>/<DATASET_ID>/` (including a server-generated `index.json`).
+
+**Note:** `lab dataset download` no longer pulls from HuggingFace Hub — it only downloads a dataset that already lives on the server. To get a HuggingFace dataset onto the server, either (a) upload it via `lab dataset upload` after fetching it locally, or (b) reference it from inside a task's code using `datasets.load_dataset("user/repo")`.
 
 ### Publishing a dataset from a job
 
@@ -426,10 +452,8 @@ When a task needs a specific dataset, ensure it exists on the server **before** 
 # 1. Check if the dataset already exists
 lab --format json dataset list
 
-# 2. If not, download from HuggingFace or upload local files
-lab dataset download user/my-dataset
-# or
-lab dataset upload my-dataset train.jsonl eval.jsonl
+# 2. If not, upload local files (creates the dataset)
+lab dataset upload my-dataset ./train.jsonl ./eval.jsonl
 
 # 3. Reference the dataset in task.yaml parameters
 #    The task code uses lab.get_config()["dataset_id"] to access it
@@ -698,8 +722,8 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab model download <id> <dest>` | Download a model's files to `<dest>/<id>/` | No |
 | `lab dataset list` | List all dataset groups | No |
 | `lab dataset info <id>` | Show dataset group details (by group_id or group_name) | No |
-| `lab dataset upload <id> <files...>` | Upload local files to a dataset (creates if needed) | No |
-| `lab dataset download <id>` | Download a dataset from HuggingFace Hub (`--config` for subset) | No |
+| `lab dataset upload <id> <path...>` | Upload local files/dirs to a dataset (creates if needed; `--force` to overwrite) | No |
+| `lab dataset download <id> <dest>` | Download a dataset's files from the server to `<dest>/<id>/` | No |
 | `lab dataset edit <id>` | Edit dataset group name or description | No |
 | `lab dataset delete <id>` | Delete a dataset group and all versions (`--yes` to skip prompt) | No |
 | `lab job publish model <job_id>` | Publish a model from a job to the registry | Yes |
