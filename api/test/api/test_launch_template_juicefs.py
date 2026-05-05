@@ -68,6 +68,7 @@ def test_build_juicefs_pod_config_mount_command_includes_console_url(monkeypatch
 
     assert env_vars["TFL_JUICEFS_CONSOLE_URL"] == "http://juicefs-console:8080"
     assert '--console-url "$TFL_JUICEFS_CONSOLE_URL"' in mount_cmd
+    assert mount_cmd.count('--console-url "$TFL_JUICEFS_CONSOLE_URL"') == 2
 
 
 def test_build_juicefs_pod_config_custom_mount_point(monkeypatch):

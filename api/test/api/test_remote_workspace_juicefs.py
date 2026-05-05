@@ -46,6 +46,18 @@ def test_validate_juicefs_config_raises_when_not_mounted(monkeypatch, tmp_path):
             remote_workspace._validate_juicefs_config()
 
 
+def test_validate_juicefs_config_raises_on_invalid_storage_backend(monkeypatch, tmp_path):
+    monkeypatch.setenv("TFL_JUICEFS_METADATA_URL", "redis://localhost:6379/1")
+    monkeypatch.setenv("TFL_JUICEFS_VOLUME_NAME", "myvol")
+    monkeypatch.setenv("TFL_JUICEFS_STORAGE_BACKEND", "s3")
+    monkeypatch.setenv("TFL_JUICEFS_MOUNT_POINT", str(tmp_path))
+    monkeypatch.setattr(remote_workspace, "STORAGE_PROVIDER", "juicefs", raising=False)
+
+    with patch("transformerlab.shared.remote_workspace.os.path.ismount", return_value=True):
+        with pytest.raises(SystemExit):
+            remote_workspace._validate_juicefs_config()
+
+
 def test_validate_juicefs_config_passes_when_valid(monkeypatch, tmp_path):
     monkeypatch.setenv("TFL_JUICEFS_METADATA_URL", "redis://localhost:6379/1")
     monkeypatch.setenv("TFL_JUICEFS_VOLUME_NAME", "myvol")

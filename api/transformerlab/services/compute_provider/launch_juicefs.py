@@ -61,19 +61,15 @@ def build_juicefs_pod_config(
         f" --subdir {shlex.quote(f'orgs/{team_id}')} --background"
     )
     if juicefs_token:
+        console_flag = ' --console-url "$TFL_JUICEFS_CONSOLE_URL"' if juicefs_console_url else ""
         auth_cmd = (
             'if [ -n "$ACCESS_KEY" ] && [ -n "$SECRET_KEY" ]; then '
-            f'juicefs auth {shlex.quote(volume_name)} --token "$TFL_JUICEFS_TOKEN" '
+            f'juicefs auth {shlex.quote(volume_name)} --token "$TFL_JUICEFS_TOKEN"{console_flag} '
             '--access-key "$ACCESS_KEY" --secret-key "$SECRET_KEY"; '
             "else "
-            f'juicefs auth {shlex.quote(volume_name)} --token "$TFL_JUICEFS_TOKEN"; '
+            f'juicefs auth {shlex.quote(volume_name)} --token "$TFL_JUICEFS_TOKEN"{console_flag}; '
             "fi"
         )
-        if juicefs_console_url:
-            auth_cmd = auth_cmd.replace(
-                '--token "$TFL_JUICEFS_TOKEN"',
-                '--token "$TFL_JUICEFS_TOKEN" --console-url "$TFL_JUICEFS_CONSOLE_URL"',
-            )
         mount_cmd = f"{auth_cmd} && {mount_cmd}"
 
     return env_vars, mount_cmd, mount_point

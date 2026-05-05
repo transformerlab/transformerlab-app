@@ -187,6 +187,13 @@ def _validate_juicefs_config() -> None:
         if not os.getenv(required):
             print(f"❌ ERROR: {required} is required when TFL_STORAGE_PROVIDER=juicefs", file=sys.stderr)
             sys.exit(1)
+    backend = os.getenv("TFL_JUICEFS_STORAGE_BACKEND", "")
+    if backend not in ("aws", "gcp", "azure"):
+        print(
+            f"❌ ERROR: Invalid TFL_JUICEFS_STORAGE_BACKEND. Expected one of: aws, gcp, azure; got {backend!r}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     mount_point = os.getenv("TFL_JUICEFS_MOUNT_POINT", "/mnt/juicefs")
     if not os.path.ismount(mount_point):
         print(
