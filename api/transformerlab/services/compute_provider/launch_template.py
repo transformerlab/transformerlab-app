@@ -73,11 +73,51 @@ def _build_juicefs_pod_config(
         "TFL_JUICEFS_MOUNT_POINT": mount_point,
         "TFL_REMOTE_STORAGE_ENABLED": "true",
     }
+
+    # Optional auth token for hosted JuiceFS deployments.
+    juicefs_token = os.getenv("TFL_JUICEFS_TOKEN", "")
+    if juicefs_token:
+        env_vars["TFL_JUICEFS_TOKEN"] = juicefs_token
+    juicefs_console_url = os.getenv("TFL_JUICEFS_CONSOLE_URL", "")
+    if juicefs_console_url:
+        env_vars["TFL_JUICEFS_CONSOLE_URL"] = juicefs_console_url
+
     mount_cmd = (
+        f"mkdir -p {shlex.quote(mount_point)} && "
         f"juicefs mount {shlex.quote(volume_name)} {shlex.quote(mount_point)}"
         f" --subdir {shlex.quote(f'orgs/{team_id}')} --background"
     )
+    if juicefs_token:
+        auth_cmd = (
+            'if [ -n "$ACCESS_KEY" ] && [ -n "$SECRET_KEY" ]; then '
+            f'juicefs auth {shlex.quote(volume_name)} --token "$TFL_JUICEFS_TOKEN" '
+            '--access-key "$ACCESS_KEY" --secret-key "$SECRET_KEY"; '
+            "else "
+            f'juicefs auth {shlex.quote(volume_name)} --token "$TFL_JUICEFS_TOKEN"; '
+            "fi"
+        )
+        if juicefs_console_url:
+            auth_cmd = auth_cmd.replace(
+                '--token "$TFL_JUICEFS_TOKEN"',
+                '--token "$TFL_JUICEFS_TOKEN" --console-url "$TFL_JUICEFS_CONSOLE_URL"',
+            )
+        mount_cmd = f"{auth_cmd} && {mount_cmd}"
+
     return env_vars, mount_cmd, mount_point
+
+
+def _build_juicefs_install_command() -> str:
+    """Install JuiceFS binary if it's not already present in the runtime image."""
+    return (
+        "if ! command -v juicefs >/dev/null 2>&1; then "
+        "curl -fsSL https://juicefs.com/static/juicefs -o /tmp/juicefs; "
+        "chmod +x /tmp/juicefs; "
+        "mv /tmp/juicefs /usr/local/bin/juicefs 2>/dev/null || "
+        '(mkdir -p "$HOME/.local/bin"; '
+        'mv /tmp/juicefs "$HOME/.local/bin/juicefs"; '
+        'export PATH="$HOME/.local/bin:$PATH"); '
+        "fi"
+    )
 
 
 async def launch_template_on_provider(
@@ -307,6 +347,10 @@ async def launch_template_on_provider(
                 setup_commands.append(aws_setup)
                 if aws_credentials_dir:
                     env_vars["AWS_SHARED_CREDENTIALS_FILE"] = f"{aws_credentials_dir}/credentials"
+                env_vars["AWS_PROFILE"] = aws_profile
+                # JuiceFS supports ACCESS_KEY/SECRET_KEY env vars directly.
+                env_vars["ACCESS_KEY"] = aws_access_key_id
+                env_vars["SECRET_KEY"] = aws_secret_access_key
         elif juicefs_backend == "gcp":
             gcp_sa_json_path = os.getenv("TFL_GCP_SERVICE_ACCOUNT_JSON_PATH")
             if gcp_sa_json_path:
@@ -332,7 +376,11 @@ async def launch_template_on_provider(
     # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
     # This runs after AWS credentials are configured so we have access to any remote storage if needed.
     if provider.type != ProviderType.LOCAL.value:
-        setup_commands.append("pip install -q transformerlab")
+        # setup_commands.append("pip install -q transformerlab")
+        setup_commands.insert(
+            0,
+            "export CURRENT_DIR=$(pwd); git clone https://github.com/transformerlab/transformerlab-app; cd transformerlab-app/lab-sdk; git checkout add/juicefs-mounting; uv pip install -e .; cd $CURRENT_DIR",
+        )
 
         # Install torch as well if torch profiler is enabled
         if request.enable_profiling_torch:
@@ -450,12 +498,16 @@ async def launch_template_on_provider(
     # resolve storage without relying on contextvar propagation.
     tfl_storage_uri = None
     if STORAGE_PROVIDER == "juicefs" and team_id:
-        juicefs_mount_point = os.getenv("TFL_JUICEFS_MOUNT_POINT", "/mnt/juicefs")
+        # Use a dedicated remote-pod mount path; do not reuse API host mount paths.
+        juicefs_mount_point = os.getenv("TFL_JUICEFS_REMOTE_MOUNT_POINT", "/tmp/tlab-juicefs")
         juicefs_env, juicefs_mount_cmd, tfl_storage_uri = _build_juicefs_pod_config(
             team_id=str(team_id), mount_point=juicefs_mount_point
         )
         env_vars.update(juicefs_env)  # sets TFL_REMOTE_STORAGE_ENABLED=true for pod
-        setup_commands.insert(0, juicefs_mount_cmd)
+
+        # Keep mount setup after credential materialization so JuiceFS can authenticate.
+        setup_commands.append(_build_juicefs_install_command())
+        setup_commands.append(juicefs_mount_cmd)
     elif STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
         tfl_storage_uri = storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", str(team_id), "workspace")
     else:
