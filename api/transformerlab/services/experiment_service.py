@@ -3,12 +3,15 @@ import logging
 import json
 import os
 
+from sqlalchemy import delete
 from werkzeug.utils import secure_filename
 from lab import Experiment
 from lab import dirs as lab_dirs
 from lab import storage
 
+from transformerlab.db.session import async_session
 from transformerlab.services.cache_service import cache, cached
+from transformerlab.shared.models.models import UserExperimentAccess
 
 logger = logging.getLogger(__name__)
 EXPERIMENT_LIST_CONCURRENCY = max(1, int(os.getenv("TLAB_EXPERIMENT_LIST_CONCURRENCY", "24")))
@@ -134,6 +137,9 @@ async def experiment_delete(id):
     try:
         exp = await Experiment.get(id)
         await exp.delete()
+        async with async_session() as session:
+            await session.execute(delete(UserExperimentAccess).where(UserExperimentAccess.experiment_id == str(id)))
+            await session.commit()
         await cache.invalidate("experiments")
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")

@@ -132,51 +132,15 @@ async def experiments_get_recent(
         return []
 
     recent_ids = await access_service.get_recent_experiment_ids(session, user_id, team_id, limit=3)
+    permitted_experiments = await experiments_get_all(session=session, user_and_team=user_and_team)
+    if not recent_ids:
+        return permitted_experiments[:3]
 
-    # Fetch and permission-filter recent experiments
-    results = []
-    for exp_id in recent_ids:
-        if user_team.role != TeamRole.OWNER.value:
-            allowed = await check_permission(
-                session=session,
-                user_id=user_id,
-                team_id=team_id,
-                resource_type="experiment",
-                resource_id=exp_id,
-                action="read",
-                user_team=user_team,
-            )
-            if not allowed:
-                continue
-        data = await experiment_service.experiment_get(exp_id)
-        if data:
-            results.append(data)
-
-    # Fallback: if no recent records, return first 3 permitted experiments
-    if not results:
-        all_experiments = await experiment_service.experiment_get_all()
-        for exp in all_experiments:
-            exp_id = str(exp.get("id", ""))
-            if not exp_id:
-                continue
-            if user_team.role == TeamRole.OWNER.value:
-                results.append(exp)
-            else:
-                allowed = await check_permission(
-                    session=session,
-                    user_id=user_id,
-                    team_id=team_id,
-                    resource_type="experiment",
-                    resource_id=exp_id,
-                    action="read",
-                    user_team=user_team,
-                )
-                if allowed:
-                    results.append(exp)
-            if len(results) >= 3:
-                break
-
-    return results
+    permitted_by_id = {
+        str(exp.get("id")): exp for exp in permitted_experiments if isinstance(exp, dict) and exp.get("id")
+    }
+    ordered_recent = [permitted_by_id[exp_id] for exp_id in recent_ids if exp_id in permitted_by_id]
+    return ordered_recent[:3]
 
 
 @router.get("/create", summary="Create Experiment", tags=["experiment"])
@@ -224,7 +188,10 @@ async def experiment_rename(
     new_name = body.get("name", "").strip()
     if not new_name:
         raise HTTPException(status_code=422, detail="name is required")
-    result = await experiment_service.experiment_rename(id, new_name)
+    try:
+        result = await experiment_service.experiment_rename(id, new_name)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     if result is None:
         raise HTTPException(status_code=404, detail=f"Experiment {id} not found")
     return result

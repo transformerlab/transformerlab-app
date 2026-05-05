@@ -38,6 +38,11 @@ import { getAPIFullPath, fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import ExperimentsManagerModal from './ExperimentsManagerModal';
 
+interface ExperimentMenuItem {
+  id: string;
+  name: string;
+}
+
 function ExperimentSettingsMenu({
   experimentInfo,
   setExperimentId,
@@ -125,6 +130,14 @@ export default function SelectExperimentMenu({ models }) {
   const hasProviders = providers.length > 0;
 
   const DEV_MODE = experimentInfo?.name === 'dev';
+  const experimentItems: ExperimentMenuItem[] = Array.isArray(data)
+    ? data.filter(
+        (
+          experiment,
+        ): experiment is ExperimentMenuItem =>
+          typeof experiment?.id === 'string' && typeof experiment?.name === 'string',
+      )
+    : [];
 
   useEffect(() => {
     mutate();
@@ -367,48 +380,39 @@ export default function SelectExperimentMenu({ models }) {
               }}
             >
               {isLoading && <MenuItem>Loading...</MenuItem>}
-              {data &&
-                data
-                  .filter(
-                    (experiment: any) => experiment?.id && experiment?.name,
-                  ) // skip bad rows
-                  .map((experiment: any) => {
-                    return (
-                      <MenuItem
-                        selected={experimentInfo?.id === experiment.id}
-                        variant={
-                          experimentInfo?.id === experiment.id
-                            ? 'soft'
-                            : undefined
-                        }
-                        onClick={createHandleClose(experiment.id)}
-                        key={experiment.id}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          textOverflow: 'ellipsis',
-                          overflow: 'hidden',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        <span
-                          style={{
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            flex: 1,
-                            minWidth: 0,
-                          }}
-                          title={experiment.name}
-                        >
-                          {experiment.name}
-                        </span>
-                        {experimentInfo?.id === experiment.id && (
-                          <CheckIcon style={{ marginLeft: 'auto' }} />
-                        )}
-                      </MenuItem>
-                    );
-                  })}
+              {experimentItems.map((experiment) => {
+                return (
+                  <MenuItem
+                    selected={experimentInfo?.id === experiment.id}
+                    variant={experimentInfo?.id === experiment.id ? 'soft' : undefined}
+                    onClick={createHandleClose(experiment.id)}
+                    key={experiment.id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      textOverflow: 'ellipsis',
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span
+                      style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        flex: 1,
+                        minWidth: 0,
+                      }}
+                      title={experiment.name}
+                    >
+                      {experiment.name}
+                    </span>
+                    {experimentInfo?.id === experiment.id && (
+                      <CheckIcon style={{ marginLeft: 'auto' }} />
+                    )}
+                  </MenuItem>
+                );
+              })}
             </Box>
             <MenuItem onClick={() => setIsManagerOpen(true)}>
               <ListItemDecorator>
@@ -454,7 +458,7 @@ export default function SelectExperimentMenu({ models }) {
                   return;
                 }
                 // Check if experiment name already exists (fallback, as API also checks)
-                if (data?.some((exp: any) => exp.name === name)) {
+                if (experimentItems.some((exp) => exp.name === name)) {
                   alert('Experiment name already exists.');
                   return;
                 }

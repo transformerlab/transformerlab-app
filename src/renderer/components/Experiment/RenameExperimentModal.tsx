@@ -19,6 +19,13 @@ interface RenameExperimentModalProps {
   onRenamed: (newName: string) => void;
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return 'Failed to rename experiment';
+}
+
 export default function RenameExperimentModal({
   open,
   experimentId,
@@ -55,8 +62,8 @@ export default function RenameExperimentModal({
       const updated = await res.json();
       onRenamed(updated.name ?? newName);
       onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to rename experiment');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setSaving(false);
     }

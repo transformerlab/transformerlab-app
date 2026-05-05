@@ -44,7 +44,7 @@ interface ExperimentsManagerModalProps {
   onClose: () => void;
   onExperimentSelect: (experimentId: string) => void;
   onNewExperiment: () => void;
-  mutateRecent: () => void;
+  mutateRecent: () => void | Promise<unknown>;
 }
 
 function formatRelativeTime(isoString: string | null): string {
@@ -126,6 +126,7 @@ export default function ExperimentsManagerModal({
 
   const handleOpen = (exp: Experiment) => {
     onExperimentSelect(exp.id);
+    mutate();
     onClose();
   };
 
@@ -211,9 +212,9 @@ export default function ExperimentsManagerModal({
                     const ownerLabel =
                       exp.config?.created_by === currentUserId
                         ? 'you'
-                        : exp.config?.created_by
-                          ? exp.config.created_by.slice(0, 8) + '…'
-                          : 'unknown';
+                        : (members.find(
+                            (m) => m.user_id === exp.config?.created_by,
+                          )?.email ?? 'unknown');
 
                     return (
                       <tr key={exp.id}>
@@ -328,6 +329,10 @@ export default function ExperimentsManagerModal({
           experimentId={shareTarget.id}
           experimentName={shareTarget.name}
           members={members}
+          onShared={() => {
+            mutate();
+            mutateRecent();
+          }}
           onClose={() => setShareTarget(null)}
         />
       )}

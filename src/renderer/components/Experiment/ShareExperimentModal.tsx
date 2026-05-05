@@ -50,6 +50,14 @@ interface ShareExperimentModalProps {
   experimentName: string;
   members: TeamMember[];
   onClose: () => void;
+  onShared?: () => void;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return 'Request failed';
 }
 
 export default function ShareExperimentModal({
@@ -58,6 +66,7 @@ export default function ShareExperimentModal({
   experimentName,
   members,
   onClose,
+  onShared,
 }: ShareExperimentModalProps) {
   const { team, fetchWithAuth } = useAuth();
   const [rules, setRules] = useState<ShareRule[]>([]);
@@ -111,8 +120,9 @@ export default function ShareExperimentModal({
         return [...without, saved];
       });
       setSelectedUserId('');
-    } catch (e: any) {
-      setError(e?.message || 'Failed to add share');
+      onShared?.();
+    } catch (e: unknown) {
+      setError(getErrorMessage(e) || 'Failed to add share');
     } finally {
       setSaving(false);
     }
@@ -121,13 +131,16 @@ export default function ShareExperimentModal({
   const onRemove = async (ruleId: string) => {
     if (!team?.id) return;
     setSaving(true);
+    setError(null);
     try {
-      await fetchWithAuth(`teams/${team.id}/permissions/${ruleId}`, {
+      const res = await fetchWithAuth(`teams/${team.id}/permissions/${ruleId}`, {
         method: 'DELETE',
       });
+      if (!res.ok) throw new Error(await res.text());
       setRules((prev) => prev.filter((r) => r.id !== ruleId));
-    } catch {
-      // ignore
+      onShared?.();
+    } catch (e: unknown) {
+      setError(getErrorMessage(e) || 'Failed to remove share');
     } finally {
       setSaving(false);
     }
