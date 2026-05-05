@@ -2,12 +2,30 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import httpx
 from typer.testing import CliRunner
 from transformerlab_cli.commands.task import build_launch_payload
 from transformerlab_cli.main import app
 from tests.helpers import strip_ansi
 
 runner = CliRunner()
+
+
+def _cli_output(result) -> str:
+    """Typer/Rich may write to stdout and/or stderr; combine for assertions."""
+    return strip_ansi((result.stdout or "") + (result.stderr or ""))
+
+
+def _patch_api_httpx_read_timeout():
+    """Force transport timeout inside transformerlab_cli.util.api (not task.api.post_text)."""
+    req = httpx.Request("POST", "http://lab.example/experiment/exp1/task/validate")
+    exc = httpx.ReadTimeout("timed out", request=req)
+    mock_client_instance = MagicMock()
+    mock_client_instance.request.side_effect = exc
+    mock_cm = MagicMock()
+    mock_cm.__enter__ = MagicMock(return_value=mock_client_instance)
+    mock_cm.__exit__ = MagicMock(return_value=None)
+    return patch("transformerlab_cli.util.api.httpx.Client", return_value=mock_cm)
 
 
 SAMPLE_TASKS = [
@@ -340,6 +358,35 @@ def test_task_upload_calls_upload_endpoint(_mock_exp, mock_post_json, _mock_get,
     assert result.exit_code == 0, result.output
     submit_path = mock_post_json.call_args_list[-1].args[0]
     assert submit_path == "/experiment/exp1/task/t1/upload?upload_id=up-1"
+
+
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_validate_friendly_message_on_timeout(_mock_exp):
+    """Validation timeouts show a clear message instead of a traceback."""
+    with _patch_api_httpx_read_timeout():
+        with runner.isolated_filesystem():
+            task_yaml = Path("task.yaml")
+            task_yaml.write_text("name: demo\nrun: echo hello\n", encoding="utf-8")
+            result = runner.invoke(app, ["task", "validate"])
+    assert result.exit_code == 1, _cli_output(result)
+    out = _cli_output(result)
+    assert "timed out" in out.lower()
+    assert "api may be unreachable" in out.lower()
+
+
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_validate_json_on_timeout(_mock_exp):
+    """JSON output includes structured error on transport failure."""
+    with _patch_api_httpx_read_timeout():
+        with runner.isolated_filesystem():
+            task_yaml = Path("task.yaml")
+            task_yaml.write_text("name: demo\nrun: echo hello\n", encoding="utf-8")
+            result = runner.invoke(app, ["--format", "json", "task", "validate"])
+    assert result.exit_code == 1, _cli_output(result)
+    combined = (result.stdout or "") + (result.stderr or "")
+    payload = json.loads(combined.strip())
+    assert payload["error"] == "API request failed"
+    assert "timed out" in payload["detail"].lower()
 
 
 @patch("transformerlab_cli.commands.task.api.post_text", return_value=_mock_resp({"valid": True}))

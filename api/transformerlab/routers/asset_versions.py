@@ -25,7 +25,7 @@ class CreateVersionRequest(BaseModel):
     group_name: str  # display name — resolved to a UUID internally
     group_id: Optional[str] = None  # if provided, add to this existing group
     asset_id: str
-    version_label: str = "v1"
+    version_label: Optional[str] = None  # if None, server auto-computes the next vN
     job_id: Optional[str] = None
     description: Optional[str] = None
     title: Optional[str] = None

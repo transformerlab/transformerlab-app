@@ -97,6 +97,7 @@ async def lifespan(app: FastAPI):
 
     # Do the following at API Startup:
     print_launch_message()
+    _print_storage_banner()
     # Initialize directories early
     from transformerlab.shared import dirs as shared_dirs
 
@@ -362,6 +363,13 @@ async def healthz():
         "metadata": {
             "email_method": email_method,
         },
+        # Only the provider is exposed here — /healthz is unauthenticated, so
+        # the bucket/path URI must NOT leak. The full URI is logged at startup
+        # (operator-visible) and can be added to authenticated endpoints if
+        # the CLI/UI ever needs it.
+        "storage": {
+            "provider": _effective_storage_provider(),
+        },
     }
 
 
@@ -408,6 +416,46 @@ def print_launch_message():
         text = f.read()
         shared.print_in_rainbow(text)
     print("https://lab.cloud\nhttps://github.com/transformerlab/transformerlab-app\n")
+
+
+def _effective_storage_provider() -> str:
+    """Return the storage backend that's actually in use.
+
+    `TFL_STORAGE_PROVIDER` alone isn't authoritative: when it's set to
+    aws/gcp/azure but `TFL_REMOTE_STORAGE_ENABLED` isn't `true`, the SDK
+    silently falls back to the local filesystem at `~/.transformerlab`.
+    Reporting the configured provider in that case is misleading, so callers
+    should use this helper instead.
+    """
+    from lab.storage import STORAGE_PROVIDER
+
+    if STORAGE_PROVIDER == "localfs":
+        return "localfs"
+    remote_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
+    return STORAGE_PROVIDER if remote_enabled else "localfs"
+
+
+def _print_storage_banner():
+    """Print the active storage backend so it's obvious in API logs."""
+    from lab.storage import STORAGE_PROVIDER
+
+    effective = _effective_storage_provider()
+    uri = os.getenv("TFL_STORAGE_URI")
+    if effective == "localfs":
+        # Either configured as localfs, or remote was requested but not enabled —
+        # in both cases the SDK uses ~/.transformerlab/workspace.
+        from lab.dirs import HOME_DIR
+
+        if not uri:
+            uri = os.path.join(HOME_DIR, "orgs", "<org_id>", "workspace")
+    if effective != STORAGE_PROVIDER:
+        # Surface the misconfiguration so operators don't think remote is live.
+        print(
+            f"✅ Storage: {effective} ({uri}) "
+            f"[TFL_STORAGE_PROVIDER={STORAGE_PROVIDER} ignored: TFL_REMOTE_STORAGE_ENABLED is not set]"
+        )
+        return
+    print(f"✅ Storage: {effective} ({uri or 'unset'})")
 
 
 def run():

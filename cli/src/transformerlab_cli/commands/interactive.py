@@ -301,7 +301,7 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
 
         try:
             # Check job status — only keep polling if in an active state
-            jobs_resp = api.get(jobs_url, timeout=10.0)
+            jobs_resp = api.get(jobs_url, timeout=10.0, reraise_transport=True)
             if jobs_resp.status_code == 200:
                 job = next((j for j in jobs_resp.json() if j.get("id") == job_id), None)
                 if job:
@@ -321,7 +321,7 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
 
         # Stream new log lines to give the user feedback
         try:
-            logs_resp = api.get(logs_url, timeout=10.0)
+            logs_resp = api.get(logs_url, timeout=10.0, reraise_transport=True)
             if logs_resp.status_code == 200:
                 logs_data = logs_resp.json()
                 logs_text = logs_data.get("logs", "") if isinstance(logs_data, dict) else ""
@@ -337,7 +337,7 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
             pass
 
         try:
-            response = api.get(tunnel_url, timeout=10.0)
+            response = api.get(tunnel_url, timeout=10.0, reraise_transport=True)
             if response.status_code == 200:
                 data = response.json()
                 if data.get("is_ready"):

@@ -475,6 +475,7 @@ def _validate_task_yaml_content(
             response = api.post_text(f"/experiment/{experiment_id}/task/validate", **post_kwargs)
     else:
         response = api.post_text(f"/experiment/{experiment_id}/task/validate", **post_kwargs)
+
     if response.status_code != 200:
         try:
             detail = response.json().get("detail", response.text)
