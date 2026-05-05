@@ -503,16 +503,21 @@ def _create_azure_container(container_name: str, team_id: str) -> bool:
 
 def _create_juicefs_directory(team_id: str) -> bool:
     mount_point = os.getenv("TFL_JUICEFS_MOUNT_POINT", "/mnt/juicefs")
+    volume_name = os.getenv("TFL_JUICEFS_VOLUME_NAME", "")
     quota_gb = int(os.getenv("TFL_JUICEFS_QUOTA_GB", "100"))
     org_path = os.path.join(mount_point, "orgs", team_id)
+    subdir_path = f"/orgs/{team_id}"
     try:
         os.makedirs(org_path, exist_ok=True)
     except OSError as e:
         print(f"❌ Failed to create JuiceFS directory {org_path}: {e}")
         return False
+    if not volume_name:
+        print("❌ TFL_JUICEFS_VOLUME_NAME is not set, cannot set JuiceFS quota")
+        return False
     try:
         subprocess.run(
-            ["juicefs", "quota", "set", org_path, "--capacity", str(quota_gb)],
+            ["juicefs", "quota", "set", volume_name, "--path", subdir_path, "--capacity", str(quota_gb)],
             check=True,
             capture_output=True,
             text=True,
@@ -549,6 +554,9 @@ async def create_buckets_for_all_teams(session, profile_name: Optional[str] = No
             print("TFL_STORAGE_PROVIDER=localfs but TFL_STORAGE_URI is not set, skipping")
             return (0, 0, ["TFL_STORAGE_URI is not set"])
         print("Initialising local workspaces for all teams (localfs mode)")
+    elif STORAGE_PROVIDER == "juicefs":
+        # juicefs doesn't require TFL_REMOTE_STORAGE_ENABLED — it's always active when configured.
+        print("Initialising JuiceFS directories for all teams")
     else:
         tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
         if not tfl_remote_storage_enabled:
@@ -558,8 +566,6 @@ async def create_buckets_for_all_teams(session, profile_name: Optional[str] = No
             remote_label = "GCS"
         elif STORAGE_PROVIDER == "azure":
             remote_label = "Azure"
-        elif STORAGE_PROVIDER == "juicefs":
-            remote_label = "JuiceFS"
         else:
             remote_label = "S3"
         print(f"Creating buckets for all teams using {remote_label} (TFL_STORAGE_PROVIDER={STORAGE_PROVIDER})")

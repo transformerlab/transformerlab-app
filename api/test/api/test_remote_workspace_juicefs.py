@@ -59,6 +59,7 @@ def test_validate_juicefs_config_passes_when_valid(monkeypatch, tmp_path):
 
 def test_create_juicefs_directory_creates_dir_and_sets_quota(monkeypatch, tmp_path):
     monkeypatch.setenv("TFL_JUICEFS_MOUNT_POINT", str(tmp_path))
+    monkeypatch.setenv("TFL_JUICEFS_VOLUME_NAME", "myvol")
     monkeypatch.setenv("TFL_JUICEFS_QUOTA_GB", "50")
 
     with patch("transformerlab.shared.remote_workspace.subprocess.run") as mock_run:
@@ -68,7 +69,7 @@ def test_create_juicefs_directory_creates_dir_and_sets_quota(monkeypatch, tmp_pa
     org_path = os.path.join(str(tmp_path), "orgs", "team-abc")
     assert os.path.isdir(org_path)
     mock_run.assert_called_once_with(
-        ["juicefs", "quota", "set", org_path, "--capacity", "50"],
+        ["juicefs", "quota", "set", "myvol", "--path", "/orgs/team-abc", "--capacity", "50"],
         check=True,
         capture_output=True,
         text=True,
@@ -77,6 +78,7 @@ def test_create_juicefs_directory_creates_dir_and_sets_quota(monkeypatch, tmp_pa
 
 def test_create_juicefs_directory_returns_false_on_error(monkeypatch, tmp_path):
     monkeypatch.setenv("TFL_JUICEFS_MOUNT_POINT", str(tmp_path))
+    monkeypatch.setenv("TFL_JUICEFS_VOLUME_NAME", "myvol")
     monkeypatch.setenv("TFL_JUICEFS_QUOTA_GB", "100")
 
     with patch("transformerlab.shared.remote_workspace.subprocess.run", side_effect=Exception("juicefs not found")):
@@ -87,6 +89,7 @@ def test_create_juicefs_directory_returns_false_on_error(monkeypatch, tmp_path):
 
 def test_create_bucket_for_team_routes_to_juicefs(monkeypatch, tmp_path):
     monkeypatch.setenv("TFL_JUICEFS_MOUNT_POINT", str(tmp_path))
+    monkeypatch.setenv("TFL_JUICEFS_VOLUME_NAME", "myvol")
     monkeypatch.setenv("TFL_JUICEFS_QUOTA_GB", "100")
     monkeypatch.setattr(remote_workspace, "STORAGE_PROVIDER", "juicefs", raising=False)
 
