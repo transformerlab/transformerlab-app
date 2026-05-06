@@ -825,6 +825,8 @@ def build_launch_payload(
     param_values: dict | None = None,
     resource_overrides: dict | None = None,
     description: str | None = None,
+    enable_profiling: bool = False,
+    enable_profiling_torch: bool = False,
 ) -> dict:
     """Build the payload for launching a task on a provider."""
     cfg = task.get("config") or {}
@@ -852,6 +854,8 @@ def build_launch_payload(
         "accelerators": pick("accelerators"),
         "num_nodes": pick("num_nodes"),
         "minutes_requested": pick("minutes_requested"),
+        "enable_profiling": enable_profiling,
+        "enable_profiling_torch": enable_profiling_torch,
         "env_vars": task.get("env_vars", {}),
         "parameters": task.get("parameters", {}),
         "config": param_values if param_values else None,
@@ -1016,6 +1020,8 @@ def queue_task(
     interactive: bool = True,
     description: str | None = None,
     param_overrides: dict | None = None,
+    enable_profiling: bool = False,
+    enable_profiling_torch: bool = False,
 ) -> None:
     """Queue a task on a compute provider."""
     with console.status("[bold success]Fetching task...[/bold success]", spinner="dots"):
@@ -1067,8 +1073,17 @@ def queue_task(
         param_values = {k: (v.get("default", "") if isinstance(v, dict) else v) for k, v in parameters.items()}
     param_values.update(overrides)
 
+    if enable_profiling_torch and not enable_profiling:
+        raise typer.BadParameter("--enable-profiling-torch requires --enable-profiling.")
+
     payload = build_launch_payload(
-        task, provider.get("name"), param_values, resource_overrides, description=description
+        task,
+        provider.get("name"),
+        param_values,
+        resource_overrides,
+        description=description,
+        enable_profiling=enable_profiling,
+        enable_profiling_torch=enable_profiling_torch,
     )
     provider_id = provider.get("id")
 
@@ -1105,6 +1120,16 @@ def command_task_queue(
             "scalar (e.g. score=0.42 -> float, enabled=true -> bool). Unknown keys fail."
         ),
     ),
+    enable_profiling: bool = typer.Option(
+        False,
+        "--enable-profiling",
+        help="Enable system profiling for this run (CPU/GPU/memory sampling).",
+    ),
+    enable_profiling_torch: bool = typer.Option(
+        False,
+        "--enable-profiling-torch",
+        help="Enable torch profiler trace export for this run (requires --enable-profiling).",
+    ),
 ):
     """Queue a task on a compute provider."""
     current_experiment = require_current_experiment()
@@ -1119,6 +1144,8 @@ def command_task_queue(
         interactive=not no_interactive,
         description=description,
         param_overrides=param_overrides,
+        enable_profiling=enable_profiling,
+        enable_profiling_torch=enable_profiling_torch,
     )
 
 
