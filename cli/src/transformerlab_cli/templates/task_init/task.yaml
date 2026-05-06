@@ -12,9 +12,10 @@ resources:
   # num_nodes: 1             # >1 for distributed training
 
 # Commands that run on the remote machine BEFORE `run`. Use this for
-# installing deps, downloading data, etc.
-setup: |
-  pip install transformerlab
+# installing extra deps, downloading data, etc. The `transformerlab` SDK
+# is preinstalled, so you do NOT need `pip install transformerlab` here.
+# setup: |
+#   pip install -r requirements.txt
 
 # Main entry point. This is the command that executes your task.
 run: python main.py

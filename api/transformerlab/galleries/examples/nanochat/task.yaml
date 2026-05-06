@@ -3,7 +3,7 @@ github_repo_url: https://github.com/transformerlab/transformerlab-app
 github_repo_dir: api/transformerlab/galleries/examples/nanochat
 resources:
   accelerators: "H100:8"
-setup: "uv pip install transformerlab torch torchvision torchaudio transformers datasets wandb;sudo apt update;sudo apt install -y curl git build-essential;"
+setup: "uv pip install torch torchvision torchaudio transformers datasets wandb;sudo apt update;sudo apt install -y curl git build-essential;"
 run: "python nanochat/train.py"
 envs:
   WANDB_PROJECT: "nanochat-training"

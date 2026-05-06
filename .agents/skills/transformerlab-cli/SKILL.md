@@ -1,7 +1,7 @@
 ---
 name: transformerlab-cli
-description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "add provider", "configure provider", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset".
-allowed-tools: Bash(lab *), Bash(curl *beta.lab.cloud*), Bash(curl *localhost:8338*)
+description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, run autonomous experiment loops (autoresearch), or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "add provider", "configure provider", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset", "run autoresearch", "optimize X in a loop", "set up autoresearch", "/lab-autoresearch".
+allowed-tools: Bash(lab *), Bash(curl *lab.cloud*), Bash(curl *localhost:8338*)
 ---
 
 # Transformer Lab CLI
@@ -135,8 +135,7 @@ resources:                             # Optional but recommended
   num_nodes: 2                         # For distributed training
   compute_provider: my-provider        # Target provider name
 setup: |                               # Optional — runs before main task
-  pip install transformerlab
-  pip install -r requirements.txt
+  pip install -r requirements.txt      # The `transformerlab` SDK is preinstalled — do NOT add `pip install transformerlab`
 run: python main.py                    # Required — main entry point
 envs:                                  # Optional environment variables
   HF_TOKEN: "${HF_TOKEN}"
@@ -226,8 +225,7 @@ lab.error(message="Something went wrong")                # Mark job as FAILED
 **task.yaml:**
 ```yaml
 name: hello-world
-setup: pip install transformerlab
-run: python main.py
+run: python main.py                    # No `setup:` needed — the `transformerlab` SDK is preinstalled in the task environment
 resources:
   cpus: 2
   memory: 4
@@ -302,6 +300,41 @@ lab --format json experiment list | jq -r '.experiments[] | select(.name=="my-ex
   ]
 }
 ```
+
+## Experiment Notes
+
+Each experiment has a single shared markdown document — the "experiment notes" — that persists on the server. It's separate from per-job `-m/--description` notes: those describe one run, the experiment notes describe the experiment as a whole (hypothesis, running findings, decisions, links to key job IDs).
+
+```bash
+# Render the notes (markdown, with formatting)
+lab notes show
+lab notes show --raw           # plain markdown, no rendering — better for piping/grepping
+
+# Edit interactively in $EDITOR (defaults to nano if unset)
+lab notes edit
+
+# Append a single line, non-interactive — best for agents
+lab notes append "2026-05-05: switched provider from local to skypilot; queue depth was >12"
+```
+
+All three commands operate on the **current experiment** (`require_current_experiment` — set it first via `lab experiment set-default`). There is no `--format json` output; `show` returns the raw string and `append`/`edit` write it back.
+
+### When agents should use it
+
+Experiment notes are the right place for context that future conversations (or teammates) will need but that doesn't belong on a single job:
+
+- **Running hypothesis log** — append after each batch of runs: "Tried lr ∈ {1e-5, 3e-5, 5e-5}; 3e-5 wins on eval/loss. Next: try larger batch."
+- **Decisions and their rationale** — "Dropped baseline-v1 from comparison; tokenizer mismatch made eval scores incomparable."
+- **Pointers** — "Best run so far: job 7f21abcd, score 0.83. Worst: 9c12, diverged at step 500."
+- **Open questions / next steps** — so the next session picks up where this one stopped.
+
+**Default flow for agents working in an experiment:**
+
+1. At the start of a session, run `lab notes show --raw` to load prior context.
+2. After each meaningful action (queueing a sweep, finding a winning config, hitting a blocker), `lab notes append "..."` with a dated one-liner. Always lead with today's date (e.g. `2026-05-05:`) so the log stays chronological.
+3. Use `lab notes edit` only when the user asks to reorganize or rewrite — appending is safer because it never destroys prior content.
+
+Don't duplicate per-run details (those go in `lab task queue -m`). Don't use experiment notes as a TODO list for the conversation — that's what plans/tasks are for. Keep entries terse and specific.
 
 ## Managing Models
 
@@ -693,6 +726,9 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab experiment create <name>` | Create a new experiment (`--set-default` to also switch to it) | No |
 | `lab experiment delete <id>` | Delete an experiment (`--no-interactive` to skip prompt) | No |
 | `lab experiment set-default <id>` | Set the default experiment (validates server-side, then writes `current_experiment` to `~/.lab/config.json`) | No |
+| `lab notes show` | Render the current experiment's shared markdown notes (`--raw` for plain markdown) | Yes |
+| `lab notes edit` | Open the current experiment's notes in `$EDITOR` (defaults to nano) | Yes |
+| `lab notes append <text>` | Append a line to the current experiment's notes non-interactively — preferred for agents | Yes |
 | `lab task list` | List tasks in current experiment | Yes |
 | `lab task info <id>` | Get task details | Yes |
 | `lab task init` | Scaffold `task.yaml` + `main.py` in the current directory (`--interactive` to prompt) | No |
@@ -779,11 +815,22 @@ With non-zero exit code.
 
 **If a CLI command appears missing, broken, or returns unexpected output:** investigate (run `--help`, re-read this skill, read the relevant router/service under `api/transformerlab/`), then tell the user what you found. **Don't** silently fall back to `curl` against the REST API or `/openapi.json` — that's the workaround pattern this skill explicitly forbids.
 
+## `/lab-autoresearch` — autonomous experiment loop
+
+When the user says **"run autoresearch"**, **"optimize X in a loop"**, **"set up autoresearch for …"**, or types **`/lab-autoresearch …`**, enter the autoresearch workflow. It's an agent-driven optimization loop layered on top of the `lab` CLI: pick an idea → queue it as a job → score via `lab.finish(score=…)` → keep or `lab job discard` → repeat, up to a parallelism budget. For hyperparameter fan-out, prefer the task's `sweeps:` block over manually queuing N jobs.
+
+State lives entirely on Transformer Lab — one **experiment** per session, one **job** per iteration (its `-m/--description` is the iteration note, its `score` dict is the result, `lab job discard` is the keep/discard flag). The session plan (objective, files in scope, constraints, backlog, what's been tried) is written to **experiment notes** via `lab notes` — there is no local `autoresearch.md` file.
+
+Subcommands worth naming: `init <goal>`, `run`, `finalize`. Everything else mid-session (status, keep/discard, sweeps, ideas, stopping running jobs, exiting the loop) is just the agent running the right `lab` call from this skill in response to natural-language requests — no dedicated subcommand needed.
+
+**Read `references/autoresearch.md` before doing any of this.** It has the three subcommand workflows, the during-session natural-language → `lab` mapping, the experiment-notes template, and loop rules (parallelism, fire-and-advance, stale-job sweep, keep/discard policy, run-description discipline).
+
 ## Deep-Dive References
 
 - `references/commands.md` — Full command reference with all options
 - `references/workflows.md` — End-to-end workflow patterns
 - `references/troubleshooting.md` — Error patterns and recovery
+- `references/autoresearch.md` — `/lab-autoresearch` autonomous experiment loop spec
 
 ## Ready-to-Use Templates
 
