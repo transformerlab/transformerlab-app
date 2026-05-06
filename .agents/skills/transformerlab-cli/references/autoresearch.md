@@ -221,7 +221,7 @@ The agent loops autonomously. Never ask "should I continue?" — keep going unti
    ```
    Immediately after queueing, add a structured log line to experiment notes so intent survives even if the session resets before `finalize`:
    ```bash
-   lab notes append "- $(date +%F): queued <JOB_ID> | intent: <what changed> | hypothesis: <expected metric behavior> | reason: <why this is the next best idea>"
+   lab notes append "- $(date +%F): queued <JOB_ID> | intent: <what changed> | hypothesis: <expected metric behavior> | reason: <why this is the next best idea> | expected-risk: <what might break>"
    ```
    Get `<JOB_ID>` from the queue command output or from `lab --format json job list | jq '.[-1].id'` if needed.
 6. **Advance.** What this means depends on parallelism:
@@ -241,7 +241,7 @@ The agent loops autonomously. Never ask "should I continue?" — keep going unti
    ```
    After deciding keep/discard, append a one-line outcome note for each processed job:
    ```bash
-   lab notes append "- $(date +%F): result <JOB_ID> | <kept|discarded|failed> | <primary_metric>=<value> | takeaway: <what to repeat/avoid next>"
+   lab notes append "- $(date +%F): result <JOB_ID> | <kept|discarded|failed> | <primary_metric>=<value> | delta-vs-best: <+/-> | takeaway: <what to repeat/avoid next> | next: <follow-up idea or 'none'>"
    ```
 8. **Loop.**
 
@@ -378,6 +378,31 @@ printf '%s' "- Switched optimizer AdamW→Lion (β1=0.95, β2=0.98).
 Bad descriptions (`"train model"`, `"another run"`) defeat the entire point — the agent two iterations from now has no idea what was tried.
 
 Also mirror each queue/result in `lab notes append` during the loop (not only at finalize). Descriptions are attached to one job; notes capture session-level reasoning and make "why this order of experiments?" visible when reading the full session timeline.
+
+### What to capture in `lab notes` beyond the job description
+
+Use descriptions for per-job details and notes for cross-job reasoning. A good rule: if the information helps choose the *next* idea, it belongs in notes even when it is also present in `-m`.
+
+- **Decision context:** Why this run was chosen over 1–2 alternatives from Backlog.
+- **Risk + guardrails:** What failure mode is expected and which signal confirms it.
+- **Comparative result:** Delta vs baseline and delta vs current best (not just raw metric).
+- **Actionability:** Explicit next step (`repeat`, `widen`, `revert`, `pivot`) and why.
+- **Session-level blockers:** Provider instability, flaky evals, or data issues affecting multiple runs.
+
+Compact append examples:
+
+```bash
+lab notes append "- $(date +%F): decision | picked JOB <JOB_ID> idea (lr+warmup) over scheduler swap because recent runs suggest under-training, not optimizer instability."
+lab notes append "- $(date +%F): result <JOB_ID> | kept | eval/loss=1.84 | delta-vs-baseline=-0.26 | delta-vs-best=-0.07 | next: widen around lr=3e-5."
+lab notes append "- $(date +%F): blocker | provider cold-start >20m on 2/3 attempts; avoid wide parallel bursts until stable."
+```
+
+When notes get long, keep append-only in the hot loop, then periodically consolidate into:
+
+1. **Key wins** (what consistently improves the primary metric)
+2. **Dead ends** (what reliably regresses and should not be retried)
+3. **Open hypotheses** (highest-value next experiments)
+4. **Operational caveats** (infra/eval quirks that affect interpretation)
 
 ---
 
