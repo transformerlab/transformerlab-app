@@ -3,11 +3,14 @@ import logging
 import json
 import os
 
+from sqlalchemy import delete
 from lab import Experiment
 from lab import dirs as lab_dirs
 from lab import storage
 
+from transformerlab.db.session import async_session
 from transformerlab.services.cache_service import cache, cached
+from transformerlab.shared.models.models import UserExperimentAccess
 
 logger = logging.getLogger(__name__)
 EXPERIMENT_LIST_CONCURRENCY = max(1, int(os.getenv("TLAB_EXPERIMENT_LIST_CONCURRENCY", "24")))
@@ -100,7 +103,9 @@ async def experiment_get_all():
     return experiments
 
 
-async def experiment_create(name: str, config: dict) -> str:
+async def experiment_create(name: str, config: dict, created_by: str | None = None) -> str:
+    if created_by:
+        config = {**config, "created_by": created_by}
     await Experiment.create_with_config(name, config)
     # Ensure the experiment dropdown refreshes immediately after creation.
     await cache.invalidate("experiments")
@@ -131,6 +136,9 @@ async def experiment_delete(id):
     try:
         exp = await Experiment.get(id)
         await exp.delete()
+        async with async_session() as session:
+            await session.execute(delete(UserExperimentAccess).where(UserExperimentAccess.experiment_id == str(id)))
+            await session.commit()
         await cache.invalidate("experiments")
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")

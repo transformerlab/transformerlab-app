@@ -103,7 +103,14 @@ def command_provider_list(
         providers = response.json()
         table_columns = ["id", "name", "type", "disabled", "is_default", "created_at", "updated_at"]
         render_table(
-            data=providers, format_type=cli_state.output_format, table_columns=table_columns, title="Providers"
+            data=providers,
+            format_type=cli_state.output_format,
+            table_columns=table_columns,
+            title="Providers",
+            column_options={
+                # Keep provider names as a single token (no wrapping to "Skypilot / New").
+                "name": {"no_wrap": True, "overflow": "crop"},
+            },
         )
     else:
         console.print(f"[error]Error:[/error] Failed to fetch providers. {_extract_error_detail(response)}")
