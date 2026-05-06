@@ -24,8 +24,8 @@ from lab.job_status import JobStatus
 from transformerlab.services import job_service, team_service
 
 
-REMOTE_JOB_STATUS_INTERVAL_SECONDS = int(os.getenv("REMOTE_JOB_STATUS_INTERVAL_SECONDS", "5"))
-EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD = int(os.getenv("EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD", "5"))
+REMOTE_JOB_STATUS_INTERVAL_SECONDS = int(os.getenv("REMOTE_JOB_STATUS_INTERVAL_SECONDS", "15"))
+EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD = int(os.getenv("EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD", "15"))
 
 # Circuit breaker: after this many consecutive provider failures, back off.
 _PROVIDER_FAILURE_THRESHOLD = 3
@@ -290,15 +290,15 @@ async def _check_job_via_provider(
             provider_type == ProviderType.AZURE.value
             and isinstance(job_data, dict)
             and cluster_state != ClusterState.UNKNOWN
-            and (job_data.get("azure_stopping_unknown_polls", 0) or 0) > 0
+            and (job_data.get("provider_empty_jobs_polls", 0) or 0) > 0
         ):
             try:
                 await job_service.job_update_job_data_insert_key_value(
-                    job_id, "azure_stopping_unknown_polls", 0, experiment_id
+                    job_id, "provider_empty_jobs_polls", 0, experiment_id
                 )
             except Exception as exc:
                 logger.warning(
-                    "Remote job status worker: failed to reset azure_stopping_unknown_polls for job %s: %s",
+                    "Remote job status worker: failed to reset provider_empty_jobs_polls for job %s: %s",
                     job_id,
                     exc,
                 )
@@ -339,21 +339,21 @@ async def _check_job_via_provider(
         ):
             # Azure can briefly report UNKNOWN while delete/stop propagates.
             # Debounce to avoid prematurely marking STOPPED on transient states.
-            azure_unknown_polls_raw = (
-                job_data.get("azure_stopping_unknown_polls", 0) if isinstance(job_data, dict) else 0
+            empty_poll_count_raw = (
+                job_data.get("provider_empty_jobs_polls", 0) if isinstance(job_data, dict) else 0
             ) or 0
             try:
-                azure_unknown_polls = int(azure_unknown_polls_raw)
+                empty_poll_count = int(empty_poll_count_raw)
             except (TypeError, ValueError):
-                azure_unknown_polls = 0
-            azure_unknown_polls += 1
+                empty_poll_count = 0
+            empty_poll_count += 1
             try:
                 await job_service.job_update_job_data_insert_key_value(
-                    job_id, "azure_stopping_unknown_polls", azure_unknown_polls, experiment_id
+                    job_id, "provider_empty_jobs_polls", empty_poll_count, experiment_id
                 )
             except Exception as exc:
                 logger.warning(
-                    "Remote job status worker: failed to update azure_stopping_unknown_polls for job %s: %s",
+                    "Remote job status worker: failed to update provider_empty_jobs_polls for job %s: %s",
                     job_id,
                     exc,
                 )
@@ -362,11 +362,11 @@ async def _check_job_via_provider(
                 "unknown_polls=%s threshold=%s status_message=%s",
                 cluster_name,
                 job_id,
-                azure_unknown_polls,
+                empty_poll_count,
                 EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD,
                 status_message,
             )
-            if azure_unknown_polls < EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD:
+            if empty_poll_count < EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD:
                 return False
             cluster_state = ClusterState.STOPPED
         elif provider_type == ProviderType.RUNPOD.value and status_message == "Pod not found":
@@ -526,20 +526,27 @@ async def _check_job_via_provider(
                     logger.warning(
                         f"Remote job status worker: failed to set provider_jobs_seen_once for job {job_id}: {exc}"
                     )
-            # Provider queue is non-empty. Prime empty-poll counter to threshold so that
-            # the next empty queue observation can be treated as terminal immediately.
+            # Provider queue is non-empty: the job is visible, so reset the
+            # empty-poll debounce counter. `provider_jobs_seen_once` (above)
+            # is what records that we've seen the job at least once.
             if isinstance(job_data, dict):
+                empty_poll_count_raw = job_data.get("provider_empty_jobs_polls", 0) or 0
                 try:
-                    await job_service.job_update_job_data_insert_key_value(
-                        job_id,
-                        "provider_empty_jobs_polls",
-                        EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD,
-                        experiment_id,
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        f"Remote job status worker: failed to prime provider_empty_jobs_polls for job {job_id}: {exc}"
-                    )
+                    existing_empty_poll_count = int(empty_poll_count_raw)
+                except (TypeError, ValueError):
+                    existing_empty_poll_count = 0
+                if existing_empty_poll_count > 0:
+                    try:
+                        await job_service.job_update_job_data_insert_key_value(
+                            job_id,
+                            "provider_empty_jobs_polls",
+                            0,
+                            experiment_id,
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            f"Remote job status worker: failed to reset provider_empty_jobs_polls for job {job_id}: {exc}"
+                        )
             jobs_finished = all(getattr(pj, "state", JobState.UNKNOWN) in terminal_job_states for pj in provider_jobs)
 
         if jobs_finished:

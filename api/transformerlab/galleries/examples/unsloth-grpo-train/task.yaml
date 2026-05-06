@@ -3,7 +3,7 @@ github_repo_url: https://github.com/transformerlab/transformerlab-app
 github_repo_dir: api/transformerlab/galleries/examples/unsloth-grpo-train
 resources:
   accelerators: "RTX3090:1"
-setup: "uv pip install trl==0.24.0 bitsandbytes==0.49.2 unsloth==2026.3.3 unsloth-zoo==2026.3.1 transformerlab datasets==4.3.0 torch==2.10.0"
+setup: "uv pip install trl==0.24.0 bitsandbytes==0.49.2 unsloth==2026.3.3 unsloth-zoo==2026.3.1 datasets==4.3.0 torch==2.10.0"
 run: "python unsloth-grpo-train/train.py"
 envs:
   WANDB_PROJECT: "unsloth-grpo-training"
