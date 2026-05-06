@@ -32,6 +32,7 @@ import SkypilotProviderFields from './providerForms/SkypilotProviderFields';
 import DstackProviderFields from './providerForms/DstackProviderFields';
 import RunpodProviderFields from './providerForms/RunpodProviderFields';
 import AwsProviderFields from './providerForms/AwsProviderFields';
+import AzureProviderFields from './providerForms/AzureProviderFields';
 import LocalProviderFields from './providerForms/LocalProviderFields';
 
 interface ProviderDetailsModalProps {
@@ -70,6 +71,9 @@ const DEFAULT_CONFIGS = {
   "dstack_project": "<Your dstack project name e.g. main>"
 }`,
   local: `{}`,
+  azure: `{
+  "azure_location": "eastus"
+}`,
   aws: `{
   "region": "us-east-1"
 }`,
@@ -81,6 +85,7 @@ const DEFAULT_SUPPORTED_ACCELERATORS: Record<string, string[]> = {
   runpod: ['NVIDIA'],
   dstack: ['NVIDIA'],
   local: ['AppleSilicon', 'cpu'],
+  azure: ['NVIDIA'],
   aws: ['NVIDIA'],
 };
 
@@ -137,6 +142,15 @@ export default function ProviderDetailsModal({
   const [runpodApiKeyChanged, setRunpodApiKeyChanged] = useState(false);
   const [runpodApiBaseUrl, setRunpodApiBaseUrl] = useState('');
 
+  // Azure-specific form fields
+  const [azureSubscriptionId, setAzureSubscriptionId] = useState('');
+  const [azureTenantId, setAzureTenantId] = useState('');
+  const [azureClientId, setAzureClientId] = useState('');
+  const [azureClientSecret, setAzureClientSecret] = useState('');
+  const [azureClientSecretChanged, setAzureClientSecretChanged] =
+    useState(false);
+  const [azureLocation, setAzureLocation] = useState('eastus');
+
   // AWS-specific form fields
   const [awsRegion, setAwsRegion] = useState('us-east-1');
   const [awsAccessKeyId, setAwsAccessKeyId] = useState('');
@@ -180,6 +194,11 @@ export default function ProviderDetailsModal({
         value: 'aws',
         label: 'AWS (beta)',
         description: 'Launch and manage compute on AWS.',
+      },
+      {
+        value: 'azure',
+        label: 'Azure (beta)',
+        description: 'Launch and manage compute on Azure.',
       },
     ];
 
@@ -374,6 +393,24 @@ export default function ProviderDetailsModal({
     }
   };
 
+  const parseAzureConfig = (configObj: any) => {
+    if (configObj && typeof configObj === 'object') {
+      setAzureSubscriptionId(configObj.azure_subscription_id || '');
+      setAzureTenantId(configObj.azure_tenant_id || '');
+      setAzureClientId(configObj.azure_client_id || '');
+      setAzureClientSecret(
+        configObj.azure_client_secret === '***'
+          ? ''
+          : configObj.azure_client_secret || '',
+      );
+      setAzureClientSecretChanged(false);
+      setAzureLocation(configObj.azure_location || 'eastus');
+      if (configObj.supported_accelerators) {
+        setSupportedAccelerators(configObj.supported_accelerators);
+      }
+    }
+  };
+
   const buildRunpodConfig = useCallback(() => {
     const configObj: any = {
       api_base_url: runpodApiBaseUrl || 'https://rest.runpod.io/v1',
@@ -389,6 +426,32 @@ export default function ProviderDetailsModal({
     runpodApiKey,
     runpodApiKeyChanged,
     runpodApiBaseUrl,
+    supportedAccelerators,
+    providerId,
+  ]);
+
+  const buildAzureConfig = useCallback(() => {
+    const configObj: any = {
+      azure_subscription_id: azureSubscriptionId,
+      azure_tenant_id: azureTenantId,
+      azure_client_id: azureClientId,
+      azure_location: azureLocation,
+    };
+    if (!providerId || azureClientSecretChanged) {
+      configObj.azure_client_secret = azureClientSecret;
+    }
+
+    if (supportedAccelerators.length > 0) {
+      configObj.supported_accelerators = supportedAccelerators;
+    }
+    return configObj;
+  }, [
+    azureSubscriptionId,
+    azureTenantId,
+    azureClientId,
+    azureClientSecret,
+    azureClientSecretChanged,
+    azureLocation,
     supportedAccelerators,
     providerId,
   ]);
@@ -459,6 +522,9 @@ export default function ProviderDetailsModal({
       if (providerData.type === 'runpod') {
         parseRunpodConfig(rawConfigObj);
       }
+      if (providerData.type === 'azure') {
+        parseAzureConfig(rawConfigObj);
+      }
       if (providerData.type === 'aws') {
         parseAwsConfig(rawConfigObj);
       }
@@ -496,6 +562,12 @@ export default function ProviderDetailsModal({
       setRunpodApiKey('');
       setRunpodApiKeyChanged(false);
       setRunpodApiBaseUrl('');
+      setAzureSubscriptionId('');
+      setAzureTenantId('');
+      setAzureClientId('');
+      setAzureClientSecret('');
+      setAzureClientSecretChanged(false);
+      setAzureLocation('eastus');
       setAwsRegion('us-east-1');
       setAwsAccessKeyId('');
       setAwsSecretAccessKey('');
@@ -539,6 +611,12 @@ export default function ProviderDetailsModal({
       setRunpodApiKey('');
       setRunpodApiKeyChanged(false);
       setRunpodApiBaseUrl('');
+      setAzureSubscriptionId('');
+      setAzureTenantId('');
+      setAzureClientId('');
+      setAzureClientSecret('');
+      setAzureClientSecretChanged(false);
+      setAzureLocation('eastus');
       setAwsRegion('us-east-1');
       setAwsAccessKeyId('');
       setAwsSecretAccessKey('');
@@ -625,6 +703,15 @@ export default function ProviderDetailsModal({
           // Ignore parse errors
         }
       }
+      if (type === 'azure') {
+        try {
+          const configObj = JSON.parse(defaultConfig);
+          parseAzureConfig(configObj);
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+
       if (type === 'aws') {
         try {
           const configObj = JSON.parse(DEFAULT_CONFIGS.aws);
@@ -657,6 +744,11 @@ export default function ProviderDetailsModal({
         const configObj = buildRunpodConfig();
         setConfig(JSON.stringify(configObj, null, 2));
       }
+      if (type === 'azure') {
+        const configObj = buildAzureConfig();
+        setConfig(JSON.stringify(configObj, null, 2));
+      }
+
       if (type === 'aws') {
         const configObj = buildAwsConfig();
         setConfig(JSON.stringify(configObj, null, 2));
@@ -667,6 +759,7 @@ export default function ProviderDetailsModal({
     buildSkypilotConfig,
     buildDstackConfig,
     buildRunpodConfig,
+    buildAzureConfig,
     buildAwsConfig,
     type,
     providerId,
@@ -819,6 +912,8 @@ export default function ProviderDetailsModal({
         parsedConfig = buildDstackConfig();
       } else if (type === 'runpod') {
         parsedConfig = buildRunpodConfig();
+      } else if (type === 'azure') {
+        parsedConfig = buildAzureConfig();
       } else if (type === 'aws') {
         parsedConfig = buildAwsConfig();
       } else if (type === 'local') {
@@ -1195,13 +1290,31 @@ export default function ProviderDetailsModal({
                     />
                   )}
 
+                  {type === 'azure' && (
+                    <AzureProviderFields
+                      azureSubscriptionId={azureSubscriptionId}
+                      setAzureSubscriptionId={setAzureSubscriptionId}
+                      azureTenantId={azureTenantId}
+                      setAzureTenantId={setAzureTenantId}
+                      azureClientId={azureClientId}
+                      setAzureClientId={setAzureClientId}
+                      azureClientSecret={azureClientSecret}
+                      setAzureClientSecret={setAzureClientSecret}
+                      azureLocation={azureLocation}
+                      setAzureLocation={setAzureLocation}
+                      providerId={providerId}
+                      setAzureClientSecretChanged={setAzureClientSecretChanged}
+                    />
+                  )}
+
                   {/* Generic JSON config for non-structured providers or advanced editing */}
                   {type !== 'slurm' &&
                     type !== 'skypilot' &&
                     type !== 'dstack' &&
                     type !== 'runpod' &&
                     type !== 'local' &&
-                    type !== 'aws' && (
+                    type !== 'aws' &&
+                    type !== 'azure' && (
                       <FormControl sx={{ mt: 1 }}>
                         <FormLabel>Configuration</FormLabel>
                         <Textarea

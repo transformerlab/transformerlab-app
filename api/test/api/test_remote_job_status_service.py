@@ -523,6 +523,81 @@ async def test_check_job_via_provider_runpod_terminating_stopping(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_check_job_via_provider_azure_unknown_stopping_debounced(monkeypatch):
+    """AZURE STOPPING + UNKNOWN should debounce before STOPPED."""
+    monkeypatch.setattr(remote_job_status_service, "EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD", 2)
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(status="STOPPING")
+    record = _make_provider_record("azure")
+
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.UNKNOWN
+    cluster_status.status_message = "unknown"
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key, value))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        AsyncMock(side_effect=AssertionError("should not be called on first poll")),
+    )
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+    assert result is False
+    assert ("kv", "azure_stopping_unknown_polls", 1) in calls
+
+    job["job_data"]["azure_stopping_unknown_polls"] = 1
+    monkeypatch.setattr(remote_job_status_service.job_service, "job_update_status", AsyncMock())
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_check_job_via_provider_azure_resets_unknown_stopping_counter(monkeypatch):
+    """AZURE clears debounce counter once cluster state is no longer UNKNOWN."""
+    from transformerlab.compute_providers.models import ClusterStatus, ClusterState
+
+    job = _make_job(status="STOPPING")
+    job["job_data"]["azure_stopping_unknown_polls"] = 2
+    record = _make_provider_record("azure")
+
+    cluster_status = MagicMock(spec=ClusterStatus)
+    cluster_status.state = ClusterState.DOWN
+    cluster_status.status_message = "ResourceNotFound"
+
+    instance = MagicMock()
+    instance.get_cluster_status = MagicMock(return_value=cluster_status)
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", key, value))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(remote_job_status_service.job_service, "job_update_status", AsyncMock())
+
+    result = await _check_job_via_provider(job, "exp-1", record, instance)
+    assert result is True
+    assert ("kv", "azure_stopping_unknown_polls", 0) in calls
+
+
+@pytest.mark.asyncio
 async def test_check_job_via_provider_local_still_running(monkeypatch):
     """LOCAL provider cluster still UP → returns False."""
     from transformerlab.compute_providers.models import ClusterStatus, ClusterState
