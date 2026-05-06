@@ -1065,13 +1065,24 @@ async def get_task_yaml(experimentId: str, task_id: str):
 
 
 @router.put("/{task_id}/yaml", summary="Save task.yaml and sync index.json")
-async def update_task_yaml(experimentId: str, task_id: str, request: Request):
+async def update_task_yaml(
+    experimentId: str,
+    task_id: str,
+    request: Request,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
     body = (await request.body()).decode("utf-8")
     task = await task_service.task_get_by_id(task_id, experiment_id=experimentId)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     await task_service.write_task_yaml(task_id, body, experiment_id=experimentId)
     task_data = _parse_yaml_to_task_data(body)
+    if task.get("subtype") == "interactive":
+        _clear_interactive_launch_provider(task_data)
+    elif task_data.get("provider_name"):
+        # Keep provider_name/provider_id in sync when task.yaml sets resources.compute_provider.
+        await _resolve_provider(task_data, user_and_team, session)
     task_data.pop("id", None)
     success = await task_service.update_task_from_yaml(task_id, task_data, experiment_id=experimentId)
     if not success:
