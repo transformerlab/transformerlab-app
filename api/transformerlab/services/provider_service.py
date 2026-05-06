@@ -298,6 +298,7 @@ def db_record_to_provider_config(
         azure_client_secret=config_dict.get("azure_client_secret"),
         azure_location=config_dict.get("azure_location"),
         azure_resource_group=config_dict.get("azure_resource_group"),
+        # team_id: config value (or record fallback) for AWS/Azure; None otherwise.
         team_id=(
             config_dict.get("team_id") or record.team_id
             if record.type in {ProviderType.AWS.value, ProviderType.AZURE.value}
