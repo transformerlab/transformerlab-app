@@ -31,6 +31,13 @@ publish_app = typer.Typer()
 ACTIVE_JOB_STATUSES = {"RUNNING", "LAUNCHING", "INTERACTIVE", "WAITING"}
 
 
+def _resolve_experiment_id(experiment_id: str | None = None) -> str:
+    """Resolve experiment from command override or configured default."""
+    if experiment_id is not None and str(experiment_id).strip():
+        return str(experiment_id).strip()
+    return require_current_experiment()
+
+
 def _extract_provider_cluster_from_job(job: dict) -> tuple[str | None, str | None]:
     """Extract provider_id and cluster_name from a job payload."""
     if not isinstance(job, dict):
@@ -634,10 +641,11 @@ def download_artifacts(job_id: str, experiment_id: str, output_dir: str | None =
 @app.command("artifacts")
 def command_job_artifacts(
     job_id: str = typer.Argument(..., help="Job ID to list artifacts for"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """List artifacts for a job."""
     check_configs(output_format=cli_state.output_format)
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     list_artifacts(job_id, current_experiment, output_format=cli_state.output_format)
 
 
@@ -652,10 +660,11 @@ def command_job_download(
         "--file",
         help="Filename or glob pattern to download (can be repeated). Omit to download all as zip.",
     ),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Download artifacts for a job. Use --file to download specific files."""
     check_configs(output_format=cli_state.output_format)
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     out = os.path.abspath(output_dir) if output_dir else os.getcwd()
     output_format = cli_state.output_format
 
@@ -869,9 +878,10 @@ def _print_logs(experiment_id: str, job_id: str, output_format: str, fetch_fn, l
 def command_job_machine_logs(
     job_id: str = typer.Argument(..., help="Job ID to fetch logs for"),
     follow: bool = typer.Option(False, "--follow", "-f", help="Stream new lines continuously"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Fetch machine/provider logs for a job. Use --follow to stream continuously."""
-    experiment_id = require_current_experiment()
+    experiment_id = _resolve_experiment_id(experiment)
     output_format = cli_state.output_format
 
     if follow:
@@ -885,9 +895,10 @@ def command_job_machine_logs(
 def command_job_task_logs(
     job_id: str = typer.Argument(..., help="Job ID to fetch logs for"),
     follow: bool = typer.Option(False, "--follow", "-f", help="Stream new lines continuously"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Fetch task (Lab SDK) output for a job. Use --follow to stream continuously."""
-    experiment_id = require_current_experiment()
+    experiment_id = _resolve_experiment_id(experiment)
     output_format = cli_state.output_format
 
     if follow:
@@ -900,9 +911,10 @@ def command_job_task_logs(
 @app.command("request-logs")
 def command_job_request_logs(
     job_id: str = typer.Argument(..., help="Job ID to fetch logs for"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Fetch provider request/launch logs for a job (e.g. SkyPilot launch logs)."""
-    experiment_id = require_current_experiment()
+    experiment_id = _resolve_experiment_id(experiment)
     output_format = cli_state.output_format
 
     _print_logs(experiment_id, job_id, output_format, fetch_request_logs, "request logs")
@@ -912,18 +924,20 @@ def command_job_request_logs(
 def command_job_logs(
     job_id: str = typer.Argument(..., help="Job ID to fetch logs for"),
     follow: bool = typer.Option(False, "--follow", "-f", help="Stream new lines continuously"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Deprecated: use 'machine-logs' instead."""
-    command_job_machine_logs(job_id, follow)
+    command_job_machine_logs(job_id=job_id, follow=follow, experiment=experiment)
 
 
 @app.command("discard")
 def command_job_discard(
     job_id: str = typer.Argument(..., help="Job ID to mark as discarded"),
     undo: bool = typer.Option(False, "--undo", help="Unset discard and mark the job as not discarded"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Toggle score.discard on a job."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     discard_value = not undo
     payload = json.dumps({"updates": {"discard": discard_value}}).encode("utf-8")
     response = api.put(
@@ -976,13 +990,14 @@ def command_job_list(
         "--score-order",
         help="Score ordering direction: desc (default) or asc.",
     ),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """List all jobs."""
     score_order_normalized = score_order.strip().lower()
     if score_order_normalized not in {"desc", "asc"}:
         console.print("[error]Error:[/error] --score-order must be either 'desc' or 'asc'.")
         raise typer.Exit(1)
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     list_jobs(
         current_experiment,
         running_only=running,
@@ -994,18 +1009,20 @@ def command_job_list(
 @app.command("info")
 def command_job_info(
     job_id: str = typer.Argument(..., help="Job ID to get info for"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Get job details."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     info_job(job_id, current_experiment)
 
 
 @app.command("stop")
 def command_job_stop(
     job_id: str = typer.Argument(..., help="Job ID to stop"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Stop a running job."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
 
     with console.status(f"[bold success]Stopping job {job_id}...[/bold success]", spinner="dots"):
         response = api.get(f"/experiment/{current_experiment}/jobs/{job_id}/stop")
@@ -1036,11 +1053,12 @@ def _extract_error_detail(response) -> str:
 @app.command("delete")
 def command_job_delete(
     job_id: str = typer.Argument(..., help="Job ID to delete"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Delete a job."""
     check_configs(output_format=cli_state.output_format)
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     output_format = cli_state.output_format
 
     if not no_interactive:
@@ -1079,11 +1097,12 @@ def command_job_delete(
 
 @app.command("delete-all")
 def command_job_delete_all(
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Delete all jobs in the current experiment."""
     check_configs(output_format=cli_state.output_format)
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     output_format = cli_state.output_format
 
     list_response = api.get(f"/experiment/{current_experiment}/jobs/list")
@@ -1144,9 +1163,10 @@ def command_job_publish_dataset(
     mode: str = typer.Option("new", "--mode", help="Publish mode: new or existing"),
     tag: str = typer.Option("latest", "--tag", help="Version tag"),
     description: str | None = typer.Option(None, "--description", "-d", help="Version description"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Publish a dataset from a job to the registry. Version label is auto-generated (v1, v2, …)."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     if not dataset_name:
         if cli_state.output_format == "json":
             print(json.dumps({"error": "dataset_name is required in --format json mode", "status_code": 1}))
@@ -1187,9 +1207,10 @@ def command_job_publish_model(
     mode: str = typer.Option("new", "--mode", help="Publish mode: new or existing"),
     tag: str = typer.Option("latest", "--tag", help="Version tag"),
     description: str | None = typer.Option(None, "--description", "-d", help="Version description"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Publish a model from a job to the registry. Version label is auto-generated (v1, v2, …)."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     if not model_name:
         if cli_state.output_format == "json":
             print(json.dumps({"error": "model_name is required in --format json mode", "status_code": 1}))
