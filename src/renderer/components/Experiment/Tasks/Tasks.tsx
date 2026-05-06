@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Sheet from '@mui/joy/Sheet';
 
 import {
@@ -97,7 +98,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
-  const [chartModalOpen, setChartModalOpen] = useState(false);
   const [viewTaskFilesFromTask, setViewTaskFilesFromTask] = useState<{
     id: string | null;
     name?: string | null;
@@ -113,6 +113,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const chartModalOpen = searchParams.get('jobsChart') === '1';
 
   // Trigger to force re-render when localStorage changes (minimal state to avoid interfering with useSWR)
   const [pendingIdsTrigger, setPendingIdsTrigger] = useState(0);
@@ -489,6 +491,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     const combined = [...placeholders, ...filteredJobs];
     return combined;
   }, [getPendingJobIds, isInteractiveJob, jobs, pendingIdsTrigger, subtype]);
+
+  const hasLoadedJobsOnce =
+    Boolean(experimentInfo?.id) && typeof jobsRemote !== 'undefined';
 
   const filteredJobsForDisplay = useMemo(() => {
     let result = jobsWithPlaceholders.map((job: any) => {
@@ -1245,6 +1250,19 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     }
   };
 
+  const setChartModalQuery = useCallback(
+    (open: boolean) => {
+      const nextParams = new URLSearchParams(searchParams);
+      if (open) {
+        nextParams.set('jobsChart', '1');
+      } else {
+        nextParams.delete('jobsChart');
+      }
+      setSearchParams(nextParams, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
   return (
     <Sheet
       sx={{
@@ -1449,7 +1467,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               size="sm"
               variant="outlined"
               color="neutral"
-              onClick={() => setChartModalOpen(true)}
+              onClick={() => setChartModalQuery(true)}
               title="View jobs chart"
             >
               <LineChartIcon size={16} />
@@ -1555,8 +1573,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setJobId={(jobId: string | null) => setViewSweepResultsFromJob(jobId)}
       />
       <JobsChartModal
-        open={chartModalOpen}
-        onClose={() => setChartModalOpen(false)}
+        open={chartModalOpen && hasLoadedJobsOnce && !jobsIsLoading}
+        onClose={() => setChartModalQuery(false)}
         jobs={filteredJobsForDisplay}
       />
       {(() => {
