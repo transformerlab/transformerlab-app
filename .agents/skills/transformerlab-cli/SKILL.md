@@ -135,8 +135,7 @@ resources:                             # Optional but recommended
   num_nodes: 2                         # For distributed training
   compute_provider: my-provider        # Target provider name
 setup: |                               # Optional — runs before main task
-  pip install transformerlab
-  pip install -r requirements.txt
+  pip install -r requirements.txt      # The `transformerlab` SDK is preinstalled — do NOT add `pip install transformerlab`
 run: python main.py                    # Required — main entry point
 envs:                                  # Optional environment variables
   HF_TOKEN: "${HF_TOKEN}"
@@ -226,8 +225,7 @@ lab.error(message="Something went wrong")                # Mark job as FAILED
 **task.yaml:**
 ```yaml
 name: hello-world
-setup: pip install transformerlab
-run: python main.py
+run: python main.py                    # No `setup:` needed — the `transformerlab` SDK is preinstalled in the task environment
 resources:
   cpus: 2
   memory: 4
