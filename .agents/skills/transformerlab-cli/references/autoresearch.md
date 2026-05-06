@@ -219,6 +219,11 @@ The agent loops autonomously. Never ask "should I continue?" — keep going unti
      --param lr=3e-5 --param warmup_steps=500 \
      -m "Bumped lr 1e-5→3e-5, warmup 100→500. Testing whether higher lr clears the eval/loss=2.1 plateau seen in baseline."
    ```
+   Immediately after queueing, add a structured log line to experiment notes so intent survives even if the session resets before `finalize`:
+   ```bash
+   lab notes append "- $(date +%F): queued <JOB_ID> | intent: <what changed> | hypothesis: <expected metric behavior> | reason: <why this is the next best idea> | expected-risk: <what might break>"
+   ```
+   Get `<JOB_ID>` from the queue command output or from `lab --format json job list | jq '.[-1].id'` if needed.
 6. **Advance.** What this means depends on parallelism:
    - **N = 1 (sequential):** wait for the just-queued job to finish, then go to step 7. Poll with `lab --format json job list --running`.
    - **N ≥ 2 (parallel / fire-and-advance):** **do not wait.** Return to step 0 and pick the next idea immediately, until `RUNNING >= N`. Only block when the queue is full. This is what enables grid-style search; waiting after every queue collapses parallelism back to 1.
@@ -233,6 +238,10 @@ The agent loops autonomously. Never ask "should I continue?" — keep going unti
    # If FAILED: leave it. FAILED jobs are naturally excluded from "best" — no action needed.
    # If COMPLETE but primary metric did NOT improve over current best → lab job discard <JOB_ID>.
    # If COMPLETE and improved → leave kept. Jobs are kept by default.
+   ```
+   After deciding keep/discard, append a one-line outcome note for each processed job:
+   ```bash
+   lab notes append "- $(date +%F): result <JOB_ID> | <kept|discarded|failed> | <primary_metric>=<value> | delta-vs-best: <+/-> | takeaway: <what to repeat/avoid next> | next: <follow-up idea or 'none'>"
    ```
 8. **Loop.**
 
@@ -351,9 +360,9 @@ Do **not** delete the experiment. Do **not** delete jobs. The session record is 
 
 ---
 
-## Run descriptions are the durable record
+## Run descriptions + notes are the durable record
 
-Because Transformer Lab persists per-job descriptions, **`-m/--description` is the per-run log** — there is no separate `autoresearch.jsonl` to maintain. Treat each description as a mini commit message for that iteration:
+Because Transformer Lab persists per-job descriptions, **`-m/--description` is the per-run log** — and experiment notes are the cross-run narrative. There is no separate `autoresearch.jsonl` to maintain. Treat each description as a mini commit message for that iteration:
 
 1. **What changed vs the prior best run** (params, code, infra). If nothing changed, say so.
 2. **What hypothesis is being tested** (why this run is worth doing).
@@ -368,6 +377,33 @@ printf '%s' "- Switched optimizer AdamW→Lion (β1=0.95, β2=0.98).
 
 Bad descriptions (`"train model"`, `"another run"`) defeat the entire point — the agent two iterations from now has no idea what was tried.
 
+Also mirror each queue/result in `lab notes append` during the loop (not only at finalize). Descriptions are attached to one job; notes capture session-level reasoning and make "why this order of experiments?" visible when reading the full session timeline.
+
+### What to capture in `lab notes` beyond the job description
+
+Use descriptions for per-job details and notes for cross-job reasoning. A good rule: if the information helps choose the *next* idea, it belongs in notes even when it is also present in `-m`.
+
+- **Decision context:** Why this run was chosen over 1–2 alternatives from Backlog.
+- **Risk + guardrails:** What failure mode is expected and which signal confirms it.
+- **Comparative result:** Delta vs baseline and delta vs current best (not just raw metric).
+- **Actionability:** Explicit next step (`repeat`, `widen`, `revert`, `pivot`) and why.
+- **Session-level blockers:** Provider instability, flaky evals, or data issues affecting multiple runs.
+
+Compact append examples:
+
+```bash
+lab notes append "- $(date +%F): decision | picked JOB <JOB_ID> idea (lr+warmup) over scheduler swap because recent runs suggest under-training, not optimizer instability."
+lab notes append "- $(date +%F): result <JOB_ID> | kept | eval/loss=1.84 | delta-vs-baseline=-0.26 | delta-vs-best=-0.07 | next: widen around lr=3e-5."
+lab notes append "- $(date +%F): blocker | provider cold-start >20m on 2/3 attempts; avoid wide parallel bursts until stable."
+```
+
+When notes get long, keep append-only in the hot loop, then periodically consolidate into:
+
+1. **Key wins** (what consistently improves the primary metric)
+2. **Dead ends** (what reliably regresses and should not be retried)
+3. **Open hypotheses** (highest-value next experiments)
+4. **Operational caveats** (infra/eval quirks that affect interpretation)
+
 ---
 
 ## Loop discipline
@@ -375,7 +411,7 @@ Bad descriptions (`"train model"`, `"another run"`) defeat the entire point — 
 - **Never stop the loop unless the user interrupts.** The user expects autonomous work.
 - **One iteration per running job slot.** Don't queue past the parallelism budget.
 - **Annotate failures heavily** via `-m`. Discarded ≠ deleted, and the description survives.
-- **Keep the experiment notes honest.** Update **What's been tried** every ~5 runs via `lab notes append`. Re-read with `lab notes show --raw` at the start of every iteration — never skip the rehydrate.
+- **Keep the experiment notes honest.** For every queued job, append intent/hypothesis/reason; for every processed completion, append outcome/takeaway. Continue periodic consolidation of **What's been tried** every ~5 runs. Re-read with `lab notes show --raw` at the start of every iteration — never skip the rehydrate.
 - **Respect provider capacity.** Local providers serialize anyway; SkyPilot/RunPod cost real money — never raise parallelism without explicit user approval.
 - **No `curl` workarounds.** If something seems missing from the CLI, run `lab <cmd> --help`, re-read this file, and tell the user — don't fall back to the REST API. (See the parent skill's "Do NOT call the REST API as a CLI workaround" section.)
 

@@ -52,6 +52,18 @@ def test_provider_list(_mock_check, _mock_api):
     assert "slurm-1" in result.output
 
 
+@patch("transformerlab_cli.commands.provider.render_table")
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, SAMPLE_PROVIDERS))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_list_disables_name_wrapping(_mock_check, _mock_api, mock_render_table):
+    """Provider list should keep names as a single token in pretty output."""
+    result = runner.invoke(app, ["provider", "list"])
+    assert result.exit_code == 0
+
+    call_kwargs = mock_render_table.call_args.kwargs
+    assert call_kwargs["column_options"]["name"] == {"no_wrap": True, "overflow": "crop"}
+
+
 @patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, SAMPLE_PROVIDERS[0]))
 @patch("transformerlab_cli.commands.provider.check_configs")
 def test_provider_info(_mock_check, _mock_api):
