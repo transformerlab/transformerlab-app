@@ -50,13 +50,6 @@ def build_aws_profile_name(team_id: str, provider_identifier: str) -> str:
     return f"tlab-compute-{short_team}-{short_provider}"
 
 
-def build_gcp_credentials_name(team_id: str, provider_identifier: str) -> str:
-    """Generate a stable GCP credentials filename unique per org/provider."""
-    short_team = _short_identifier(team_id)
-    short_provider = _short_identifier(provider_identifier)
-    return f"tlab-compute-{short_team}-{short_provider}.json"
-
-
 def _local_providers_disabled() -> bool:
     """
     Return True when local providers are globally disabled.

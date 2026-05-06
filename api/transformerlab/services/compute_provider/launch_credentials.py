@@ -142,28 +142,6 @@ def parse_gcp_service_account_json(service_account_json: str) -> dict[str, Any]:
     return parsed
 
 
-def write_gcp_service_account_json(filename: str, service_account_json: str) -> tuple[str, dict[str, Any]]:
-    """Write a GCP service account JSON document under Transformer Lab's config directory.
-
-    Returns the absolute credentials path and parsed JSON data. Raises ValueError
-    if the JSON is malformed or does not look like a service account key.
-    """
-    parsed = parse_gcp_service_account_json(service_account_json)
-
-    safe_filename = os.path.basename(filename).replace("/", "-")
-    if not safe_filename.endswith(".json"):
-        safe_filename = f"{safe_filename}.json"
-    creds_dir = _gcp_credentials_dir()
-    os.makedirs(creds_dir, exist_ok=True)
-    os.chmod(creds_dir, 0o700)
-    creds_path = os.path.join(creds_dir, safe_filename)
-    with open(creds_path, "w", encoding="utf-8") as f:
-        json.dump(parsed, f, indent=2)
-        f.write("\n")
-    os.chmod(creds_path, 0o600)
-    return creds_path, parsed
-
-
 def write_aws_credentials_to_profile(
     profile_name: str,
     access_key_id: str,
