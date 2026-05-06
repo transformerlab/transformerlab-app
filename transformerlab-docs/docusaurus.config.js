@@ -131,6 +131,24 @@ const config = {
           'https://github.com/transformerlab/transformerlab-app/tree/main/transformerlab-docs',
       },
     ],
+    [
+      '@signalwire/docusaurus-plugin-llms-txt',
+      {
+        siteTitle: 'Transformer Lab — For Teams',
+        siteDescription:
+          'Self-hosting and team deployment docs for Transformer Lab.',
+        depth: 2,
+        content: {
+          enableMarkdownFiles: true,
+          enableLlmsFullTxt: true,
+          includeDocs: true,
+          includeBlog: false,
+          includePages: false,
+          includeGeneratedIndex: false,
+          excludeRoutes: ['/docs/**', '/search'],
+        },
+      },
+    ],
   ],
 
   themeConfig:
