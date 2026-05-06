@@ -56,8 +56,10 @@ test.describe('Ollama Gradio Interactive Task', () => {
       name: 'Configure Task',
     });
     await expect(configDialog).toBeVisible({ timeout: 10000 });
+    // Chrome reports the freeSolo Autocomplete as 'textbox' when no history items are loaded.
     await configDialog
       .getByRole('combobox', { name: 'Model Name' })
+      .or(configDialog.getByRole('textbox', { name: 'Model Name' }))
       .fill('smollm:135m');
 
     // ── Step 3: Launch the task ──
