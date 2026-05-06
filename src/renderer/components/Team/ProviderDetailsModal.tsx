@@ -1443,7 +1443,7 @@ export default function ProviderDetailsModal({
                       gcpServiceAccountJson={gcpServiceAccountJson}
                       setGcpServiceAccountJson={setGcpServiceAccountJson}
                       serviceAccountEmail={gcpServiceAccountEmail}
-                      />
+                    />
                   )}
                   {type === 'azure' && (
                     <AzureProviderFields
@@ -1469,7 +1469,7 @@ export default function ProviderDetailsModal({
                     type !== 'runpod' &&
                     type !== 'local' &&
                     type !== 'aws' &&
-                    type !== 'gcp' && (
+                    type !== 'gcp' &&
                     type !== 'azure' && (
                       <FormControl sx={{ mt: 1 }}>
                         <FormLabel>Configuration</FormLabel>
