@@ -33,6 +33,24 @@ def _task_sort_key(x):
     return str(created_at)
 
 
+def _dir_paths_from_ls(entries) -> list[str]:
+    """Filter `storage.ls(detail=True)` output to directory paths only.
+
+    Skips files like `.DS_Store` so they don't reach `get_metadata()`,
+    which would otherwise log a spurious error per cruft entry.
+    """
+    paths: list[str] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("type") != "directory":
+            continue
+        full = entry.get("name") or entry.get("path")
+        if full:
+            paths.append(full)
+    return paths
+
+
 async def _gather_task_metadata(entries, experiment_id: str | None = None):
     sem = asyncio.Semaphore(_LIST_CONCURRENCY)
 
@@ -160,12 +178,12 @@ class TaskTemplate(BaseLabResource):
             logger.debug(f"Task directory does not exist: {task_dir}")
             return []
         try:
-            entries = await storage.ls(task_dir, detail=False)
+            entries = await storage.ls(task_dir, detail=True)
         except Exception as e:
             logger.error(f"Exception listing task directory: {e}")
             return []
 
-        results = await _gather_task_metadata(entries)
+        results = await _gather_task_metadata(_dir_paths_from_ls(entries))
         results.sort(key=_task_sort_key, reverse=True)
         return results
 
@@ -182,12 +200,12 @@ class TaskTemplate(BaseLabResource):
         if not await storage.isdir(tasks_dir):
             return []
         try:
-            entries = await storage.ls(tasks_dir, detail=False)
+            entries = await storage.ls(tasks_dir, detail=True)
         except Exception as e:
             logger.error(f"Exception listing experiment task directory: {e}")
             return []
 
-        results = await _gather_task_metadata(entries, experiment_id=str(experiment_id))
+        results = await _gather_task_metadata(_dir_paths_from_ls(entries), experiment_id=str(experiment_id))
         results.sort(key=_task_sort_key, reverse=True)
         return results
 
