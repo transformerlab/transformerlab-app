@@ -22,11 +22,16 @@ async def test_update_task_yaml_resolves_provider_id_when_compute_provider_prese
         task_data["provider_id"] = "provider-new-id"
         task_data["provider_name"] = "NewProvider"
 
-    with patch.object(task_router, "_resolve_provider", new=fake_resolve_provider), patch.object(
-        task_router.task_service, "task_get_by_id", new=AsyncMock(return_value={"id": "t1", "subtype": "remote"})
-    ), patch.object(task_router.task_service, "write_task_yaml", new=AsyncMock()), patch.object(
-        task_router.task_service, "update_task_from_yaml", new=AsyncMock(return_value=True)
-    ) as mock_update:
+    with (
+        patch.object(task_router, "_resolve_provider", new=fake_resolve_provider),
+        patch.object(
+            task_router.task_service, "task_get_by_id", new=AsyncMock(return_value={"id": "t1", "subtype": "remote"})
+        ),
+        patch.object(task_router.task_service, "write_task_yaml", new=AsyncMock()),
+        patch.object(
+            task_router.task_service, "update_task_from_yaml", new=AsyncMock(return_value=True)
+        ) as mock_update,
+    ):
         response = await task_router.update_task_yaml(
             experimentId="exp1",
             task_id="t1",
