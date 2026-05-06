@@ -45,6 +45,7 @@ export default function JobsChartModal({
     () => (Array.isArray(jobs) ? resolveLowerIsBetter(jobs) : false),
     [jobs],
   );
+  const totalJobsRun = Array.isArray(jobs) ? jobs.length : 0;
   const lowerIsBetter = lowerIsBetterOverride ?? autoLowerIsBetter;
 
   const evalRows = useMemo(
@@ -141,12 +142,17 @@ export default function JobsChartModal({
         <ModalClose />
         <Stack
           direction="row"
-          alignItems="center"
+          alignItems="flex-start"
           justifyContent="space-between"
           sx={{ mb: 1, pr: 4 }}
         >
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography level="title-lg">Progress Chart</Typography>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Box>
+              <Typography level="title-lg">Progress Chart</Typography>
+              <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
+                Total jobs run: {totalJobsRun}
+              </Typography>
+            </Box>
             <Button
               size="sm"
               variant={viewMode === 'graph' ? 'soft' : 'outlined'}

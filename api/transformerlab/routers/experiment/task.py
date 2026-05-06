@@ -656,49 +656,50 @@ async def _resolve_provider(
     """
     Resolve provider_id and provider_name from compute_provider name or use default.
     Only resolves if provider_id is not already set (e.g., when YAML is sent directly).
-    If compute_provider is provided, match by name. Otherwise, use first available provider.
+    If compute_provider is provided, require an exact name match (case-insensitive).
     """
-    try:
-        # Skip if provider_id is already set (frontend already resolved it)
-        if "provider_id" in task_data and task_data.get("provider_id"):
-            return
+    # Skip if provider_id is already set (frontend already resolved it)
+    if "provider_id" in task_data and task_data.get("provider_id"):
+        return
 
-        team_id = user_and_team.get("team_id")
-        if not team_id:
-            return
+    team_id = user_and_team.get("team_id")
+    if not team_id:
+        return
 
-        providers = await list_team_providers(session, team_id)
+    providers = await list_team_providers(session, team_id)
 
-        if not providers:
-            # No providers available, skip
-            return
+    if not providers:
+        # No providers available, skip
+        return
 
-        # Check if provider_name is set (from YAML parsing: resources.compute_provider)
-        provider_name = task_data.get("provider_name")
+    # Check if provider_name is set (from YAML parsing: resources.compute_provider)
+    provider_name = task_data.get("provider_name")
+    matched_provider = None
 
-        matched_provider = None
+    if provider_name:
+        # Match by provider name exactly, case-insensitive.
+        provider_name_lower = provider_name.lower().strip()
+        for provider in providers:
+            if provider.name.lower().strip() == provider_name_lower:
+                matched_provider = provider
+                break
 
-        if provider_name:
-            # Try to match by name (case-insensitive)
-            provider_name_lower = provider_name.lower().strip()
-            for provider in providers:
-                if provider.name.lower().strip() == provider_name_lower:
-                    matched_provider = provider
-                    break
+        if not matched_provider:
+            available_names = ", ".join(sorted(str(provider.name) for provider in providers))
+            raise HTTPException(
+                status_code=400,
+                detail=(f"Unknown compute provider '{provider_name}'. Available providers: {available_names}"),
+            )
 
-        # Use matched provider if found, otherwise prefer the team's default
-        # provider (is_default=True), falling back to the first available.
-        if matched_provider:
-            task_data["provider_id"] = str(matched_provider.id)
-            task_data["provider_name"] = matched_provider.name
-        else:
-            chosen_provider = next((p for p in providers if getattr(p, "is_default", False)), providers[0])
-            task_data["provider_id"] = str(chosen_provider.id)
-            task_data["provider_name"] = chosen_provider.name
-    except Exception:
-        # If provider resolution fails, continue without it
-        # The task can still be created, provider selection can happen later
-        pass
+    # Use matched provider if found, otherwise prefer the team's default
+    # provider (is_default=True), falling back to the first available.
+    if matched_provider:
+        task_data["provider_id"] = str(matched_provider.id)
+        task_data["provider_name"] = matched_provider.name
+    else:
+        chosen_provider = next((p for p in providers if getattr(p, "is_default", False)), providers[0])
+        task_data["provider_id"] = str(chosen_provider.id)
+        task_data["provider_name"] = chosen_provider.name
 
 
 def _parse_yaml_to_task_data(yaml_content: str) -> dict:

@@ -67,17 +67,25 @@ def format_value(value: str) -> str:
     return value
 
 
-def render_table(data, format_type: str, table_columns: list, title: str | None) -> None:
+def render_table(
+    data,
+    format_type: str,
+    table_columns: list,
+    title: str | None,
+    column_options: dict[str, dict] | None = None,
+) -> None:
     """Render data in specified format (table, json, or csv)."""
     if format_type == "pretty":
         table = Table(title=title, title_justify="left", show_header=True, header_style="header")
 
+        column_options = column_options or {}
         for col in table_columns:
+            options = column_options.get(col, {})
             table.add_column(
                 col,
                 style="value",
-                no_wrap=False,
-                overflow="fold",
+                no_wrap=options.get("no_wrap", False),
+                overflow=options.get("overflow", "fold"),
             )
 
         for row in data:
