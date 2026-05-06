@@ -12,6 +12,13 @@ from transformerlab_cli.util.ui import console
 app = typer.Typer()
 
 
+def _resolve_experiment_id(experiment_id: str | None = None) -> str:
+    """Resolve experiment from command override or configured default."""
+    if experiment_id is not None and str(experiment_id).strip():
+        return str(experiment_id).strip()
+    return require_current_experiment()
+
+
 def _get_notes(experiment_id: str) -> str:
     """Fetch current notes content. Exits with error on failure."""
     response = api.get(f"/experiment/{experiment_id}/notes")
@@ -33,9 +40,10 @@ def _save_notes(experiment_id: str, content: str) -> None:
 @app.command("show")
 def command_notes_show(
     raw: bool = typer.Option(False, "--raw", help="Print raw markdown instead of rendered output"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ) -> None:
     """Show experiment notes."""
-    experiment_id = require_current_experiment()
+    experiment_id = _resolve_experiment_id(experiment)
     content = _get_notes(experiment_id)
     if not content.strip():
         console.print("[dim]No notes yet.[/dim]")
@@ -47,9 +55,11 @@ def command_notes_show(
 
 
 @app.command("edit")
-def command_notes_edit() -> None:
+def command_notes_edit(
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
+) -> None:
     """Open experiment notes in $EDITOR for editing."""
-    experiment_id = require_current_experiment()
+    experiment_id = _resolve_experiment_id(experiment)
     content = _get_notes(experiment_id)
     editor = os.environ.get("EDITOR", "nano")
 
@@ -74,9 +84,10 @@ def command_notes_edit() -> None:
 @app.command("append")
 def command_notes_append(
     text: str = typer.Argument(..., help="Text to append to the notes"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ) -> None:
     """Append a line of text to experiment notes without opening an editor."""
-    experiment_id = require_current_experiment()
+    experiment_id = _resolve_experiment_id(experiment)
     current = _get_notes(experiment_id)
     new_content = f"{current}\n{text}" if current.strip() else text
     _save_notes(experiment_id, new_content)

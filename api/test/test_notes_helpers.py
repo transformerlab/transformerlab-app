@@ -148,3 +148,30 @@ def test_migrate_if_needed_skips_when_notes_already_exist():
         mock_storage.rm.assert_not_called()
 
     asyncio.run(_run())
+
+
+def test_resolve_unique_asset_filename_returns_original_when_available():
+    async def _run():
+        from transformerlab.routers.experiment.notes import resolve_unique_asset_filename
+
+        with patch("transformerlab.routers.experiment.notes.storage") as mock_storage:
+            mock_storage.join.side_effect = lambda *parts: "/".join(parts)
+            mock_storage.exists = AsyncMock(return_value=False)
+            result = await resolve_unique_asset_filename("/experiments/exp1/notes/assets", "image.png")
+        assert result == "image.png"
+
+    asyncio.run(_run())
+
+
+def test_resolve_unique_asset_filename_adds_incrementing_suffix_on_collision():
+    async def _run():
+        from transformerlab.routers.experiment.notes import resolve_unique_asset_filename
+
+        # image.png exists, image-1.png exists, image-2.png is available.
+        with patch("transformerlab.routers.experiment.notes.storage") as mock_storage:
+            mock_storage.join.side_effect = lambda *parts: "/".join(parts)
+            mock_storage.exists = AsyncMock(side_effect=[True, True, False])
+            result = await resolve_unique_asset_filename("/experiments/exp1/notes/assets", "image.png")
+        assert result == "image-2.png"
+
+    asyncio.run(_run())

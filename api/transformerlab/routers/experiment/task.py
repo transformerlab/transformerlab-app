@@ -1,3 +1,6 @@
+import asyncio
+import logging
+
 from fastapi import (
     APIRouter,
     Body,
@@ -20,6 +23,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from lab.dirs import get_workspace_dir
 from lab import storage
+from lab.task_template import TaskTemplate
 
 from transformerlab.services.task_service import task_service
 from transformerlab.services.cache_service import cache, cached
@@ -47,6 +51,8 @@ from pydantic import ValidationError
 from fastapi.responses import PlainTextResponse, JSONResponse
 import tempfile
 import zipfile
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/task", tags=["task"])
 
@@ -172,7 +178,19 @@ async def task_list_files(experimentId: str, task_id: str) -> TaskFilesResponse:
       readily available.
     - If file_mounts is set, it will be returned as-is as a list of local paths.
     """
-    task = await task_service.task_get_by_id(task_id, experiment_id=experimentId)
+    # Resolve the task dir without side effects so an invalid experiment_id
+    # doesn't leak empty {workspace}/experiments/<id>/tasks/ directories.
+    # 404 early if the dir is missing; otherwise read index.json and list
+    # the dir contents in parallel (skips the digit-id migration path in
+    # TaskTemplate.get_metadata).
+    task_template = TaskTemplate(str(task_id), experiment_id=str(experimentId))
+    task_dir = await task_template.get_dir_nocreate()
+    if not await storage.isdir(task_dir):
+        raise HTTPException(status_code=404, detail="Task not found")
+    task, entries = await asyncio.gather(
+        task_template.get_json_data(),
+        storage.ls(task_dir),
+    )
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -193,9 +211,9 @@ async def task_list_files(experimentId: str, task_id: str) -> TaskFilesResponse:
         except HTTPException:
             # Surface GitHub errors directly to the client
             raise
-        except Exception as e:
+        except Exception:
             # Unexpected errors should not break the whole endpoint; log and continue.
-            print(f"Error listing GitHub files for task {task_id}: {e}")
+            logger.exception("Error listing GitHub files for task %s", task_id)
 
     file_mounts = task.get("file_mounts")
     if isinstance(file_mounts, list):
@@ -213,27 +231,19 @@ async def task_list_files(experimentId: str, task_id: str) -> TaskFilesResponse:
                 elif tgt:
                     local_files.append(str(tgt))
 
-    # Always list files from the canonical per-task directory.
-    # This directory contains at minimum task.yaml and may include uploaded files.
-    try:
-        task_dir = await task_service.get_task_dir(task_id, experiment_id=experimentId)
-        if await storage.exists(task_dir):
-            entries = await storage.ls(task_dir)
-            # Build a set of basenames already in local_files for dedup.
-            existing_basenames = {os.path.basename(f.split(" -> ")[-1].strip()) for f in local_files}
-            for entry in entries:
-                # storage.ls returns full paths; compute relative path safely
-                try:
-                    name = os.path.relpath(entry, task_dir)
-                except ValueError:
-                    continue  # entry is not under task_dir; skip it
-                if not name or name == "." or name == "index.json":
-                    continue
-                if name not in existing_basenames:
-                    local_files.append(name)
-                    existing_basenames.add(name)
-    except Exception as e:  # pragma: no cover - defensive logging
-        print(f"Error listing local files for task {task_id} from task dir: {e}")
+    # Build a set of basenames already in local_files for dedup.
+    existing_basenames = {os.path.basename(f.split(" -> ")[-1].strip()) for f in local_files}
+    for entry in entries:
+        # storage.ls returns full paths; compute relative path safely
+        try:
+            name = os.path.relpath(entry, task_dir)
+        except ValueError:
+            continue  # entry is not under task_dir; skip it
+        if not name or name == "." or name == "index.json":
+            continue
+        if name not in existing_basenames:
+            local_files.append(name)
+            existing_basenames.add(name)
 
     # Return None instead of empty list when there is no data for a source.
     return TaskFilesResponse(
@@ -656,49 +666,50 @@ async def _resolve_provider(
     """
     Resolve provider_id and provider_name from compute_provider name or use default.
     Only resolves if provider_id is not already set (e.g., when YAML is sent directly).
-    If compute_provider is provided, match by name. Otherwise, use first available provider.
+    If compute_provider is provided, require an exact name match (case-insensitive).
     """
-    try:
-        # Skip if provider_id is already set (frontend already resolved it)
-        if "provider_id" in task_data and task_data.get("provider_id"):
-            return
+    # Skip if provider_id is already set (frontend already resolved it)
+    if "provider_id" in task_data and task_data.get("provider_id"):
+        return
 
-        team_id = user_and_team.get("team_id")
-        if not team_id:
-            return
+    team_id = user_and_team.get("team_id")
+    if not team_id:
+        return
 
-        providers = await list_team_providers(session, team_id)
+    providers = await list_team_providers(session, team_id)
 
-        if not providers:
-            # No providers available, skip
-            return
+    if not providers:
+        # No providers available, skip
+        return
 
-        # Check if provider_name is set (from YAML parsing: resources.compute_provider)
-        provider_name = task_data.get("provider_name")
+    # Check if provider_name is set (from YAML parsing: resources.compute_provider)
+    provider_name = task_data.get("provider_name")
+    matched_provider = None
 
-        matched_provider = None
+    if provider_name:
+        # Match by provider name exactly, case-insensitive.
+        provider_name_lower = provider_name.lower().strip()
+        for provider in providers:
+            if provider.name.lower().strip() == provider_name_lower:
+                matched_provider = provider
+                break
 
-        if provider_name:
-            # Try to match by name (case-insensitive)
-            provider_name_lower = provider_name.lower().strip()
-            for provider in providers:
-                if provider.name.lower().strip() == provider_name_lower:
-                    matched_provider = provider
-                    break
+        if not matched_provider:
+            available_names = ", ".join(sorted(str(provider.name) for provider in providers))
+            raise HTTPException(
+                status_code=400,
+                detail=(f"Unknown compute provider '{provider_name}'. Available providers: {available_names}"),
+            )
 
-        # Use matched provider if found, otherwise prefer the team's default
-        # provider (is_default=True), falling back to the first available.
-        if matched_provider:
-            task_data["provider_id"] = str(matched_provider.id)
-            task_data["provider_name"] = matched_provider.name
-        else:
-            chosen_provider = next((p for p in providers if getattr(p, "is_default", False)), providers[0])
-            task_data["provider_id"] = str(chosen_provider.id)
-            task_data["provider_name"] = chosen_provider.name
-    except Exception:
-        # If provider resolution fails, continue without it
-        # The task can still be created, provider selection can happen later
-        pass
+    # Use matched provider if found, otherwise prefer the team's default
+    # provider (is_default=True), falling back to the first available.
+    if matched_provider:
+        task_data["provider_id"] = str(matched_provider.id)
+        task_data["provider_name"] = matched_provider.name
+    else:
+        chosen_provider = next((p for p in providers if getattr(p, "is_default", False)), providers[0])
+        task_data["provider_id"] = str(chosen_provider.id)
+        task_data["provider_name"] = chosen_provider.name
 
 
 def _parse_yaml_to_task_data(yaml_content: str) -> dict:
@@ -1046,9 +1057,10 @@ async def upload_task_files(
 
 @router.get("/{task_id}/yaml", summary="Get task.yaml from the task directory")
 async def get_task_yaml(experimentId: str, task_id: str):
-    task = await task_service.task_get_by_id(task_id, experiment_id=experimentId)
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+    # read_task_yaml already raises 404 when task.yaml is missing, so we skip
+    # the extra task_get_by_id lookup. That lookup goes through get_metadata,
+    # which can trigger an Experiment.get_all() scan for the digit-id migration
+    # and was the dominant cost on this endpoint.
     content = await task_service.read_task_yaml(task_id, experiment_id=experimentId)
     return PlainTextResponse(content, media_type="text/plain")
 

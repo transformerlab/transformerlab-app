@@ -24,6 +24,13 @@ app = typer.Typer()
 REQUIRED_TASK_FIELDS = ["name", "type"]
 
 
+def _resolve_experiment_id(experiment_id: str | None = None) -> str:
+    """Resolve experiment from command override or configured default."""
+    if experiment_id is not None and str(experiment_id).strip():
+        return str(experiment_id).strip()
+    return require_current_experiment()
+
+
 def _extract_error_detail(response: httpx.Response) -> str:
     """Extract a human-readable error detail from API responses."""
     try:
@@ -470,11 +477,21 @@ def _validate_task_yaml_content(
     if timeout_seconds is not None:
         post_kwargs["timeout"] = float(timeout_seconds)
 
-    if output_format != "json":
-        with console.status("[bold success]Validating task.yaml...[/bold success]", spinner="dots"):
+    try:
+        if output_format != "json":
+            with console.status("[bold success]Validating task.yaml...[/bold success]", spinner="dots"):
+                response = api.post_text(f"/experiment/{experiment_id}/task/validate", **post_kwargs)
+        else:
             response = api.post_text(f"/experiment/{experiment_id}/task/validate", **post_kwargs)
-    else:
-        response = api.post_text(f"/experiment/{experiment_id}/task/validate", **post_kwargs)
+    except httpx.HTTPError as e:
+        detail = str(e) or e.__class__.__name__
+        if output_format == "json":
+            print(json.dumps({"error": "API request failed", "detail": detail}))
+        else:
+            console.print("[error]Error:[/error] API request failed.")
+            console.print(f"[error]Detail:[/error] {detail}")
+            console.print("[warning]The API may be unreachable or timed out.[/warning]")
+        raise typer.Exit(1)
 
     if response.status_code != 200:
         try:
@@ -518,9 +535,11 @@ def _validate_task_yaml_file(
 
 
 @app.command("list")
-def command_task_list():
+def command_task_list(
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
+):
     """List all tasks."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     list_tasks(output_format=cli_state.output_format, experiment_id=current_experiment)
 
 
@@ -682,11 +701,12 @@ def command_task_init(
 def command_task_add(
     task_directory: str = typer.Argument(None, help="Path to the task directory containing task.yaml"),
     from_git: str = typer.Option(None, "--from-git", help="Git URL to fetch the task from"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview the task without creating it"),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Add a new task. Provide a directory path directly, or use --from-git to fetch from a Git repository."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
 
     if from_git:
         add_task_from_github(from_git, experiment_id=current_experiment, interactive=not no_interactive)
@@ -702,10 +722,11 @@ def command_task_add(
 @app.command("validate")
 def command_task_validate(
     task_yaml_path: str = typer.Argument("./task.yaml", help="Path to task.yaml (defaults to ./task.yaml)"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
     timeout: int = typer.Option(300, "--timeout", help="Request timeout in seconds for validation"),
 ):
     """Validate a task.yaml file against the server schema."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     resolved_path = os.path.realpath(task_yaml_path)
     output_format = cli_state.output_format
     _validate_task_yaml_file(
@@ -735,6 +756,7 @@ def command_task_edit(
         help="Preview the task update without submitting it (only applies with --from-dir)",
     ),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
     timeout: int = typer.Option(300, "--timeout", help="Request timeout in seconds for fetch/validate/save"),
 ):
     """Edit an existing task's task.yaml (interactive by default).
@@ -748,7 +770,7 @@ def command_task_edit(
     if dry_run and not from_dir:
         console.print("[warning]Warning:[/warning] --dry-run only applies with --from-dir; ignoring.")
 
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
 
     if from_dir:
         edit_task_from_directory(
@@ -773,10 +795,11 @@ def command_task_edit(
 def command_task_upload(
     task_id: str = typer.Argument(..., help="Task ID to upload files to"),
     path: str = typer.Argument(..., help="Path to a file or directory to upload"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Upload additional files into an existing task."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     upload_files_to_task(
         task_id=task_id,
         path_to_upload=path,
@@ -788,10 +811,11 @@ def command_task_upload(
 @app.command("delete")
 def command_task_delete(
     task_id: str = typer.Argument(..., help="Task ID to delete"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Delete a task."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
 
     if not no_interactive:
         typer.confirm(f"Delete task {task_id}?", abort=True)
@@ -802,9 +826,10 @@ def command_task_delete(
 @app.command("info")
 def command_task_info(
     task_id: str = typer.Argument(..., help="Task ID to get info for"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Get task details."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     info_task(task_id, current_experiment)
 
 
@@ -825,6 +850,8 @@ def build_launch_payload(
     param_values: dict | None = None,
     resource_overrides: dict | None = None,
     description: str | None = None,
+    enable_profiling: bool = False,
+    enable_profiling_torch: bool = False,
 ) -> dict:
     """Build the payload for launching a task on a provider."""
     cfg = task.get("config") or {}
@@ -852,6 +879,8 @@ def build_launch_payload(
         "accelerators": pick("accelerators"),
         "num_nodes": pick("num_nodes"),
         "minutes_requested": pick("minutes_requested"),
+        "enable_profiling": enable_profiling,
+        "enable_profiling_torch": enable_profiling_torch,
         "env_vars": task.get("env_vars", {}),
         "parameters": task.get("parameters", {}),
         "config": param_values if param_values else None,
@@ -1016,6 +1045,8 @@ def queue_task(
     interactive: bool = True,
     description: str | None = None,
     param_overrides: dict | None = None,
+    enable_profiling: bool = False,
+    enable_profiling_torch: bool = False,
 ) -> None:
     """Queue a task on a compute provider."""
     with console.status("[bold success]Fetching task...[/bold success]", spinner="dots"):
@@ -1067,8 +1098,17 @@ def queue_task(
         param_values = {k: (v.get("default", "") if isinstance(v, dict) else v) for k, v in parameters.items()}
     param_values.update(overrides)
 
+    if enable_profiling_torch and not enable_profiling:
+        raise typer.BadParameter("--enable-profiling-torch requires --enable-profiling.")
+
     payload = build_launch_payload(
-        task, provider.get("name"), param_values, resource_overrides, description=description
+        task,
+        provider.get("name"),
+        param_values,
+        resource_overrides,
+        description=description,
+        enable_profiling=enable_profiling,
+        enable_profiling_torch=enable_profiling_torch,
     )
     provider_id = provider.get("id")
 
@@ -1105,9 +1145,20 @@ def command_task_queue(
             "scalar (e.g. score=0.42 -> float, enabled=true -> bool). Unknown keys fail."
         ),
     ),
+    enable_profiling: bool = typer.Option(
+        False,
+        "--enable-profiling",
+        help="Enable system profiling for this run (CPU/GPU/memory sampling).",
+    ),
+    enable_profiling_torch: bool = typer.Option(
+        False,
+        "--enable-profiling-torch",
+        help="Enable torch profiler trace export for this run (requires --enable-profiling).",
+    ),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Queue a task on a compute provider."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     if description == "-":
         if sys.stdin.isatty():
             raise typer.BadParameter('-m - reads the description from stdin; pipe content in or pass -m "...".')
@@ -1119,6 +1170,8 @@ def command_task_queue(
         interactive=not no_interactive,
         description=description,
         param_overrides=param_overrides,
+        enable_profiling=enable_profiling,
+        enable_profiling_torch=enable_profiling_torch,
     )
 
 
@@ -1225,9 +1278,10 @@ def import_from_gallery(
 def command_task_gallery(
     gallery_type: str = typer.Option("all", "--type", help="Gallery type: 'all' or 'interactive'"),
     import_id: str | None = typer.Option(None, "--import", help="Gallery ID to import as a task"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Browse the task gallery. Use --import <id> to add a task to the current experiment."""
-    current_experiment = require_current_experiment()
+    current_experiment = _resolve_experiment_id(experiment)
     output_format = cli_state.output_format
     is_interactive = gallery_type == "interactive"
 
@@ -1248,8 +1302,9 @@ def command_task_gallery(
 @app.command("interactive")
 def command_task_interactive(
     timeout: int = typer.Option(300, "--timeout", "-t", help="Timeout in seconds waiting for service readiness"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Launch an interactive task (Jupyter, vLLM, Ollama, etc.)."""
     from transformerlab_cli.commands.interactive import interactive
 
-    interactive(timeout=timeout)
+    interactive(timeout=timeout, experiment_id=experiment)

@@ -10,6 +10,7 @@ import zipfile
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from lab.task_template import TaskTemplate as TaskTemplateService
+from lab.dirs import get_experiment_task_dir_nocreate
 from lab import storage
 from fastapi import HTTPException
 from werkzeug.utils import secure_filename
@@ -247,12 +248,25 @@ class TaskService:
             await f.write(content)
 
     async def read_task_yaml(self, task_id: str, experiment_id: Optional[str] = None) -> str:
-        task_dir = await self.get_task_dir(task_id, experiment_id=experiment_id)
+        # Resolve the task dir without side effects (avoids the makedirs in
+        # get_experiment_task_dir). Fast path handles tasks scoped by experiment;
+        # the slow fallback handles tasks still stored under a numeric (pre-migration)
+        # experiment_id, where the fast path would 404 even though the task exists.
+        if experiment_id is not None:
+            task_dir = await get_experiment_task_dir_nocreate(str(experiment_id), str(task_id))
+            if not await storage.isdir(task_dir):
+                try:
+                    task_dir = await self.get_task_dir(task_id, experiment_id=experiment_id)
+                except FileNotFoundError:
+                    raise HTTPException(status_code=404, detail="Task not found")
+        else:
+            task_dir = await self.get_task_dir(task_id)
         yaml_path = storage.join(task_dir, "task.yaml")
-        if not await storage.exists(yaml_path):
+        try:
+            async with await storage.open(yaml_path, "r", encoding="utf-8") as f:
+                return await f.read()
+        except FileNotFoundError:
             raise HTTPException(status_code=404, detail="task.yaml not found for this task")
-        async with await storage.open(yaml_path, "r", encoding="utf-8") as f:
-            return await f.read()
 
     async def create_task_from_blank(
         self,

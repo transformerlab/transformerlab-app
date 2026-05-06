@@ -8,7 +8,8 @@ from textual.containers import Vertical, VerticalScroll, Horizontal
 from textual.screen import ModalScreen
 from textual import work
 from transformerlab_cli.util import api
-from transformerlab_cli.util.config import check_configs, get_current_experiment
+from transformerlab_cli.util.config import check_configs
+from transformerlab_cli.commands.job_monitor.util import get_effective_experiment
 
 
 class JobJsonModal(ModalScreen):
@@ -125,7 +126,7 @@ class JobDetails(Vertical):
         """Fetch tunnel info for an interactive job, retrying until ready."""
         import time
 
-        experiment_id = get_current_experiment() or "alpha"
+        experiment_id = get_effective_experiment()
         for _ in range(20):  # retry up to ~60s
             try:
                 response = api.get(f"/experiment/{experiment_id}/jobs/{job_id}/tunnel_info", timeout=10.0)
@@ -210,7 +211,7 @@ class JobDetails(Vertical):
             output_path = os.path.join(output_dir, filename)
 
             # Make the API request
-            experiment_id = get_current_experiment() or "alpha"
+            experiment_id = get_effective_experiment()
             try:
                 response = api.get(f"/experiment/{experiment_id}/jobs/{job_id}/artifacts/download_all", timeout=300.0)
             except httpx.HTTPError as e:
