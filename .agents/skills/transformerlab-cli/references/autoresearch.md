@@ -203,7 +203,9 @@ The agent loops autonomously. Never ask "should I continue?" — keep going unti
    STALE_SECS=$(( <minutes> * 60 ))
    lab --format json job list --running | \
      jq -r --argjson now "$NOW" --argjson stale "$STALE_SECS" \
-        '.[] | select((.created_at | fromdateiso8601) < ($now - $stale)) | .id' | \
+        '.[] | select(.job_data.start_time != null)
+             | select((.job_data.start_time | strptime("%Y-%m-%d %H:%M:%S") | mktime) < ($now - $stale))
+             | .id' | \
      xargs -r -I {} lab job stop {}
    ```
 4. **Respect the parallelism budget** before queuing:
