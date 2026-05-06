@@ -200,7 +200,10 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   // Handle cases where url might be partial or full
   // Ideally fetchWithAuth is passed a relative path, but we handle both.
   let fullUrl: string;
-  if (url.startsWith('http')) {
+  if (url.startsWith('http') || url.startsWith('//') || url.startsWith('/')) {
+    // Already an absolute URL (http://...) or absolute path (/lab/...).
+    // getAPIFullPath returns the latter when API_URL is configured as a path
+    // prefix (e.g. when the app is hosted behind a reverse proxy at /lab/).
     fullUrl = url;
   } else {
     const baseUrl = API_URL();
