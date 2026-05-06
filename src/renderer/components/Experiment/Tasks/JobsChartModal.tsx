@@ -259,6 +259,7 @@ export default function JobsChartModal({
     () => (Array.isArray(jobs) ? resolveLowerIsBetter(jobs) : false),
     [jobs],
   );
+  const totalJobsRun = Array.isArray(jobs) ? jobs.length : 0;
   const [lowerIsBetterOverride, setLowerIsBetterOverride] = useState<
     boolean | null
   >(null);
@@ -516,11 +517,16 @@ export default function JobsChartModal({
         <ModalClose />
         <Stack
           direction="row"
-          alignItems="center"
+          alignItems="flex-start"
           justifyContent="space-between"
           sx={{ mb: 1, pr: 4 }}
         >
-          <Typography level="title-lg">Progress Chart</Typography>
+          <Box>
+            <Typography level="title-lg">Progress Chart</Typography>
+            <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
+              Total jobs run: {totalJobsRun}
+            </Typography>
+          </Box>
           {points.length > 0 && (
             <Checkbox
               size="sm"
