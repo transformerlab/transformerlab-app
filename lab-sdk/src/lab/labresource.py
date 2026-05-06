@@ -79,16 +79,6 @@ class BaseLabResource(ABC):
         """Get json file containing metadata for this resource."""
         return storage.join(await self.get_dir(), "index.json")
 
-    async def list_files(self) -> list[str]:
-        """
-        List the contents of this resource's directory. Returns full paths.
-        Returns an empty list if the directory does not exist.
-        """
-        try:
-            return await storage.ls(await self.get_dir())
-        except (FileNotFoundError, OSError):
-            return []
-
     async def get_json_data(self, uncached: bool = False, max_retries: int = 5):
         """
         Return the JSON data that is stored for this resource in the filesystem.

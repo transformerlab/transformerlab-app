@@ -181,15 +181,15 @@ async def task_list_files(experimentId: str, task_id: str) -> TaskFilesResponse:
     # Resolve the task dir without side effects so an invalid experiment_id
     # doesn't leak empty {workspace}/experiments/<id>/tasks/ directories.
     # 404 early if the dir is missing; otherwise read index.json and list
-    # the dir contents in parallel via the SDK (skips the digit-id migration
-    # path in TaskTemplate.get_metadata).
+    # the dir contents in parallel (skips the digit-id migration path in
+    # TaskTemplate.get_metadata).
     task_template = TaskTemplate(str(task_id), experiment_id=str(experimentId))
     task_dir = await task_template.get_dir_nocreate()
-    if not await storage.exists(task_dir):
+    if not await storage.isdir(task_dir):
         raise HTTPException(status_code=404, detail="Task not found")
     task, entries = await asyncio.gather(
         task_template.get_json_data(),
-        task_template.list_files(),
+        storage.ls(task_dir),
     )
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
