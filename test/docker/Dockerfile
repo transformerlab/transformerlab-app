@@ -7,7 +7,7 @@ COPY package*.json ./
 
 # Use a cache mount to persist npm's cache across builds
 RUN --mount=type=cache,target=/root/.npm \
-  npm install
+  npm ci --foreground-scripts
 
 # Copy source files (these change often, so they are kept lower down)
 COPY .erb ./.erb
