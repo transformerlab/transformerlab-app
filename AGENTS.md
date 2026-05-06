@@ -158,6 +158,16 @@ curl -H "Authorization: Bearer $TOKEN" -H "X-Team-Id: <team-id>" http://localhos
 - **X-Team-Id**: Required on all protected endpoints. Get it from `GET /users/me/teams`.
 - **Unprotected endpoints**: `auth`, `api_keys`, `quota`, `compute_provider`, and the OpenAI-compatible API.
 
+## package.json overrides
+
+The `overrides` block in `package.json` forces secure transitive versions to clear known vulnerabilities. Revisit when:
+
+- Bumping `eslint-config-erb` / `@typescript-eslint/*` (parent of `minimatch`)
+- Bumping `webpack` / `terser-webpack-plugin` (parent of `serialize-javascript`)
+- Bumping `webpack` / `css-loader` / `postcss-loader` (parents of `postcss`)
+
+When upgrading those, try removing the override first and re-run a dependency vulnerability scan. If the parent now pulls a safe version on its own, drop the override entry and update this file if necessary.
+
 ## Agentic Performance Optimization
 
 - **Context**: When making changes, look at similar existing files (e.g., "Implement the new `ModelService` following the pattern in `api/transformerlab/services/job_service.py`").

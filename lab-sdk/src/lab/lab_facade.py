@@ -378,7 +378,9 @@ class Lab:
         task_id = job_data.get("task_id")
         if not task_id:
             return
-        task_template = TaskTemplate(task_id)
+        # Use the same experiment scope as Job.get(); otherwise TaskTemplate falls back to
+        # legacy workspace/task/<id> and misses files under experiments/<exp>/tasks/<id>.
+        task_template = TaskTemplate(task_id, experiment_id=experiment_id)
         task_dir = await task_template.get_dir()
         if not await storage.exists(task_dir):
             return
@@ -588,6 +590,28 @@ class Lab:
     ) -> None:
         """
         Mark the job as successfully completed and set completion metadata.
+
+        Args:
+            message: Human-readable completion message stored in ``completion_details``.
+            score: Optional **dict** of named metrics for this run (e.g. ``{"accuracy": 0.78}``).
+                The dict shape is required — pass ``{"score": 0.78}`` rather than ``0.78``.
+                Stored in ``job_data.score`` and surfaced by ``lab job list`` / ``lab job info``,
+                and read by sweep / autoresearch flows for optimization.
+            additional_output_path: Optional path to a directory of extra output files.
+            plot_data_path: Optional path to a JSON file with plot data for the job UI.
+
+        Examples:
+            Mark success with no metrics::
+
+                lab.finish(message="Done!")
+
+            Report a single metric::
+
+                lab.finish(message="Done!", score={"accuracy": 0.78})
+
+            Report multiple metrics::
+
+                lab.finish(score={"accuracy": 0.78, "f1": 0.83, "loss": 0.21})
         """
         self._ensure_initialized()
         # Copy profiling from temp dir into job's profiling folder (when run under remote trap).
@@ -606,15 +630,28 @@ class Lab:
         except Exception:
             pass
         _run_async(self._job.update_progress(100))  # type: ignore[union-attr]
-        _run_async(
-            self._job.update_job_data_fields(  # type: ignore[union-attr]
-                {
-                    "completion_status": "success",
-                    "completion_details": message,
-                    "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                }
-            )
-        )
+
+        # Resolve score before the first write so it's included atomically with the
+        # other completion fields. This prevents a window where completion_status is
+        # "success" but score is still null (observable by caches or concurrent readers).
+        resolved_score: Dict[str, Any] = {}
+        if isinstance(score, dict):
+            resolved_score.update(score)
+        resolved_score.setdefault("discard", False)
+
+        completion_fields: Dict[str, Any] = {
+            "completion_status": "success",
+            "completion_details": message,
+            "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+            "score": resolved_score,
+        }
+        if additional_output_path is not None and additional_output_path.strip() != "":
+            completion_fields["additional_output_path"] = additional_output_path
+        if plot_data_path is not None and plot_data_path.strip() != "":
+            completion_fields["plot_data_path"] = plot_data_path
+
+        _run_async(self._job.update_job_data_fields(completion_fields))  # type: ignore[union-attr]
+
         # Best-effort Trackio integration: finish our own run if we created one,
         # then capture the active Trackio DB (managed or user-created) into job artifacts.
         try:
@@ -638,12 +675,6 @@ class Lab:
         except Exception:
             # Never let optional Trackio integration break finish()
             logger.debug("Trackio integration failed during finish()", exc_info=True)
-        if score is not None:
-            _run_async(self._job.update_job_data_field("score", score))  # type: ignore[union-attr]
-        if additional_output_path is not None and additional_output_path.strip() != "":
-            _run_async(self._job.update_job_data_field("additional_output_path", additional_output_path))  # type: ignore[union-attr]
-        if plot_data_path is not None and plot_data_path.strip() != "":
-            _run_async(self._job.update_job_data_field("plot_data_path", plot_data_path))  # type: ignore[union-attr]
 
         # Important: update cached_jobs only when all completion fields are already written.
         _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]

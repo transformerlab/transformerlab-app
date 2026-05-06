@@ -30,6 +30,21 @@ lab.log("Saved model file to {model_path}")
 lab.finish("Training completed successfully")
 ```
 
+## Reporting metrics
+
+Pass a **dict** of named metrics to `lab.finish(score=...)`. The dict shape is required —
+metrics are stored under `job_data.score` and surfaced by `lab job list` (Score column)
+and `lab job info`, and read by sweep / autoresearch flows for optimization.
+
+```python
+lab.finish(message="Done!")                              # success, no score
+lab.finish(message="Done!", score={"accuracy": 0.78})    # success with one metric
+lab.finish(score={"accuracy": 0.78, "f1": 0.83})         # multiple metrics
+```
+
+Do not pass a scalar (e.g. `lab.finish(score=0.78)`) — wrap it in a dict instead:
+`lab.finish(score={"score": 0.78})`.
+
 Sample scripts can be found at
 https://github.com/transformerlab/transformerlab-app/tree/main/lab-sdk/scripts/examples
 
