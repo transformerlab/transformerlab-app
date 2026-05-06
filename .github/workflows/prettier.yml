@@ -23,8 +23,8 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Install dependencies
-        run: npm install -g prettier
+      - name: Install Prettier
+        run: npm install -g prettier@3.8.3
 
       - name: Check Prettier formatting
         run: npm run format:check

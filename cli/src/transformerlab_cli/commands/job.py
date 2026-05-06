@@ -925,9 +925,11 @@ def command_job_discard(
     """Toggle score.discard on a job."""
     current_experiment = require_current_experiment()
     discard_value = not undo
+    payload = json.dumps({"updates": {"discard": discard_value}}).encode("utf-8")
     response = api.put(
         f"/experiment/{current_experiment}/jobs/{job_id}/job_data",
-        json={"updates": {"discard": discard_value}},
+        content=payload,
+        headers={"Content-Type": "application/json"},
     )
     if response.status_code == 200:
         if cli_state.output_format == "json":

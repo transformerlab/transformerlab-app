@@ -612,10 +612,10 @@ def test_job_discard_sets_discard_true(_mock_require, mock_put):
 
     result = runner.invoke(app, ["job", "discard", "42"])
     assert result.exit_code == 0
-    mock_put.assert_called_once_with(
-        "/experiment/exp1/jobs/42/job_data",
-        json={"updates": {"discard": True}},
-    )
+    mock_put.assert_called_once()
+    assert mock_put.call_args.args[0] == "/experiment/exp1/jobs/42/job_data"
+    assert mock_put.call_args.kwargs["headers"] == {"Content-Type": "application/json"}
+    assert json.loads(mock_put.call_args.kwargs["content"].decode("utf-8")) == {"updates": {"discard": True}}
 
 
 @patch("transformerlab_cli.commands.job.api.put")
@@ -627,10 +627,10 @@ def test_job_discard_undo_sets_discard_false(_mock_require, mock_put):
 
     result = runner.invoke(app, ["job", "discard", "42", "--undo"])
     assert result.exit_code == 0
-    mock_put.assert_called_once_with(
-        "/experiment/exp1/jobs/42/job_data",
-        json={"updates": {"discard": False}},
-    )
+    mock_put.assert_called_once()
+    assert mock_put.call_args.args[0] == "/experiment/exp1/jobs/42/job_data"
+    assert mock_put.call_args.kwargs["headers"] == {"Content-Type": "application/json"}
+    assert json.loads(mock_put.call_args.kwargs["content"].decode("utf-8")) == {"updates": {"discard": False}}
 
 
 # ---------------------------------------------------------------------------

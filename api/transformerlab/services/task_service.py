@@ -352,7 +352,7 @@ class TaskService:
             task_dir = await self.get_task_dir(task_id, experiment_id=experiment_id)
             await storage.makedirs(task_dir, exist_ok=True)
             await storage.copy_dir(task_root, task_dir)
-            await self.update_task(task_id, {"file_mounts": True})
+            await self.update_task(task_id, {"file_mounts": True}, experiment_id=experiment_id)
             return task_id
 
     async def create_task_from_zip_path(
@@ -390,10 +390,10 @@ class TaskService:
             if "name" in task_data:
                 task_data["name"] = secure_filename(task_data["name"])
             task_id = await self.add_task(task_data)
-            task_dir = await self.get_task_dir(task_id)
+            task_dir = await self.get_task_dir(task_id, experiment_id=experiment_id)
             await storage.makedirs(task_dir, exist_ok=True)
             await storage.copy_dir(task_root, task_dir)
-            await self.update_task(task_id, {"file_mounts": True})
+            await self.update_task(task_id, {"file_mounts": True}, experiment_id=experiment_id)
             return task_id
 
     async def update_task_from_zip_path(

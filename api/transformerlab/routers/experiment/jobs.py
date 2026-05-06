@@ -569,7 +569,7 @@ async def get_request_logs(
         raise HTTPException(status_code=500, detail=f"Failed to instantiate provider: {exc}") from exc
 
     try:
-        logs_text = provider_instance.get_request_logs(request_id, tail_lines=tail_lines)
+        logs_text = await asyncio.to_thread(provider_instance.get_request_logs, request_id, tail_lines=tail_lines)
     except NotImplementedError:
         raise HTTPException(
             status_code=400, detail=f"Provider type '{provider_record.type}' does not support request logs"

@@ -47,6 +47,14 @@ class ProviderConfigBase(BaseModel):
     default_template_id: Optional[str] = None  # Default Docker template ID
     default_network_volume_id: Optional[str] = None  # Default network volume ID
 
+    # Azure-specific config
+    azure_subscription_id: Optional[str] = None
+    azure_tenant_id: Optional[str] = None
+    azure_client_id: Optional[str] = None
+    azure_client_secret: Optional[str] = None  # sensitive
+    azure_location: Optional[str] = None
+    azure_resource_group: Optional[str] = None
+
     # Accelerators supported by this provider
     supported_accelerators: Optional[List[AcceleratorType]] = Field(default=None)
     resource_groups: Optional[List[ProviderResourceGroup]] = Field(default=None)
@@ -81,8 +89,8 @@ class ProviderRead(BaseModel):
     type: str
     config: Dict[str, Any]  # Will mask sensitive fields
     created_by_user_id: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     disabled: bool
     is_default: bool
 
@@ -116,6 +124,10 @@ def mask_sensitive_config(config: Dict[str, Any], provider_type: str) -> Dict[st
         masked["password"] = "***"
     if "secret" in masked:
         masked["secret"] = "***"
+
+    # Mask Azure Service Principal secret.
+    if "azure_client_secret" in masked and masked["azure_client_secret"]:
+        masked["azure_client_secret"] = "***"
 
     return masked
 
