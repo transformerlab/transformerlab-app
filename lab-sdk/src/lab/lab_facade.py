@@ -630,15 +630,28 @@ class Lab:
         except Exception:
             pass
         _run_async(self._job.update_progress(100))  # type: ignore[union-attr]
-        _run_async(
-            self._job.update_job_data_fields(  # type: ignore[union-attr]
-                {
-                    "completion_status": "success",
-                    "completion_details": message,
-                    "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                }
-            )
-        )
+
+        # Resolve score before the first write so it's included atomically with the
+        # other completion fields. This prevents a window where completion_status is
+        # "success" but score is still null (observable by caches or concurrent readers).
+        resolved_score: Dict[str, Any] = {}
+        if isinstance(score, dict):
+            resolved_score.update(score)
+        resolved_score.setdefault("discard", False)
+
+        completion_fields: Dict[str, Any] = {
+            "completion_status": "success",
+            "completion_details": message,
+            "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+            "score": resolved_score,
+        }
+        if additional_output_path is not None and additional_output_path.strip() != "":
+            completion_fields["additional_output_path"] = additional_output_path
+        if plot_data_path is not None and plot_data_path.strip() != "":
+            completion_fields["plot_data_path"] = plot_data_path
+
+        _run_async(self._job.update_job_data_fields(completion_fields))  # type: ignore[union-attr]
+
         # Best-effort Trackio integration: finish our own run if we created one,
         # then capture the active Trackio DB (managed or user-created) into job artifacts.
         try:
@@ -662,15 +675,6 @@ class Lab:
         except Exception:
             # Never let optional Trackio integration break finish()
             logger.debug("Trackio integration failed during finish()", exc_info=True)
-        resolved_score: Dict[str, Any] = {}
-        if isinstance(score, dict):
-            resolved_score.update(score)
-        resolved_score.setdefault("discard", False)
-        _run_async(self._job.update_job_data_field("score", resolved_score))  # type: ignore[union-attr]
-        if additional_output_path is not None and additional_output_path.strip() != "":
-            _run_async(self._job.update_job_data_field("additional_output_path", additional_output_path))  # type: ignore[union-attr]
-        if plot_data_path is not None and plot_data_path.strip() != "":
-            _run_async(self._job.update_job_data_field("plot_data_path", plot_data_path))  # type: ignore[union-attr]
 
         # Important: update cached_jobs only when all completion fields are already written.
         _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
