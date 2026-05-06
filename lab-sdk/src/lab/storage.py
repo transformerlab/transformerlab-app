@@ -121,7 +121,7 @@ _current_tfl_storage_uri: contextvars.ContextVar[str | None] = contextvars.Conte
     "current_tfl_storage_uri", default=None
 )
 
-# Single source: aws | gcp | azure | localfs (default aws for backward compatibility)
+# Single source: aws | gcp | azure | localfs | juicefs (default aws for backward compatibility)
 STORAGE_PROVIDER = (os.getenv("TFL_STORAGE_PROVIDER") or "aws").strip().lower()
 _AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
 _GCP_PROJECT = os.getenv("GCP_PROJECT", "transformerlab-workspace")
@@ -129,6 +129,7 @@ _AZURE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 _AZURE_ACCOUNT_NAME = os.getenv("AZURE_STORAGE_ACCOUNT")
 _AZURE_ACCOUNT_KEY = os.getenv("AZURE_STORAGE_KEY")
 _AZURE_SAS_TOKEN = os.getenv("AZURE_STORAGE_SAS_TOKEN")
+_JUICEFS_MOUNT_POINT = os.getenv("TFL_JUICEFS_MOUNT_POINT", "/mnt/juicefs")
 
 # Common prefixes that represent remote storage locations handled by this module
 _REMOTE_PATH_PREFIXES: tuple[str, ...] = ("s3://", "gs://", "gcs://", "abfs://")
@@ -300,10 +301,15 @@ def _get_fs_and_root():
     uses_localfs_multi_org = STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI")
     env_scoped_localfs = uses_localfs_multi_org and _is_localfs_org_scoped_uri(tfl_uri)
     env_scoped_remote = tfl_remote_storage_enabled and _is_remote_team_workspace_uri(tfl_uri)
+    # JuiceFS pod subprocesses: mount is already org-scoped via --subdir, so TFL_STORAGE_URI
+    # is the org workspace root and no context var is needed.
+    env_scoped_juicefs = (
+        STORAGE_PROVIDER == "juicefs" and tfl_remote_storage_enabled and bool(os.getenv("TFL_STORAGE_URI"))
+    )
     if (tfl_remote_storage_enabled or uses_localfs_multi_org) and _current_tfl_storage_uri.get() is None:
         # Subprocesses may get an explicit org-scoped URI without contextvars: localfs
-        # .../orgs/<id>/workspace, or remote s3|gs|abfs://workspace-<team_id>/...
-        if not env_scoped_localfs and not env_scoped_remote:
+        # .../orgs/<id>/workspace, remote s3|gs|abfs://workspace-<team_id>/..., or juicefs pod mount.
+        if not env_scoped_localfs and not env_scoped_remote and not env_scoped_juicefs:
             raise RuntimeError(
                 "Organization context is required but not set. "
                 "Ensure set_organization_id() is called before accessing storage "

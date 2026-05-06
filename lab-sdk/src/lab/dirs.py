@@ -4,7 +4,7 @@ import os
 import contextvars
 from werkzeug.utils import secure_filename
 from . import storage
-from .storage import _current_tfl_storage_uri, STORAGE_PROVIDER
+from .storage import _current_tfl_storage_uri, STORAGE_PROVIDER, _JUICEFS_MOUNT_POINT
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,9 +37,24 @@ _current_org_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("cu
 def set_organization_id(organization_id: str | None) -> None:
     _current_org_id.set(organization_id)
     if organization_id is not None:
-        # If TFL_REMOTE_STORAGE_ENABLED is true, use <cloud_protocol>://workspace_<team_id> instead of the value itself
+        # Dispatch to the correct storage URI based on the active provider:
+        #   - cloud providers (aws/gcp/azure) with TFL_REMOTE_STORAGE_ENABLED: use <protocol>://workspace-<team_id>
+        #   - localfs with TFL_STORAGE_URI: scope to TFL_STORAGE_URI/orgs/<org_id>
+        #   - juicefs: scope to mount point /orgs/<org_id> (API server) or use TFL_STORAGE_URI directly (pod subdir mount)
+        #   - default: clear the storage URI context
         tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
-        if tfl_remote_storage_enabled:
+        if STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI"):
+            # Localfs: root_uri() should be org-scoped so set context to TFL_STORAGE_URI/orgs/<org_id>
+            _current_tfl_storage_uri.set(storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", organization_id))
+        elif STORAGE_PROVIDER == "juicefs":
+            if tfl_remote_storage_enabled:
+                # Pod: subdir mount already scopes to this org — storage root IS the mount point
+                _current_tfl_storage_uri.set(os.getenv("TFL_STORAGE_URI"))
+            else:
+                # API server: full volume mounted, scope context to org subdir
+                mount_point = _JUICEFS_MOUNT_POINT
+                _current_tfl_storage_uri.set(storage.join(mount_point, "orgs", organization_id))
+        elif tfl_remote_storage_enabled:
             # Determine protocol based on TFL_STORAGE_PROVIDER (aws | gcp | azure)
             if STORAGE_PROVIDER == "gcp":
                 protocol = "gs://"
@@ -50,9 +65,6 @@ def set_organization_id(organization_id: str | None) -> None:
 
             # Use <protocol>workspace-<team_id> format
             _current_tfl_storage_uri.set(f"{protocol}workspace-{organization_id}")
-        elif STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI"):
-            # Localfs: root_uri() should be org-scoped so set context to TFL_STORAGE_URI/orgs/<org_id>
-            _current_tfl_storage_uri.set(storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", organization_id))
         else:
             _current_tfl_storage_uri.set(None)
     else:

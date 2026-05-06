@@ -21,6 +21,11 @@ from transformerlab.services.compute_provider.launch_credentials import (
     generate_gcp_credentials_setup,
     get_aws_credentials_from_file,
 )
+from transformerlab.services.compute_provider.launch_juicefs import (
+    build_juicefs_backend_credentials_setup,
+    build_juicefs_install_command,
+    build_juicefs_pod_config,
+)
 from transformerlab.services.compute_provider.launch_secrets import find_missing_secrets_for_template_launch
 from transformerlab.services.compute_provider.launch_sweep import create_sweep_parent_job, launch_sweep_jobs
 from transformerlab.services.compute_provider.launch_task_files import copy_task_files_to_dir
@@ -262,10 +267,21 @@ async def launch_template_on_provider(
                 if azure_sas:
                     env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
 
+    # JuiceFS: inject backing object-storage credentials unconditionally
+    # (TFL_REMOTE_STORAGE_ENABLED guards cloud-bucket providers, not JuiceFS).
+    if STORAGE_PROVIDER == "juicefs":
+        juicefs_cred_cmds, juicefs_cred_env = await build_juicefs_backend_credentials_setup(provider.type)
+        setup_commands.extend(juicefs_cred_cmds)
+        env_vars.update(juicefs_cred_env)
+
     # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
     # This runs after AWS credentials are configured so we have access to any remote storage if needed.
     if provider.type != ProviderType.LOCAL.value:
         setup_commands.append("pip install -q transformerlab")
+        # setup_commands.insert(
+        #     0,
+        #     "export CURRENT_DIR=$(pwd); git clone https://github.com/transformerlab/transformerlab-app; cd transformerlab-app/lab-sdk; git checkout add/juicefs-mounting; uv pip install -e .; cd $CURRENT_DIR",
+        # )
 
         # Install torch as well if torch profiler is enabled
         if request.enable_profiling_torch:
@@ -382,7 +398,18 @@ async def launch_template_on_provider(
     # For localfs, explicitly provide an org-scoped URI so subprocess code can
     # resolve storage without relying on contextvar propagation.
     tfl_storage_uri = None
-    if STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
+    if STORAGE_PROVIDER == "juicefs" and team_id:
+        # Use a dedicated remote-pod mount path; do not reuse API host mount paths.
+        juicefs_mount_point = os.getenv("TFL_JUICEFS_REMOTE_MOUNT_POINT", "/tmp/tlab-juicefs")
+        juicefs_env, juicefs_mount_cmd, tfl_storage_uri = build_juicefs_pod_config(
+            team_id=str(team_id), mount_point=juicefs_mount_point
+        )
+        env_vars.update(juicefs_env)  # sets TFL_REMOTE_STORAGE_ENABLED=true for pod
+
+        # Keep mount setup after credential materialization so JuiceFS can authenticate.
+        setup_commands.append(build_juicefs_install_command())
+        setup_commands.append(juicefs_mount_cmd)
+    elif STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
         tfl_storage_uri = storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", str(team_id), "workspace")
     else:
         try:

@@ -429,8 +429,9 @@ def _effective_storage_provider() -> str:
     """
     from lab.storage import STORAGE_PROVIDER
 
-    if STORAGE_PROVIDER == "localfs":
-        return "localfs"
+    # juicefs and localfs are always active when configured — no TFL_REMOTE_STORAGE_ENABLED gate.
+    if STORAGE_PROVIDER in ("localfs", "juicefs"):
+        return STORAGE_PROVIDER
     remote_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
     return STORAGE_PROVIDER if remote_enabled else "localfs"
 

@@ -117,3 +117,56 @@ async def test_localfs_mode_uses_storage_uri_as_home_per_org(monkeypatch, tmp_pa
     assert os.path.isdir(ws2)
 
     dirs_workspace.set_organization_id(None)
+
+
+@pytest.mark.asyncio
+async def test_juicefs_mode_scopes_org_to_mount_point_subdir(monkeypatch, tmp_path):
+    """On the API server, root_uri() = TFL_JUICEFS_MOUNT_POINT/orgs/<org_id>."""
+    monkeypatch.delenv("TFL_HOME_DIR", raising=False)
+    monkeypatch.delenv("TFL_WORKSPACE_DIR", raising=False)
+    monkeypatch.delenv("TFL_REMOTE_STORAGE_ENABLED", raising=False)
+    monkeypatch.setenv("TFL_STORAGE_PROVIDER", "juicefs")
+    monkeypatch.setenv("TFL_JUICEFS_MOUNT_POINT", str(tmp_path))
+
+    if "lab.dirs" in importlib.sys.modules:
+        importlib.sys.modules.pop("lab.dirs")
+    if "lab.storage" in importlib.sys.modules:
+        importlib.sys.modules.pop("lab.storage")
+
+    from lab import dirs as dirs_module
+    from lab import storage as lab_storage
+
+    dirs_module.set_organization_id("team1")
+    root = await lab_storage.root_uri()
+    assert root == os.path.join(str(tmp_path), "orgs", "team1")
+
+    dirs_module.set_organization_id("team2")
+    root2 = await lab_storage.root_uri()
+    assert root2 == os.path.join(str(tmp_path), "orgs", "team2")
+
+    dirs_module.set_organization_id(None)
+
+
+@pytest.mark.asyncio
+async def test_juicefs_remote_pod_uses_storage_uri_directly(monkeypatch, tmp_path):
+    """On a remote pod (TFL_REMOTE_STORAGE_ENABLED=true), root_uri() = TFL_STORAGE_URI
+    because the subdir mount already scopes to this org."""
+    monkeypatch.delenv("TFL_HOME_DIR", raising=False)
+    monkeypatch.delenv("TFL_WORKSPACE_DIR", raising=False)
+    monkeypatch.setenv("TFL_STORAGE_PROVIDER", "juicefs")
+    monkeypatch.setenv("TFL_REMOTE_STORAGE_ENABLED", "true")
+    monkeypatch.setenv("TFL_STORAGE_URI", str(tmp_path))
+
+    if "lab.dirs" in importlib.sys.modules:
+        importlib.sys.modules.pop("lab.dirs")
+    if "lab.storage" in importlib.sys.modules:
+        importlib.sys.modules.pop("lab.storage")
+
+    from lab import dirs as dirs_module
+    from lab import storage as lab_storage
+
+    dirs_module.set_organization_id("team1")
+    root = await lab_storage.root_uri()
+    assert root == str(tmp_path)
+
+    dirs_module.set_organization_id(None)
