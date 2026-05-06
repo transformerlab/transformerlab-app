@@ -56,14 +56,47 @@ export default function ExperimentNotes() {
     ? chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, '')
     : '';
 
+  const getAssetPathPrefix = useCallback((prefix: string): string => {
+    if (!prefix) return '';
+    try {
+      return new URL(prefix).pathname;
+    } catch {
+      try {
+        return new URL(prefix, window.location.origin).pathname;
+      } catch {
+        return '';
+      }
+    }
+  }, []);
+
+  const escapeForRegex = useCallback((value: string): string => {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }, []);
+
   const inflateMarkdown = useCallback(
     (md: string): string => {
       if (!experimentId) return md;
-      return md.replace(
+      // Handle canonical stored format: ![...](notes/assets/<filename>)
+      let result = md.replace(
         /(!\[[^\]]*\]\()notes\/assets\/([^)\s]+)(\))/g,
         (_match, pre, filename, post) =>
           `${pre}${chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, filename)}${post}`,
       );
+      // Backward-compat: convert previously persisted absolute/path API asset URLs
+      // into the current API base so host changes do not break note images.
+      result = result.replace(
+        /(!\[[^\]]*\]\()((?:https?:\/\/[^)\s]+)?\/experiment\/[^)\s]+\/notes\/assets\/([^)\s]+))(\))/g,
+        (_match, pre, _full, filename, post) =>
+          `${pre}${chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, filename)}${post}`,
+      );
+      // Backward-compat: repair malformed URLs produced by buggy deflation
+      // (e.g. http://hostnotes/assets/<filename>).
+      result = result.replace(
+        /(!\[[^\]]*\]\()https?:\/\/[^)\s]*notes\/assets\/([^)\s]+)(\))/g,
+        (_match, pre, filename, post) =>
+          `${pre}${chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, filename)}${post}`,
+      );
+      return result;
     },
     [experimentId],
   );
@@ -71,9 +104,24 @@ export default function ExperimentNotes() {
   const deflateMarkdown = useCallback(
     (md: string): string => {
       if (!assetUrlPrefix) return md;
-      return md.split(assetUrlPrefix).join(ASSET_MARKDOWN_PREFIX);
+      const pathPrefix = getAssetPathPrefix(assetUrlPrefix);
+
+      let result = md;
+      if (pathPrefix) {
+        const escapedPathPrefix = escapeForRegex(pathPrefix);
+        // Convert both absolute and path-only asset URLs to canonical relative markdown.
+        result = result.replace(
+          new RegExp(
+            `(!\\[[^\\]]*\\]\\()(?:(?:https?:\\/\\/[^)\\s]+)?)${escapedPathPrefix}([^)\\s]+)(\\))`,
+            'g',
+          ),
+          (_match, pre, filename, post) =>
+            `${pre}${ASSET_MARKDOWN_PREFIX}${filename}${post}`,
+        );
+      }
+      return result;
     },
-    [assetUrlPrefix],
+    [assetUrlPrefix, escapeForRegex, getAssetPathPrefix],
   );
 
   const imageUploadHandler = useCallback(
