@@ -95,6 +95,14 @@ def test_build_launch_payload_omits_description_by_default():
     assert payload["description"] is None
 
 
+def test_build_launch_payload_includes_profiling_flags():
+    """build_launch_payload forwards profiling flags to the launch API body."""
+    task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
+    payload = build_launch_payload(task, "Local", enable_profiling=True, enable_profiling_torch=True)
+    assert payload["enable_profiling"] is True
+    assert payload["enable_profiling_torch"] is True
+
+
 SAMPLE_TASK = {
     "id": "t1",
     "name": "finetune",
@@ -261,6 +269,44 @@ def test_task_queue_param_when_task_has_no_parameters_errors(_mock_exp, _mock_ge
     result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "--param", "x=1"])
     assert result.exit_code != 0
     assert "no parameters" in strip_ansi(result.output).lower()
+    mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_enable_profiling_flags(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """Queue command forwards profiling flags into launch payload."""
+    result = runner.invoke(
+        app,
+        [
+            "task",
+            "queue",
+            "t1",
+            "--no-interactive",
+            "--enable-profiling",
+            "--enable-profiling-torch",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    _path, body = mock_post.call_args.args
+    assert body["enable_profiling"] is True
+    assert body["enable_profiling_torch"] is True
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_enable_torch_profiling_requires_profiling(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """Torch profiling flag without base profiling fails with a clear error."""
+    result = runner.invoke(
+        app,
+        ["task", "queue", "t1", "--no-interactive", "--enable-profiling-torch"],
+    )
+    assert result.exit_code != 0
+    assert "requires --enable-profiling" in strip_ansi(result.output).lower()
     mock_post.assert_not_called()
 
 
