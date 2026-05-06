@@ -492,6 +492,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     return combined;
   }, [getPendingJobIds, isInteractiveJob, jobs, pendingIdsTrigger, subtype]);
 
+  const hasLoadedJobsOnce =
+    Boolean(experimentInfo?.id) && typeof jobsRemote !== 'undefined';
+
   const filteredJobsForDisplay = useMemo(() => {
     let result = jobsWithPlaceholders.map((job: any) => {
       const id = String(job?.id ?? '');
@@ -1570,7 +1573,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setJobId={(jobId: string | null) => setViewSweepResultsFromJob(jobId)}
       />
       <JobsChartModal
-        open={chartModalOpen}
+        open={chartModalOpen && hasLoadedJobsOnce && !jobsIsLoading}
         onClose={() => setChartModalQuery(false)}
         jobs={filteredJobsForDisplay}
       />
