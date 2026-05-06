@@ -3,7 +3,7 @@ github_repo_url: https://github.com/transformerlab/transformerlab-app
 github_repo_dir: api/transformerlab/galleries/examples/lora-trainer-multi-gpu
 resources:
   accelerators: "RTX3090:2"
-setup: "uv pip install transformers trl peft bitsandbytes accelerate transformerlab datasets wandb"
+setup: "uv pip install transformers trl peft bitsandbytes accelerate datasets wandb"
 run: "python lora-trainer-multi-gpu/train.py"
 envs:
   WANDB_PROJECT: "lora-multi-gpu-training"
