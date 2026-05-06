@@ -1148,11 +1148,13 @@ def command_job_delete_all(
 
 
 @app.command("monitor")
-def command_job_monitor():
+def command_job_monitor(
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
+):
     """Launch interactive job monitor TUI."""
     from transformerlab_cli.commands.job_monitor.job_monitor import run_monitor
 
-    run_monitor()
+    run_monitor(experiment_id=experiment)
 
 
 @publish_app.command("dataset")
