@@ -120,6 +120,25 @@ Add a new task from a local directory containing `task.yaml`, or from a Git repo
 
 **JSON output:** Returns the created task object.
 
+### `task edit <task_id>`
+
+Update an existing task on the server. Three modes:
+
+| Option | Description |
+|---|---|
+| (no flag) | Interactive — fetches current `task.yaml`, opens `$EDITOR`, validates and PUTs it back. YAML-only. |
+| `--from-file <path>` | Replace **only** `task.yaml` from the given path. Leaves `main.py` and other attachments untouched on the server. |
+| `--from-dir <path>` | Replace `task.yaml` **and** sibling files (e.g. `main.py`, configs). Zips the directory, uploads, and applies. **Use this whenever the task's `run` references a script file you've also modified — `--from-file` alone will desync the YAML from the script.** |
+| `--no-interactive` | Skip confirmation prompt (required in automated contexts) |
+| `--dry-run` | With `--from-dir`, preview the upload without submitting |
+| `--timeout <seconds>` | Request timeout for fetch/validate/save (default: 300) |
+
+`--from-file` and `--from-dir` are mutually exclusive.
+
+### `task upload <task_id> <path>`
+
+Upload additional files (or a whole directory) into an existing task without touching `task.yaml`. Useful when you want to add an attachment to a task whose YAML is already correct.
+
 ### `task delete <task_id>`
 
 Delete a task by ID.
