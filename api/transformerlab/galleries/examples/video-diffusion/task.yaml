@@ -6,7 +6,7 @@ resources:
 envs:
   PYTHONUNBUFFERED: "1"
   HF_TOKEN: "{{secret._HF_TOKEN}}"
-setup: "uv pip install diffusers 'transformers>=4.41.0' 'peft>=0.17.0' accelerate ftfy huggingface-hub opencv-python transformerlab imageio-ffmpeg"
+setup: "uv pip install diffusers 'transformers>=4.41.0' 'peft>=0.17.0' accelerate ftfy huggingface-hub opencv-python imageio-ffmpeg"
 parameters:
   model_id: "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
   prompt: "A cat walks on the grass, realistic"
