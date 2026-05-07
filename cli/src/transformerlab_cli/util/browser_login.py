@@ -22,7 +22,29 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import quote
 
+import httpx
+
 from transformerlab_cli.util.ui import console
+
+
+def _resolve_frontend_url(server_url: str) -> str:
+    """Ask the API server where the React app is served.
+
+    The /healthz endpoint is unauthenticated and returns frontend_url when
+    FRONTEND_URL is set on the server (typical in dev, where the frontend runs
+    on a different port). In single-origin prod deploys frontend_url is null
+    and we fall back to the API URL.
+    """
+    try:
+        r = httpx.get(f"{server_url.rstrip('/')}/healthz", timeout=5.0)
+        if r.status_code == 200:
+            data = r.json()
+            fe = data.get("frontend_url")
+            if fe:
+                return fe.rstrip("/")
+    except (httpx.RequestError, ValueError):
+        pass
+    return server_url.rstrip("/")
 
 
 class BrowserLoginError(Exception):
@@ -139,7 +161,8 @@ def run_browser_login(
     state = secrets.token_urlsafe(32)
     port = _find_free_port()
     redirect = f"http://127.0.0.1:{port}/"
-    authorize_url = f"{server_url.rstrip('/')}/#/cli-auth?state={quote(state)}&redirect={quote(redirect, safe='')}"
+    frontend_url = _resolve_frontend_url(server_url)
+    authorize_url = f"{frontend_url}/#/cli-auth?state={quote(state)}&redirect={quote(redirect, safe='')}"
 
     result: dict = {}
     done = threading.Event()

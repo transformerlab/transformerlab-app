@@ -370,6 +370,10 @@ async def healthz():
         "storage": {
             "provider": _effective_storage_provider(),
         },
+        # Where the React app is served. In single-origin prod deploys this is
+        # the same as the API origin; in dev it's typically http://localhost:1212.
+        # Used by the CLI to open the /#/cli-auth page during browser login.
+        "frontend_url": os.getenv("FRONTEND_URL") or None,
     }
 
 
