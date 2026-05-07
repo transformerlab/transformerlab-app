@@ -39,7 +39,7 @@ import {
 } from 'renderer/lib/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { generateJobPermalink } from '../Jobs/jobDetailUtils';
-import JobProgress from './JobProgress';
+import JobProgress, { JobCompletionDetails } from './JobProgress';
 
 export interface LaunchProgressInfo {
   phase?: string;
@@ -338,20 +338,9 @@ const JobsList: React.FC<JobsListProps> = ({
     );
   };
 
-  const tableHead = (
-    <thead>
-      <tr>
-        <th>Job ID</th>
-        <th>Status</th>
-        <th style={{ textAlign: 'right' }}>Logs</th>
-      </tr>
-    </thead>
-  );
-
   if (loading) {
     return (
       <Table style={{ tableLayout: 'auto' }} stickyHeader>
-        {tableHead}
         <tbody>
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <tr key={i}>
@@ -379,7 +368,6 @@ const JobsList: React.FC<JobsListProps> = ({
   return (
     <>
       <Table style={{ tableLayout: 'auto' }} stickyHeader>
-        {tableHead}
         <tbody style={{ overflow: 'auto', height: '100%' }}>
           {jobs?.length > 0 ? (
             jobs?.map((job) => {
@@ -390,414 +378,455 @@ const JobsList: React.FC<JobsListProps> = ({
                 job?.status,
                 job?.job_data?.stop_requested,
               );
+              const rowOpacityStyle = {
+                ...(job?.job_data?.hidden ? { opacity: 0.45 } : {}),
+                ...(stopPending
+                  ? { opacity: 0.6, pointerEvents: 'none' as const }
+                  : {}),
+              };
               return (
-                <tr
-                  key={job.id}
-                  style={{
-                    ...(job?.job_data?.hidden ? { opacity: 0.45 } : {}),
-                    ...(stopPending
-                      ? { opacity: 0.6, pointerEvents: 'none' }
-                      : {}),
-                  }}
-                >
-                  <td style={{ verticalAlign: 'top', border: 'none' }}>
-                    {selectMode &&
-                      job?.job_data?.eval_results &&
-                      Array.isArray(job.job_data.eval_results) &&
-                      job.job_data.eval_results.length > 0 && (
-                        <Checkbox
-                          size="sm"
-                          checked={selectedJobIds.includes(String(job.id))}
-                          onChange={() => onToggleJobSelected?.(String(job.id))}
-                          disabled={stopPending}
-                          sx={{ mr: 1 }}
-                        />
-                      )}
-                    {job?.placeholder ? (
-                      <>
-                        <Skeleton variant="text" level="body-xs" width={70} />
-                        <Skeleton variant="text" level="title-sm" width={140} />
-                        <Skeleton variant="text" level="body-xs" width={120} />
-                      </>
-                    ) : (
-                      <>
-                        {!hideJobId && (
-                          <Typography
-                            level="body-xs"
-                            sx={{ color: 'text.tertiary' }}
-                            title={fullJobId}
-                          >
-                            #{displayJobId}
-                          </Typography>
-                        )}
-                        <Typography level="title-sm" fontWeight="bold">
-                          {getJobName(job)}
-                          {job?.job_data?.favorite && (
-                            <>
-                              {' '}
-                              <BookmarkIcon size={16} fill="currentColor" />
-                            </>
-                          )}
-                        </Typography>
-                        {getJobUserEmail(job) && (
-                          <Typography
-                            level="body-xs"
-                            sx={{ color: 'text.tertiary' }}
-                          >
-                            {getJobUserEmail(job)}
-                          </Typography>
-                        )}
-                        {(job?.job_data?.provider_name ||
-                          job?.provider_name) && (
-                          <Typography
-                            level="body-xs"
-                            sx={{ color: 'text.tertiary' }}
-                          >
-                            {job?.job_data?.provider_name || job?.provider_name}
-                          </Typography>
-                        )}
-                      </>
-                    )}
-                  </td>
-                  <td style={{ verticalAlign: 'top', border: 'none' }}>
-                    <JobProgress
-                      job={job}
-                      launchProgress={
-                        launchProgressByJobId?.[String(job.id)] ??
-                        job?.job_data?.launch_progress
-                      }
-                      onStopPendingChange={onStopPendingChange}
-                    />
-                    {formatJobConfig(job)}
-                    {!job?.placeholder &&
-                      (() => {
-                        const scoreDisplay = getScoreDisplay(
-                          job?.job_data?.score,
-                        );
-                        const descriptionControl =
-                          renderDescriptionControl(job);
-                        if (!scoreDisplay && !descriptionControl) return null;
-                        return (
-                          <Stack
-                            direction="row"
-                            alignItems="center"
-                            gap={0.5}
-                            sx={{ mt: 0.5 }}
-                          >
-                            {descriptionControl}
-                            {scoreDisplay && (
-                              <Tooltip
-                                title={scoreDisplay.tooltip || ''}
-                                disableHoverListener={!scoreDisplay.tooltip}
-                              >
-                                <Chip
-                                  size="sm"
-                                  color="neutral"
-                                  variant="soft"
-                                  sx={{ width: 'fit-content' }}
-                                >
-                                  {scoreDisplay.label}
-                                </Chip>
-                              </Tooltip>
-                            )}
-                          </Stack>
-                        );
-                      })()}
-                  </td>
-                  <td
-                    style={{
-                      verticalAlign: 'top',
-                      width: 'fit-content',
-                      border: 'none',
-                    }}
-                  >
-                    <Stack
-                      direction="row"
-                      gap={0.5}
-                      flexWrap="wrap"
-                      justifyContent="flex-end"
-                    >
-                      {job?.placeholder && (
-                        <Skeleton
-                          variant="rectangular"
-                          width={100}
-                          height={28}
-                        />
-                      )}
-                      {job?.job_data?.wandb_run_url && (
-                        <Button
-                          size="sm"
-                          variant="plain"
-                          onClick={() => {
-                            window.open(job.job_data.wandb_run_url, '_blank');
+                <React.Fragment key={job.id}>
+                  {!hideJobId && !job?.placeholder && (
+                    <tr style={rowOpacityStyle}>
+                      <td
+                        colSpan={3}
+                        style={{
+                          border: 'none',
+                          paddingBottom: 0,
+                          verticalAlign: 'bottom',
+                        }}
+                      >
+                        <Typography
+                          level="body-xs"
+                          sx={{
+                            color: 'text.tertiary',
+                            borderBottom: '1px solid',
+                            borderColor: 'divider',
+                            pb: 0.25,
                           }}
-                          disabled={stopPending}
-                          startDecorator={<LineChartIcon />}
+                          title={fullJobId}
                         >
-                          W&B Tracking
-                        </Button>
-                      )}
-                      {(job?.job_data?.trackio_db_artifact_path ||
-                        job?.job_data?.trackio_project_name) &&
-                        showTrackioForStatus(job?.status) && (
-                          <Button
-                            size="sm"
-                            variant="plain"
-                            onClick={() => onViewTrackio?.(String(job?.id))}
-                            disabled={stopPending}
-                            startDecorator={<LineChartIcon />}
-                          >
-                            Trackio
-                          </Button>
-                        )}
-                      {!hideOutputButton && (
-                        <Button
-                          size="sm"
-                          variant="plain"
-                          onClick={() => onViewOutput?.(job?.id)}
-                          disabled={stopPending}
-                          startDecorator={<LogsIcon />}
-                        >
-                          Output
-                        </Button>
-                      )}
-                      {job?.job_data?.eval_images_dir && (
-                        <Button
-                          size="sm"
-                          variant="plain"
-                          onClick={() => onViewEvalImages?.(job?.id)}
-                          disabled={stopPending}
-                        >
-                          View Eval Images
-                        </Button>
-                      )}
-                      {job?.job_data?.eval_results &&
+                          #{displayJobId}
+                        </Typography>
+                      </td>
+                    </tr>
+                  )}
+                  <tr style={rowOpacityStyle}>
+                    <td
+                      style={{
+                        verticalAlign: 'top',
+                        border: 'none',
+                        width: 240,
+                        minWidth: 140,
+                        maxWidth: 220,
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {selectMode &&
+                        job?.job_data?.eval_results &&
                         Array.isArray(job.job_data.eval_results) &&
                         job.job_data.eval_results.length > 0 && (
-                          <Button
+                          <Checkbox
                             size="sm"
-                            variant="plain"
-                            onClick={() => onViewEvalResults?.(job?.id)}
-                            disabled={stopPending}
-                            startDecorator={<FileTextIcon />}
-                          >
-                            Eval Results
-                          </Button>
-                        )}
-                      {(forceArtifactsButtonVisible ||
-                        job?.job_data?.artifacts ||
-                        job?.job_data?.artifacts_dir ||
-                        job?.job_data?.generated_datasets ||
-                        job?.job_data?.models ||
-                        job?.job_data?.has_profiling) &&
-                        !job?.placeholder && (
-                          <Button
-                            size="sm"
-                            variant="plain"
-                            onClick={() =>
-                              onViewAllArtifacts?.(String(job?.id))
+                            checked={selectedJobIds.includes(String(job.id))}
+                            onChange={() =>
+                              onToggleJobSelected?.(String(job.id))
                             }
                             disabled={stopPending}
-                            startDecorator={<ArchiveIcon />}
-                          >
-                            Artifacts
-                          </Button>
+                            sx={{ mr: 1 }}
+                          />
                         )}
-                      {(job?.type === 'SWEEP' || job?.job_data?.sweep_parent) &&
-                        job?.status === 'COMPLETE' && (
+                      {job?.placeholder ? (
+                        <>
+                          <Skeleton variant="text" level="body-xs" width={70} />
+                          <Skeleton
+                            variant="text"
+                            level="title-sm"
+                            width={140}
+                          />
+                          <Skeleton
+                            variant="text"
+                            level="body-xs"
+                            width={120}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <Typography level="title-sm" fontWeight="bold">
+                            {getJobName(job)}
+                            {job?.job_data?.favorite && (
+                              <>
+                                {' '}
+                                <BookmarkIcon size={16} fill="currentColor" />
+                              </>
+                            )}
+                          </Typography>
+                          {getJobUserEmail(job) && (
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: 'text.tertiary' }}
+                            >
+                              {getJobUserEmail(job)}
+                            </Typography>
+                          )}
+                          {(job?.job_data?.provider_name ||
+                            job?.provider_name) && (
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: 'text.tertiary' }}
+                            >
+                              {job?.job_data?.provider_name ||
+                                job?.provider_name}
+                            </Typography>
+                          )}
+                        </>
+                      )}
+                    </td>
+                    <td style={{ verticalAlign: 'top', border: 'none' }}>
+                      <JobProgress
+                        job={job}
+                        launchProgress={
+                          launchProgressByJobId?.[String(job.id)] ??
+                          job?.job_data?.launch_progress
+                        }
+                        onStopPendingChange={onStopPendingChange}
+                      />
+                      {!job?.placeholder &&
+                        (() => {
+                          const scoreDisplay = getScoreDisplay(
+                            job?.job_data?.score,
+                          );
+                          const descriptionControl =
+                            renderDescriptionControl(job);
+                          if (!scoreDisplay && !descriptionControl) return null;
+                          return (
+                            <Stack
+                              direction="row"
+                              alignItems="center"
+                              gap={0.5}
+                              sx={{ mb: 0.5 }}
+                            >
+                              {descriptionControl}
+                              {scoreDisplay && (
+                                <Tooltip
+                                  title={scoreDisplay.tooltip || ''}
+                                  disableHoverListener={!scoreDisplay.tooltip}
+                                >
+                                  <Chip
+                                    size="sm"
+                                    color="neutral"
+                                    variant="soft"
+                                    sx={{ width: 'fit-content' }}
+                                  >
+                                    {scoreDisplay.label}
+                                  </Chip>
+                                </Tooltip>
+                              )}
+                            </Stack>
+                          );
+                        })()}
+                      <JobCompletionDetails job={job} />
+                      {formatJobConfig(job)}
+                    </td>
+                    <td
+                      style={{
+                        verticalAlign: 'top',
+                        width: 'fit-content',
+                        border: 'none',
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        gap={0.5}
+                        flexWrap="wrap"
+                        justifyContent="flex-end"
+                      >
+                        {job?.placeholder && (
+                          <Skeleton
+                            variant="rectangular"
+                            width={100}
+                            height={28}
+                          />
+                        )}
+                        {job?.job_data?.wandb_run_url && (
                           <Button
                             size="sm"
                             variant="plain"
-                            onClick={() => onViewSweepResults?.(job?.id)}
+                            onClick={() => {
+                              window.open(job.job_data.wandb_run_url, '_blank');
+                            }}
                             disabled={stopPending}
                             startDecorator={<LineChartIcon />}
                           >
-                            Sweep Results
+                            W&B Tracking
                           </Button>
                         )}
-                      {job?.job_data?.sweep_output_file && (
-                        <Button
-                          size="sm"
-                          variant="plain"
-                          onClick={() => onViewSweepOutput?.(job?.id)}
-                          disabled={stopPending}
-                        >
-                          Sweep Output
-                        </Button>
-                      )}
-                      {job?.status === 'INTERACTIVE' &&
-                        job?.job_data?.subtype === 'interactive' && (
-                          <>
+                        {(job?.job_data?.trackio_db_artifact_path ||
+                          job?.job_data?.trackio_project_name) &&
+                          showTrackioForStatus(job?.status) && (
                             <Button
                               size="sm"
                               variant="plain"
-                              onClick={() => onViewInteractive?.(job?.id)}
+                              onClick={() => onViewTrackio?.(String(job?.id))}
                               disabled={stopPending}
+                              startDecorator={<LineChartIcon />}
                             >
-                              Interactive Setup
+                              Trackio
                             </Button>
-                            {!hideOutputButton && (
+                          )}
+                        {!hideOutputButton && (
+                          <Button
+                            size="sm"
+                            variant="plain"
+                            onClick={() => onViewOutput?.(job?.id)}
+                            disabled={stopPending}
+                            startDecorator={<LogsIcon />}
+                          >
+                            Output
+                          </Button>
+                        )}
+                        {job?.job_data?.eval_images_dir && (
+                          <Button
+                            size="sm"
+                            variant="plain"
+                            onClick={() => onViewEvalImages?.(job?.id)}
+                            disabled={stopPending}
+                          >
+                            View Eval Images
+                          </Button>
+                        )}
+                        {job?.job_data?.eval_results &&
+                          Array.isArray(job.job_data.eval_results) &&
+                          job.job_data.eval_results.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() => onViewEvalResults?.(job?.id)}
+                              disabled={stopPending}
+                              startDecorator={<FileTextIcon />}
+                            >
+                              Eval Results
+                            </Button>
+                          )}
+                        {(forceArtifactsButtonVisible ||
+                          job?.job_data?.artifacts ||
+                          job?.job_data?.artifacts_dir ||
+                          job?.job_data?.generated_datasets ||
+                          job?.job_data?.models ||
+                          job?.job_data?.has_profiling) &&
+                          !job?.placeholder && (
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() =>
+                                onViewAllArtifacts?.(String(job?.id))
+                              }
+                              disabled={stopPending}
+                              startDecorator={<ArchiveIcon />}
+                            >
+                              Artifacts
+                            </Button>
+                          )}
+                        {(job?.type === 'SWEEP' ||
+                          job?.job_data?.sweep_parent) &&
+                          job?.status === 'COMPLETE' && (
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() => onViewSweepResults?.(job?.id)}
+                              disabled={stopPending}
+                              startDecorator={<LineChartIcon />}
+                            >
+                              Sweep Results
+                            </Button>
+                          )}
+                        {job?.job_data?.sweep_output_file && (
+                          <Button
+                            size="sm"
+                            variant="plain"
+                            onClick={() => onViewSweepOutput?.(job?.id)}
+                            disabled={stopPending}
+                          >
+                            Sweep Output
+                          </Button>
+                        )}
+                        {job?.status === 'INTERACTIVE' &&
+                          job?.job_data?.subtype === 'interactive' && (
+                            <>
                               <Button
                                 size="sm"
                                 variant="plain"
-                                onClick={() => onViewOutput?.(job?.id)}
+                                onClick={() => onViewInteractive?.(job?.id)}
                                 disabled={stopPending}
-                                startDecorator={<LogsIcon />}
                               >
-                                Output
+                                Interactive Setup
                               </Button>
-                            )}
-                          </>
+                              {!hideOutputButton && (
+                                <Button
+                                  size="sm"
+                                  variant="plain"
+                                  onClick={() => onViewOutput?.(job?.id)}
+                                  disabled={stopPending}
+                                  startDecorator={<LogsIcon />}
+                                >
+                                  Output
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        {job?.job_data?.checkpoints && (
+                          <Button
+                            size="sm"
+                            variant="plain"
+                            onClick={() => onViewCheckpoints?.(job?.id)}
+                            disabled={stopPending}
+                            startDecorator={<WaypointsIcon />}
+                          >
+                            Checkpoints
+                          </Button>
                         )}
-                      {job?.job_data?.checkpoints && (
-                        <Button
-                          size="sm"
-                          variant="plain"
-                          onClick={() => onViewCheckpoints?.(job?.id)}
-                          disabled={stopPending}
-                          startDecorator={<WaypointsIcon />}
-                        >
-                          Checkpoints
-                        </Button>
-                      )}
-                      {showFilesButton && !job?.placeholder && (
-                        <Button
-                          size="sm"
-                          variant="plain"
-                          onClick={() => onViewFileBrowser?.(job?.id)}
-                          disabled={stopPending}
-                          startDecorator={<FolderOpenIcon />}
-                        >
-                          Files
-                        </Button>
-                      )}
-                      {!job?.placeholder && (
-                        <Tooltip title="Copy permalink">
+                        {showFilesButton && !job?.placeholder && (
+                          <Button
+                            size="sm"
+                            variant="plain"
+                            onClick={() => onViewFileBrowser?.(job?.id)}
+                            disabled={stopPending}
+                            startDecorator={<FolderOpenIcon />}
+                          >
+                            Files
+                          </Button>
+                        )}
+                        {!job?.placeholder && (
+                          <Tooltip title="Copy permalink">
+                            <IconButton
+                              size="sm"
+                              variant="plain"
+                              color="neutral"
+                              onClick={() => {
+                                const url =
+                                  window.location.href.split('#')[0] +
+                                  generateJobPermalink(
+                                    experimentInfo?.name ?? '',
+                                    job.id,
+                                  );
+                                navigator.clipboard
+                                  .writeText(url)
+                                  .catch((err) =>
+                                    console.error(
+                                      'Failed to copy permalink:',
+                                      err,
+                                    ),
+                                  );
+                              }}
+                            >
+                              <LinkIcon size={14} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {!job?.placeholder && (
                           <IconButton
                             size="sm"
                             variant="plain"
-                            color="neutral"
-                            onClick={() => {
-                              const url =
-                                window.location.href.split('#')[0] +
-                                generateJobPermalink(
-                                  experimentInfo?.name ?? '',
-                                  job.id,
-                                );
-                              navigator.clipboard
-                                .writeText(url)
-                                .catch((err) =>
-                                  console.error(
-                                    'Failed to copy permalink:',
-                                    err,
-                                  ),
-                                );
-                            }}
-                          >
-                            <LinkIcon size={14} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      {!job?.placeholder && (
-                        <IconButton
-                          size="sm"
-                          variant="plain"
-                          disabled={
-                            stopPending ||
-                            !isDeletableJobRecordStatus(job?.status)
-                          }
-                          onClick={() => {
-                            if (!isDeletableJobRecordStatus(job?.status)) {
-                              return;
+                            disabled={
+                              stopPending ||
+                              !isDeletableJobRecordStatus(job?.status)
                             }
-                            onDeleteJob?.(job.id);
-                          }}
-                        >
-                          <Trash2Icon style={{ cursor: 'pointer' }} />
-                        </IconButton>
-                      )}
-                      {!job?.placeholder && (
-                        <Dropdown>
-                          <MenuButton
-                            slots={{ root: IconButton }}
-                            slotProps={{
-                              root: {
-                                variant: 'plain',
-                                color: 'neutral',
-                                size: 'sm',
-                              },
+                            onClick={() => {
+                              if (!isDeletableJobRecordStatus(job?.status)) {
+                                return;
+                              }
+                              onDeleteJob?.(job.id);
                             }}
-                            sx={{ minWidth: 0 }}
-                            disabled={stopPending}
                           >
-                            <MoreVerticalIcon size={16} />
-                          </MenuButton>
-                          <Menu>
-                            <MenuItem
-                              onClick={() =>
-                                onToggleFavorite?.(
-                                  String(job.id),
-                                  !!job?.job_data?.favorite,
-                                )
-                              }
+                            <Trash2Icon style={{ cursor: 'pointer' }} />
+                          </IconButton>
+                        )}
+                        {!job?.placeholder && (
+                          <Dropdown>
+                            <MenuButton
+                              slots={{ root: IconButton }}
+                              slotProps={{
+                                root: {
+                                  variant: 'plain',
+                                  color: 'neutral',
+                                  size: 'sm',
+                                },
+                              }}
+                              sx={{ minWidth: 0 }}
+                              disabled={stopPending}
                             >
-                              {job?.job_data?.favorite ? (
-                                <>
-                                  <BookmarkIcon size={16} fill="currentColor" />{' '}
-                                  Unfavorite
-                                </>
-                              ) : (
-                                <>
-                                  <BookmarkIcon size={16} /> Favorite
-                                </>
-                              )}
-                            </MenuItem>
-                            <MenuItem
-                              onClick={() =>
-                                onToggleHidden?.(
-                                  String(job.id),
-                                  !!job?.job_data?.hidden,
-                                )
-                              }
-                            >
-                              {job?.job_data?.hidden ? (
-                                <>
-                                  <EyeIcon size={16} /> Unhide
-                                </>
-                              ) : (
-                                <>
-                                  <EyeOffIcon size={16} /> Hide
-                                </>
-                              )}
-                            </MenuItem>
-                            <MenuItem
-                              onClick={() =>
-                                onToggleDiscard?.(
-                                  String(job.id),
-                                  parseDiscardValue(
-                                    job?.job_data?.score?.discard,
-                                  ),
-                                )
-                              }
-                            >
-                              {parseDiscardValue(
-                                job?.job_data?.score?.discard,
-                              ) ? (
-                                <>
-                                  <BanIcon size={16} /> Unmark discard
-                                </>
-                              ) : (
-                                <>
-                                  <BanIcon size={16} /> Mark discard
-                                </>
-                              )}
-                            </MenuItem>
-                          </Menu>
-                        </Dropdown>
-                      )}
-                    </Stack>
-                  </td>
-                </tr>
+                              <MoreVerticalIcon size={16} />
+                            </MenuButton>
+                            <Menu>
+                              <MenuItem
+                                onClick={() =>
+                                  onToggleFavorite?.(
+                                    String(job.id),
+                                    !!job?.job_data?.favorite,
+                                  )
+                                }
+                              >
+                                {job?.job_data?.favorite ? (
+                                  <>
+                                    <BookmarkIcon
+                                      size={16}
+                                      fill="currentColor"
+                                    />{' '}
+                                    Unfavorite
+                                  </>
+                                ) : (
+                                  <>
+                                    <BookmarkIcon size={16} /> Favorite
+                                  </>
+                                )}
+                              </MenuItem>
+                              <MenuItem
+                                onClick={() =>
+                                  onToggleHidden?.(
+                                    String(job.id),
+                                    !!job?.job_data?.hidden,
+                                  )
+                                }
+                              >
+                                {job?.job_data?.hidden ? (
+                                  <>
+                                    <EyeIcon size={16} /> Unhide
+                                  </>
+                                ) : (
+                                  <>
+                                    <EyeOffIcon size={16} /> Hide
+                                  </>
+                                )}
+                              </MenuItem>
+                              <MenuItem
+                                onClick={() =>
+                                  onToggleDiscard?.(
+                                    String(job.id),
+                                    parseDiscardValue(
+                                      job?.job_data?.score?.discard,
+                                    ),
+                                  )
+                                }
+                              >
+                                {parseDiscardValue(
+                                  job?.job_data?.score?.discard,
+                                ) ? (
+                                  <>
+                                    <BanIcon size={16} /> Unmark discard
+                                  </>
+                                ) : (
+                                  <>
+                                    <BanIcon size={16} /> Mark discard
+                                  </>
+                                )}
+                              </MenuItem>
+                            </Menu>
+                          </Dropdown>
+                        )}
+                      </Stack>
+                    </td>
+                  </tr>
+                </React.Fragment>
               );
             })
           ) : (
