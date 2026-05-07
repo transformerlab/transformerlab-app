@@ -57,6 +57,15 @@ _CPU_MACHINE_OPTIONS: List[tuple[int, int, str]] = sorted(
     key=lambda x: (x[0], x[1]),
 )
 
+_DEFAULT_GPU_IMAGE_CANDIDATES: List[str] = [
+    "projects/deeplearning-platform-release/global/images/family/common-cu129-ubuntu-2404-nvidia-580",
+    "projects/deeplearning-platform-release/global/images/family/common-cu129-ubuntu-2204-nvidia-580",
+    "projects/deeplearning-platform-release/global/images/family/common-cu128-ubuntu-2204-nvidia-570",
+    "projects/deeplearning-platform-release/global/images/family/common-cu124",
+    "projects/deeplearning-platform-release/global/images/family/common-cu121",
+    "projects/deeplearning-platform-release/global/images/family/common-cu118",
+]
+
 _GCE_STATE_TO_CLUSTER_STATE: Dict[str, ClusterState] = {
     "PROVISIONING": ClusterState.INIT,
     "STAGING": ClusterState.INIT,
@@ -357,14 +366,7 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             if configured_gpu_image:
                 image_candidates = [configured_gpu_image]
             else:
-                image_candidates = [
-                    "projects/deeplearning-platform-release/global/images/family/common-cu129-ubuntu-2404-nvidia-580",
-                    "projects/deeplearning-platform-release/global/images/family/common-cu129-ubuntu-2204-nvidia-580",
-                    "projects/deeplearning-platform-release/global/images/family/common-cu128-ubuntu-2204-nvidia-570",
-                    "projects/deeplearning-platform-release/global/images/family/common-cu124",
-                    "projects/deeplearning-platform-release/global/images/family/common-cu121",
-                    "projects/deeplearning-platform-release/global/images/family/common-cu118",
-                ]
+                image_candidates = _DEFAULT_GPU_IMAGE_CANDIDATES
         else:
             image_candidates = [
                 self.extra_config.get("cpu_image") or "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"

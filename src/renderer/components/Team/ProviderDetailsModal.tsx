@@ -79,7 +79,6 @@ const DEFAULT_CONFIGS = {
   "region": "us-east-1"
 }`,
   gcp: `{
-  "project_id": "",
   "region": "us-central1"
 }`,
 } as const;
@@ -163,7 +162,6 @@ export default function ProviderDetailsModal({
   const [awsSecretAccessKey, setAwsSecretAccessKey] = useState('');
 
   // GCP-specific form fields
-  const [gcpProjectId, setGcpProjectId] = useState('');
   const [gcpRegion, setGcpRegion] = useState('us-central1');
   const [gcpZone, setGcpZone] = useState('');
   const [gcpServiceAccountJson, setGcpServiceAccountJson] = useState('');
@@ -500,7 +498,6 @@ export default function ProviderDetailsModal({
 
   const parseGcpConfig = (configObj: any) => {
     if (configObj && typeof configObj === 'object') {
-      setGcpProjectId(configObj.project_id || '');
       const inferredRegion =
         configObj.region ||
         (typeof configObj.zone === 'string' && configObj.zone.includes('-')
@@ -516,7 +513,6 @@ export default function ProviderDetailsModal({
 
   const buildGcpConfig = useCallback(() => {
     const configObj: any = {
-      project_id: gcpProjectId,
       region: gcpRegion.trim(),
     };
     if (gcpZone.trim()) {
@@ -526,7 +522,7 @@ export default function ProviderDetailsModal({
       configObj.supported_accelerators = supportedAccelerators;
     }
     return configObj;
-  }, [gcpProjectId, gcpRegion, gcpZone, supportedAccelerators]);
+  }, [gcpRegion, gcpZone, supportedAccelerators]);
 
   // if a providerId is passed then we are editing an existing provider
   // Otherwise we are creating a new provider
@@ -629,7 +625,6 @@ export default function ProviderDetailsModal({
       setAwsRegion('us-east-1');
       setAwsAccessKeyId('');
       setAwsSecretAccessKey('');
-      setGcpProjectId('');
       setGcpRegion('us-central1');
       setGcpZone('');
       setGcpServiceAccountJson('');
@@ -682,7 +677,6 @@ export default function ProviderDetailsModal({
       setAwsRegion('us-east-1');
       setAwsAccessKeyId('');
       setAwsSecretAccessKey('');
-      setGcpProjectId('');
       setGcpRegion('us-central1');
       setGcpZone('');
       setGcpServiceAccountJson('');
@@ -1434,8 +1428,6 @@ export default function ProviderDetailsModal({
 
                   {type === 'gcp' && (
                     <GcpProviderFields
-                      gcpProjectId={gcpProjectId}
-                      setGcpProjectId={setGcpProjectId}
                       gcpRegion={gcpRegion}
                       setGcpRegion={setGcpRegion}
                       gcpZone={gcpZone}

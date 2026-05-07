@@ -2,8 +2,6 @@
 import { FormControl, FormLabel, Input, Textarea, Typography } from '@mui/joy';
 
 interface GcpProviderFieldsProps {
-  gcpProjectId: string;
-  setGcpProjectId: (value: string) => void;
   gcpRegion: string;
   setGcpRegion: (value: string) => void;
   gcpZone: string;
@@ -14,8 +12,6 @@ interface GcpProviderFieldsProps {
 }
 
 export default function GcpProviderFields({
-  gcpProjectId,
-  setGcpProjectId,
   gcpRegion,
   setGcpRegion,
   gcpZone,
@@ -26,17 +22,6 @@ export default function GcpProviderFields({
 }: GcpProviderFieldsProps) {
   return (
     <>
-      <FormControl sx={{ mt: 1 }}>
-        <FormLabel>GCP Project ID *</FormLabel>
-        <Input
-          value={gcpProjectId}
-          onChange={(event) => setGcpProjectId(event.currentTarget.value)}
-          placeholder="my-gcp-project"
-        />
-        <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
-          Project where Compute Engine instances will be launched.
-        </Typography>
-      </FormControl>
       <FormControl sx={{ mt: 1 }}>
         <FormLabel>GCP Region *</FormLabel>
         <Input
