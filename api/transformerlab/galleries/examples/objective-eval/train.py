@@ -401,7 +401,7 @@ def run_objective_evaluation():
         saved_path = lab.save_artifact(
             metrics_df,
             name="evaluation_results.csv",
-            type="eval",
+            type="evals",
             config={
                 "evals": {
                     "input": "input",

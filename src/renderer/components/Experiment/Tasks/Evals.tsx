@@ -9,6 +9,9 @@ import FormLabel from '@mui/joy/FormLabel';
 import Option from '@mui/joy/Option';
 import Select from '@mui/joy/Select';
 import Stack from '@mui/joy/Stack';
+import Tab from '@mui/joy/Tab';
+import TabList from '@mui/joy/TabList';
+import Tabs from '@mui/joy/Tabs';
 import Typography from '@mui/joy/Typography';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
@@ -99,20 +102,19 @@ export default function Evals() {
           </Typography>
         ) : (
           <Stack spacing={2}>
-            <Stack direction="row" spacing={1}>
-              <Button
-                variant={mode === 'single' ? 'solid' : 'outlined'}
-                onClick={() => setMode('single')}
-              >
-                View single eval
-              </Button>
-              <Button
-                variant={mode === 'compare' ? 'solid' : 'outlined'}
-                onClick={() => setMode('compare')}
-              >
-                Compare evals
-              </Button>
-            </Stack>
+            <Tabs
+              value={mode}
+              onChange={(_, value) => {
+                if (value === 'single' || value === 'compare') {
+                  setMode(value);
+                }
+              }}
+            >
+              <TabList variant="soft" sx={{ width: 'fit-content' }}>
+                <Tab value="single">View single eval</Tab>
+                <Tab value="compare">Compare evals</Tab>
+              </TabList>
+            </Tabs>
 
             {mode === 'single' ? (
               <>
@@ -194,7 +196,9 @@ export default function Evals() {
           selectedJobA !== selectedJobB
         }
         onClose={() => setCompareOpen(false)}
-        jobIds={selectedJobA && selectedJobB ? [selectedJobA, selectedJobB] : []}
+        jobIds={
+          selectedJobA && selectedJobB ? [selectedJobA, selectedJobB] : []
+        }
       />
       <ViewEvalResultsModal
         open={singleEvalJobId !== null}

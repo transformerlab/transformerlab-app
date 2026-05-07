@@ -718,7 +718,7 @@ class Lab:
 
         Args:
             source_path: Path to the file or directory to save, OR a pandas DataFrame
-                         when type="eval" or type="dataset"
+                         when type="evals" or type="dataset"
             name: Optional name for the artifact. If not provided, uses source basename
                   or generates a default name for DataFrames. When type="dataset",
                   this is used as the dataset_id. When type="model", this is used as the model name
@@ -729,7 +729,7 @@ class Lab:
                   - If "model", saves to job-specific models directory and tracks in job data.
                   - Otherwise saves to artifacts directory.
             config: Optional configuration dict.
-                   When type="eval", can contain column mappings under "evals" key, e.g.:
+                   When type="evals", can contain column mappings under "evals" key, e.g.:
                    {"evals": {"input": "input_col", "output": "output_col",
                              "expected_output": "expected_col", "score": "score_col"}}
                    When type="dataset", can contain:
