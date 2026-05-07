@@ -1,10 +1,20 @@
+import os
+
 import typer
 
 from transformerlab_cli.util.auth import set_api_key, fetch_user_info, fetch_user_teams
-from transformerlab_cli.util.browser_login import run_browser_login, BrowserLoginError
+from transformerlab_cli.util.browser_login import (
+    BrowserLoginError,
+    _resolve_frontend_url,
+    run_browser_login,
+)
 from transformerlab_cli.util.config import load_config, set_config
 from transformerlab_cli.util.shared import DEFAULT_BASE_URL, set_base_url
 from transformerlab_cli.util.ui import console
+
+
+def _is_ssh_session() -> bool:
+    return bool(os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_CLIENT") or os.environ.get("SSH_TTY"))
 
 
 app = typer.Typer()
@@ -15,6 +25,11 @@ def login(
     api_key: str = typer.Option(None, "--api-key", help="API key (skips browser flow; for CI/headless)."),
     server: str = typer.Option(None, "--server", help="Server URL"),
     no_browser: bool = typer.Option(False, "--no-browser", help="Print the login URL instead of opening a browser."),
+    paste: bool = typer.Option(
+        False,
+        "--paste",
+        help="Skip the loopback server; create an API key in the web UI and paste it here. Auto-enabled over SSH.",
+    ),
 ):
     """Log in to Transformer Lab."""
     config = load_config()
@@ -44,17 +59,39 @@ def login(
     browser_team_name = None
 
     if not api_key:
-        # Default path: browser-based login.
-        try:
-            result = run_browser_login(server_url=server, open_browser=not no_browser)
-        except BrowserLoginError as e:
-            console.print(f"[error]Error:[/error] {e}")
-            console.print("[warning]Tip:[/warning] use [bold]lab login --api-key <KEY>[/bold] for headless/CI.")
-            raise typer.Exit(1)
+        use_paste = paste or _is_ssh_session()
+        if use_paste:
+            if paste:
+                console.print("[label]Paste mode:[/label] open the API keys page on any device.")
+            else:
+                console.print(
+                    "[label]SSH session detected.[/label] The loopback flow won't work over SSH; "
+                    "switching to paste mode."
+                )
+            frontend_url = _resolve_frontend_url(server)
+            api_keys_url = f"{frontend_url}/#/user/api-keys"
+            console.print(f"\n[label]1.[/label] Open this URL in a browser: [bold]{api_keys_url}[/bold]")
+            console.print("[label]2.[/label] Create a new API key (scoped to the team you want).")
+            console.print("[label]3.[/label] Paste the key below.\n")
+            api_key = typer.prompt("API key", hide_input=True).strip()
+            if not api_key:
+                console.print("[error]Error:[/error] No API key provided.")
+                raise typer.Exit(1)
+        else:
+            # Default path: browser-based login via loopback server.
+            try:
+                result = run_browser_login(server_url=server, open_browser=not no_browser)
+            except BrowserLoginError as e:
+                console.print(f"[error]Error:[/error] {e}")
+                console.print(
+                    "[warning]Tip:[/warning] use [bold]lab login --paste[/bold] (or [bold]--api-key <KEY>[/bold]) "
+                    "for SSH/headless/CI."
+                )
+                raise typer.Exit(1)
 
-        api_key = result["api_key"]
-        browser_team_id = result.get("team_id")
-        browser_team_name = result.get("team_name")
+            api_key = result["api_key"]
+            browser_team_id = result.get("team_id")
+            browser_team_name = result.get("team_name")
 
     # Validate the key (works for both paths).
     if not set_api_key(api_key):
