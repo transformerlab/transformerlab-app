@@ -15,7 +15,7 @@ from textual.screen import ModalScreen
 from textual import work, on
 
 from transformerlab_cli.util import api
-from transformerlab_cli.util.config import get_current_experiment
+from transformerlab_cli.commands.job_monitor.util import get_effective_experiment
 from transformerlab_cli.commands.task import fetch_providers, launch_task_on_provider
 
 
@@ -150,7 +150,7 @@ class InteractiveTaskConfigModal(ModalScreen):
     @work(thread=True)
     def _do_launch(self) -> None:
         env_vars = self._collect_env_vars()
-        experiment_id = get_current_experiment() or "alpha"
+        experiment_id = get_effective_experiment()
         gallery_entry = self.gallery_entry
         provider = self.provider
 
@@ -273,7 +273,7 @@ class InteractiveTaskModal(ModalScreen):
     def _fetch_data(self) -> None:
         """Fetch providers and gallery in background."""
         providers = fetch_providers()
-        experiment_id = get_current_experiment() or "alpha"
+        experiment_id = get_effective_experiment()
         try:
             resp = api.get(f"/experiment/{experiment_id}/task/gallery/interactive")
             gallery = resp.json().get("data", []) if resp.status_code == 200 else []

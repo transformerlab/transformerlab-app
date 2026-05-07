@@ -110,6 +110,24 @@ set_config("team_id", "abc-123", output_format)
 check_configs(output_format)  # Validates required keys are present
 ```
 
+### Per-command experiment override
+
+Experiment-scoped commands use `current_experiment` from config by default, but can be overridden for a single invocation with
+`--experiment` / `-e`.
+
+Examples:
+
+```bash
+# Uses current_experiment from ~/.lab/config.json
+lab job list
+
+# One-off override (does not change config)
+lab job list --experiment exp-b
+lab task add ./my-task -e exp-c
+lab notes show -e exp-d
+lab job monitor -e exp-z
+```
+
 ## Adding a New Command
 
 1. Create `cli/src/transformerlab_cli/commands/mycommand.py`:
