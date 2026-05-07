@@ -51,26 +51,24 @@ All created resources are tagged with your team ID and follow the `transformerla
 Store these credentials securely. You will not be able to view the secret access key again after closing the creation dialog.
 :::
 
-
 ## Step 2: Add the Provider in Transformer Lab
 
 1. In Transformer Lab, open the **Team** page and go to **Compute Providers**.
 2. Click **Add Compute Provider** and choose **AWS (beta)**.
 3. Fill in the fields:
 
-| Field | Description |
-|---|---|
-| **Compute Provider Name** | A friendly display name (e.g. `My AWS US-East`) |
-| **Region** | The AWS region where instances will launch (e.g. `us-east-1`) |
-| **AWS Access Key ID** | The access key ID from Step 1 |
-| **AWS Secret Access Key** | The secret access key from Step 1 |
+| Field                     | Description                                                   |
+| ------------------------- | ------------------------------------------------------------- |
+| **Compute Provider Name** | A friendly display name (e.g. `My AWS US-East`)               |
+| **Region**                | The AWS region where instances will launch (e.g. `us-east-1`) |
+| **AWS Access Key ID**     | The access key ID from Step 1                                 |
+| **AWS Secret Access Key** | The secret access key from Step 1                             |
 
 4. Click **Add Compute Provider**.
 
 Transformer Lab will validate the credentials immediately. If validation fails, double-check that the policy is attached to the correct user.
 
 ![Add AWS provider](../img/add-aws-provider.png)
-
 
 ## Step 3: Select the Provider for a Job
 
@@ -80,24 +78,24 @@ When creating a training task, expand the **Compute** section and select your ne
 
 Transformer Lab creates these once per team and reuses them on subsequent launches:
 
-| Resource | Name Pattern | Purpose |
-|---|---|---|
-| Security group | `transformerlab-compute-<team_id>` | Allows SSH (port 22) inbound |
-| Key pair | `transformerlab-<team_id>` | SSH access to instances |
-| IAM role | `transformerlab-ec2-role-<team_id>` | Lets each EC2 instance terminate itself |
+| Resource             | Name Pattern                           | Purpose                                             |
+| -------------------- | -------------------------------------- | --------------------------------------------------- |
+| Security group       | `transformerlab-compute-<team_id>`     | Allows SSH (port 22) inbound                        |
+| Key pair             | `transformerlab-<team_id>`             | SSH access to instances                             |
+| IAM role             | `transformerlab-ec2-role-<team_id>`    | Lets each EC2 instance terminate itself             |
 | IAM instance profile | `transformerlab-ec2-profile-<team_id>` | Wraps the role; attached to every launched instance |
 
 ## Supported GPU Types
 
 The following GPU types are available. Specify them as `<type>:<count>` in task configuration (e.g. `A100:8`):
 
-| GPU | Available Counts | EC2 Instance |
-|---|---|---|
-| T4 | 1, 4, 16 | NC4as_T4_v3 family |
-| A10 | 1, 2 | g5 family |
-| A100 | 1, 2, 4, 8 | p4d / p4de family |
-| H100 | 8 | p5 family |
-| V100 | 1, 2, 4, 8 | p3 family |
+| GPU  | Available Counts | EC2 Instance       |
+| ---- | ---------------- | ------------------ |
+| T4   | 1, 4, 16         | NC4as_T4_v3 family |
+| A10  | 1, 2             | g5 family          |
+| A100 | 1, 2, 4, 8       | p4d / p4de family  |
+| H100 | 8                | p5 family          |
+| V100 | 1, 2, 4, 8       | p3 family          |
 
 CPU-only instances are also supported; Transformer Lab selects the best fit based on the vCPU and memory requirements in your task.
 
