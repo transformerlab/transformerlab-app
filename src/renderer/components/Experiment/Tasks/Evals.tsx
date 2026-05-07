@@ -23,6 +23,8 @@ interface EvalCapableJob {
   title: string;
 }
 
+type EvalMode = 'single' | 'compare';
+
 const getEvalCapableJobs = (jobs: any[]): EvalCapableJob[] =>
   jobs
     .filter((job) => {
@@ -43,6 +45,7 @@ const getEvalCapableJobs = (jobs: any[]): EvalCapableJob[] =>
 export default function Evals() {
   const { experimentName = '' } = useParams<{ experimentName: string }>();
   const { experimentInfo, setExperimentId } = useExperimentInfo();
+  const [mode, setMode] = useState<EvalMode>('single');
   const [selectedJobA, setSelectedJobA] = useState<string | null>(null);
   const [selectedJobB, setSelectedJobB] = useState<string | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
@@ -77,7 +80,7 @@ export default function Evals() {
         Evals
       </Typography>
       <Typography level="body-sm" sx={{ color: 'text.tertiary', mb: 2 }}>
-        Select two jobs with eval outputs, then compare their eval results.
+        Pick a mode, then either view one job's evals or compare two jobs.
       </Typography>
 
       <Card variant="soft" sx={{ maxWidth: 720 }}>
@@ -96,53 +99,89 @@ export default function Evals() {
           </Typography>
         ) : (
           <Stack spacing={2}>
-            <FormControl>
-              <FormLabel>Job A</FormLabel>
-              <Select
-                value={selectedJobA}
-                onChange={(_, value) => setSelectedJobA(value)}
-              >
-                {evalCapableJobs.map((job) => (
-                  <Option key={`job-a-${job.id}`} value={job.id}>
-                    {job.title} ({job.shortId})
-                  </Option>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Job B</FormLabel>
-              <Select
-                value={selectedJobB}
-                onChange={(_, value) => setSelectedJobB(value)}
-              >
-                {evalCapableJobs.map((job) => (
-                  <Option key={`job-b-${job.id}`} value={job.id}>
-                    {job.title} ({job.shortId})
-                  </Option>
-                ))}
-              </Select>
-            </FormControl>
-
-            <Stack direction="row" justifyContent="flex-end" spacing={1}>
+            <Stack direction="row" spacing={1}>
               <Button
-                variant="outlined"
-                onClick={() => {
-                  if (selectedJobA) {
-                    setSingleEvalJobId(selectedJobA);
-                  }
-                }}
-                disabled={!canViewSingleEval}
+                variant={mode === 'single' ? 'solid' : 'outlined'}
+                onClick={() => setMode('single')}
               >
-                View Job A evals
+                View single eval
               </Button>
               <Button
-                onClick={() => setCompareOpen(true)}
-                disabled={compareDisabled}
+                variant={mode === 'compare' ? 'solid' : 'outlined'}
+                onClick={() => setMode('compare')}
               >
                 Compare evals
               </Button>
             </Stack>
+
+            {mode === 'single' ? (
+              <>
+                <FormControl>
+                  <FormLabel>Job</FormLabel>
+                  <Select
+                    value={selectedJobA}
+                    onChange={(_, value) => setSelectedJobA(value)}
+                  >
+                    {evalCapableJobs.map((job) => (
+                      <Option key={`single-${job.id}`} value={job.id}>
+                        {job.title} ({job.shortId})
+                      </Option>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                  <Button
+                    onClick={() => {
+                      if (selectedJobA) {
+                        setSingleEvalJobId(selectedJobA);
+                      }
+                    }}
+                    disabled={!canViewSingleEval}
+                  >
+                    View evals
+                  </Button>
+                </Stack>
+              </>
+            ) : (
+              <>
+                <FormControl>
+                  <FormLabel>Job A</FormLabel>
+                  <Select
+                    value={selectedJobA}
+                    onChange={(_, value) => setSelectedJobA(value)}
+                  >
+                    {evalCapableJobs.map((job) => (
+                      <Option key={`job-a-${job.id}`} value={job.id}>
+                        {job.title} ({job.shortId})
+                      </Option>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Job B</FormLabel>
+                  <Select
+                    value={selectedJobB}
+                    onChange={(_, value) => setSelectedJobB(value)}
+                  >
+                    {evalCapableJobs.map((job) => (
+                      <Option key={`job-b-${job.id}`} value={job.id}>
+                        {job.title} ({job.shortId})
+                      </Option>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                  <Button
+                    onClick={() => setCompareOpen(true)}
+                    disabled={compareDisabled}
+                  >
+                    Compare evals
+                  </Button>
+                </Stack>
+              </>
+            )}
           </Stack>
         )}
       </Card>
