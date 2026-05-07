@@ -8,8 +8,7 @@ from transformerlab_cli.commands.job_monitor.InteractiveTaskModal import Interac
 from transformerlab_cli.commands.job_monitor.JobDetails import JobDetails
 from transformerlab_cli.commands.job_monitor.TaskAddModal import TaskAddModal
 from transformerlab_cli.commands.job_monitor.TaskListModal import TaskListModal
-from transformerlab_cli.commands.job_monitor.util import fetch_jobs
-from transformerlab_cli.util.config import get_current_experiment
+from transformerlab_cli.commands.job_monitor.util import fetch_jobs, get_effective_experiment
 
 
 class JobListItem(ListItem):
@@ -90,7 +89,7 @@ class JobMonitorApp(App):
         self.push_screen(TaskAddModal())
 
     def action_list_tasks(self) -> None:
-        current_experiment = get_current_experiment() or "alpha"
+        current_experiment = get_effective_experiment()
         self.push_screen(TaskListModal(experiment_id=current_experiment))
 
     def action_interactive_task(self) -> None:
@@ -108,7 +107,7 @@ class JobMonitorApp(App):
 
     def update_current_experiment(self) -> None:
         """Update the title and subtitle with the current experiment."""
-        current_experiment = get_current_experiment()
+        current_experiment = get_effective_experiment()
         experiment_name = current_experiment if current_experiment else "No Experiment"
         self.sub_title = f"Experiment {experiment_name}"
 
