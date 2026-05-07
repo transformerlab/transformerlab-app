@@ -134,6 +134,7 @@ class ProviderType(str, enum.Enum):
     DSTACK = "dstack"
     AZURE = "azure"
     AWS = "aws"
+    GCP = "gcp"
 
 
 class AcceleratorType(str, enum.Enum):

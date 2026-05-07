@@ -239,3 +239,64 @@ def test_db_record_to_provider_config_does_not_backfill_missing_aws_profile():
     assert cfg.aws_profile is None
     assert cfg.team_id == "team-legacy"
     assert cfg.region == "us-west-2"
+
+
+def test_save_gcp_credentials_endpoint_stores_service_account_in_db_config():
+    """POST /{provider_id}/gcp/credentials stores parsed SA JSON in provider config."""
+    mock_provider = MagicMock()
+    mock_provider.type = "gcp"
+    mock_provider.config = {"project_id": "existing-project", "credentials_path": "/old/path.json"}
+
+    captured_update = {}
+
+    async def fake_update_team_provider(session, provider, config):
+        captured_update.update(config)
+        provider.config = config
+        return provider
+
+    with (
+        patch(
+            "transformerlab.routers.compute_provider.providers.get_team_provider",
+            new_callable=AsyncMock,
+            return_value=mock_provider,
+        ),
+        patch(
+            "transformerlab.routers.compute_provider.providers.update_team_provider",
+            side_effect=fake_update_team_provider,
+        ),
+        patch(
+            "transformerlab.routers.compute_provider.providers.cache.invalidate",
+            new_callable=AsyncMock,
+        ),
+    ):
+        from transformerlab.routers.compute_provider.providers import GcpCredentialsRequest, set_gcp_credentials
+
+        mock_session = MagicMock()
+        mock_owner_info = {"team_id": "team-abc"}
+        service_account_json = """
+{
+  "type": "service_account",
+  "project_id": "new-project-id",
+  "private_key_id": "abc123",
+  "private_key": "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",
+  "client_email": "svc@example.iam.gserviceaccount.com",
+  "client_id": "1234567890"
+}
+"""
+
+        result = asyncio.run(
+            set_gcp_credentials(
+                provider_id="prov-gcp-1",
+                body=GcpCredentialsRequest(service_account_json=service_account_json),
+                owner_info=mock_owner_info,
+                session=mock_session,
+            )
+        )
+
+    assert result["status"] == "ok"
+    assert result["project_id"] == "existing-project"
+    assert result["service_account_email"] == "svc@example.iam.gserviceaccount.com"
+    assert captured_update["project_id"] == "existing-project"
+    assert captured_update["service_account_email"] == "svc@example.iam.gserviceaccount.com"
+    assert captured_update["service_account_json"]["project_id"] == "new-project-id"
+    assert "credentials_path" not in captured_update
