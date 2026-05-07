@@ -104,7 +104,17 @@ export default function CliAuthPage() {
         team_id: effectiveTeamId,
         team_name: teamName,
       }).toString();
-      window.location.assign(`${redirect}#${fragment}`);
+      const parsed = new URL(redirect!);
+      if (
+        parsed.protocol !== 'http:' ||
+        (parsed.hostname !== '127.0.0.1' && parsed.hostname !== 'localhost')
+      ) {
+        setError('Refusing to redirect to a non-loopback URL.');
+        setSubmitting(false);
+        return;
+      }
+      const safeBase = `http://${parsed.hostname}${parsed.port ? `:${parsed.port}` : ''}/`;
+      window.location.assign(`${safeBase}#${fragment}`);
     } catch (e) {
       setError('Network error contacting the API.');
       setSubmitting(false);
