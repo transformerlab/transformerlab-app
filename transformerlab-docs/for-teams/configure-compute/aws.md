@@ -1,5 +1,5 @@
 ---
-title: AWS Compute Provider
+title: AWS
 sidebar_position: 50
 ---
 

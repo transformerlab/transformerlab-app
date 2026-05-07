@@ -1,5 +1,5 @@
 ---
-title: Azure Compute Provider
+title: Azure
 sidebar_position: 60
 ---
 
