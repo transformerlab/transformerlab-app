@@ -81,6 +81,7 @@ For provider-specific setup instructions and example configs, see:
 - [dstack](./configure-compute/dstack.md)
 - [AWS](./configure-compute/aws.md)
 - [Azure](./configure-compute/azure.md)
+- [GCP](./configure-compute/gcp.md)
 
 ## Congrats, you are up and running
 
