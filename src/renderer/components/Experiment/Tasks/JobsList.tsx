@@ -258,185 +258,90 @@ const JobsList: React.FC<JobsListProps> = ({
     );
   };
 
-  const formatJobConfig = (job: any) => {
+  const getJobName = (job: any): string => {
     const jobData = job?.job_data || {};
-    const interactiveType =
-      jobData?.interactive_type ||
-      job?.interactive_type ||
-      jobData?.template_config?.interactive_type;
 
-    // Handle sweep child jobs
     if (jobData?.parent_sweep_job_id) {
       const runIndex = jobData.sweep_run_index || 0;
       const total = jobData.sweep_total || 0;
-      const sweepParams = jobData.sweep_params || {};
-      const paramStr = Object.entries(sweepParams)
-        .map(([k, v]) => `${k}=${v}`)
-        .join(', ');
-      return (
-        <>
-          <b>
-            Sweep Run {runIndex}/{total}
-          </b>
-          {paramStr && (
-            <>
-              <br />
-              <small>{paramStr}</small>
-            </>
-          )}
-        </>
-      );
+      return `Sweep Run ${runIndex}/${total}`;
     }
 
-    // Handle sweep parent jobs
     if (jobData?.sweep_parent || job?.type === 'SWEEP') {
       const total = jobData.sweep_total || 0;
-      const sweepConfig = jobData.sweep_config || {};
-      const configStr = Object.keys(sweepConfig).join(' × ');
-      return (
-        <>
-          <b>Sweep: {total} configurations</b>
-          {configStr && (
-            <>
-              <br />
-              <small>{configStr}</small>
-            </>
-          )}
-        </>
-      );
+      return `Sweep: ${total} configurations`;
     }
 
-    // Prefer showing Cluster Name (if present) and the user identifier (name/email)
-    const clusterName = jobData?.cluster_name;
+    if (showInteractiveType) {
+      const interactiveType =
+        jobData?.interactive_type ||
+        job?.interactive_type ||
+        jobData?.template_config?.interactive_type;
+      if (interactiveType) {
+        return formatInteractiveTypeLabel(String(interactiveType));
+      }
+    }
 
-    const userInfo = jobData.user_info || {};
-    const userDisplay = userInfo.name || userInfo.email || '';
-    const providerDisplay = jobData.provider_name || job?.provider_name || '';
-    const scoreDisplay = getScoreDisplay(jobData?.score);
+    return (
+      jobData?.cluster_name ||
+      jobData?.task_name ||
+      jobData?.template_name ||
+      job?.type ||
+      'Unknown Job'
+    );
+  };
+
+  const getJobUserEmail = (job: any): string => {
+    const userInfo = job?.job_data?.user_info || {};
+    return userInfo.email || userInfo.name || '';
+  };
+
+  const formatJobConfig = (job: any) => {
+    const jobData = job?.job_data || {};
+
     if (job?.placeholder) {
       return (
         <>
-          <Skeleton variant="text" level="body-md" width={160} />
-          <Skeleton variant="text" level="body-sm" width={100} />
+          <Skeleton variant="text" level="body-sm" width={120} />
+          <Skeleton variant="text" level="body-sm" width={80} />
         </>
       );
     }
-    // Interactive jobs: show job type, submitter, provider, and title
-    if (showInteractiveType && interactiveType) {
-      const taskName = jobData?.task_name || '';
-      const typeLabel = formatInteractiveTypeLabel(String(interactiveType));
-      return (
-        <>
-          <Typography level="title-sm" fontWeight="bold">
-            {typeLabel}
-            {job?.job_data?.favorite && (
-              <>
-                {' '}
-                <BookmarkIcon size={16} fill="currentColor" />
-              </>
-            )}
+
+    const sweepParams = jobData?.parent_sweep_job_id
+      ? jobData.sweep_params || {}
+      : null;
+    const sweepParamStr = sweepParams
+      ? Object.entries(sweepParams)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(', ')
+      : '';
+
+    const sweepConfigStr =
+      jobData?.sweep_parent || job?.type === 'SWEEP'
+        ? Object.keys(jobData?.sweep_config || {}).join(' × ')
+        : '';
+
+    return (
+      <>
+        {sweepParamStr && (
+          <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
+            {sweepParamStr}
           </Typography>
-          {userDisplay && (
-            <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
-              <b>Submitter:</b> {userDisplay}
-            </Typography>
-          )}
-          {providerDisplay && (
-            <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
-              <b>Provider:</b> {providerDisplay}
-            </Typography>
-          )}
-          {taskName && (
-            <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
-              <b>Title:</b> {taskName}
-            </Typography>
-          )}
-          <Stack direction="row" alignItems="center" gap={0.5} sx={{ mt: 0.5 }}>
-            {!job?.placeholder && renderDescriptionControl(job)}
-            {scoreDisplay && (
-              <Tooltip
-                title={scoreDisplay.tooltip || ''}
-                disableHoverListener={!scoreDisplay.tooltip}
-              >
-                <Chip
-                  size="sm"
-                  color="success"
-                  variant="soft"
-                  sx={{ width: 'fit-content' }}
-                >
-                  {scoreDisplay.label}
-                </Chip>
-              </Tooltip>
-            )}
-          </Stack>
-        </>
-      );
-    }
-
-    // Build preferred details
-    if (clusterName || userDisplay || providerDisplay) {
-      return (
-        <>
-          {clusterName && (
-            <Typography level="title-sm" fontWeight="bold">
-              {clusterName}{' '}
-              {job?.job_data?.favorite && (
-                <BookmarkIcon size={16} fill="currentColor" />
-              )}
-              <br />
-            </Typography>
-          )}
-          {userDisplay && (
-            <Typography level="body-sm">
-              <b>Submitter:</b> {userDisplay}
-            </Typography>
-          )}
-          {providerDisplay && (
-            <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
-              <b>Provider:</b> {providerDisplay}
-            </Typography>
-          )}
-          <Stack direction="row" alignItems="center" gap={0.5} sx={{ mt: 0.5 }}>
-            {!job?.placeholder && renderDescriptionControl(job)}
-            {scoreDisplay && (
-              <Tooltip
-                title={scoreDisplay.tooltip || ''}
-                disableHoverListener={!scoreDisplay.tooltip}
-              >
-                <Chip
-                  size="sm"
-                  color="success"
-                  variant="soft"
-                  sx={{ width: 'fit-content' }}
-                >
-                  {scoreDisplay.label}
-                </Chip>
-              </Tooltip>
-            )}
-          </Stack>
-        </>
-      );
-    }
-
-    // Fallbacks to existing info when no cluster/user available
-    if (jobData?.template_name) {
-      return (
-        <>
-          <b>Template:</b> {jobData.template_name}
-          <br />
-          <b>Type:</b> {job.type || 'Unknown'}
-        </>
-      );
-    }
-
-    return <b>{job.type || 'Unknown Job'}</b>;
+        )}
+        {sweepConfigStr && (
+          <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
+            {sweepConfigStr}
+          </Typography>
+        )}
+      </>
+    );
   };
 
   const tableHead = (
     <thead>
       <tr>
         <th>Job ID</th>
-        <th>Job Details</th>
         <th>Status</th>
         <th style={{ textAlign: 'right' }}>Logs</th>
       </tr>
@@ -452,9 +357,6 @@ const JobsList: React.FC<JobsListProps> = ({
             <tr key={i}>
               <td>
                 <Skeleton variant="text" level="title-sm" />
-              </td>
-              <td>
-                <Skeleton variant="text" level="body-sm" />
               </td>
               <td>
                 <Skeleton variant="text" level="body-sm" />
@@ -511,10 +413,51 @@ const JobsList: React.FC<JobsListProps> = ({
                           sx={{ mr: 1 }}
                         />
                       )}
-                    {!hideJobId && <b title={fullJobId}>{displayJobId}</b>}
-                  </td>
-                  <td style={{ verticalAlign: 'top', border: 'none' }}>
-                    {formatJobConfig(job)}
+                    {job?.placeholder ? (
+                      <>
+                        <Skeleton variant="text" level="body-xs" width={70} />
+                        <Skeleton variant="text" level="title-sm" width={140} />
+                        <Skeleton variant="text" level="body-xs" width={120} />
+                      </>
+                    ) : (
+                      <>
+                        {!hideJobId && (
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: 'text.tertiary' }}
+                            title={fullJobId}
+                          >
+                            #{displayJobId}
+                          </Typography>
+                        )}
+                        <Typography level="title-sm" fontWeight="bold">
+                          {getJobName(job)}
+                          {job?.job_data?.favorite && (
+                            <>
+                              {' '}
+                              <BookmarkIcon size={16} fill="currentColor" />
+                            </>
+                          )}
+                        </Typography>
+                        {getJobUserEmail(job) && (
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: 'text.tertiary' }}
+                          >
+                            {getJobUserEmail(job)}
+                          </Typography>
+                        )}
+                        {(job?.job_data?.provider_name ||
+                          job?.provider_name) && (
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: 'text.tertiary' }}
+                          >
+                            {job?.job_data?.provider_name || job?.provider_name}
+                          </Typography>
+                        )}
+                      </>
+                    )}
                   </td>
                   <td style={{ verticalAlign: 'top', border: 'none' }}>
                     <JobProgress
@@ -525,6 +468,41 @@ const JobsList: React.FC<JobsListProps> = ({
                       }
                       onStopPendingChange={onStopPendingChange}
                     />
+                    {formatJobConfig(job)}
+                    {!job?.placeholder &&
+                      (() => {
+                        const scoreDisplay = getScoreDisplay(
+                          job?.job_data?.score,
+                        );
+                        const descriptionControl =
+                          renderDescriptionControl(job);
+                        if (!scoreDisplay && !descriptionControl) return null;
+                        return (
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            gap={0.5}
+                            sx={{ mt: 0.5 }}
+                          >
+                            {descriptionControl}
+                            {scoreDisplay && (
+                              <Tooltip
+                                title={scoreDisplay.tooltip || ''}
+                                disableHoverListener={!scoreDisplay.tooltip}
+                              >
+                                <Chip
+                                  size="sm"
+                                  color="neutral"
+                                  variant="soft"
+                                  sx={{ width: 'fit-content' }}
+                                >
+                                  {scoreDisplay.label}
+                                </Chip>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        );
+                      })()}
                   </td>
                   <td
                     style={{
@@ -825,7 +803,7 @@ const JobsList: React.FC<JobsListProps> = ({
           ) : (
             <tr>
               <td
-                colSpan={4}
+                colSpan={3}
                 style={{
                   textAlign: 'center',
                   padding: '20px',

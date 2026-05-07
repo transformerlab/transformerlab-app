@@ -253,7 +253,6 @@ export default function JobProgress({
           )}
           {job?.job_data?.start_time && (
             <>
-              Started:{' '}
               {dayjs
                 .utc(job.job_data.start_time)
                 .local()
@@ -356,7 +355,6 @@ export default function JobProgress({
             )}
           {job?.job_data?.start_time && (
             <>
-              Started:{' '}
               {dayjs
                 .utc(job.job_data.start_time)
                 .local()
@@ -378,7 +376,6 @@ export default function JobProgress({
           <>
             {job?.job_data?.start_time && (
               <>
-                Started:{' '}
                 {dayjs
                   .utc(job?.job_data?.start_time)
                   .local()
@@ -388,7 +385,7 @@ export default function JobProgress({
             )}
             {job?.job_data?.end_time && job?.job_data?.start_time && (
               <>
-                Completed in:{' '}
+                {' '}
                 {dayjs
                   .duration(
                     dayjs(job?.job_data?.end_time).diff(
