@@ -30,11 +30,8 @@ function defaultTeamId(teams: Team[]): string | null {
   return (owner ?? teams[0]).id;
 }
 
-function keyName(): string {
-  const host =
-    (typeof window !== 'undefined' &&
-      (window as any).TransformerLab?.HOSTNAME) ||
-    'unknown';
+function keyName(hostname: string | null): string {
+  const host = (hostname || 'unknown').slice(0, 64);
   const date = new Date().toISOString().slice(0, 10);
   return `lab CLI (${host} ${date})`;
 }
@@ -43,6 +40,7 @@ export default function CliAuthPage() {
   const params = useMemo(() => parseHashQuery(), []);
   const state = params.get('state');
   const redirect = params.get('redirect');
+  const hostname = params.get('hostname');
   const redirectOk = isLoopbackRedirect(redirect);
 
   const { fetchWithAuth } = useAuth();
@@ -82,7 +80,7 @@ export default function CliAuthPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: keyName(),
+          name: keyName(hostname),
           team_id: effectiveTeamId,
           expires_in_days: null,
         }),

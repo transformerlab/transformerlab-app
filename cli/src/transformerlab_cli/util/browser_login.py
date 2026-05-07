@@ -19,6 +19,7 @@ import secrets
 import socket
 import threading
 import webbrowser
+import platform
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import quote
 
@@ -162,7 +163,13 @@ def run_browser_login(
     port = _find_free_port()
     redirect = f"http://127.0.0.1:{port}/"
     frontend_url = _resolve_frontend_url(server_url)
-    authorize_url = f"{frontend_url}/#/cli-auth?state={quote(state)}&redirect={quote(redirect, safe='')}"
+    hostname = platform.node() or "unknown"
+    authorize_url = (
+        f"{frontend_url}/#/cli-auth"
+        f"?state={quote(state)}"
+        f"&redirect={quote(redirect, safe='')}"
+        f"&hostname={quote(hostname)}"
+    )
 
     result: dict = {}
     done = threading.Event()
