@@ -287,7 +287,8 @@ async def launch_sweep_jobs(
                     if request.enable_profiling_torch:
                         setup_commands.append("pip install -q torch")
 
-                if request.file_mounts is True and request.task_id:
+                # Local provider always uses lab.copy_file_mounts() to land task files at $HOME (= cwd).
+                if request.task_id and (request.file_mounts is True or provider.type == ProviderType.LOCAL.value):
                     setup_commands.append(COPY_FILE_MOUNTS_SETUP)
 
                 if request.github_repo_url:
