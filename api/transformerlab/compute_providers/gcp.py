@@ -166,6 +166,12 @@ def _is_missing_image_error(error: Exception) -> bool:
     return "not found" in message and "images/family" in message
 
 
+def _is_already_exists_error(error: Exception) -> bool:
+    """Detect GCP 'already exists' conflicts from Compute API responses."""
+    message = str(error).lower()
+    return "409" in message and "already" in message and "exist" in message
+
+
 def _ssh_read_file(host: str, key_bytes: bytes, remote_path: str, tail_lines: int = 500) -> str:
     import paramiko
 
@@ -341,7 +347,12 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             "targetTags": ["transformerlab-compute"],
             "allowed": [{"IPProtocol": "tcp", "ports": ["22"]}],
         }
-        self._request("POST", f"{self._global_base_url()}/firewalls", json=body)
+        try:
+            self._request("POST", f"{self._global_base_url()}/firewalls", json=body)
+        except RuntimeError as e:
+            if _is_already_exists_error(e):
+                return
+            raise
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         from transformerlab.services.ssh_key_service import get_or_create_org_ssh_key_pair, get_org_ssh_public_key
