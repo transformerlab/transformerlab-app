@@ -79,6 +79,8 @@ For provider-specific setup instructions and example configs, see:
 - [Slurm](./configure-compute/slurm.md)
 - [Runpod](./configure-compute/runpod.md)
 - [dstack](./configure-compute/dstack.md)
+- [AWS](./configure-compute/aws.md)
+- [Azure](./configure-compute/azure.md)
 
 ## Congrats, you are up and running
 
