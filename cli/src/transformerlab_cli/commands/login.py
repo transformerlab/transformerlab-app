@@ -20,10 +20,8 @@ def login(
 
     # Prompt for server URL, showing current value as default so user can confirm or change it
     if not server:
-        server = config.get("server")
-
-    if not server:
-        server = typer.prompt("Please enter the server URL", default=DEFAULT_BASE_URL)
+        current_server = config.get("server") or DEFAULT_BASE_URL
+        server = typer.prompt("Server URL", default=current_server)
 
     # Validate and set server URL
     from transformerlab_cli.util.config import _validate_url
@@ -40,9 +38,6 @@ def login(
     # Save server to config if it changed
     if config.get("server") != server:
         set_config("server", server)
-
-    # Show current server URL
-    console.print(f"\n[label]Current server:[/label] [value]{server}[/value]")
 
     # Ask for API key if not provided
     if not api_key:
