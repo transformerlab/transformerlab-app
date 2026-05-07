@@ -33,20 +33,27 @@ def _task_sort_key(x):
     return str(created_at)
 
 
-def _dir_paths_from_ls(entries) -> list[str]:
+async def _dir_paths_from_ls(entries) -> list[str]:
     """Filter `storage.ls(detail=True)` output to directory paths only.
 
-    Skips files like `.DS_Store` so they don't reach `get_metadata()`,
-    which would otherwise log a spurious error per cruft entry.
+    Trusts fsspec's `type` field, with a defensive `storage.isdir` fallback
+    if it's missing — matches the pattern in
+    `migrate_tasks_to_experiment_dirs.py`. Skips files like `.DS_Store` so
+    they don't reach `get_metadata()`.
     """
     paths: list[str] = []
     for entry in entries:
         if not isinstance(entry, dict):
             continue
-        if entry.get("type") != "directory":
+        full = entry.get("name")
+        if not full:
             continue
-        full = entry.get("name") or entry.get("path")
-        if full:
+        entry_type = entry.get("type")
+        try:
+            is_dir = entry_type == "directory" or await storage.isdir(full)
+        except Exception:
+            is_dir = entry_type == "directory"
+        if is_dir:
             paths.append(full)
     return paths
 
@@ -60,7 +67,7 @@ async def _gather_task_metadata(entries, experiment_id: str | None = None):
             try:
                 return await TaskTemplate(entry, experiment_id=experiment_id).get_metadata()
             except Exception:
-                logger.error(f"Exception getting metadata for task: {entry}")
+                logger.warning(f"Skipping task without readable metadata: {entry}")
                 return None
 
     gathered = await asyncio.gather(*(_read(full) for full in entries))
@@ -183,7 +190,7 @@ class TaskTemplate(BaseLabResource):
             logger.error(f"Exception listing task directory: {e}")
             return []
 
-        results = await _gather_task_metadata(_dir_paths_from_ls(entries))
+        results = await _gather_task_metadata(await _dir_paths_from_ls(entries))
         results.sort(key=_task_sort_key, reverse=True)
         return results
 
@@ -205,7 +212,7 @@ class TaskTemplate(BaseLabResource):
             logger.error(f"Exception listing experiment task directory: {e}")
             return []
 
-        results = await _gather_task_metadata(_dir_paths_from_ls(entries), experiment_id=str(experiment_id))
+        results = await _gather_task_metadata(await _dir_paths_from_ls(entries), experiment_id=str(experiment_id))
         results.sort(key=_task_sort_key, reverse=True)
         return results
 
