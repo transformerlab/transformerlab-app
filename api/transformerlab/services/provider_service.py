@@ -290,6 +290,11 @@ def db_record_to_provider_config(
         supported_accelerators=config_dict.get("supported_accelerators"),
         aws_profile=config_dict.get("aws_profile"),
         region=config_dict.get("region"),
+        project_id=config_dict.get("project_id"),
+        zone=config_dict.get("zone"),
+        credentials_path=config_dict.get("credentials_path"),
+        service_account_json=config_dict.get("service_account_json"),
+        service_account_email=config_dict.get("service_account_email"),
         extra_config=extra_config,
         # Azure-specific config
         azure_subscription_id=config_dict.get("azure_subscription_id"),
@@ -301,7 +306,7 @@ def db_record_to_provider_config(
         # team_id: config value (or record fallback) for AWS/Azure; None otherwise.
         team_id=(
             config_dict.get("team_id") or record.team_id
-            if record.type in {ProviderType.AWS.value, ProviderType.AZURE.value}
+            if record.type in {ProviderType.AWS.value, ProviderType.GCP.value, ProviderType.AZURE.value}
             else None
         ),
     )
