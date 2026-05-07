@@ -165,10 +165,7 @@ def run_browser_login(
     frontend_url = _resolve_frontend_url(server_url)
     hostname = platform.node() or "unknown"
     authorize_url = (
-        f"{frontend_url}/#/cli-auth"
-        f"?state={quote(state)}"
-        f"&redirect={quote(redirect, safe='')}"
-        f"&hostname={quote(hostname)}"
+        f"{frontend_url}/#/cli-auth?state={quote(state)}&redirect={quote(redirect, safe='')}&hostname={quote(hostname)}"
     )
 
     result: dict = {}

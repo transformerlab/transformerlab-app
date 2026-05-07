@@ -1,6 +1,5 @@
 """Tests for the browser-login loopback server."""
 
-import json
 import threading
 import time
 from unittest.mock import patch
