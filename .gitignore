@@ -228,3 +228,6 @@ test-results/
 
 docs/superpowers/*
 .superpowers/
+
+/tmp/
+/temp/
