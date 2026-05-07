@@ -32,7 +32,7 @@ def test_logout_help():
 @patch("transformerlab_cli.commands.login.load_config", return_value={"server": "http://localhost:8338"})
 def test_login_success(_mock_load, _mock_set, _mock_set_key, _mock_user, _mock_teams):
     """Test successful login flow."""
-    result = runner.invoke(app, ["login", "--api-key", "test-key"])
+    result = runner.invoke(app, ["login", "--server", "http://localhost:8338", "--api-key", "test-key"])
     assert result.exit_code == 0
     assert "Login successful" in result.output
 
@@ -41,7 +41,7 @@ def test_login_success(_mock_load, _mock_set, _mock_set_key, _mock_user, _mock_t
 @patch("transformerlab_cli.commands.login.load_config", return_value={"server": "http://localhost:8338"})
 def test_login_failure(_mock_load, _mock_set_key):
     """Test login failure."""
-    result = runner.invoke(app, ["login", "--api-key", "bad-key"])
+    result = runner.invoke(app, ["login", "--server", "http://localhost:8338", "--api-key", "bad-key"])
     assert result.exit_code == 1
 
 

@@ -35,9 +35,8 @@ def login(
     config = load_config()
 
     if not server:
-        server = config.get("server")
-    if not server:
-        server = typer.prompt("Please enter the server URL", default=DEFAULT_BASE_URL)
+        current_server = config.get("server") or DEFAULT_BASE_URL
+        server = typer.prompt("Server URL", default=current_server)
 
     from transformerlab_cli.util.config import _validate_url
 

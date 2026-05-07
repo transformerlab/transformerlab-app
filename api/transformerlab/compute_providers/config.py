@@ -45,9 +45,16 @@ class ComputeProviderConfig(BaseModel):
     # Accelerators supported by this provider
     supported_accelerators: Optional[list[str]] = Field(default=None)
 
-    # AWS-specific config
+    # AWS/GCP-specific config
     aws_profile: Optional[str] = None  # e.g. "transformerlab-compute-{team_id}"
-    region: Optional[str] = None  # e.g. "us-east-1"
+    region: Optional[str] = None  # e.g. AWS "us-east-1" or GCP "us-central1"
+
+    # GCP-specific config
+    project_id: Optional[str] = None
+    zone: Optional[str] = None  # e.g. "us-central1-a"
+    credentials_path: Optional[str] = None
+    service_account_json: Optional[Dict[str, Any]] = None
+    service_account_email: Optional[str] = None
 
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
@@ -60,7 +67,7 @@ class ComputeProviderConfig(BaseModel):
     azure_location: Optional[str] = None
     azure_resource_group: Optional[str] = None
 
-    # Used by AWS and Azure for resource naming
+    # Used by AWS, Azure and GCP for resource naming
     team_id: Optional[str] = None
 
 
@@ -256,6 +263,25 @@ def create_compute_provider(config: ComputeProviderConfig) -> "ComputeProvider":
             aws_profile=config.aws_profile,
             region=config.region or "us-east-1",
             team_id=config.team_id,
+            extra_config=config.extra_config,
+        )
+    elif config.type == "gcp":
+        from .gcp import GCPProvider
+
+        if not config.project_id:
+            raise ValueError("GCP provider requires project_id in config")
+        if not config.team_id:
+            raise ValueError("GCP provider requires team_id in config")
+        if not config.zone and not config.region:
+            raise ValueError("GCP provider requires either zone or region in config")
+        return GCPProvider(
+            project_id=config.project_id,
+            zone=config.zone,
+            region=config.region,
+            team_id=config.team_id,
+            credentials_path=config.credentials_path,
+            service_account_json=config.service_account_json,
+            service_account_email=config.service_account_email,
             extra_config=config.extra_config,
         )
     else:
