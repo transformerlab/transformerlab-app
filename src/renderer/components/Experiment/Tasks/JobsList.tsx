@@ -173,7 +173,7 @@ const JobsList: React.FC<JobsListProps> = ({
 
   const getScoreDisplay = (
     score: unknown,
-  ): { label: string; tooltip?: string } | null => {
+  ): { label: string; tooltip?: React.ReactNode } | null => {
     if (typeof score === 'number') {
       return { label: `Score: ${formatScoreValue(score)}` };
     }
@@ -203,11 +203,15 @@ const JobsList: React.FC<JobsListProps> = ({
       const [firstMetric, firstValue] = preferredMetric;
 
       const tooltip =
-        numericEntries.length > 1
-          ? numericEntries
-              .map(([metric, val]) => `${metric}: ${formatScoreValue(val)}`)
-              .join(' | ')
-          : undefined;
+        numericEntries.length > 1 ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            {numericEntries.map(([metric, val]) => (
+              <span key={metric}>
+                {metric}: {formatScoreValue(val)}
+              </span>
+            ))}
+          </Box>
+        ) : undefined;
 
       return {
         label: `${firstMetric}: ${formatScoreValue(firstValue)}`,
@@ -216,6 +220,42 @@ const JobsList: React.FC<JobsListProps> = ({
     }
 
     return null;
+  };
+
+  const renderDescriptionControl = (job: any) => {
+    const descriptionRaw =
+      typeof job?.job_data?.description === 'string'
+        ? job.job_data.description.trim()
+        : '';
+    if (!descriptionRaw) return null;
+
+    const descriptionTooltip =
+      descriptionRaw.length > 200
+        ? `${descriptionRaw.slice(0, 200)}...`
+        : descriptionRaw;
+
+    return (
+      <Tooltip
+        sx={{ maxWidth: 400 }}
+        title={descriptionTooltip}
+        placement="top"
+      >
+        <IconButton
+          size="sm"
+          variant="plain"
+          color="neutral"
+          onClick={() =>
+            setDescriptionModal({
+              open: true,
+              jobId: String(job?.id ?? ''),
+              description: descriptionRaw,
+            })
+          }
+        >
+          <NotebookPenIcon size={15} />
+        </IconButton>
+      </Tooltip>
+    );
   };
 
   const formatJobConfig = (job: any) => {
@@ -311,21 +351,24 @@ const JobsList: React.FC<JobsListProps> = ({
               <b>Title:</b> {taskName}
             </Typography>
           )}
-          {scoreDisplay && (
-            <Tooltip
-              title={scoreDisplay.tooltip || ''}
-              disableHoverListener={!scoreDisplay.tooltip}
-            >
-              <Chip
-                size="sm"
-                color="success"
-                variant="soft"
-                sx={{ mt: 0.5, width: 'fit-content' }}
+          <Stack direction="row" alignItems="center" gap={0.5} sx={{ mt: 0.5 }}>
+            {!job?.placeholder && renderDescriptionControl(job)}
+            {scoreDisplay && (
+              <Tooltip
+                title={scoreDisplay.tooltip || ''}
+                disableHoverListener={!scoreDisplay.tooltip}
               >
-                {scoreDisplay.label}
-              </Chip>
-            </Tooltip>
-          )}
+                <Chip
+                  size="sm"
+                  color="success"
+                  variant="soft"
+                  sx={{ width: 'fit-content' }}
+                >
+                  {scoreDisplay.label}
+                </Chip>
+              </Tooltip>
+            )}
+          </Stack>
         </>
       );
     }
@@ -353,21 +396,24 @@ const JobsList: React.FC<JobsListProps> = ({
               <b>Provider:</b> {providerDisplay}
             </Typography>
           )}
-          {scoreDisplay && (
-            <Tooltip
-              title={scoreDisplay.tooltip || ''}
-              disableHoverListener={!scoreDisplay.tooltip}
-            >
-              <Chip
-                size="sm"
-                color="success"
-                variant="soft"
-                sx={{ mt: 0.5, width: 'fit-content' }}
+          <Stack direction="row" alignItems="center" gap={0.5} sx={{ mt: 0.5 }}>
+            {!job?.placeholder && renderDescriptionControl(job)}
+            {scoreDisplay && (
+              <Tooltip
+                title={scoreDisplay.tooltip || ''}
+                disableHoverListener={!scoreDisplay.tooltip}
               >
-                {scoreDisplay.label}
-              </Chip>
-            </Tooltip>
-          )}
+                <Chip
+                  size="sm"
+                  color="success"
+                  variant="soft"
+                  sx={{ width: 'fit-content' }}
+                >
+                  {scoreDisplay.label}
+                </Chip>
+              </Tooltip>
+            )}
+          </Stack>
         </>
       );
     }
@@ -386,44 +432,9 @@ const JobsList: React.FC<JobsListProps> = ({
     return <b>{job.type || 'Unknown Job'}</b>;
   };
 
-  const renderDescriptionControl = (job: any) => {
-    const descriptionRaw =
-      typeof job?.job_data?.description === 'string'
-        ? job.job_data.description.trim()
-        : '';
-    if (!descriptionRaw) return null;
-
-    const descriptionTooltip =
-      descriptionRaw.length > 200
-        ? `${descriptionRaw.slice(0, 200)}...`
-        : descriptionRaw;
-
-    return (
-      <Tooltip title={descriptionTooltip} placement="top" variant="soft">
-        <IconButton
-          size="sm"
-          variant="plain"
-          color="neutral"
-          onClick={() =>
-            setDescriptionModal({
-              open: true,
-              jobId: String(job?.id ?? ''),
-              description: descriptionRaw,
-            })
-          }
-        >
-          <NotebookPenIcon size={15} />
-        </IconButton>
-      </Tooltip>
-    );
-  };
-
   const tableHead = (
     <thead>
       <tr>
-        <th style={{ width: 44, textAlign: 'center' }} aria-label="Description">
-          &nbsp;
-        </th>
         <th>Job ID</th>
         <th>Job Details</th>
         <th>Status</th>
@@ -439,9 +450,6 @@ const JobsList: React.FC<JobsListProps> = ({
         <tbody>
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <tr key={i}>
-              <td style={{ textAlign: 'center' }}>
-                <Skeleton variant="circular" width={20} height={20} />
-              </td>
               <td>
                 <Skeleton variant="text" level="title-sm" />
               </td>
@@ -490,15 +498,6 @@ const JobsList: React.FC<JobsListProps> = ({
                       : {}),
                   }}
                 >
-                  <td
-                    style={{
-                      verticalAlign: 'top',
-                      border: 'none',
-                      textAlign: 'center',
-                    }}
-                  >
-                    {!job?.placeholder && renderDescriptionControl(job)}
-                  </td>
                   <td style={{ verticalAlign: 'top', border: 'none' }}>
                     {selectMode &&
                       job?.job_data?.eval_results &&
@@ -695,7 +694,7 @@ const JobsList: React.FC<JobsListProps> = ({
                         </Button>
                       )}
                       {!job?.placeholder && (
-                        <Tooltip title="Copy permalink" variant="outlined">
+                        <Tooltip title="Copy permalink">
                           <IconButton
                             size="sm"
                             variant="plain"
@@ -826,7 +825,7 @@ const JobsList: React.FC<JobsListProps> = ({
           ) : (
             <tr>
               <td
-                colSpan={5}
+                colSpan={4}
                 style={{
                   textAlign: 'center',
                   padding: '20px',
