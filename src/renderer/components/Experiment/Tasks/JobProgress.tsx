@@ -253,7 +253,6 @@ export default function JobProgress({
           )}
           {job?.job_data?.start_time && (
             <>
-              Started:{' '}
               {dayjs
                 .utc(job.job_data.start_time)
                 .local()
@@ -356,7 +355,6 @@ export default function JobProgress({
             )}
           {job?.job_data?.start_time && (
             <>
-              Started:{' '}
               {dayjs
                 .utc(job.job_data.start_time)
                 .local()
@@ -378,7 +376,6 @@ export default function JobProgress({
           <>
             {job?.job_data?.start_time && (
               <>
-                Started:{' '}
                 {dayjs
                   .utc(job?.job_data?.start_time)
                   .local()
@@ -388,7 +385,7 @@ export default function JobProgress({
             )}
             {job?.job_data?.end_time && job?.job_data?.start_time && (
               <>
-                Completed in:{' '}
+                {' '}
                 {dayjs
                   .duration(
                     dayjs(job?.job_data?.end_time).diff(
@@ -399,40 +396,58 @@ export default function JobProgress({
                 <br />
               </>
             )}
-            {/* eslint-disable-next-line no-nested-ternary, prettier/prettier */}
-            {job?.status === 'COMPLETE' &&
-              (job?.job_data?.completion_status ? (
-                job?.job_data?.completion_status === 'success' ? (
-                  <Typography level="body-sm" color="success">
-                    Success: {job?.job_data?.completion_details}
-                  </Typography>
-                ) : (
-                  <Typography level="body-sm" color="danger">
-                    Failure: {job?.job_data?.completion_details}
-                  </Typography>
-                )
-              ) : (
-                /* If we don't have a status, assume it failed */
-                <Typography level="body-sm" color="neutral" />
-              ))}
-            {job?.status === 'FAILED' && job?.job_data?.error_msg && (
-              <Typography
-                level="body-sm"
-                color="danger"
-                sx={{
-                  maxWidth: 400,
-                  maxHeight: 80,
-                  overflow: 'auto',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                }}
-              >
-                Error: {job.job_data.error_msg}
-              </Typography>
-            )}
           </>
         </Stack>
       )}
     </Stack>
   );
+}
+
+interface JobCompletionDetailsProps {
+  job: {
+    status: string;
+    job_data?: JobData;
+    placeholder?: boolean;
+  };
+}
+
+export function JobCompletionDetails({ job }: JobCompletionDetailsProps) {
+  if (job?.placeholder) return null;
+
+  if (job?.status === 'COMPLETE') {
+    if (job?.job_data?.completion_status === 'success') {
+      return (
+        <Typography level="body-sm" color="success">
+          Success: {job?.job_data?.completion_details}
+        </Typography>
+      );
+    }
+    if (job?.job_data?.completion_status) {
+      return (
+        <Typography level="body-sm" color="danger">
+          Failure: {job?.job_data?.completion_details}
+        </Typography>
+      );
+    }
+  }
+
+  if (job?.status === 'FAILED' && job?.job_data?.error_msg) {
+    return (
+      <Typography
+        level="body-sm"
+        color="danger"
+        sx={{
+          maxWidth: 400,
+          maxHeight: 80,
+          overflow: 'auto',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}
+      >
+        Error: {job.job_data.error_msg}
+      </Typography>
+    );
+  }
+
+  return null;
 }
