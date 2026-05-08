@@ -28,6 +28,7 @@ import ExperimentNotes from './Experiment/ExperimentNotes';
 import UserSettings from './User/UserSettings';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
 import Tasks from './Experiment/Tasks/Tasks';
+import Evals from './Experiment/Tasks/Evals';
 import Interactive from './Experiment/Interactive/Interactive';
 import Team from './Team/Team';
 import UsageReport from './Team/UsageReport';
@@ -233,6 +234,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         >
           <Route path="notes" element={<ExperimentNotes />} />
           <Route path="tasks" element={<Tasks />} />
+          <Route path="evals" element={<Evals />} />
           <Route path="interactive" element={<Interactive />} />
           <Route path="documents" element={<Documents />} />
           <Route path="settings" element={<Settings />} />
