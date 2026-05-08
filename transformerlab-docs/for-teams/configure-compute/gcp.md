@@ -40,9 +40,9 @@ Transformer Lab authenticates to GCP using a **service account key (JSON)**. You
 3. Give it a name such as `transformerlab-compute` and click **Create and continue**.
 4. On the **Grant this service account access to project** step, add the following roles:
 
-| Role                                                  | Why It Is Needed                                                                     |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| **Compute Admin** (`roles/compute.admin`)             | Create, read, and delete VMs, disks, and firewall rules                              |
+| Role                                                      | Why It Is Needed                                                                      |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **Compute Admin** (`roles/compute.admin`)                 | Create, read, and delete VMs, disks, and firewall rules                               |
 | **Service Account User** (`roles/iam.serviceAccountUser`) | Attach the service account to launched VMs so each VM can delete itself on completion |
 
 5. Click **Done**.
@@ -67,19 +67,18 @@ Treat the key file like a password. Anyone with the JSON can launch resources in
 2. Click **Add Compute Provider** and choose **GCP (beta)**.
 3. Fill in the fields:
 
-| Field                     | Description                                                                                            |
-| ------------------------- | ------------------------------------------------------------------------------------------------------ |
-| **Compute Provider Name** | A friendly display name (e.g. `My GCP US-Central`)                                                     |
-| **GCP Region**            | Region used for launches when zone is not specified (e.g. `us-central1`)                               |
-| **GCP Zone** *(optional)* | Specific zone to launch in (e.g. `us-central1-a`). Leave blank to default to `<region>-a`.             |
-| **Service Account JSON**  | Paste the entire contents of the JSON key file from Step 2. The `project_id` is read from this file.   |
+| Field                     | Description                                                                                          |
+| ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **Compute Provider Name** | A friendly display name (e.g. `My GCP US-Central`)                                                   |
+| **GCP Region**            | Region used for launches when zone is not specified (e.g. `us-central1`)                             |
+| **GCP Zone** _(optional)_ | Specific zone to launch in (e.g. `us-central1-a`). Leave blank to default to `<region>-a`.           |
+| **Service Account JSON**  | Paste the entire contents of the JSON key file from Step 2. The `project_id` is read from this file. |
 
 4. Click **Add Compute Provider**.
 
 Transformer Lab will validate the credentials by making a lightweight Compute Engine API call. If validation fails, double-check that the Compute Engine API is enabled and that the service account has the roles above.
 
 ![Add GCP provider](../img/add-gcp-provider.png)
-
 
 ## Step 4: Select the Provider for a Job
 
@@ -89,11 +88,11 @@ When creating a training task, expand the **Compute** section and select your ne
 
 Transformer Lab creates these in your project and reuses them on subsequent launches:
 
-| Resource           | Name Pattern               | Purpose                                                              |
-| ------------------ | -------------------------- | -------------------------------------------------------------------- |
-| Firewall rule      | `tfl-<team_id>-ssh`        | Allows SSH (port 22) inbound to instances tagged `transformerlab-compute` on the `default` VPC |
-| VM (per job)       | Derived from cluster name  | Runs the training job; self-deletes on completion                    |
-| Boot disk (per VM) | Auto-named with the VM     | `pd-balanced` disk, deleted automatically with the VM                |
+| Resource           | Name Pattern              | Purpose                                                                                        |
+| ------------------ | ------------------------- | ---------------------------------------------------------------------------------------------- |
+| Firewall rule      | `tfl-<team_id>-ssh`       | Allows SSH (port 22) inbound to instances tagged `transformerlab-compute` on the `default` VPC |
+| VM (per job)       | Derived from cluster name | Runs the training job; self-deletes on completion                                              |
+| Boot disk (per VM) | Auto-named with the VM    | `pd-balanced` disk, deleted automatically with the VM                                          |
 
 VMs are launched on the project's `default` network with an ephemeral external IP (one-to-one NAT) so Transformer Lab can SSH in and stream logs.
 
@@ -101,15 +100,15 @@ VMs are launched on the project's `default` network with an ephemeral external I
 
 Specify GPUs as `<type>:<count>` in task configuration (e.g. `A100:8`).
 
-| GPU         | Available Counts | Compute Engine Machine Type |
-| ----------- | ---------------- | --------------------------- |
-| T4          | 1, 2, 4          | `n1-standard-*` + attached `nvidia-tesla-t4` |
-| V100        | 1, 4             | `n1-standard-*` + attached `nvidia-tesla-v100` |
-| P100        | 1, 4             | `n1-standard-*` + attached `nvidia-tesla-p100` |
-| L4          | 1, 4, 8          | `g2-standard-*`             |
-| A100        | 1, 2, 4, 8       | `a2-highgpu-*g`             |
-| A100-80GB   | 1, 2, 4, 8       | `a2-ultragpu-*g`            |
-| H100        | 8                | `a3-highgpu-8g`             |
+| GPU       | Available Counts | Compute Engine Machine Type                    |
+| --------- | ---------------- | ---------------------------------------------- |
+| T4        | 1, 2, 4          | `n1-standard-*` + attached `nvidia-tesla-t4`   |
+| V100      | 1, 4             | `n1-standard-*` + attached `nvidia-tesla-v100` |
+| P100      | 1, 4             | `n1-standard-*` + attached `nvidia-tesla-p100` |
+| L4        | 1, 4, 8          | `g2-standard-*`                                |
+| A100      | 1, 2, 4, 8       | `a2-highgpu-*g`                                |
+| A100-80GB | 1, 2, 4, 8       | `a2-ultragpu-*g`                               |
+| H100      | 8                | `a3-highgpu-8g`                                |
 
 CPU-only instances are also supported. Transformer Lab picks the smallest of `e2-standard-2/4/8/16` or `n2-standard-32/48/64/80/96` that satisfies the vCPU and memory requested by your task.
 
@@ -123,28 +122,28 @@ The following table lists the operations Transformer Lab performs against the Co
 
 ### Compute Engine
 
-| Operation                            | Why                                                  |
-| ------------------------------------ | ---------------------------------------------------- |
-| `compute.machineTypes.list`          | Provider health check on startup                     |
-| `compute.instances.create`           | Launch a VM for each job                             |
-| `compute.instances.get` / `list`     | Look up an instance by cluster name and poll status  |
-| `compute.instances.delete`           | Stop/remove a VM on demand and during self-termination |
-| `compute.instances.setMetadata`      | Inject the SSH public key and startup script         |
-| `compute.disks.create`               | Create the boot disk attached to each VM             |
-| `compute.acceleratorTypes.get`       | Resolve GPU accelerator URLs                         |
+| Operation                        | Why                                                    |
+| -------------------------------- | ------------------------------------------------------ |
+| `compute.machineTypes.list`      | Provider health check on startup                       |
+| `compute.instances.create`       | Launch a VM for each job                               |
+| `compute.instances.get` / `list` | Look up an instance by cluster name and poll status    |
+| `compute.instances.delete`       | Stop/remove a VM on demand and during self-termination |
+| `compute.instances.setMetadata`  | Inject the SSH public key and startup script           |
+| `compute.disks.create`           | Create the boot disk attached to each VM               |
+| `compute.acceleratorTypes.get`   | Resolve GPU accelerator URLs                           |
 
 ### Networking
 
-| Operation                              | Why                                                                |
-| -------------------------------------- | ------------------------------------------------------------------ |
-| `compute.firewalls.get` / `create`     | Ensure the per-team SSH firewall rule exists on the `default` VPC  |
-| `compute.networks.use`                 | Attach the VM NIC to the `default` network                         |
+| Operation                          | Why                                                               |
+| ---------------------------------- | ----------------------------------------------------------------- |
+| `compute.firewalls.get` / `create` | Ensure the per-team SSH firewall rule exists on the `default` VPC |
+| `compute.networks.use`             | Attach the VM NIC to the `default` network                        |
 
 ### IAM (VM self-termination)
 
-| Operation                              | Why                                                                                  |
-| -------------------------------------- | ------------------------------------------------------------------------------------ |
-| `iam.serviceAccounts.actAs`            | Attach your service account to each VM so it can call `instances.delete` on itself   |
+| Operation                   | Why                                                                                |
+| --------------------------- | ---------------------------------------------------------------------------------- |
+| `iam.serviceAccounts.actAs` | Attach your service account to each VM so it can call `instances.delete` on itself |
 
 The **Service Account User** role grants `iam.serviceAccounts.actAs`. The **Compute Admin** role covers everything else listed above.
 
