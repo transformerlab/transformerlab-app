@@ -513,7 +513,8 @@ class LocalProvider(ComputeProvider):
         _sandbox_rw_paths = [job_dir, env["UV_CACHE_DIR"], _TLAB_DIR]
 
         # macOS: preexec_fn applies Seatbelt policy inside the child before exec.
-        # job_dir is the subprocess CWD (getcwd must succeed there), so grant rw access.
+        # workspace_home is the subprocess CWD (also $HOME) and must be rw; job_dir is rw
+        # so the provider can write stdout.log/stderr.log/pid alongside it.
         # UV_CACHE_DIR needs rw (uv pip install writes to it) even though it's also in
         # _sandbox_read_paths (which is used for bwrap ro-bind on Linux).
         _sandbox_preexec = make_seatbelt_preexec(
@@ -538,14 +539,14 @@ class LocalProvider(ComputeProvider):
         try:
             if config.setup:
                 _status("Running setup")
-                print(f"[LocalProvider] Running setup in {job_dir}: {config.setup!r}")
+                print(f"[LocalProvider] Running setup in {workspace_home}: {config.setup!r}")
                 strict_setup_script = f"set -e -o pipefail; {config.setup}"
                 setup_cmd = _wrap(["/bin/bash", "-c", strict_setup_script])
                 if setup_cmd[0] != "/bin/bash":
                     print(f"[LocalProvider] Setup sandboxed via {_sandbox_backend}: {setup_cmd[0]}")
                 setup_result = subprocess.run(
                     setup_cmd,
-                    cwd=job_dir,
+                    cwd=workspace_home,
                     env=env,
                     stdout=stdout_log,
                     stderr=stderr_log,
@@ -581,13 +582,13 @@ class LocalProvider(ComputeProvider):
 
             # Start main run command in background (detached subprocess)
             _status("Starting service")
-            print(f"[LocalProvider] Launching run in {job_dir}: {config.run!r}")
+            print(f"[LocalProvider] Launching run in {workspace_home}: {config.run!r}")
             run_cmd = _wrap(["/bin/bash", "-c", config.run or "true"])
             if run_cmd[0] != "/bin/bash":
                 print(f"[LocalProvider] Run sandboxed via {_sandbox_backend}: {run_cmd[0]}")
             proc = subprocess.Popen(
                 run_cmd,
-                cwd=str(job_dir),
+                cwd=workspace_home,
                 env=env,
                 stdout=stdout_log,
                 stderr=stderr_log,
