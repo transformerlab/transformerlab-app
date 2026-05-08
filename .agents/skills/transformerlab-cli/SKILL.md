@@ -207,6 +207,8 @@ lab.init()                                    # Required — connects to the job
 lab.log("message")                            # Write to job output log
 lab.update_progress(50)                       # Set progress 0-100
 config = lab.get_config()                     # Read parameters from task.yaml
+lab.save_artifact("metrics.json")             # Save a generic artifact
+lab.save_artifact("eval_results.csv", name="eval_results.csv", type="evals")  # Save eval results
 
 lab.finish(message="Done!")                              # success, no score
 lab.finish(message="Done!", score={"accuracy": 0.78})    # success with metric(s)
@@ -217,6 +219,7 @@ lab.error(message="Something went wrong")                # Mark job as FAILED
 **Common mistakes:**
 - `lab.finish()` has NO `status` parameter — just `message`. For failures, use `lab.error()`.
 - `score=` takes a **dict** of named metrics, not a scalar. Use `score={"accuracy": 0.78}`, never `score=0.78`. The dict populates `job_data.score`, visible in `lab job list` (Score column) and `lab job info`, and is read by sweep / autoresearch flows.
+- Use `lab.save_artifact(..., type="evals")` for file-based eval outputs so they appear in eval results metadata, not as generic artifacts.
 - Always call `lab.init()` before any other SDK call.
 - Always call `lab.finish()` or `lab.error()` at the end — otherwise the job stays in RUNNING state.
 
@@ -587,7 +590,7 @@ Provider configs (`api_token`, `api_key`, `ssh_key_path`) contain secrets. If th
 4. **`--no-interactive` on `task queue` silently uses the DEFAULT provider (Local).** There is no `--provider` flag. To target a specific provider, you must drive the interactive prompts (see "Selecting a provider" below).
 5. **`task add` has no `--yes` flag** — pipe `echo "y"` to confirm: `echo "y" | lab task add ./my-task`
 6. **Skip confirmation on destructive commands:** use `--no-interactive` for `provider delete`, `job delete`, and `job delete-all`; use `--yes` / `-y` for `model delete` / `dataset delete` (the flag names differ — verify with `--help`)
-7. **Never use `job monitor`** — it launches a TUI that blocks; use `job list` + `job task-logs` instead
+7. **Never run `lab job monitor` when operating as an AI agent.** It launches an interactive Textual TUI that blocks automation and can hang unattended runs; use `lab job list`, `lab job info`, and `lab job task-logs` (`--follow` only when explicitly requested) instead.
 8. **Never use `task interactive`** unless the user specifically requests an interactive session
 9. **`job task-logs --follow`** streams continuously and blocks until the job finishes — use when the user wants real-time monitoring
 10. **Never use the deprecated `lab job logs`** — see the "Job logs: three real commands" section below.

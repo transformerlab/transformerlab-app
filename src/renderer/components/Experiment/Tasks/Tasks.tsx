@@ -436,6 +436,14 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
   const loading = templatesIsLoading || jobsIsLoading;
 
+  useEffect(() => {
+    setShowFavoritesOnly(false);
+    setShowHidden(false);
+    setIsCompareSelectMode(false);
+    setCompareEvalJobIds([]);
+    setCompareEvalModalOpen(false);
+  }, [experimentInfo?.id]);
+
   // Remove any pending placeholders that are now present in jobs
   useEffect(() => {
     if (!jobs || !Array.isArray(jobs)) return;
@@ -1431,6 +1439,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         jobs={filteredJobsForDisplay as any}
         loading={jobsIsLoading}
         searchPlaceholder="Search jobs…"
+        resetSearchKey={experimentInfo?.id ?? 'unknown'}
         headerActions={
           <Stack direction="row" gap={1}>
             <Button

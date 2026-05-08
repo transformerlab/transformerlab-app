@@ -278,6 +278,8 @@ lab job download <job_id> --file "*.ckpt" --output ./checkpoints
 
 Launch the interactive job monitor TUI.
 
+For human terminal use only. Not suitable for non-interactive automation or AI agents because it blocks in a full-screen TUI. For automation, use `lab job list`, `lab job info`, and `lab job task-logs` (optionally `--follow`).
+
 ```bash
 lab job monitor
 ```

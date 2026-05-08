@@ -163,9 +163,9 @@ Use this mode for:
 - Plots saved as images.
 - Any misc result files you might want to download.
 
-### Eval results (`type="eval"`)
+### Eval results (`type="evals"`)
 
-- **Usage**: pass a pandas DataFrame or Hugging Face dataset as `source_path` and `type="eval"`.
+- **Usage**: pass a pandas DataFrame or Hugging Face dataset as `source_path` and `type="evals"`.
 - **Behavior**:
   - Validates that your columns match the expected mapping.
   - Saves an eval CSV under the job’s **eval results** directory.
@@ -192,7 +192,7 @@ df = pd.DataFrame(
 lab.save_artifact(
     df,
     name="eval_results.csv",
-    type="eval",
+    type="evals",
     config={
         "evals": {
             "input": "input",
