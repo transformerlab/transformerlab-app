@@ -31,6 +31,36 @@ def _resolve_experiment_id(experiment_id: str | None = None) -> str:
     return require_current_experiment()
 
 
+def _ensure_experiment_exists(experiment_id: str) -> None:
+    """Ensure the resolved experiment exists on the server before queueing."""
+    with console.status("[bold success]Validating experiment...[/bold success]", spinner="dots"):
+        response = api.get("/experiment/")
+
+    if response.status_code != 200:
+        console.print(
+            f"[error]Error:[/error] Failed to validate experiment before queueing. Status code: {response.status_code}"
+        )
+        raise typer.Exit(1)
+
+    experiments = response.json()
+    if not isinstance(experiments, list):
+        return
+
+    target = str(experiment_id).strip()
+    exists = any(
+        str(exp.get("id")) == target or str(exp.get("name")) == target for exp in experiments if isinstance(exp, dict)
+    )
+    if exists:
+        return
+
+    console.print(
+        f"[error]Error:[/error] Experiment [bold]{target}[/bold] does not exist on the server. "
+        "Set a valid current experiment with [bold]lab experiment set-default <id>[/bold] "
+        "or pass [bold]--experiment <id_or_name>[/bold]."
+    )
+    raise typer.Exit(1)
+
+
 def _extract_error_detail(response: httpx.Response) -> str:
     """Extract a human-readable error detail from API responses."""
     try:
@@ -1159,6 +1189,7 @@ def command_task_queue(
 ):
     """Queue a task on a compute provider."""
     current_experiment = _resolve_experiment_id(experiment)
+    _ensure_experiment_exists(current_experiment)
     if description == "-":
         if sys.stdin.isatty():
             raise typer.BadParameter('-m - reads the description from stdin; pipe content in or pass -m "...".')
