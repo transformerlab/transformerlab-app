@@ -177,6 +177,52 @@ def test_set_config_does_not_wipe_existing_keys_when_file_is_fine(tmp_config_dir
     assert data["current_experiment"] == "beta"
 
 
+def test_set_server_clears_current_experiment_when_server_changes(tmp_config_dir):
+    """Switching servers should clear experiment context from the old server."""
+    config_dir, config_file = tmp_config_dir
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write(
+            json.dumps(
+                {
+                    "server": "http://localhost:8338",
+                    "team_id": "abc-123",
+                    "user_email": "u@example.com",
+                    "current_experiment": "alpha",
+                }
+            )
+        )
+    with _patch_config_paths(config_dir, config_file):
+        assert set_config("server", "http://otherhost:8338") is True
+        with open(config_file, "r", encoding="utf-8") as f:
+            data = json.loads(f.read())
+
+    assert data["server"] == "http://otherhost:8338"
+    assert data["team_id"] == "abc-123"
+    assert data["user_email"] == "u@example.com"
+    assert "current_experiment" not in data
+
+
+def test_set_server_keeps_current_experiment_when_server_unchanged(tmp_config_dir):
+    """Re-setting the same server value must preserve current_experiment."""
+    config_dir, config_file = tmp_config_dir
+    with open(config_file, "w", encoding="utf-8") as f:
+        f.write(
+            json.dumps(
+                {
+                    "server": "http://localhost:8338",
+                    "current_experiment": "alpha",
+                }
+            )
+        )
+    with _patch_config_paths(config_dir, config_file):
+        assert set_config("server", "http://localhost:8338/") is True
+        with open(config_file, "r", encoding="utf-8") as f:
+            data = json.loads(f.read())
+
+    assert data["server"] == "http://localhost:8338"
+    assert data["current_experiment"] == "alpha"
+
+
 def test_save_config_is_atomic_no_tmp_left_behind(tmp_config_dir):
     """After a successful save, the sibling .tmp file must not exist."""
     config_dir, config_file = tmp_config_dir

@@ -128,7 +128,7 @@ curl -s -H "Authorization: Bearer API_KEY" -H "X-Team-Id: TEAM_ID" \
 - `provider delete` → add `--yes`
 - `task gallery` → use `--import GALLERY_ID` instead of browsing
 
-**Never use these commands in automated contexts:**
+**Never use these commands when operating as an AI agent or in non-interactive automation:**
 - `job monitor` (launches TUI)
 - `task interactive` (blocks for interactive session)
 
