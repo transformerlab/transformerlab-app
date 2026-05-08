@@ -649,6 +649,10 @@ print_success_message() {
   echo "  conda activate ${ENV_DIR}"
   echo "  cd ${TLAB_CODE_DIR}"
   echo "  ./run.sh"
+  echo ""
+  echo "Then open http://localhost:8338 and log in with:"
+  echo "  email:    admin@example.com"
+  echo "  password: admin123  (change this in Settings)"
   echo "------------------------------------------"
   echo
 }
