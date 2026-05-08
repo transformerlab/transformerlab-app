@@ -384,7 +384,7 @@ export default function SelectExperimentMenu({ models }) {
                   'var(--joy-palette-background-level3) transparent',
               }}
             >
-              {isLoading && <MenuItem>Loading...</MenuItem>}
+              {isLoading && <MenuItem>Loading…</MenuItem>}
               {experimentItems.map((experiment) => {
                 return (
                   <MenuItem
@@ -479,7 +479,6 @@ export default function SelectExperimentMenu({ models }) {
                 placeholder="Experiment Name"
                 name="experiment-name"
                 required
-                autoFocus
               />
               <Button type="submit">Create</Button>
             </form>

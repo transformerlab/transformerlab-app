@@ -47,11 +47,11 @@ export default function JobsPanel({
   title,
   jobs,
   loading,
-  searchPlaceholder,
-  searchWidth,
+  searchPlaceholder = 'Search jobs…',
+  searchWidth = 240,
   maxHeight,
   headerActions,
-  getSearchableFields,
+  getSearchableFields = defaultSearchableFields,
   resetSearchKey,
   renderList,
 }: JobsPanelProps) {
@@ -114,11 +114,3 @@ export default function JobsPanel({
   );
 }
 
-JobsPanel.defaultProps = {
-  maxHeight: undefined,
-  headerActions: undefined,
-  searchPlaceholder: 'Search jobs…',
-  searchWidth: 240,
-  getSearchableFields: defaultSearchableFields,
-  resetSearchKey: undefined,
-};

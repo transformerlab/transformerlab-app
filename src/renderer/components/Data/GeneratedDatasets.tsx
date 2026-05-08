@@ -118,11 +118,10 @@ export default function GeneratedDatasets() {
         <Grid container spacing={2} sx={{ flexGrow: 1 }}>
           {data &&
             filterByFiltersDatasetID(data, searchText).map((row) => (
-              <Grid xs={4}>
+              <Grid xs={4} key={row.id}>
                 <DatasetCard
                   name={row?.dataset_id}
                   size={row?.size}
-                  key={row.id}
                   description={row?.description}
                   repo={row.huggingfacerepo}
                   location={row?.location}

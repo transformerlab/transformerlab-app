@@ -17,7 +17,7 @@ type LocalModelsProps = {
 };
 
 function LocalModels({
-  experimentInfo,
+  experimentInfo = null,
   showOnlyGeneratedModels = false,
   setFoundation = () => {},
   setAdaptor = () => {},
@@ -54,12 +54,5 @@ function LocalModels({
     </Sheet>
   );
 }
-
-LocalModels.defaultProps = {
-  experimentInfo: null,
-  showOnlyGeneratedModels: false,
-  setFoundation: () => {},
-  setAdaptor: () => {},
-};
 
 export default LocalModels;

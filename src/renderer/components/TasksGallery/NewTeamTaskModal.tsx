@@ -130,7 +130,6 @@ export default function NewTeamTaskModal({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Task title"
-                autoFocus
               />
             </FormControl>
 

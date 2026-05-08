@@ -319,7 +319,6 @@ function ModelProviderWidget<
           onChange(jsonValue);
         }}
         disabled={disabled || readonly}
-        autoFocus={autofocus}
       />
 
       {/* Inference Engine Selection - only show when Local is selected */}

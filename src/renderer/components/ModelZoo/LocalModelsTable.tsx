@@ -318,8 +318,7 @@ const LocalModelsTable = ({
                               <img
                                 src="https://avatars.githubusercontent.com/ggerganov"
                                 width="24"
-                                valign="middle"
-                                style={{ borderRadius: '50%' }}
+                                style={{ borderRadius: '50%', verticalAlign: 'middle' }}
                               />{' '}
                               &nbsp;
                             </>

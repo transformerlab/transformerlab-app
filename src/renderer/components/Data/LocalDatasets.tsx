@@ -120,7 +120,7 @@ export default function LocalDatasets() {
         <Grid container spacing={2} sx={{ flexGrow: 1 }}>
           {data &&
             filterByFiltersDatasetID(data, searchText).map((row) => (
-              <Grid xs={4}>
+              <Grid xs={4} key={row?.dataset_id}>
                 <DatasetCard
                   name={row?.dataset_id}
                   friendlyName={(() => {

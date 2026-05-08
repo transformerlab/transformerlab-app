@@ -482,7 +482,6 @@ export default function EditInteractiveTaskModal({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Interactive session name"
-                  autoFocus
                 />
               </FormControl>
 

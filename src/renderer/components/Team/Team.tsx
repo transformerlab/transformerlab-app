@@ -1006,7 +1006,6 @@ export default function UserLoginTest(): JSX.Element {
                       disabled={loading}
                       aria-label="New team name"
                       size="sm"
-                      autoFocus
                     />
                   </FormControl>
                 </Box>
