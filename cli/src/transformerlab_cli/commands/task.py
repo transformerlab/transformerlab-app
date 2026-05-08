@@ -38,8 +38,7 @@ def _ensure_experiment_exists(experiment_id: str) -> None:
 
     if response.status_code != 200:
         console.print(
-            "[error]Error:[/error] Failed to validate experiment before queueing. "
-            f"Status code: {response.status_code}"
+            f"[error]Error:[/error] Failed to validate experiment before queueing. Status code: {response.status_code}"
         )
         raise typer.Exit(1)
 
