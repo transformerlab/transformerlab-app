@@ -76,7 +76,7 @@ export default function ArtifactPreviewPane({
         const response = await fetchWithAuth(`${artifactUrl}?task=view`);
         if (!response.ok) throw new Error('Failed to load artifact');
         data = { type: 'json', data: await response.json() };
-      } else if (['txt', 'log'].includes(ext)) {
+      } else if (['txt', 'log', 'py'].includes(ext)) {
         const response = await fetchWithAuth(`${artifactUrl}?task=view`);
         if (!response.ok) throw new Error('Failed to load artifact');
         data = { type: 'text', data: await response.text() };

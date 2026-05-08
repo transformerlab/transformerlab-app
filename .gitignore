@@ -231,3 +231,4 @@ docs/superpowers/*
 
 /tmp/
 /temp/
+.claude/scheduled_tasks.lock
