@@ -126,6 +126,25 @@ def test_task_queue_sends_description(_mock_exp, _mock_get, _mock_providers, moc
     assert body["description"] == "hypothesis: larger batch"
 
 
+SAMPLE_PROVIDERS_MULTI = [
+    {"id": "p_other", "name": "Runpod", "is_default": False},
+    {"id": "p_default", "name": "Local", "is_default": True},
+]
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS_MULTI)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_no_interactive_picks_is_default_provider(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """When the task has no provider_id pinned, --no-interactive must pick the
+    provider marked is_default=True, not just providers[0]."""
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "-m", "x"])
+    assert result.exit_code == 0, result.output
+    path, _body = mock_post.call_args.args
+    assert "p_default" in path, f"expected launch on default provider, got path: {path}"
+
+
 SAMPLE_TASK_WITH_PARAMS = {
     "id": "t1",
     "name": "finetune",

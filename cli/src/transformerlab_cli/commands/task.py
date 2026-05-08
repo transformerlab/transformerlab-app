@@ -1108,7 +1108,7 @@ def queue_task(
         task_provider_id = task.get("provider_id")
         provider = next((p for p in providers if p.get("id") == task_provider_id), None)
         if not provider:
-            provider = providers[0]
+            provider = next((p for p in providers if p.get("is_default")), providers[0])
         console.print(f"[dim]Using provider: {provider.get('name')}[/dim]")
 
     parameters = task.get("parameters", {})

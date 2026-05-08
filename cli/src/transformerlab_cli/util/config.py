@@ -186,6 +186,8 @@ def set_config(key: str, value: str, output_format: str = "pretty") -> bool:
         value = normalized_url
 
     config = load_config()
+    if key == "server" and config.get("server") != value:
+        config.pop("current_experiment", None)
     config[key] = value
 
     if _save_config(config):
