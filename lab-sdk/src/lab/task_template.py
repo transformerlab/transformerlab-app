@@ -218,32 +218,24 @@ class TaskTemplate(BaseLabResource):
                 task = await TaskTemplate.get(task_id, experiment_id=experiment_id)
                 return await task.get_metadata()
             except FileNotFoundError:
-                pass
-
-        # Legacy fallback location for pre-migration tasks.
-        try:
-            task = await TaskTemplate.get(task_id)
-            return await task.get_metadata()
-        except FileNotFoundError:
-            pass
+                return None
 
         # Best-effort fallback for callers that only know task_id:
         # scan experiment-scoped task folders to locate a matching id.
-        if not experiment_id:
-            try:
-                experiments_dir = await get_experiments_dir()
-                if await storage.isdir(experiments_dir):
-                    exp_entries = await storage.ls(experiments_dir, detail=False)
-                    for exp_path in exp_entries:
-                        if not await storage.isdir(exp_path):
-                            continue
-                        exp_id = exp_path.rstrip("/").split("/")[-1]
-                        candidate = await get_experiment_task_dir(exp_id, task_id)
-                        if await storage.isdir(candidate):
-                            task = await TaskTemplate.get(task_id, experiment_id=exp_id)
-                            return await task.get_metadata()
-            except Exception:
-                return None
+        try:
+            experiments_dir = await get_experiments_dir()
+            if await storage.isdir(experiments_dir):
+                exp_entries = await storage.ls(experiments_dir, detail=False)
+                for exp_path in exp_entries:
+                    if not await storage.isdir(exp_path):
+                        continue
+                    exp_id = exp_path.rstrip("/").split("/")[-1]
+                    candidate = await get_experiment_task_dir(exp_id, task_id)
+                    if await storage.isdir(candidate):
+                        task = await TaskTemplate.get(task_id, experiment_id=exp_id)
+                        return await task.get_metadata()
+        except Exception:
+            return None
         return None
 
     @staticmethod
