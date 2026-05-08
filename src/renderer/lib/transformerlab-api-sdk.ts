@@ -8,8 +8,6 @@ export * from './api-client/endpoints';
 export {
   GET_EXPERIMENT_UPDATE_CONFIG_URL,
   EXPERIMENT_ADD_EVALUATION,
-  TEMPLATE_FOR_MODEL_URL,
-  getTemplateForModel,
   authenticatedFetch,
 } from './api-client/functions';
 
@@ -19,10 +17,6 @@ export {
   fetcher,
 } from './api-client/hooks';
 
-export {
-  INFERENCE_SERVER_URL,
-  API_URL,
-  getAPIFullPath,
-} from './api-client/urls';
+export { API_URL, getAPIFullPath } from './api-client/urls';
 
 export { useAPI } from './authContext';

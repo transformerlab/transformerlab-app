@@ -655,4 +655,3 @@ export default function EmbeddableStreamingOutput({
     </Box>
   );
 }
-

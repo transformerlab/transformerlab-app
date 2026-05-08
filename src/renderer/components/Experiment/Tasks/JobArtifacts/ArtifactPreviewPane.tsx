@@ -15,8 +15,6 @@ import { fetchWithAuth } from 'renderer/lib/authContext';
 import Model3DViewer from 'renderer/components/Shared/Model3DViewer';
 import { getFileExtension, downloadArtifact } from './artifactUtils';
 
-export { canPreviewFile } from './artifactUtils';
-
 export interface PreviewableItem {
   filename: string;
   jobId: string;
