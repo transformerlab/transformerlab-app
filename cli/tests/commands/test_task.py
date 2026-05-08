@@ -310,6 +310,19 @@ def test_task_queue_enable_torch_profiling_requires_profiling(_mock_exp, _mock_g
     mock_post.assert_not_called()
 
 
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="missing-exp")
+@patch("transformerlab_cli.commands.task.api.get")
+def test_task_queue_fails_when_current_experiment_missing_on_server(mock_get, _mock_exp):
+    """Queue should fail early when resolved current experiment does not exist on the server."""
+    mock_get.side_effect = [_mock_resp([{"id": "exp1", "name": "Experiment 1"}])]
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive"])
+    assert result.exit_code == 1
+    out = strip_ansi(result.output).lower()
+    assert "does not exist on the server" in out
+    assert "missing-exp" in out
+    mock_get.assert_called_once_with("/experiment/")
+
+
 @patch(
     "transformerlab_cli.commands.task.api.post_json",
     side_effect=[
