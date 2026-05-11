@@ -32,6 +32,7 @@ import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveModal from './InteractiveModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import DeleteTaskConfirmModal from './DeleteTaskConfirmModal';
+import BulkDeleteTasksConfirmModal from './BulkDeleteTasksConfirmModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewCheckpointsModal from './ViewCheckpointsModal';
@@ -107,6 +108,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     id: string;
     name?: string;
   } | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [selectMode, setSelectMode] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [stopPendingByJobId, setStopPendingByJobId] = useState<
     Record<string, boolean>
   >({});
@@ -442,7 +448,54 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     setIsCompareSelectMode(false);
     setCompareEvalJobIds([]);
     setCompareEvalModalOpen(false);
+    setSelectedTaskIds(new Set());
+    setSelectMode(false);
   }, [experimentInfo?.id]);
+
+  // Prune selection when tasks disappear (e.g. after delete or filter change)
+  useEffect(() => {
+    setSelectedTaskIds((prev) => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(visibleTasks.map((t: any) => String(t.id)));
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (visible.has(id)) {
+          next.add(id);
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [visibleTasks]);
+
+  const handleToggleTaskSelected = useCallback((taskId: string) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleSelectAll = useCallback((taskIds: string[]) => {
+    setSelectedTaskIds((prev) => {
+      const allSelected =
+        taskIds.length > 0 && taskIds.every((id) => prev.has(id));
+      if (allSelected) {
+        const next = new Set(prev);
+        for (const id of taskIds) next.delete(id);
+        return next;
+      }
+      const next = new Set(prev);
+      for (const id of taskIds) next.add(id);
+      return next;
+    });
+  }, []);
 
   // Remove any pending placeholders that are now present in jobs
   useEffect(() => {
@@ -563,6 +616,43 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
     },
     [experimentInfo?.id, addNotification, templatesMutate, fetchWithAuth],
+  );
+
+  const deleteTaskQuiet = useCallback(
+    async (taskId: string): Promise<boolean> => {
+      if (!experimentInfo?.id) return false;
+      try {
+        const response = await fetchWithAuth(
+          chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo.id, taskId),
+          { method: 'GET' },
+        );
+        return response.ok;
+      } catch (error) {
+        console.error('Error deleting template:', error);
+        return false;
+      }
+    },
+    [experimentInfo?.id, fetchWithAuth],
+  );
+
+  const handleBulkDeleteComplete = useCallback(
+    (succeeded: number, failed: number) => {
+      if (succeeded > 0) {
+        addNotification({
+          type: 'success',
+          message: `Deleted ${succeeded} task${succeeded === 1 ? '' : 's'}.`,
+        });
+      }
+      if (failed > 0) {
+        addNotification({
+          type: 'danger',
+          message: `${failed} task${failed === 1 ? '' : 's'} failed to delete.`,
+        });
+      }
+      setSelectedTaskIds(new Set());
+      templatesMutate();
+    },
+    [addNotification, templatesMutate],
   );
 
   const handleDeleteJob = async (jobId: string) => {
@@ -1397,12 +1487,28 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         gap={2}
       >
         <Typography level="title-md">Tasks</Typography>
-        <Button
-          startDecorator={isInteractivePage ? <TerminalIcon /> : <PlusIcon />}
-          onClick={handleOpen}
-        >
-          New
-        </Button>
+        <Stack direction="row" gap={1}>
+          <Button
+            variant={selectMode ? 'solid' : 'outlined'}
+            color="neutral"
+            onClick={() => {
+              setSelectMode((prev) => {
+                if (prev) {
+                  setSelectedTaskIds(new Set());
+                }
+                return !prev;
+              });
+            }}
+          >
+            {selectMode ? 'Cancel' : 'Select'}
+          </Button>
+          <Button
+            startDecorator={isInteractivePage ? <TerminalIcon /> : <PlusIcon />}
+            onClick={handleOpen}
+          >
+            New
+          </Button>
+        </Stack>
       </Stack>
       <Sheet
         variant="soft"
@@ -1413,6 +1519,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           flex: 1,
           height: '100%',
           overflow: 'auto',
+          position: 'relative',
         }}
       >
         <TaskTemplateList
@@ -1432,7 +1539,53 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           loading={templatesIsLoading}
           allJobs={filteredJobsForDisplay}
           allJobsLoading={jobsIsLoading}
+          selectedIds={selectMode ? selectedTaskIds : undefined}
+          onToggleTaskSelected={
+            selectMode ? handleToggleTaskSelected : undefined
+          }
+          onToggleSelectAll={selectMode ? handleToggleSelectAll : undefined}
         />
+        {selectedTaskIds.size > 0 && (
+          <Sheet
+            variant="outlined"
+            sx={{
+              position: 'sticky',
+              bottom: 12,
+              mx: 'auto',
+              mt: 2,
+              width: 'fit-content',
+              px: 2,
+              py: 1,
+              borderRadius: 'md',
+              boxShadow: 'lg',
+              backgroundColor: 'background.surface',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              zIndex: 5,
+            }}
+          >
+            <Typography level="body-sm">
+              {selectedTaskIds.size} selected
+            </Typography>
+            <Button
+              size="sm"
+              variant="plain"
+              color="neutral"
+              onClick={() => setSelectedTaskIds(new Set())}
+            >
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              variant="solid"
+              color="danger"
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              Delete {selectedTaskIds.size} selected
+            </Button>
+          </Sheet>
+        )}
       </Sheet>
       <JobsPanel
         title="Jobs"
@@ -1656,6 +1809,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         taskId={taskToDelete?.id ?? null}
         taskName={taskToDelete?.name ?? null}
         onConfirm={handleConfirmDeleteTask}
+      />
+      <BulkDeleteTasksConfirmModal
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        taskIds={Array.from(selectedTaskIds)}
+        onConfirm={deleteTaskQuiet}
+        onComplete={handleBulkDeleteComplete}
       />
     </Sheet>
   );
