@@ -7,7 +7,6 @@ from typing import List, Dict, Optional, Any
 
 from lab import Experiment, Job
 from lab import storage
-from lab.labresource import bulk_delete_resources
 
 from lab.job_status import JobStatus, TERMINAL_STATUSES
 from transformerlab.services.cache_service import cache
@@ -393,30 +392,6 @@ async def job_delete(job_id, experiment_id):
         await cache.delete(_job_cache_key(actual_id))
     except Exception:
         logger.exception("Failed to invalidate cache after job delete (job_id=%s)", actual_id)
-
-
-async def bulk_delete_jobs(job_ids, experiment_id) -> dict:
-    """Soft-delete multiple jobs in parallel via the SDK helper.
-
-    Returns the shape produced by lab.labresource.bulk_delete_resources:
-        {"succeeded": [job_id, ...], "failed": [{"id": ..., "error": ...}, ...]}
-    """
-
-    async def _loader(jid: str):
-        resolved = await _resolve_full_job_id(str(jid), str(experiment_id))
-        actual = resolved or str(jid)
-        return await Job.get(actual, experiment_id)
-
-    result = await bulk_delete_resources(job_ids, _loader)
-
-    for jid in result["succeeded"]:
-        try:
-            await cache.invalidate(f"job:{jid}")
-            await cache.delete(_job_cache_key(jid))
-        except Exception:
-            logger.exception("Failed to invalidate cache after bulk job delete (job_id=%s)", jid)
-
-    return result
 
 
 async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id):

@@ -22,11 +22,6 @@ from transformerlab.routers.auth import get_user_and_team
 from transformerlab.routers.serverinfo import watch_file
 from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
 import transformerlab.services.job_service as job_service
-from transformerlab.schemas.jobs import (
-    BulkDeleteJobResult,
-    BulkDeleteJobsRequest,
-    BulkDeleteJobsResponse,
-)
 from transformerlab.services.permission_service import require_permission
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.shared import shared, zip_utils
@@ -227,21 +222,6 @@ async def _job_delete_all_handler(experimentId: str) -> dict:
 @router.delete("/delete_all")
 async def job_delete_all(experimentId: str):
     return await _job_delete_all_handler(experimentId)
-
-
-@router.post(
-    "/bulk_delete",
-    summary="Soft-delete multiple jobs in parallel",
-    response_model=BulkDeleteJobsResponse,
-)
-async def bulk_delete_jobs(experimentId: str, payload: BulkDeleteJobsRequest) -> BulkDeleteJobsResponse:
-    result = await job_service.bulk_delete_jobs(payload.job_ids, experiment_id=experimentId)
-    return BulkDeleteJobsResponse(
-        succeeded=result["succeeded"],
-        failed=[
-            BulkDeleteJobResult(job_id=item["id"], deleted=False, error=item["error"]) for item in result["failed"]
-        ],
-    )
 
 
 @router.delete("/{job_id}")
