@@ -1,65 +1,69 @@
 """Tests for GET /experiment/{experimentId}/jobs/{job_id}/metrics."""
 
-import asyncio
 import json
 import os
 
+import pytest
 
-def _create_job(client, experiment_id: str = "alpha") -> str:
-    """Create a job through the API and return its id as a string."""
-    resp = client.get(f"/experiment/{experiment_id}/jobs/create?type=TRAIN&status=CREATED&data=%7B%7D")
-    assert resp.status_code == 200
-    body = resp.json()
-    # job_create returns either the id directly or a dict; handle both
-    if isinstance(body, dict):
-        job_id = body.get("id") or body.get("job_id") or body.get("message")
-    else:
-        job_id = body
-    assert job_id is not None
-    return str(job_id)
+import lab.dirs as lab_dirs
 
 
-def _seed_metrics_file(job_id: str, experiment_id: str, rows: list[dict]) -> str:
-    """Resolve the job dir via the same helper the route uses and write metrics.jsonl."""
-    from lab.dirs import get_job_dir
+@pytest.fixture()
+def tmp_workspace(monkeypatch, tmp_path):
+    """Point workspace dirs to a temporary directory for isolation."""
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
 
-    job_dir = asyncio.run(get_job_dir(job_id, experiment_id))
-    os.makedirs(job_dir, exist_ok=True)
-    metrics_path = os.path.join(job_dir, "metrics.jsonl")
+    jobs_dir = workspace / "jobs"
+    jobs_dir.mkdir()
+
+    async def mock_get_workspace_dir():
+        return str(workspace)
+
+    async def mock_get_jobs_dir(experiment_id: str):
+        return str(jobs_dir)
+
+    monkeypatch.setattr(lab_dirs, "get_workspace_dir", mock_get_workspace_dir)
+    monkeypatch.setattr(lab_dirs, "get_jobs_dir", mock_get_jobs_dir)
+
+    return {"workspace": workspace, "jobs_dir": jobs_dir}
+
+
+def _seed_metrics(tmp_workspace, job_id: str, rows: list[dict]) -> str:
+    """Write a metrics.jsonl file inside the seeded job directory."""
+    job_dir = tmp_workspace["jobs_dir"] / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+    metrics_path = job_dir / "metrics.jsonl"
     with open(metrics_path, "w", encoding="utf-8") as f:
         for row in rows:
             f.write(json.dumps(row) + "\n")
-    return metrics_path
+    return str(metrics_path)
 
 
-def test_get_job_metrics_returns_all_rows(client):
-    experiment_id = "alpha"
-    job_id = _create_job(client, experiment_id)
-
+def test_get_job_metrics_returns_all_rows(client, tmp_workspace):
+    job_id = "metrics-job-1"
     rows = [
         {"t": "2026-05-11T00:00:00Z", "progress": 10, "step": 0, "metrics": {"loss": 1.5}},
         {"t": "2026-05-11T00:00:01Z", "progress": 20, "step": 1, "metrics": {"loss": 1.2}},
     ]
-    _seed_metrics_file(job_id, experiment_id, rows)
+    _seed_metrics(tmp_workspace, job_id, rows)
 
-    resp = client.get(f"/experiment/{experiment_id}/jobs/{job_id}/metrics")
+    resp = client.get(f"/experiment/alpha/jobs/{job_id}/metrics")
     assert resp.status_code == 200
     data = resp.json()
     assert data["count"] == 2
     assert data["rows"] == rows
 
 
-def test_get_job_metrics_since_filter(client):
-    experiment_id = "alpha"
-    job_id = _create_job(client, experiment_id)
-
+def test_get_job_metrics_since_filter(client, tmp_workspace):
+    job_id = "metrics-job-2"
     rows = [
         {"t": f"2026-05-11T00:00:0{i}Z", "progress": i * 10, "step": i, "metrics": {"loss": 1.0 - i * 0.1}}
         for i in range(5)
     ]
-    _seed_metrics_file(job_id, experiment_id, rows)
+    _seed_metrics(tmp_workspace, job_id, rows)
 
-    resp = client.get(f"/experiment/{experiment_id}/jobs/{job_id}/metrics?since=2")
+    resp = client.get(f"/experiment/alpha/jobs/{job_id}/metrics?since=2")
     assert resp.status_code == 200
     data = resp.json()
     assert data["count"] == 3
@@ -67,10 +71,15 @@ def test_get_job_metrics_since_filter(client):
     assert data["rows"][-1]["step"] == 4
 
 
-def test_get_job_metrics_no_file(client):
-    experiment_id = "alpha"
-    job_id = _create_job(client, experiment_id)
+def test_get_job_metrics_no_file(client, tmp_workspace):
+    job_id = "metrics-job-missing"
+    # Do not create a metrics.jsonl file.
+    # Ensure the job dir doesn't even exist to confirm the "missing file" path.
+    job_dir = tmp_workspace["jobs_dir"] / job_id
+    assert not (job_dir / "metrics.jsonl").exists()
+    # Touch the parent so get_job_dir's parent exists (not strictly required).
+    os.makedirs(job_dir, exist_ok=True)
 
-    resp = client.get(f"/experiment/{experiment_id}/jobs/{job_id}/metrics")
+    resp = client.get(f"/experiment/alpha/jobs/{job_id}/metrics")
     assert resp.status_code == 200
     assert resp.json() == {"count": 0, "rows": []}

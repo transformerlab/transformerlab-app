@@ -428,6 +428,12 @@ def _render_job(job) -> None:
     else:
         details["Score"] = "N/A"
 
+    # Live snapshot of metrics written by lab.update_progress (if present)
+    current_metrics = job_data.get("current_metrics")
+    if current_metrics:
+        formatted = "  ".join(f"{k}={v}" for k, v in current_metrics.items())
+        details["Current Metrics"] = formatted
+
     # Display details in a panel
     detail_text = "\n".join([f"[bold]{key}:[/bold] {value}" for key, value in details.items()])
     panel = Panel(detail_text, title=f"Job Details (ID: {job.get('id', 'N/A')})", subtitle=status_chip)
@@ -636,6 +642,101 @@ def download_artifacts(job_id: str, experiment_id: str, output_dir: str | None =
 
     except (httpx.HTTPError, OSError) as e:
         console.print(f"[error]Error:[/error] Failed to download artifacts: {e}")
+
+
+def fetch_metrics(experiment_id: str, job_id: str, since: int = 0):
+    """Fetch live training metrics for a job."""
+    return api.get(f"/experiment/{experiment_id}/jobs/{job_id}/metrics?since={since}", timeout=15.0)
+
+
+def _render_metrics_table(rows: list[dict], keys: list[str] | None) -> Table:
+    """Render metrics rows as a Rich Table. Columns: time, step, progress, then metric keys."""
+    metric_keys: list[str] = []
+    for row in rows:
+        m = row.get("metrics") or {}
+        for k in m.keys():
+            if k not in metric_keys and (not keys or k in keys):
+                metric_keys.append(k)
+
+    table = Table(title="Metrics")
+    table.add_column("time", style="cyan", no_wrap=True)
+    table.add_column("step", justify="right")
+    table.add_column("progress", justify="right")
+    for k in metric_keys:
+        table.add_column(k, justify="right")
+
+    for row in rows:
+        m = row.get("metrics") or {}
+        progress = row.get("progress")
+        progress_cell = f"{progress}%" if progress not in (None, "") else ""
+        step = row.get("step")
+        step_cell = "" if step is None else str(step)
+        table.add_row(
+            str(row.get("t", "")),
+            step_cell,
+            progress_cell,
+            *(str(m.get(k, "")) for k in metric_keys),
+        )
+    return table
+
+
+@app.command("metrics")
+def command_job_metrics(
+    job_id: str = typer.Argument(..., help="Job ID to fetch metrics for"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
+    follow: bool = typer.Option(False, "--follow", "-f", help="Poll for new metric rows until interrupted."),
+    output_json: bool = typer.Option(False, "--json", help="Emit raw JSONL rows to stdout."),
+    keys: str = typer.Option("", "--keys", help="Comma-separated metric keys to display."),
+    tail: int = typer.Option(20, "--tail", "-n", help="Show last N rows (ignored with --follow)."),
+):
+    """Show live training metrics for a job."""
+    import time
+
+    experiment_id = _resolve_experiment_id(experiment)
+    key_list = [k.strip() for k in keys.split(",") if k.strip()] or None
+
+    def _fetch(since: int = 0) -> dict:
+        response = fetch_metrics(experiment_id, job_id, since=since)
+        if response.status_code != 200:
+            if output_json:
+                print(json.dumps({"error": f"Failed to fetch metrics. Status code: {response.status_code}"}))
+            else:
+                console.print(f"[error]Error:[/error] Failed to fetch metrics. Status code: {response.status_code}")
+            raise typer.Exit(1)
+        data = response.json()
+        return data if isinstance(data, dict) else {"rows": []}
+
+    if follow:
+        seen = 0
+        try:
+            while True:
+                payload = _fetch(since=seen)
+                rows = payload.get("rows", []) or []
+                seen += len(rows)
+                if output_json:
+                    for r in rows:
+                        typer.echo(json.dumps(r))
+                elif rows:
+                    console.print(_render_metrics_table(rows, key_list))
+                time.sleep(2)
+        except KeyboardInterrupt:
+            return
+        return
+
+    payload = _fetch()
+    rows = payload.get("rows", []) or []
+    if tail and len(rows) > tail:
+        rows = rows[-tail:]
+
+    if output_json:
+        for r in rows:
+            typer.echo(json.dumps(r))
+        return
+
+    if not rows:
+        console.print("No metrics recorded yet.")
+        return
+    console.print(_render_metrics_table(rows, key_list))
 
 
 @app.command("artifacts")
