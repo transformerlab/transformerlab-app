@@ -78,7 +78,7 @@ export default function DeleteTaskConfirmModal({
     if (failures === 0) {
       onClose();
     } else if (taskIds.length === 1) {
-      setError('Failed to delete template. Please try again.');
+      setError('Failed to delete task. Please try again.');
     } else {
       setError(
         `${failures} of ${taskIds.length} tasks failed to delete. Please try again.`,
@@ -91,10 +91,9 @@ export default function DeleteTaskConfirmModal({
   const progressValue = total > 0 ? (processed / total) * 100 : 0;
   const isBulk = total > 1;
 
-  const title = isBulk ? `Delete ${total} tasks?` : 'Delete template?';
+  const title = isBulk ? `Delete ${total} tasks?` : 'Delete task?';
 
-  const singleDisplayName =
-    taskName || (taskIds[0] ? `Task ${taskIds[0]}` : 'this template');
+  const singleDisplayName = taskName || 'this task';
 
   const description = isBulk
     ? `Are you sure you want to delete ${total} selected tasks? This action cannot be undone.`

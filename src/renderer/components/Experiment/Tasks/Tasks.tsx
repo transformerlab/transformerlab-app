@@ -1813,6 +1813,17 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={bulkDeleteOpen}
         onClose={() => setBulkDeleteOpen(false)}
         taskIds={Array.from(selectedTaskIds)}
+        taskName={
+          selectedTaskIds.size === 1
+            ? (() => {
+                const onlyId = Array.from(selectedTaskIds)[0];
+                const match = visibleTasks.find(
+                  (t: any) => String(t.id) === onlyId,
+                );
+                return match?.title || match?.name || null;
+              })()
+            : null
+        }
         onConfirm={deleteTaskQuiet}
         onComplete={handleBulkDeleteComplete}
       />
