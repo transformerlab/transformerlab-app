@@ -163,6 +163,60 @@ async def test_count_running_jobs_cross_experiment(tmp_path, monkeypatch):
     assert count == 2
 
 
+@pytest.fixture
+async def tmp_workspace_job(tmp_path, monkeypatch):
+    for mod in list(importlib.sys.modules.keys()):
+        if mod.startswith("lab."):
+            importlib.sys.modules.pop(mod)
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.job import Job
+
+    job = await Job.create("metrics-job", "exp-metrics")
+    return job
+
+
+@pytest.mark.asyncio
+async def test_update_progress_writes_current_metrics_to_job_data(tmp_workspace_job):
+    job = tmp_workspace_job
+    await job.update_progress(40, metrics={"loss": 0.5, "lr": 1e-4})
+    data = await job.get_job_data()
+    assert data["current_metrics"] == {"loss": 0.5, "lr": 1e-4}
+
+
+@pytest.mark.asyncio
+async def test_update_progress_appends_metrics_jsonl(tmp_workspace_job):
+    job = tmp_workspace_job
+    await job.update_progress(10, metrics={"loss": 0.9}, step=1)
+    await job.update_progress(20, metrics={"loss": 0.7}, step=2)
+    await job.update_progress(30)  # no metrics, still appends a progress-only row
+    job_dir = await job.get_dir()
+    jsonl_path = os.path.join(job_dir, "metrics.jsonl")
+    with open(jsonl_path, "r") as f:
+        rows = [json.loads(line) for line in f if line.strip()]
+    assert len(rows) == 3
+    assert rows[0]["progress"] == 10
+    assert rows[0]["step"] == 1
+    assert rows[0]["metrics"] == {"loss": 0.9}
+    assert rows[1]["step"] == 2
+    assert "metrics" not in rows[2]
+    assert rows[2]["progress"] == 30
+    for r in rows:
+        assert "t" in r
+
+
+@pytest.mark.asyncio
+async def test_update_progress_no_metrics_does_not_set_current_metrics(tmp_workspace_job):
+    job = tmp_workspace_job
+    await job.update_progress(10, metrics={"loss": 0.9})
+    await job.update_progress(20)  # no metrics
+    data = await job.get_job_data()
+    assert data["current_metrics"] == {"loss": 0.9}
+
+
 @pytest.mark.asyncio
 async def test_get_next_queued_job_sorted_by_created_at(tmp_path, monkeypatch):
     for mod in list(importlib.sys.modules.keys()):

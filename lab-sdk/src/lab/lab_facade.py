@@ -467,15 +467,31 @@ class Lab:
         except Exception:
             logger.debug("Trackio snapshot failed during log()", exc_info=True)
 
-    def update_progress(self, progress: int) -> None:
+    def update_progress(
+        self,
+        progress: int,
+        metrics: Optional[Dict[str, float]] = None,
+        step: Optional[int] = None,
+    ) -> None:
         """
-        Update job progress and check for wandb URL detection.
+        Update job progress and optionally record a live metric snapshot.
+
+        Args:
+            progress: percent complete (0-100).
+            metrics:  optional dict of named metrics, e.g. {"loss": 0.42}.
+                      Overwrites job_data.current_metrics (latest-wins) and
+                      appends a row to <job_dir>/metrics.jsonl.
+            step:     optional step counter associated with this row.
+
+        Note: `score` (set by lab.finish) is the final, comparable result and is
+        separate from `current_metrics`. Use metrics for live training signal;
+        use score for the final number(s) that downstream tools rank on.
         """
         self._ensure_initialized()
-        _run_async(self._job.update_progress(progress))  # type: ignore[union-attr]
+        _run_async(self._job.update_progress(progress, metrics=metrics, step=step))  # type: ignore[union-attr]
         # Check for wandb URL on every progress update
         self._check_and_capture_wandb_url()
-        # Also try to keep Trackio snapshot reasonably fresh on progress updates.
+        # Keep Trackio snapshot reasonably fresh on progress updates.
         try:
             if self._trackio_available:
                 self._capture_existing_trackio_run()

@@ -237,6 +237,40 @@ async def get_training_job(job_id: str, experimentId: str):
     return job
 
 
+@router.get("/{job_id}/metrics")
+async def get_job_metrics(job_id: str, experimentId: str, since: int = 0):
+    """
+    Return the contents of <job_dir>/metrics.jsonl as JSON.
+
+    `since` is a zero-based row index — useful for polling: pass the count
+    you already have to receive only newer rows. Returns
+    {"count": N, "rows": [...]} where N is the number of rows after the
+    `since` filter.
+    """
+    from lab.dirs import get_job_dir
+
+    job_dir = await get_job_dir(job_id, experimentId)
+    metrics_path = os.path.join(job_dir, "metrics.jsonl")
+
+    if not os.path.exists(metrics_path):
+        return {"count": 0, "rows": []}
+
+    rows: list[dict] = []
+    with open(metrics_path, "r", encoding="utf-8") as f:
+        for idx, line in enumerate(f):
+            if idx < since:
+                continue
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+
+    return {"count": len(rows), "rows": rows}
+
+
 @router.get("/{job_id}/tasks_output")
 async def get_tasks_job_output(job_id: str, experimentId: str, sweeps: bool = False):
     """
