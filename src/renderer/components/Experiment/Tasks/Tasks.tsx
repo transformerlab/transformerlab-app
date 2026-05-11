@@ -32,7 +32,6 @@ import NewInteractiveTaskModal from './NewInteractiveTaskModal';
 import InteractiveModal from './InteractiveModal';
 import EditInteractiveTaskModal from './EditInteractiveTaskModal';
 import DeleteTaskConfirmModal from './DeleteTaskConfirmModal';
-import BulkDeleteTasksConfirmModal from './BulkDeleteTasksConfirmModal';
 import QueueTaskModal from './QueueTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewCheckpointsModal from './ViewCheckpointsModal';
@@ -1806,11 +1805,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       <DeleteTaskConfirmModal
         open={taskToDelete !== null}
         onClose={() => setTaskToDelete(null)}
-        taskId={taskToDelete?.id ?? null}
+        taskIds={taskToDelete ? [taskToDelete.id] : []}
         taskName={taskToDelete?.name ?? null}
         onConfirm={handleConfirmDeleteTask}
       />
-      <BulkDeleteTasksConfirmModal
+      <DeleteTaskConfirmModal
         open={bulkDeleteOpen}
         onClose={() => setBulkDeleteOpen(false)}
         taskIds={Array.from(selectedTaskIds)}
