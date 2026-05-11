@@ -1,12 +1,22 @@
 ---
 name: transformerlab-cli
 description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, run autonomous experiment loops (autoresearch), or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "add provider", "configure provider", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset", "run autoresearch", "optimize X in a loop", "set up autoresearch", "/lab-autoresearch".
-allowed-tools: Bash(lab *), Bash(curl *lab.cloud*), Bash(curl *localhost:8338*)
+allowed-tools: Bash(lab *), Bash(curl *lab.cloud*), Bash(curl *localhost:8338*), WebFetch(domain:lab.cloud)
 ---
 
 # Transformer Lab CLI
 
 Use the `lab` CLI to interact with Transformer Lab programmatically — managing tasks, jobs, compute providers, models, datasets, and server configuration from the terminal.
+
+## Official Documentation
+
+The canonical Transformer Lab documentation is published at **https://lab.cloud**. When in doubt about a feature, schema, or SDK call, fetch the relevant page rather than guessing.
+
+- **Documentation index (LLM-friendly):** https://lab.cloud/llms.txt — start here to discover all available pages.
+- **`task.yaml` structure:** https://lab.cloud/for-teams/running-a-task/task-yaml-structure.md — full schema reference for every field in `task.yaml` (resources, sweeps, parameters, envs, etc.).
+- **Lab SDK (Python):** https://lab.cloud/for-teams/lab-sdk.md — how to use the optional `transformerlab` SDK inside a task's `main.py` (or any Python script) — `lab.init()`, `lab.log()`, `lab.update_progress()`, `lab.get_config()`, `lab.save_artifact()`, `lab.finish()`, `lab.error()`.
+
+Use `WebFetch` to load these directly when working on related code — the `task.yaml` and Lab SDK pages are the source of truth and may contain newer fields than this skill captures.
 
 ## Installation
 
@@ -123,7 +133,7 @@ lab task init --interactive   # prompts for name, CPUs, memory, setup, and run c
 
 ### task.yaml Structure
 
-Full docs: https://lab.cloud/for-teams/running-a-task/task-yaml-structure
+**Full schema reference:** https://lab.cloud/for-teams/running-a-task/task-yaml-structure.md — fetch this page when adding any field not shown below or when validating an unfamiliar `task.yaml`.
 
 ```yaml
 name: my-task                          # Required — task identifier
@@ -197,6 +207,8 @@ lab task upload TASK_ID ./prompts --no-interactive
 `lab task upload` requires both `TASK_ID` and `PATH`.
 
 ### Lab SDK Quick Reference
+
+**Full SDK docs:** https://lab.cloud/for-teams/lab-sdk.md — fetch this page when using the SDK from a Python script (inside or outside a task), or when you need a method not covered below.
 
 Tasks use the Lab SDK (`transformerlab` PyPI package). Import pattern:
 
