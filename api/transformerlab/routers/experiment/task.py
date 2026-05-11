@@ -1166,10 +1166,10 @@ async def import_task_from_gallery(
             interactive_type = gallery_entry.get("interactive_type") or gallery_entry.get("id") or "custom"
             interactive_gallery_id = gallery_entry.get("id")
 
-            # Resolve task setup/command from the gallery entry's source:
+            # Resolve task setup/run from the gallery entry's source:
             # 1. github_repo_url + github_repo_dir -> fetch task.yaml from GitHub
             # 2. local_task_dir -> read task.yaml from local filesystem
-            # 3. inline setup/command fields on the gallery entry
+            # 3. inline setup/run fields on the gallery entry
             github_repo_url = gallery_entry.get("github_repo_url")
             github_repo_dir = gallery_entry.get("github_repo_dir")
             github_repo_branch = gallery_entry.get("github_repo_branch")
@@ -1197,7 +1197,7 @@ async def import_task_from_gallery(
                 "plugin": "remote_orchestrator",
                 "experiment_id": experimentId,
                 "cluster_name": task_name,
-                "run": source_yaml_data.get("run", source_yaml_data.get("command", "")),
+                "run": source_yaml_data.get("run", ""),
                 "setup": source_yaml_data.get("setup", "") or gallery_entry.get("setup", ""),
                 "interactive_type": interactive_type,
                 "subtype": "interactive",

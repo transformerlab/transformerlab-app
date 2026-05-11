@@ -98,6 +98,9 @@ export default function ExperimentNotes() {
         (_match, pre, filename, post) =>
           `${pre}${chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, filename)}${post}`,
       );
+      // MDXEditor parses markdown through MDX. Raw `<` followed by a digit (e.g. `5 < 10`)
+      // can be interpreted as a malformed JSX tag start and fail rich-text parsing.
+      result = result.replace(/<(?=\d)/g, '&lt;');
       return result;
     },
     [experimentId],

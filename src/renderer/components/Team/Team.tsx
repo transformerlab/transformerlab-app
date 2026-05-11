@@ -41,6 +41,7 @@ import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import RenameTeamModal from './RenameTeamModal';
 import InviteUserModal from './InviteUserModal';
+import AcceptedInvitationsModal from './AcceptedInvitationsModal';
 import ProviderDetailsModal from './ProviderDetailsModal';
 import ProviderResourceGroupsModal from './ProviderResourceGroupsModal';
 import LocalProviderRefreshModal from './LocalProviderRefreshModal';
@@ -71,6 +72,10 @@ export default function UserLoginTest(): JSX.Element {
   const [openNewTeamModal, setOpenNewTeamModal] = useState<boolean>(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [openInviteModal, setOpenInviteModal] = useState<boolean>(false);
+  const [openAcceptedInvitationsModal, setOpenAcceptedInvitationsModal] =
+    useState<boolean>(false);
+  const [showExpiredInvitations, setShowExpiredInvitations] =
+    useState<boolean>(false);
   const [openProviderDetailsModal, setOpenProviderDetailsModal] =
     useState<boolean>(false);
   const [providerId, setProviderId] = useState<string>('');
@@ -145,6 +150,19 @@ export default function UserLoginTest(): JSX.Element {
   const iAmOwner = members?.members?.some((m: any) => {
     return m.user_id === authContext.user?.id && m.role === 'owner';
   });
+  const allInvitations = invitations?.invitations ?? [];
+  const pendingInvitations = allInvitations.filter(
+    (invitation: any) => invitation.status === 'pending',
+  );
+  const expiredInvitations = allInvitations.filter(
+    (invitation: any) => invitation.status === 'expired',
+  );
+  const acceptedInvitations = allInvitations.filter(
+    (invitation: any) => invitation.status === 'accepted',
+  );
+  const visibleInvitations = showExpiredInvitations
+    ? [...pendingInvitations, ...expiredInvitations]
+    : pendingInvitations;
 
   const currentTeam = authContext.team;
   const usernameForPersonal =
@@ -1281,16 +1299,46 @@ export default function UserLoginTest(): JSX.Element {
         </Box>
         {iAmOwner && (
           <Box sx={{ mt: 3 }}>
-            <Typography level="title-lg" mb={1}>
-              Invitations
-            </Typography>
-            {(!invitations?.invitations ||
-              invitations.invitations.length === 0) && (
+            <Box
+              sx={{
+                mb: 1,
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 1,
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Typography level="title-lg">Invitations</Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography level="body-sm">Show expired</Typography>
+                <Switch
+                  size="sm"
+                  checked={showExpiredInvitations}
+                  onChange={(event) =>
+                    setShowExpiredInvitations(event.target.checked)
+                  }
+                />
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  onClick={() => setOpenAcceptedInvitationsModal(true)}
+                >
+                  View Accepted ({acceptedInvitations.length})
+                </Button>
+              </Stack>
+            </Box>
+            {allInvitations.length === 0 && (
               <Typography level="body-sm" color="neutral">
                 No invitations have been sent for this team yet.
               </Typography>
             )}
-            {invitations?.invitations && invitations.invitations.length > 0 && (
+            {allInvitations.length > 0 && visibleInvitations.length === 0 && (
+              <Typography level="body-sm" color="neutral" sx={{ mb: 2 }}>
+                No pending invitations.
+              </Typography>
+            )}
+            {visibleInvitations.length > 0 && (
               <Table variant="soft" sx={{ mb: 2 }}>
                 <thead>
                   <tr>
@@ -1303,7 +1351,7 @@ export default function UserLoginTest(): JSX.Element {
                   </tr>
                 </thead>
                 <tbody>
-                  {invitations.invitations.map((invitation: any) => (
+                  {visibleInvitations.map((invitation: any) => (
                     <tr key={invitation.id}>
                       <td>
                         <Typography level="body-sm">
@@ -1852,6 +1900,11 @@ export default function UserLoginTest(): JSX.Element {
         isInProgress={Boolean(localSetupInProgressProviderId)}
         titlePrefix="Refreshing"
         description="This runs a force refresh of the local provider environment"
+      />
+      <AcceptedInvitationsModal
+        open={openAcceptedInvitationsModal}
+        onClose={() => setOpenAcceptedInvitationsModal(false)}
+        invitations={acceptedInvitations}
       />
       <Modal
         open={openSetLogoModal}
