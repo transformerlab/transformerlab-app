@@ -62,7 +62,7 @@ export default function PublicShareViewer() {
     };
   }, [token, apiUrl]);
 
-  const marketingUrl = 'https://transformerlab.ai';
+  const marketingUrl = 'https://lab.cloud';
 
   return (
     <Box
