@@ -79,7 +79,7 @@ export default function Trends({
   showTrendlineDefault = false,
   smoothingDefault = 0,
   title,
-  height = 420,
+  height = 560,
 }: TrendsProps) {
   const allSeries = useMemo(() => {
     if (availableSeries && availableSeries.length > 0) return availableSeries;
@@ -235,12 +235,35 @@ export default function Trends({
   };
 
   return (
-    <Box>
-      {title && (
-        <Typography level="title-md" sx={{ mb: 1 }}>
-          {title}
-        </Typography>
-      )}
+    <Box
+      ref={containerRef}
+      sx={{
+        width: '100%',
+        height: isFullscreen ? '100vh' : 'auto',
+        bgcolor: isFullscreen ? 'background.body' : 'transparent',
+        p: isFullscreen ? 2 : 0,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{ mb: 1 }}
+      >
+        {title ? <Typography level="title-md">{title}</Typography> : <span />}
+        <Tooltip title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+          <IconButton
+            variant="plain"
+            size="sm"
+            onClick={toggleFullscreen}
+            aria-label="Toggle fullscreen"
+          >
+            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </IconButton>
+        </Tooltip>
+      </Stack>
       <Stack
         direction="row"
         spacing={2}
@@ -324,7 +347,7 @@ export default function Trends({
         </FormControl>
       </Stack>
 
-      <Box sx={{ height }}>
+      <Box sx={isFullscreen ? { flex: 1, minHeight: 0 } : { height }}>
         {dataSeries.length === 0 ? (
           <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
             No data to display. Select one or more metrics.
