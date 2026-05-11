@@ -48,6 +48,11 @@ const getEvalCapableJobs = (jobs: any[]): EvalCapableJob[] =>
       return { id, shortId, title };
     });
 
+const isJobDiscarded = (job: any): boolean => {
+  const score = job?.job_data?.score;
+  return !!(score && typeof score === 'object' && (score as any).discard);
+};
+
 const getScoreTrendPoints = (jobs: any[]): TrendPoint[] => {
   const scored = jobs
     .map((job) => {
@@ -63,6 +68,7 @@ const getScoreTrendPoints = (jobs: any[]): TrendPoint[] => {
         id,
         shortId,
         normalized,
+        discarded: isJobDiscarded(job),
         sortKey: Number.isFinite(xTime) ? xTime : Number.POSITIVE_INFINITY,
         xTime: Number.isFinite(xTime) ? xTime : undefined,
       };
@@ -74,6 +80,7 @@ const getScoreTrendPoints = (jobs: any[]): TrendPoint[] => {
         id: string;
         shortId: string;
         normalized: Record<string, number>;
+        discarded: boolean;
         sortKey: number;
         xTime: number | undefined;
       } => x !== null,
@@ -89,6 +96,7 @@ const getScoreTrendPoints = (jobs: any[]): TrendPoint[] => {
         xTime: job.xTime,
         y: value as number,
         label: job.shortId,
+        discarded: job.discarded,
       });
     }
   });
@@ -160,7 +168,14 @@ export default function Evals() {
         </TabList>
       </Tabs>
 
-      <Card variant="soft" sx={{ maxWidth: pageTab === 'trends' ? 1100 : 720 }}>
+      <Card
+        variant="soft"
+        sx={
+          pageTab === 'trends'
+            ? { width: '100%', flex: 1, minHeight: 0 }
+            : { maxWidth: 720 }
+        }
+      >
         {jobsLoading ? (
           <Stack
             direction="row"
