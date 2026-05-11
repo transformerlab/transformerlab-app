@@ -636,34 +636,15 @@ async def delete_task(experimentId: str, task_id: str):
     response_model=BulkDeleteTasksResponse,
 )
 async def bulk_delete_tasks(experimentId: str, payload: BulkDeleteTasksRequest) -> BulkDeleteTasksResponse:
-    unique_ids: list[str] = []
-    seen: set[str] = set()
-    for raw_id in payload.task_ids:
-        task_id = str(raw_id)
-        if task_id in seen:
-            continue
-        seen.add(task_id)
-        unique_ids.append(task_id)
-
-    async def _delete_one(task_id: str) -> BulkDeleteTaskResult:
-        try:
-            deleted = await task_service.delete_task(task_id, experiment_id=experimentId)
-            if deleted:
-                return BulkDeleteTaskResult(task_id=task_id, deleted=True)
-            return BulkDeleteTaskResult(task_id=task_id, deleted=False, error="not found")
-        except Exception as exc:
-            logger.exception("Failed to delete task %s during bulk delete", task_id)
-            return BulkDeleteTaskResult(task_id=task_id, deleted=False, error=str(exc))
-
-    results = await asyncio.gather(*(_delete_one(tid) for tid in unique_ids)) if unique_ids else []
-
-    succeeded = [r.task_id for r in results if r.deleted]
-    failed = [r for r in results if not r.deleted]
-
-    if succeeded:
+    result = await task_service.bulk_delete_tasks(payload.task_ids, experiment_id=experimentId)
+    if result["succeeded"]:
         await cache.invalidate(f"tasks:{experimentId}")
-
-    return BulkDeleteTasksResponse(succeeded=succeeded, failed=failed)
+    return BulkDeleteTasksResponse(
+        succeeded=result["succeeded"],
+        failed=[
+            BulkDeleteTaskResult(task_id=item["id"], deleted=False, error=item["error"]) for item in result["failed"]
+        ],
+    )
 
 
 def _clear_interactive_launch_provider(task_data: dict) -> None:

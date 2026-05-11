@@ -10,6 +10,7 @@ import zipfile
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from lab.task_template import TaskTemplate as TaskTemplateService
+from lab.labresource import bulk_delete_resources
 from lab.dirs import get_experiment_task_dir_nocreate
 from lab import storage
 from fastapi import HTTPException
@@ -221,6 +222,23 @@ class TaskService:
                 except FileNotFoundError:
                     return False
             return False
+
+    async def bulk_delete_tasks(self, task_ids, experiment_id: Optional[str] = None) -> dict:
+        """Delete multiple tasks in parallel via the SDK helper.
+
+        Returns the shape produced by lab.labresource.bulk_delete_resources:
+            {"succeeded": [task_id, ...], "failed": [{"id": ..., "error": ...}, ...]}
+        """
+
+        async def _loader(tid: str):
+            try:
+                return await self.task_service.get(str(tid), experiment_id=experiment_id)
+            except FileNotFoundError:
+                if experiment_id is not None:
+                    return await self.task_service.get(str(tid))
+                raise
+
+        return await bulk_delete_resources(task_ids, _loader)
 
     async def task_delete_all(self) -> None:
         """Delete all tasks"""
