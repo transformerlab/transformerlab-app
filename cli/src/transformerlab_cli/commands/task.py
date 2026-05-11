@@ -273,7 +273,13 @@ def _upload_path_to_server(path_to_upload: str) -> str:
             console.print(f"[error]Error:[/error] Upload init failed ({init_resp.status_code})")
             raise typer.Exit(1)
 
-        upload_id = init_resp.json()["upload_id"]
+        try:
+            upload_id = init_resp.json().get("upload_id")
+        except ValueError:
+            upload_id = None
+        if not upload_id:
+            console.print("[error]Error:[/error] Upload init returned no upload_id.")
+            raise typer.Exit(1)
         status_resp = api.get(f"/upload/{upload_id}/status")
         already_received: set[int] = set(
             status_resp.json().get("received", []) if status_resp.status_code == 200 else []

@@ -17,10 +17,9 @@ export async function dismissStartupWizard(page: Page) {
     return;
   }
   await dialog.getByRole('button', { name: 'Skip' }).click();
-  await expect(dialog.getByRole('button', { name: 'Done' })).toBeVisible({
-    timeout: 5000,
-  });
-  await dialog.getByRole('button', { name: 'Done' }).click();
+  const finishButton = dialog.getByRole('button', { name: 'Finish setup' });
+  await expect(finishButton).toBeVisible({ timeout: 5000 });
+  await finishButton.click();
   await expect(dialog).toBeHidden({ timeout: 5000 });
 }
 

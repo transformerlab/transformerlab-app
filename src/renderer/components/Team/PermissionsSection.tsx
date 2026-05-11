@@ -390,7 +390,7 @@ export default function PermissionsSection({
               )}
               {loadingResourceOptions && (
                 <Typography level="body-xs" color="neutral" mt={1}>
-                  Loading resources...
+                  Loading resources…
                 </Typography>
               )}
             </Card>
