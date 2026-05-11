@@ -36,7 +36,6 @@ def test_slim_job_drops_heavy_keys_only():
             "parameters": {"lr": 0.001, "batch": 32},
             "config": {"big": "blob"},
             "provider_launch_result": {"request_id": "req-1", "raw": "..." * 1000},
-            "cached_tunnel_info": {"host": "h", "key": "k"},
             "file_mounts": {"/foo": "/bar"},
             "accelerators": "A100",
             "cpus": 8,
@@ -58,6 +57,7 @@ def test_slim_job_drops_heavy_keys_only():
             "error_msg": None,
             "stop_requested": False,
             "eval_results": ["/path/to/results.csv"],
+            "cached_tunnel_info": {"is_ready": True, "url": "https://x"},
         },
     }
 
@@ -86,6 +86,7 @@ def test_slim_job_drops_heavy_keys_only():
         "error_msg",
         "stop_requested",
         "eval_results",
+        "cached_tunnel_info",
     ):
         assert key in slim_data, f"slim mode dropped expected key: {key}"
         assert slim_data[key] == job["job_data"][key]

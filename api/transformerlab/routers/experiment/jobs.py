@@ -105,7 +105,6 @@ def _job_logs_not_ready_payload(
 _SLIM_JOB_DATA_DROPPED_KEYS: frozenset[str] = frozenset(
     {
         "accelerators",
-        "cached_tunnel_info",
         "cluster_config",
         "command",
         "config",
