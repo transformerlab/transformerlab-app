@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from werkzeug.utils import secure_filename
 
@@ -14,6 +15,63 @@ import json
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Cap parallel index.json reads in list_all / list_by_experiment.
+# Local FS handles much more, but on remote backends (S3/GCS) too many
+# concurrent GETs trigger throttling or connector exhaustion.
+_LIST_CONCURRENCY = 15
+
+
+def _task_sort_key(x):
+    created_at = x.get("created_at")
+    if created_at is None:
+        return ""
+    if isinstance(created_at, datetime):
+        return created_at.timestamp()
+    if isinstance(created_at, (int, float)):
+        return created_at
+    return str(created_at)
+
+
+async def _dir_paths_from_ls(entries) -> list[str]:
+    """Filter `storage.ls(detail=True)` output to directory paths only.
+
+    Trusts fsspec's `type` field, with a defensive `storage.isdir` fallback
+    if it's missing — matches the pattern in
+    `migrate_tasks_to_experiment_dirs.py`. Skips files like `.DS_Store` so
+    they don't reach `get_metadata()`.
+    """
+    paths: list[str] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        full = entry.get("name")
+        if not full:
+            continue
+        entry_type = entry.get("type")
+        try:
+            is_dir = entry_type == "directory" or await storage.isdir(full)
+        except Exception:
+            is_dir = entry_type == "directory"
+        if is_dir:
+            paths.append(full)
+    return paths
+
+
+async def _gather_task_metadata(entries, experiment_id: str | None = None):
+    sem = asyncio.Semaphore(_LIST_CONCURRENCY)
+
+    async def _read(full):
+        entry = full.rstrip("/").split("/")[-1]
+        async with sem:
+            try:
+                return await TaskTemplate(entry, experiment_id=experiment_id).get_metadata()
+            except Exception:
+                logger.warning(f"Skipping task without readable metadata: {entry}")
+                return None
+
+    gathered = await asyncio.gather(*(_read(full) for full in entries))
+    return [r for r in gathered if r is not None]
 
 
 class TaskTemplate(BaseLabResource):
@@ -91,76 +149,23 @@ class TaskTemplate(BaseLabResource):
 
     async def get_metadata(self):
         """Get task metadata"""
-        data = await self.get_json_data()
-
-        # Fix experiment_id if it's a digit - convert to experiment name
-        if data.get("experiment_id") and str(data["experiment_id"]).isdigit():
-            experiment_name = await self._get_experiment_name_by_id(data["experiment_id"])
-            if experiment_name:
-                data["experiment_id"] = experiment_name
-                # Save the corrected data back to the file
-                await self._set_json_data(data)
-
-        return data
-
-    async def _get_experiment_name_by_id(self, experiment_id):
-        """Get experiment name by ID, return None if not found"""
-        try:
-            from .experiment import Experiment
-
-            # Get all experiments and search for one with matching db_experiment_id
-            all_experiments = await Experiment.get_all()
-            for exp_data in all_experiments:
-                if exp_data.get("db_experiment_id") == int(experiment_id):
-                    return exp_data.get("name", experiment_id)
-
-            # If no match found, return the original ID
-            return experiment_id
-        except Exception:
-            return experiment_id
+        return await self.get_json_data()
 
     @staticmethod
     async def list_all():
         """List all tasks in the filesystem"""
-        results = []
         task_dir = await get_task_dir()
         if not await storage.isdir(task_dir):
             logger.debug(f"Task directory does not exist: {task_dir}")
-            return results
+            return []
         try:
-            entries = await storage.ls(task_dir, detail=False)
+            entries = await storage.ls(task_dir, detail=True)
         except Exception as e:
             logger.error(f"Exception listing task directory: {e}")
-            entries = []
-        for full in entries:
-            if not await storage.isdir(full):
-                continue
-            # Attempt to read index.json (or latest snapshot)
-            try:
-                entry = full.rstrip("/").split("/")[-1]
-                task = TaskTemplate(entry)
+            return []
 
-                results.append(await task.get_metadata())
-            except Exception:
-                logger.error(f"Exception getting metadata for task: {entry}")
-                continue
-
-        # Sort by created_at descending to match database behavior
-        def sort_key(x):
-            created_at = x.get("created_at")
-            if created_at is None:
-                # Put items without created_at at the end (will sort last when reverse=True)
-                return ""
-            # Handle datetime objects
-            if isinstance(created_at, datetime):
-                return created_at.timestamp()
-            # Handle numeric timestamps
-            if isinstance(created_at, (int, float)):
-                return created_at
-            # Handle string dates (ISO format strings sort correctly)
-            return str(created_at)
-
-        results.sort(key=sort_key, reverse=True)
+        results = await _gather_task_metadata(await _dir_paths_from_ls(entries))
+        results.sort(key=_task_sort_key, reverse=True)
         return results
 
     @staticmethod
@@ -172,38 +177,17 @@ class TaskTemplate(BaseLabResource):
     @staticmethod
     async def list_by_experiment(experiment_id: int):
         """List all tasks for a specific experiment"""
-        results = []
         tasks_dir = await get_experiment_tasks_dir(str(experiment_id))
         if not await storage.isdir(tasks_dir):
-            return results
+            return []
         try:
-            entries = await storage.ls(tasks_dir, detail=False)
+            entries = await storage.ls(tasks_dir, detail=True)
         except Exception as e:
             logger.error(f"Exception listing experiment task directory: {e}")
-            entries = []
-        for full in entries:
-            if not await storage.isdir(full):
-                continue
-            try:
-                entry = full.rstrip("/").split("/")[-1]
-                task = TaskTemplate(entry, experiment_id=str(experiment_id))
-                results.append(await task.get_metadata())
-            except Exception:
-                logger.error(f"Exception getting metadata for task: {entry}")
-                continue
+            return []
 
-        # Sort by created_at descending to match existing list behavior.
-        def sort_key(x):
-            created_at = x.get("created_at")
-            if created_at is None:
-                return ""
-            if isinstance(created_at, datetime):
-                return created_at.timestamp()
-            if isinstance(created_at, (int, float)):
-                return created_at
-            return str(created_at)
-
-        results.sort(key=sort_key, reverse=True)
+        results = await _gather_task_metadata(await _dir_paths_from_ls(entries), experiment_id=str(experiment_id))
+        results.sort(key=_task_sort_key, reverse=True)
         return results
 
     @staticmethod
@@ -234,32 +218,24 @@ class TaskTemplate(BaseLabResource):
                 task = await TaskTemplate.get(task_id, experiment_id=experiment_id)
                 return await task.get_metadata()
             except FileNotFoundError:
-                pass
-
-        # Legacy fallback location for pre-migration tasks.
-        try:
-            task = await TaskTemplate.get(task_id)
-            return await task.get_metadata()
-        except FileNotFoundError:
-            pass
+                return None
 
         # Best-effort fallback for callers that only know task_id:
         # scan experiment-scoped task folders to locate a matching id.
-        if not experiment_id:
-            try:
-                experiments_dir = await get_experiments_dir()
-                if await storage.isdir(experiments_dir):
-                    exp_entries = await storage.ls(experiments_dir, detail=False)
-                    for exp_path in exp_entries:
-                        if not await storage.isdir(exp_path):
-                            continue
-                        exp_id = exp_path.rstrip("/").split("/")[-1]
-                        candidate = await get_experiment_task_dir(exp_id, task_id)
-                        if await storage.isdir(candidate):
-                            task = await TaskTemplate.get(task_id, experiment_id=exp_id)
-                            return await task.get_metadata()
-            except Exception:
-                return None
+        try:
+            experiments_dir = await get_experiments_dir()
+            if await storage.isdir(experiments_dir):
+                exp_entries = await storage.ls(experiments_dir, detail=False)
+                for exp_path in exp_entries:
+                    if not await storage.isdir(exp_path):
+                        continue
+                    exp_id = exp_path.rstrip("/").split("/")[-1]
+                    candidate = await get_experiment_task_dir(exp_id, task_id)
+                    if await storage.isdir(candidate):
+                        task = await TaskTemplate.get(task_id, experiment_id=exp_id)
+                        return await task.get_metadata()
+        except Exception:
+            return None
         return None
 
     @staticmethod

@@ -78,10 +78,6 @@ export function API_URL() {
   return base;
 }
 
-export function INFERENCE_SERVER_URL() {
-  return window.TransformerLab?.inferenceServerURL || API_URL();
-}
-
 export function FULL_PATH(path: string) {
   if (API_URL() === null) {
     return null;

@@ -15,8 +15,6 @@ import { fetchWithAuth } from 'renderer/lib/authContext';
 import Model3DViewer from 'renderer/components/Shared/Model3DViewer';
 import { getFileExtension, downloadArtifact } from './artifactUtils';
 
-export { canPreviewFile } from './artifactUtils';
-
 export interface PreviewableItem {
   filename: string;
   jobId: string;
@@ -76,7 +74,7 @@ export default function ArtifactPreviewPane({
         const response = await fetchWithAuth(`${artifactUrl}?task=view`);
         if (!response.ok) throw new Error('Failed to load artifact');
         data = { type: 'json', data: await response.json() };
-      } else if (['txt', 'log'].includes(ext)) {
+      } else if (['txt', 'log', 'py'].includes(ext)) {
         const response = await fetchWithAuth(`${artifactUrl}?task=view`);
         if (!response.ok) throw new Error('Failed to load artifact');
         data = { type: 'text', data: await response.text() };

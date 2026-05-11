@@ -1151,7 +1151,7 @@ def command_job_delete_all(
 def command_job_monitor(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
-    """Launch interactive job monitor TUI."""
+    """Launch interactive job monitor TUI (human terminal use only; not suitable for automation/agents)."""
     from transformerlab_cli.commands.job_monitor.job_monitor import run_monitor
 
     run_monitor(experiment_id=experiment)

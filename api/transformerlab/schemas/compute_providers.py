@@ -36,8 +36,14 @@ class ProviderConfigBase(BaseModel):
     ssh_key_path: Optional[str] = None
     ssh_port: int = 22
 
-    # AWS-specific config
-    region: Optional[str] = None  # AWS region (e.g. "us-east-1")
+    # AWS/GCP-specific config
+    region: Optional[str] = None  # AWS region (e.g. "us-east-1") or GCP region (e.g. "us-central1")
+
+    # GCP-specific config
+    project_id: Optional[str] = None
+    zone: Optional[str] = None  # Optional GCP zone (e.g. "us-central1-a"); falls back to <region>-a
+    credentials_path: Optional[str] = None
+    service_account_email: Optional[str] = None
 
     # Runpod-specific config
     api_key: Optional[str] = None  # Runpod API key (sensitive)
@@ -124,6 +130,8 @@ def mask_sensitive_config(config: Dict[str, Any], provider_type: str) -> Dict[st
         masked["password"] = "***"
     if "secret" in masked:
         masked["secret"] = "***"
+    if "service_account_json" in masked and masked["service_account_json"]:
+        masked["service_account_json"] = "***"
 
     # Mask Azure Service Principal secret.
     if "azure_client_secret" in masked and masked["azure_client_secret"]:

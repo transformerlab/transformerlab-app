@@ -253,7 +253,7 @@ Stop a running job.
 
 Launch the interactive job monitor TUI (Textual app).
 
-**Warning:** This launches a full terminal UI. **Never use in automated or agent contexts.** Use `job list` + `job machine-logs` instead.
+**Warning:** This launches a full terminal UI. **Never use when operating as an AI agent or in non-interactive automation.** Use `job list`, `job info`, and `job task-logs` instead.
 
 ---
 

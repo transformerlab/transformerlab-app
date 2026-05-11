@@ -331,7 +331,7 @@ const Resources = () => {
                 providers.find((p) => p.id === selectedProvider)?.type ===
                 'skypilot' ? (
                   <Typography level="body-sm" sx={{ color: 'warning.main' }}>
-                    No cluster status received from SkyPilot. Try refreshing...
+                    No cluster status received from SkyPilot. Try refreshing…
                   </Typography>
                 ) : (
                   <Typography level="body-sm" sx={{ color: 'text.secondary' }}>

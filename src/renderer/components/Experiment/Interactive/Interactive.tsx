@@ -649,7 +649,7 @@ export default function Interactive() {
           }
 
           defaultSetup = template.setup || '';
-          defaultRun = template.run || template.command || '';
+          defaultRun = template.run || '';
           templateId = template.id;
           galleryTemplate = template;
         } else {

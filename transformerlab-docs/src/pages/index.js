@@ -28,9 +28,9 @@ function HomepageHeader() {
   }, []);
 
   return (
-    <div class="container homepage">
-      <div class="row" style={{ paddingTop: '1.5rem' }}>
-        <div class="col col--4">
+    <div className="container homepage">
+      <div className="row" style={{ paddingTop: '1.5rem' }}>
+        <div className="col col--4">
           <div
             id="milkyway-outer-container"
             style={{
@@ -70,7 +70,7 @@ function HomepageHeader() {
             </div>
           </div>
         </div>
-        <div class="col col--8">
+        <div className="col col--8">
           <h1 className={clsx('hero__title', styles.hero__title)}>
             We&rsquo;re here for the{' '}
             <span style={{ color: '#666' }}>Era of Research.</span>
@@ -103,8 +103,8 @@ function HomepageHeader() {
           </div>
         </div>
       </div>
-      <div class="row">
-        <div class="col col--12">
+      <div className="row">
+        <div className="col col--12">
           <div className="spacer" />
 
           <video
@@ -118,8 +118,8 @@ function HomepageHeader() {
           />
         </div>
       </div>
-      <div class="row">
-        <div class="col col--12">
+      <div className="row">
+        <div className="col col--12">
           <section className={styles.bigWhy}>
             <BigWhy />
           </section>

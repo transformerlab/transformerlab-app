@@ -133,6 +133,8 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/providers/${providerId}/check`,
   AwsCredentials: (providerId: string) =>
     `${API_URL()}compute_provider/providers/${providerId}/aws/credentials`,
+  GcpCredentials: (providerId: string) =>
+    `${API_URL()}compute_provider/providers/${providerId}/gcp/credentials`,
   Setup: (providerId: string) =>
     `${API_URL()}compute_provider/providers/${providerId}/setup/`,
   SetupStatus: (providerId: string) =>
@@ -341,17 +343,17 @@ Endpoints.Experiment = {
 
 Endpoints.Jobs = {
   List: (experimentId: string) =>
-    `${API_URL()}experiment/${experimentId}/jobs/list`,
+    `${API_URL()}experiment/${experimentId}/jobs/list?slim=true`,
   ListWithFilters: (
     experimentId: string,
     type?: string,
     status?: string,
     subtype?: string,
   ) =>
-    `${API_URL()}experiment/${experimentId}/jobs/list` +
-    `${type ? `?type=${type}` : ''}` +
-    `${status ? `${type ? '&' : '?'}status=${status}` : ''}` +
-    `${subtype ? `${type || status ? '&' : '?'}subtype=${encodeURIComponent(subtype)}` : ''}`,
+    `${API_URL()}experiment/${experimentId}/jobs/list?slim=true` +
+    `${type ? `&type=${type}` : ''}` +
+    `${status ? `&status=${status}` : ''}` +
+    `${subtype ? `&subtype=${encodeURIComponent(subtype)}` : ''}`,
   Get: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}`,
   Create: (
@@ -368,7 +370,7 @@ Endpoints.Jobs = {
     type: string = '',
     status: string = '',
   ) =>
-    `${API_URL()}experiment/${experimentId}/jobs/list?type=${type}&status=${status}`,
+    `${API_URL()}experiment/${experimentId}/jobs/list?slim=true&type=${type}&status=${status}`,
   Delete: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}`,
   Stop: (experimentId: string, jobId: string) =>

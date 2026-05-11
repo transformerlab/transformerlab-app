@@ -94,7 +94,7 @@ install_local_provider_dependencies() {
     CUDA_INDEX="cu128"
     if [ "${TLAB_FORCE_CUDA13:-}" = "1" ] || [ "${TLAB_FORCE_CUDA13:-}" = "true" ]; then
       CUDA_INDEX="cu130"
-    elif [ -r /etc/dgx-release ] && rg -iq 'DGX Spark' /etc/dgx-release; then
+    elif [ -r /etc/dgx-release ] && grep -qi 'DGX Spark' /etc/dgx-release; then
       CUDA_INDEX="cu130"
     fi
 

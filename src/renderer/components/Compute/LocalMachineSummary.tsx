@@ -71,7 +71,7 @@ export default function LocalMachineSummary({
   if (isLoading) {
     return (
       <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
-        Loading local machine information...
+        Loading local machine information…
       </Typography>
     );
   }
