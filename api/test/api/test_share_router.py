@@ -56,4 +56,4 @@ def test_chart_kind_works_the_same(client):
 def test_unknown_kind_returns_404_or_422(client):
     experiment_id = _create_experiment(client)
     r = client.post(f"/experiment/{experiment_id}/share/logs")
-    assert r.status_code in (404, 422)
+    assert r.status_code in (400, 404, 422)

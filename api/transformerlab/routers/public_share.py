@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from werkzeug.utils import secure_filename
 
 from lab import Experiment, storage
+from lab.dirs import set_organization_id as lab_set_org_id
 from transformerlab.routers.experiment.notes import (
     ALLOWED_IMAGE_EXTENSIONS,
     IMAGE_MEDIA_TYPES,
@@ -70,24 +71,32 @@ async def _build_chart_payload(experiment_id: str) -> dict[str, Any]:
 @router.get("/{token}")
 async def get_share(token: str, session: AsyncSession = Depends(get_async_session)):
     link = await _resolve_or_404(session, token)
-    experiment = await experiment_service.experiment_get(link.resource_id)
-    if experiment is None:
-        raise HTTPException(status_code=404, detail="Experiment not found")
+    # The public route has no X-Team-Id header, so the global middleware leaves
+    # org_id unset. Restore it from the link's stored team_id so downstream
+    # service calls (Experiment dir resolution, job_service, experiment_service)
+    # operate against the owning team's workspace.
+    lab_set_org_id(link.team_id)
+    try:
+        experiment = await experiment_service.experiment_get(link.resource_id)
+        if experiment is None:
+            raise HTTPException(status_code=404, detail="Experiment not found")
 
-    if link.resource_type == "experiment_notes":
-        payload = await _build_notes_payload(link.resource_id, token)
-    elif link.resource_type == "experiment_chart":
-        payload = await _build_chart_payload(link.resource_id)
-    else:
-        raise HTTPException(status_code=404, detail="Unsupported share resource")
+        if link.resource_type == "experiment_notes":
+            payload = await _build_notes_payload(link.resource_id, token)
+        elif link.resource_type == "experiment_chart":
+            payload = await _build_chart_payload(link.resource_id)
+        else:
+            raise HTTPException(status_code=404, detail="Unsupported share resource")
 
-    experiment_name = experiment.get("name") if isinstance(experiment, dict) else None
+        experiment_name = experiment.get("name") if isinstance(experiment, dict) else None
 
-    return {
-        "resource_type": link.resource_type,
-        "experiment_name": experiment_name,
-        "payload": payload,
-    }
+        return {
+            "resource_type": link.resource_type,
+            "experiment_name": experiment_name,
+            "payload": payload,
+        }
+    finally:
+        lab_set_org_id(None)
 
 
 @router.get("/{token}/asset/{filename}")
@@ -108,14 +117,18 @@ async def get_asset(
     if ext not in ALLOWED_IMAGE_EXTENSIONS:
         raise HTTPException(status_code=400, detail="File type not allowed")
 
-    exp_obj = Experiment(link.resource_id)
-    experiment_dir = await exp_obj.get_dir()
-    asset_path = storage.join(experiment_dir, "notes", "assets", safe_name)
-    if not await storage.exists(asset_path):
-        raise HTTPException(status_code=404, detail="Asset not found")
+    lab_set_org_id(link.team_id)
+    try:
+        exp_obj = Experiment(link.resource_id)
+        experiment_dir = await exp_obj.get_dir()
+        asset_path = storage.join(experiment_dir, "notes", "assets", safe_name)
+        if not await storage.exists(asset_path):
+            raise HTTPException(status_code=404, detail="Asset not found")
 
-    async with await storage.open(asset_path, "rb") as f:
-        content = await f.read()
+        async with await storage.open(asset_path, "rb") as f:
+            content = await f.read()
+    finally:
+        lab_set_org_id(None)
 
     return Response(
         content=content,

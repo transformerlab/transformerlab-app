@@ -25,6 +25,7 @@ import { AnalyticsProvider } from './components/Shared/analytics/AnalyticsContex
 import FullPageLoader from './components/Shared/FullPageLoader';
 import ConnectionLostModal from './components/Shared/ConnectionLostModal';
 import InvitationLanding from './components/Team/InvitationLanding';
+import PublicShareViewer from './components/PublicShare/PublicShareViewer';
 
 type AppContentProps = {
   connection: string;
@@ -44,6 +45,11 @@ function AppContent({
   const { isError: connectionHealthError, isLoading: connectionHealthLoading } =
     chatAPI.useConnectionHealth(connection);
   const isInvitePage = location.pathname === '/invite';
+  const isPublicSharePage = location.pathname.startsWith('/public/share/');
+
+  if (isPublicSharePage) {
+    return <PublicShareViewer />;
+  }
 
   const showConnectionLostModal =
     connection !== '' && !connectionHealthLoading && !!connectionHealthError;
