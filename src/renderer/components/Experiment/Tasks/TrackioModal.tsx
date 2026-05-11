@@ -184,7 +184,7 @@ export default function TrackioModal({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <CircularProgress />
               <Typography level="body-sm">
-                Waiting for Trackio dashboard to start...
+                Waiting for Trackio dashboard to start…
               </Typography>
             </Box>
           )}

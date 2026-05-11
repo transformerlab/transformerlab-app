@@ -644,7 +644,6 @@ export default function NewInteractiveTaskModal({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Interactive session name"
-                    autoFocus
                     disabled={isSubmitting}
                   />
                 </FormControl>
@@ -1189,7 +1188,7 @@ export default function NewInteractiveTaskModal({
                                           color="primary"
                                           sx={{ mt: 1 }}
                                         >
-                                          Importing...
+                                          Importing…
                                         </Typography>
                                       )}
                                     </CardContent>

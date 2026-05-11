@@ -41,7 +41,7 @@ import CliAuthPage from './CliAuth/CliAuthPage';
 // const APP_VERSION = '1.0.0';
 
 // PageTracker component to track page views
-export const PageTracker = () => {
+const PageTracker = () => {
   const location = useLocation();
   const analytics = useAnalytics();
 

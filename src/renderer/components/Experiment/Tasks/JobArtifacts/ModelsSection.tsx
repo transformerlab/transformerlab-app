@@ -210,7 +210,7 @@ export default function ModelsSection({
           }}
         >
           {isLoading ? (
-            <Typography level="body-md">Loading models...</Typography>
+            <Typography level="body-md">Loading models…</Typography>
           ) : (
             <List
               sx={{

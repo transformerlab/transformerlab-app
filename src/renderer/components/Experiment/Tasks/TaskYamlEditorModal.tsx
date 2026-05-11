@@ -662,7 +662,7 @@ export default function TaskYamlEditorModal({
           >
             <Box sx={{ flex: 1, minHeight: 0 }}>
               {loading ? (
-                <div style={{ padding: 16 }}>Loading...</div>
+                <div style={{ padding: 16 }}>Loading…</div>
               ) : isMissing ? (
                 <div
                   style={{
