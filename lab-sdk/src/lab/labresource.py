@@ -1,54 +1,11 @@
 import asyncio
 from abc import ABC, abstractmethod
 import json
-from typing import Any, Awaitable, Callable, Iterable
+from typing import Awaitable, Callable, Iterable, Optional
 from . import storage
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-async def bulk_delete_resources(
-    ids: Iterable[Any],
-    loader: Callable[[str], Awaitable["BaseLabResource"]],
-) -> dict:
-    """Delete multiple resources in parallel via their `.delete()` method.
-
-    `loader(id)` is awaited to obtain each resource; it should raise
-    FileNotFoundError when the resource is missing. Duplicate IDs are
-    de-duplicated. Each delete runs concurrently via asyncio.gather; failures
-    are caught per-id and returned alongside successes.
-
-    Returns a dict with shape:
-        {"succeeded": [id, ...], "failed": [{"id": id, "error": str}, ...]}
-    """
-    seen: set[str] = set()
-    unique_ids: list[str] = []
-    for raw in ids:
-        rid = str(raw)
-        if rid in seen:
-            continue
-        seen.add(rid)
-        unique_ids.append(rid)
-
-    if not unique_ids:
-        return {"succeeded": [], "failed": []}
-
-    async def _delete_one(rid: str):
-        try:
-            resource = await loader(rid)
-            await resource.delete()
-            return rid, True, None
-        except FileNotFoundError:
-            return rid, False, "not found"
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("bulk_delete_resources: failed to delete %s", rid)
-            return rid, False, str(exc)
-
-    results = await asyncio.gather(*[_delete_one(rid) for rid in unique_ids])
-    succeeded = [rid for rid, ok, _ in results if ok]
-    failed = [{"id": rid, "error": err} for rid, ok, err in results if not ok]
-    return {"succeeded": succeeded, "failed": failed}
 
 
 class BaseLabResource(ABC):
@@ -219,11 +176,56 @@ class BaseLabResource(ABC):
         json_data.update(updates)
         await self._set_json_data(json_data)
 
-    async def delete(self):
+    async def delete(
+        self,
+        ids: Optional[Iterable] = None,
+        *,
+        loader: Optional[Callable[[str], Awaitable["BaseLabResource"]]] = None,
+    ):
         """
         Delete this resource by deleting the containing directory.
+
+        If `ids` is provided, instead delete each of those resources in parallel.
+        `loader(id)` must be supplied in that case and is awaited to obtain each
+        resource (it should raise FileNotFoundError when an id is missing).
+        Duplicate ids are de-duplicated. Returns a dict with shape:
+            {"succeeded": [id, ...], "failed": [{"id": id, "error": str}, ...]}
+
         TODO: We should change to soft delete
         """
-        resource_dir = await self.get_dir()
-        if await storage.exists(resource_dir):
-            await storage.rm_tree(resource_dir)
+        if ids is None:
+            resource_dir = await self.get_dir()
+            if await storage.exists(resource_dir):
+                await storage.rm_tree(resource_dir)
+            return None
+
+        if loader is None:
+            raise ValueError("loader is required when `ids` is provided")
+
+        seen: set[str] = set()
+        unique_ids: list[str] = []
+        for raw in ids:
+            rid = str(raw)
+            if rid in seen:
+                continue
+            seen.add(rid)
+            unique_ids.append(rid)
+
+        if not unique_ids:
+            return {"succeeded": [], "failed": []}
+
+        async def _delete_one(rid: str):
+            try:
+                resource = await loader(rid)
+                await resource.delete()
+                return rid, True, None
+            except FileNotFoundError:
+                return rid, False, "not found"
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("delete: failed to delete %s", rid)
+                return rid, False, str(exc)
+
+        results = await asyncio.gather(*[_delete_one(rid) for rid in unique_ids])
+        succeeded = [rid for rid, ok, _ in results if ok]
+        failed = [{"id": rid, "error": err} for rid, ok, err in results if not ok]
+        return {"succeeded": succeeded, "failed": failed}

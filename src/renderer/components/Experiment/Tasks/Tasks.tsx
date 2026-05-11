@@ -618,34 +618,18 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     [experimentInfo?.id, addNotification, templatesMutate, fetchWithAuth],
   );
 
-  const bulkDeleteTasks = useCallback(
-    async (
-      taskIds: string[],
-    ): Promise<{ succeeded: number; failed: number }> => {
-      if (!experimentInfo?.id || taskIds.length === 0) {
-        return { succeeded: 0, failed: taskIds.length };
-      }
+  const deleteTaskQuiet = useCallback(
+    async (taskId: string): Promise<boolean> => {
+      if (!experimentInfo?.id) return false;
       try {
         const response = await fetchWithAuth(
-          chatAPI.Endpoints.Task.BulkDeleteTemplates(experimentInfo.id),
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ task_ids: taskIds }),
-          },
+          chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo.id, taskId),
+          { method: 'GET' },
         );
-        if (!response.ok) {
-          return { succeeded: 0, failed: taskIds.length };
-        }
-        const body = await response.json();
-        const succeeded = Array.isArray(body?.succeeded)
-          ? body.succeeded.length
-          : 0;
-        const failed = Array.isArray(body?.failed) ? body.failed.length : 0;
-        return { succeeded, failed };
+        return response.ok;
       } catch (error) {
-        console.error('Error deleting templates:', error);
-        return { succeeded: 0, failed: taskIds.length };
+        console.error('Error deleting template:', error);
+        return false;
       }
     },
     [experimentInfo?.id, fetchWithAuth],
@@ -1830,7 +1814,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={bulkDeleteOpen}
         onClose={() => setBulkDeleteOpen(false)}
         taskIds={Array.from(selectedTaskIds)}
-        onConfirm={bulkDeleteTasks}
+        onConfirm={deleteTaskQuiet}
         onComplete={handleBulkDeleteComplete}
       />
     </Sheet>

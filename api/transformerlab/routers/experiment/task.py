@@ -44,9 +44,6 @@ from transformerlab.schemas.task import (
     ImportTaskFromTeamGalleryRequest,
     AddTeamTaskToGalleryRequest,
     DeleteTeamTaskFromGalleryRequest,
-    BulkDeleteTasksRequest,
-    BulkDeleteTaskResult,
-    BulkDeleteTasksResponse,
     TaskYamlSpec,
     TaskFilesResponse,
 )
@@ -628,23 +625,6 @@ async def delete_task(experimentId: str, task_id: str):
         return {"message": "OK"}
     else:
         return {"message": "NOT FOUND"}
-
-
-@router.post(
-    "/bulk_delete",
-    summary="Delete multiple tasks in parallel",
-    response_model=BulkDeleteTasksResponse,
-)
-async def bulk_delete_tasks(experimentId: str, payload: BulkDeleteTasksRequest) -> BulkDeleteTasksResponse:
-    result = await task_service.bulk_delete_tasks(payload.task_ids, experiment_id=experimentId)
-    if result["succeeded"]:
-        await cache.invalidate(f"tasks:{experimentId}")
-    return BulkDeleteTasksResponse(
-        succeeded=result["succeeded"],
-        failed=[
-            BulkDeleteTaskResult(task_id=item["id"], deleted=False, error=item["error"]) for item in result["failed"]
-        ],
-    )
 
 
 def _clear_interactive_launch_provider(task_data: dict) -> None:

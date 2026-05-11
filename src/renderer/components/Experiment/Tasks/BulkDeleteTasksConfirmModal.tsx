@@ -13,9 +13,7 @@ export type BulkDeleteTasksConfirmModalProps = {
   open: boolean;
   onClose: () => void;
   taskIds: string[];
-  onConfirm: (
-    taskIds: string[],
-  ) => Promise<{ succeeded: number; failed: number }>;
+  onConfirm: (taskId: string) => Promise<boolean>;
   onComplete?: (succeeded: number, failed: number) => void;
 };
 
@@ -27,11 +25,15 @@ export default function BulkDeleteTasksConfirmModal({
   onComplete,
 }: BulkDeleteTasksConfirmModalProps) {
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [completedCount, setCompletedCount] = React.useState(0);
+  const [failedCount, setFailedCount] = React.useState(0);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!open) {
       setIsDeleting(false);
+      setCompletedCount(0);
+      setFailedCount(0);
       setError(null);
     }
   }, [open]);
@@ -45,24 +47,39 @@ export default function BulkDeleteTasksConfirmModal({
     if (taskIds.length === 0 || isDeleting) return;
     setIsDeleting(true);
     setError(null);
+    setCompletedCount(0);
+    setFailedCount(0);
 
     let succeeded = 0;
-    let failed = taskIds.length;
-    try {
-      const result = await onConfirm(taskIds);
-      succeeded = result.succeeded;
-      failed = result.failed;
-    } catch (err) {
-      console.error('Bulk delete request failed:', err);
-    }
+    let failures = 0;
+    // Fire all single-delete requests in parallel; track each independently so
+    // the progress bar advances as each finishes.
+    await Promise.all(
+      taskIds.map(async (id) => {
+        try {
+          const ok = await onConfirm(id);
+          if (ok) {
+            succeeded += 1;
+            setCompletedCount((c) => c + 1);
+          } else {
+            failures += 1;
+            setFailedCount((c) => c + 1);
+          }
+        } catch (err) {
+          console.error('Error deleting template:', err);
+          failures += 1;
+          setFailedCount((c) => c + 1);
+        }
+      }),
+    );
 
     setIsDeleting(false);
-    onComplete?.(succeeded, failed);
-    if (failed === 0) {
+    onComplete?.(succeeded, failures);
+    if (failures === 0) {
       onClose();
     } else {
       setError(
-        `${failed} of ${taskIds.length} task${
+        `${failures} of ${taskIds.length} task${
           taskIds.length === 1 ? '' : 's'
         } failed to delete. Please try again.`,
       );
@@ -70,6 +87,8 @@ export default function BulkDeleteTasksConfirmModal({
   }, [taskIds, isDeleting, onConfirm, onClose, onComplete]);
 
   const total = taskIds.length;
+  const processed = completedCount + failedCount;
+  const progressValue = total > 0 ? (processed / total) * 100 : 0;
 
   return (
     <Modal
@@ -93,12 +112,12 @@ export default function BulkDeleteTasksConfirmModal({
             {total === 1 ? '' : 's'}? This action cannot be undone.
           </Typography>
           {isDeleting && (
-            <>
-              <Typography level="body-sm" sx={{ mt: 1 }}>
-                Deleting…
-              </Typography>
-              <LinearProgress sx={{ mt: 1 }} />
-            </>
+            <Typography level="body-sm" sx={{ mt: 1 }}>
+              Deleting {processed} / {total}…
+            </Typography>
+          )}
+          {isDeleting && (
+            <LinearProgress determinate value={progressValue} sx={{ mt: 1 }} />
           )}
           {error && (
             <Typography level="body-sm" color="danger" sx={{ mt: 1 }}>

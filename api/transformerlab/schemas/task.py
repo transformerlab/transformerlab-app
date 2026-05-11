@@ -53,21 +53,6 @@ class DeleteTeamTaskFromGalleryRequest(BaseModel):
     task_id: str
 
 
-class BulkDeleteTasksRequest(BaseModel):
-    task_ids: List[str]
-
-
-class BulkDeleteTaskResult(BaseModel):
-    task_id: str
-    deleted: bool
-    error: Optional[str] = None
-
-
-class BulkDeleteTasksResponse(BaseModel):
-    succeeded: List[str]
-    failed: List[BulkDeleteTaskResult]
-
-
 # -------- task.yaml validation models --------
 
 
