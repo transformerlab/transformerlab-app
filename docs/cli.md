@@ -32,7 +32,7 @@ def list(format: str = typer.Option(None)):
 
 ### Textual TUI (interactive, long-running)
 
-Use Textual for interactive screens where the user monitors, navigates, or takes actions in real time. Currently used for the **job monitor** (`lab job monitor`) which shows a live-updating job list with log streaming.
+Use Textual for interactive screens where the user monitors, navigates, or takes actions in real time. Currently used for the **job monitor** (`lab job monitor`) which shows a live-updating job list with log streaming. This command is for human terminal use only and is not suitable for non-interactive automation or AI agents.
 
 The TUI lives in `commands/job_monitor/` and is a full Textual `App` with:
 - Custom widgets (JobDetails, JobLogs, modals)

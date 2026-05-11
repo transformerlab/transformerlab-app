@@ -28,12 +28,14 @@ import ExperimentNotes from './Experiment/ExperimentNotes';
 import UserSettings from './User/UserSettings';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
 import Tasks from './Experiment/Tasks/Tasks';
+import Evals from './Experiment/Tasks/Evals';
 import Interactive from './Experiment/Interactive/Interactive';
 import Team from './Team/Team';
 import UsageReport from './Team/UsageReport';
 import TasksGallery from './TasksGallery/TasksGallery';
 import JobDetailPage from './Experiment/Jobs/JobDetailPage';
 import TaskRunsPage from './Experiment/Tasks/TaskRunsPage';
+import CliAuthPage from './CliAuth/CliAuthPage';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -233,6 +235,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         >
           <Route path="notes" element={<ExperimentNotes />} />
           <Route path="tasks" element={<Tasks />} />
+          <Route path="evals" element={<Evals />} />
           <Route path="interactive" element={<Interactive />} />
           <Route path="documents" element={<Documents />} />
           <Route path="settings" element={<Settings />} />
@@ -245,6 +248,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
           path="/experiment/:experimentName/tasks/:taskId/runs"
           element={<TaskRunsPage />}
         />
+        <Route path="/cli-auth" element={<CliAuthPage />} />
         <Route path="/api" element={<Api />} />
         <Route path="/zoo" element={<ModelZoo />} />
         <Route path="/zoo/registry" element={<ModelZoo />} />

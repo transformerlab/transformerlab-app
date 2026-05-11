@@ -233,7 +233,7 @@ def run_evaluation():
                     eval_results_data = json.load(f)
 
                 # Save the full results as an artifact
-                results_artifact_path = lab.save_artifact(results_file, name="evaluation_results.json", type="eval")
+                results_artifact_path = lab.save_artifact(results_file, name="evaluation_results.json", type="evals")
                 lab.log(f"✅ Saved full results: {results_artifact_path}")
 
                 # Extract aggregated metrics for each task
@@ -276,7 +276,7 @@ def run_evaluation():
                             saved_metrics_path = lab.save_artifact(
                                 df_metrics,
                                 name=f"eval_metrics_{task_name}.csv",
-                                type="eval",
+                                type="evals",
                                 config={
                                     "evals": {
                                         "input": "input",
@@ -346,7 +346,7 @@ def run_evaluation():
                         saved_samples_path = lab.save_artifact(
                             df_samples,
                             name=f"eval_samples_{task_name}.csv",
-                            type="eval",
+                            type="evals",
                             config={
                                 "evals": {
                                     "input": "input",
