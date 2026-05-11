@@ -721,7 +721,6 @@ def command_job_metrics(
                 time.sleep(2)
         except KeyboardInterrupt:
             return
-        return
 
     payload = _fetch()
     rows = payload.get("rows", []) or []
