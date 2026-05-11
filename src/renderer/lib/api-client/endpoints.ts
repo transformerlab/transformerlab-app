@@ -31,6 +31,8 @@ Endpoints.Task = {
     `${API_URL()}experiment/${experimentId}/task/create`,
   DeleteTemplate: (experimentId: string, id: string) =>
     `${API_URL()}experiment/${experimentId}/task/${id}/delete`,
+  BulkDeleteTemplates: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/task/bulk_delete`,
   Gallery: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/task/gallery`,
   InteractiveGallery: (experimentId: string) =>
