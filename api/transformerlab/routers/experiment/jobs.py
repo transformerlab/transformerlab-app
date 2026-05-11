@@ -250,23 +250,26 @@ async def get_job_metrics(job_id: str, experimentId: str, since: int = 0):
     from lab.dirs import get_job_dir
 
     job_dir = await get_job_dir(job_id, experimentId)
-    metrics_path = os.path.join(job_dir, "metrics.jsonl")
+    metrics_path = storage.join(job_dir, "metrics.jsonl")
 
-    if not os.path.exists(metrics_path):
+    if not await storage.exists(metrics_path):
         return {"count": 0, "rows": []}
 
     rows: list[dict] = []
-    with open(metrics_path, "r", encoding="utf-8") as f:
-        for idx, line in enumerate(f):
-            if idx < since:
-                continue
-            line = line.strip()
+    line_idx = 0
+    async with await storage.open(metrics_path, "r", encoding="utf-8") as f:
+        while True:
+            line = await f.readline()
             if not line:
-                continue
-            try:
-                rows.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
+                break
+            if line_idx >= since:
+                stripped = line.strip()
+                if stripped:
+                    try:
+                        rows.append(json.loads(stripped))
+                    except json.JSONDecodeError:
+                        pass
+            line_idx += 1
 
     return {"count": len(rows), "rows": rows}
 
