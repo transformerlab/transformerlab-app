@@ -117,7 +117,6 @@ _SLIM_JOB_DATA_DROPPED_KEYS: frozenset[str] = frozenset(
         "parameters",
         "provider_empty_jobs_polls",
         "provider_jobs_seen_once",
-        "provider_launch_result",
         "run",
         "setup",
     }
