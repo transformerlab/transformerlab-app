@@ -9,7 +9,7 @@ from transformerlab_cli.state import cli_state
 
 app = typer.Typer()
 
-PROVIDER_TYPES = ["slurm", "skypilot", "runpod", "local"]
+PROVIDER_TYPES = ["slurm", "skypilot", "runpod", "vastai", "local"]
 
 PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
     "skypilot": [
@@ -32,6 +32,9 @@ PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("default_region", "Default region"),
         ("default_template_id", "Default template ID"),
         ("default_network_volume_id", "Default network volume ID"),
+    ],
+    "vastai": [
+        ("api_key", "Vast.ai API key"),
     ],
     "local": [],
 }
@@ -120,7 +123,7 @@ def command_provider_list(
 @app.command("add")
 def command_provider_add(
     name: str = typer.Option(None, "--name", help="Provider name"),
-    provider_type: str = typer.Option(None, "--type", help="Provider type (slurm, skypilot, runpod, local)"),
+    provider_type: str = typer.Option(None, "--type", help="Provider type (slurm, skypilot, runpod, vastai, local)"),
     config: str = typer.Option(None, "--config", help="Provider config as JSON string"),
     interactive: bool = typer.Option(True, "--interactive/--no-interactive", help="Use interactive prompts"),
 ):
