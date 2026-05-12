@@ -24,6 +24,18 @@ app = typer.Typer()
 REQUIRED_TASK_FIELDS = ["name", "type"]
 
 
+KNOWN_TASK_SUBTYPES = ["interactive"]
+
+
+def _validate_subtype(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.lower()
+    if normalized not in KNOWN_TASK_SUBTYPES:
+        raise typer.BadParameter(f"Allowed: {', '.join(KNOWN_TASK_SUBTYPES)}")
+    return normalized
+
+
 def _resolve_experiment_id(experiment_id: str | None = None) -> str:
     """Resolve experiment from command override or configured default."""
     if experiment_id is not None and str(experiment_id).strip():
@@ -581,7 +593,8 @@ def command_task_list(
     subtype: str | None = typer.Option(
         None,
         "--subtype",
-        help="Filter to only tasks with this subtype (e.g. 'interactive'). Omit to list all REMOTE tasks.",
+        callback=_validate_subtype,
+        help=f"Filter to only tasks with this subtype. Allowed: {', '.join(KNOWN_TASK_SUBTYPES)}.",
     ),
 ):
     """List all tasks."""
