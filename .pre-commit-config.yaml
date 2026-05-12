@@ -1,0 +1,21 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.0
+    hooks:
+      - id: ruff
+        name: ruff check (api, cli, lab-sdk)
+        args: [--fix, --line-length=120]
+        files: ^(api|cli|lab-sdk)/.*\.py$
+      - id: ruff-format
+        name: ruff format (api, cli, lab-sdk)
+        args: [--line-length=120]
+        files: ^(api|cli|lab-sdk)/.*\.py$
+
+  - repo: local
+    hooks:
+      - id: npm-format
+        name: npm run format (prettier)
+        entry: npm run format
+        language: system
+        pass_filenames: false
+        files: ^(src|transformerlab-docs)/.*\.(js|jsx|ts|tsx|json|css|scss|md|mdx|ya?ml)$
