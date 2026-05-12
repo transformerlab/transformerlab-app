@@ -115,11 +115,11 @@ function notifyListeners() {
   });
 }
 
-export function getCurrentTeam(): Team | null {
+function getCurrentTeam(): Team | null {
   return _currentTeam;
 }
 
-export function updateCurrentTeam(team: Team | null) {
+function updateCurrentTeam(team: Team | null) {
   _currentTeam = team;
   try {
     if (team) localStorage.setItem('current_team', JSON.stringify(team));
@@ -130,12 +130,12 @@ export function updateCurrentTeam(team: Team | null) {
   notifyListeners();
 }
 
-export function logoutUser() {
+function logoutUser() {
   updateCurrentTeam(null);
 }
 
 // allow components to re-render when auth changes
-export function subscribeAuthChange(cb: () => void) {
+function subscribeAuthChange(cb: () => void) {
   listeners.add(cb);
   return () => {
     listeners.delete(cb);

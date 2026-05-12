@@ -116,7 +116,7 @@ export default function Evals() {
             sx={{ alignItems: 'center', justifyContent: 'center', py: 3 }}
           >
             <CircularProgress size="sm" />
-            <Typography level="body-sm">Loading jobs...</Typography>
+            <Typography level="body-sm">Loading jobs…</Typography>
           </Stack>
         ) : evalCapableJobs.length === 0 ? (
           <Typography level="body-sm" sx={{ color: 'text.secondary' }}>

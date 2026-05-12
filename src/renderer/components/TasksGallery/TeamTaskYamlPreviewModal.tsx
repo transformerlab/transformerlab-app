@@ -80,7 +80,7 @@ export default function TeamTaskYamlPreviewModal({
         <Divider />
         <DialogContent sx={{ flex: 1, minHeight: 0, p: 0 }}>
           {loading ? (
-            <div style={{ padding: 16 }}>Loading...</div>
+            <div style={{ padding: 16 }}>Loading…</div>
           ) : error ? (
             <div style={{ padding: 16 }}>
               <div style={{ fontWeight: 600, marginBottom: 8 }}>

@@ -1189,7 +1189,7 @@ export default function NewInteractiveTaskModal({
                                           color="primary"
                                           sx={{ mt: 1 }}
                                         >
-                                          Importing...
+                                          Importing…
                                         </Typography>
                                       )}
                                     </CardContent>

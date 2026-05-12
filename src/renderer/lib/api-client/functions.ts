@@ -55,18 +55,3 @@ export async function EXPERIMENT_ADD_EVALUATION(
   const result = await response.json();
   return result;
 }
-
-export function TEMPLATE_FOR_MODEL_URL(model: string) {
-  return `${API_URL()}model/get_conversation_template?model=${model}`;
-}
-
-export async function getTemplateForModel(modelName: string) {
-  if (!modelName) {
-    return null;
-  }
-  const model = modelName.split('/')[1];
-  const response = await authenticatedFetch(TEMPLATE_FOR_MODEL_URL(model));
-  const result = await response.json();
-
-  return result;
-}

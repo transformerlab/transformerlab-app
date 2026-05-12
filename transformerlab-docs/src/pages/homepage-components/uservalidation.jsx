@@ -31,7 +31,7 @@ const UserValidation = () => (
       textAlign: 'center',
     }}
   >
-    <h2 style={{ fontSize: '2rem', marginBottom: '2rem', fontWeight: 700 }}>
+    <h2 style={{ fontSize: '2rem', marginBottom: '2rem', fontWeight: 600 }}>
       Trusted by Innovative Teams
     </h2>
     <div
@@ -44,9 +44,9 @@ const UserValidation = () => (
         margin: '0 auto',
       }}
     >
-      {userValidations.map((uv, idx) => (
+      {userValidations.map((uv) => (
         <div
-          key={idx}
+          key={uv.author}
           style={{
             background: '#fff',
             borderRadius: '1rem',

@@ -5,6 +5,7 @@ const PREVIEWABLE_EXTENSIONS = [
   'json',
   'txt',
   'log',
+  'py',
   'png',
   'jpg',
   'jpeg',
