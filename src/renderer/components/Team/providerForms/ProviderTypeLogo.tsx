@@ -2,20 +2,28 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Box } from '@mui/joy';
 import { Cloud } from 'lucide-react';
 import type { SimpleIcon } from 'simple-icons/types';
-import { siGooglecloud, siLocal } from 'simple-icons';
+import { siLocal } from 'simple-icons';
 
 const SIMPLE_ICONS: Record<string, SimpleIcon> = {
-  gcp: siGooglecloud,
   local: siLocal,
 };
 
-/** Remote marks (favicons / CDN). Favicons load at runtime; GCP/local use bundled vectors above. */
+/**
+ * Remote logos (Wikimedia Commons, project repos, favicons). Local uses bundled
+ * Simple Icons vector; others load at runtime with lucide fallback on error.
+ */
 const REMOTE_LOGO_URL: Record<string, string> = {
   aws: 'https://www.google.com/s2/favicons?domain=aws.amazon.com&sz=128',
+  /** Commons: File:Microsoft_Azure.svg — sourced from azure.microsoft.com (Aug 2021). */
   azure:
-    'https://upload.wikimedia.org/wikipedia/commons/f/fa/Microsoft_Azure_logo.svg',
-  skypilot: 'https://www.google.com/s2/favicons?domain=skypilot.org&sz=128',
-  slurm: 'https://www.google.com/s2/favicons?domain=slurm.schedmd.com&sz=128',
+    'https://upload.wikimedia.org/wikipedia/commons/f/fa/Microsoft_Azure.svg',
+  /** Commons: File:Google_Cloud_logo.svg — Google Cloud wordmark. */
+  gcp: 'https://upload.wikimedia.org/wikipedia/commons/5/51/Google_Cloud_logo.svg',
+  /** Official wide mark from skypilot-org/skypilot docs (docs/source/images/). */
+  skypilot:
+    'https://raw.githubusercontent.com/skypilot-org/skypilot/master/docs/source/images/SkyPilot-logo-wide.png',
+  /** Commons: File:Slurm_logo.svg — SLURM Workload Manager logo (GPL, not SchedMD favicon). */
+  slurm: 'https://upload.wikimedia.org/wikipedia/commons/3/3a/Slurm_logo.svg',
   runpod: 'https://www.google.com/s2/favicons?domain=runpod.io&sz=128',
   dstack: 'https://www.google.com/s2/favicons?domain=dstack.ai&sz=128',
   vastai: 'https://www.google.com/s2/favicons?domain=vast.ai&sz=128',
@@ -43,8 +51,8 @@ export interface ProviderTypeLogoProps {
 }
 
 /**
- * Brand-ish logo for a compute provider type: bundled Simple Icons where
- * available, otherwise favicon / CDN URLs with a lucide fallback if load fails.
+ * Brand-ish logo for a compute provider type: bundled Simple Icon for `local`,
+ * otherwise Wikimedia / official repo / favicon URLs with a lucide fallback.
  */
 export default function ProviderTypeLogo({
   providerType,
