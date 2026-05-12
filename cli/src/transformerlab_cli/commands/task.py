@@ -78,17 +78,22 @@ def _extract_error_detail(response: httpx.Response) -> str:
     return str(detail)
 
 
-def list_tasks(output_format: str = "pretty", experiment_id: str = "alpha") -> None:
-    """List all REMOTE tasks."""
+def list_tasks(output_format: str = "pretty", experiment_id: str = "alpha", subtype: str | None = None) -> None:
+    """List all REMOTE tasks, optionally filtered by subtype (e.g. 'interactive')."""
+    if subtype:
+        endpoint = f"/experiment/{experiment_id}/task/list_by_subtype_in_experiment?subtype={subtype}&type=REMOTE"
+    else:
+        endpoint = f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE"
+
     if output_format != "json":
         with console.status("[bold success]Fetching tasks...[/bold success]", spinner="dots"):
-            response = api.get(f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE")
+            response = api.get(endpoint)
     else:
-        response = api.get(f"/experiment/{experiment_id}/task/list_by_type_in_experiment?type=REMOTE")
+        response = api.get(endpoint)
 
     if response.status_code == 200:
         tasks = response.json()
-        table_columns = ["id", "name", "type", "created_at", "updated_at"]
+        table_columns = ["id", "name", "type", "subtype", "created_at", "updated_at"]
         render_table(data=tasks, format_type=output_format, table_columns=table_columns, title="Tasks")
     else:
         if output_format == "json":
@@ -573,10 +578,15 @@ def _validate_task_yaml_file(
 @app.command("list")
 def command_task_list(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
+    subtype: str | None = typer.Option(
+        None,
+        "--subtype",
+        help="Filter to only tasks with this subtype (e.g. 'interactive'). Omit to list all REMOTE tasks.",
+    ),
 ):
     """List all tasks."""
     current_experiment = _resolve_experiment_id(experiment)
-    list_tasks(output_format=cli_state.output_format, experiment_id=current_experiment)
+    list_tasks(output_format=cli_state.output_format, experiment_id=current_experiment, subtype=subtype)
 
 
 TASK_INIT_TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates" / "task_init"
