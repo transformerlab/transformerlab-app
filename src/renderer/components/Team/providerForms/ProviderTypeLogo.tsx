@@ -2,26 +2,26 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Box } from '@mui/joy';
 import { Cloud } from 'lucide-react';
 import type { SimpleIcon } from 'simple-icons/types';
-import { siLocal } from 'simple-icons';
+import { siGooglecloud, siLocal } from 'simple-icons';
 
 const SIMPLE_ICONS: Record<string, SimpleIcon> = {
+  /** Google Cloud product symbol (no wordmark), reads well in a square tile. */
+  gcp: siGooglecloud,
   local: siLocal,
 };
 
 /**
- * Remote logos (Wikimedia Commons, project repos, favicons). Local uses bundled
- * Simple Icons vector; others load at runtime with lucide fallback on error.
+ * Remote marks (Wikimedia, repo SVG/PNG, favicons). `gcp` / `local` use bundled
+ * Simple Icons; SkyPilot uses icon-only SVG from the project Helm chart.
  */
 const REMOTE_LOGO_URL: Record<string, string> = {
   aws: 'https://www.google.com/s2/favicons?domain=aws.amazon.com&sz=128',
   /** Commons: File:Microsoft_Azure.svg — sourced from azure.microsoft.com (Aug 2021). */
   azure:
     'https://upload.wikimedia.org/wikipedia/commons/f/fa/Microsoft_Azure.svg',
-  /** Commons: File:Google_Cloud_logo.svg — Google Cloud wordmark. */
-  gcp: 'https://upload.wikimedia.org/wikipedia/commons/5/51/Google_Cloud_logo.svg',
-  /** Official wide mark from skypilot-org/skypilot docs (docs/source/images/). */
+  /** Icon-only mark (square), charts/skypilot/skypilot.svg in skypilot-org/skypilot. */
   skypilot:
-    'https://raw.githubusercontent.com/skypilot-org/skypilot/master/docs/source/images/SkyPilot-logo-wide.png',
+    'https://raw.githubusercontent.com/skypilot-org/skypilot/master/charts/skypilot/skypilot.svg',
   /** Commons: File:Slurm_logo.svg — SLURM Workload Manager logo (GPL, not SchedMD favicon). */
   slurm: 'https://upload.wikimedia.org/wikipedia/commons/3/3a/Slurm_logo.svg',
   runpod: 'https://www.google.com/s2/favicons?domain=runpod.io&sz=128',
@@ -30,7 +30,7 @@ const REMOTE_LOGO_URL: Record<string, string> = {
 };
 
 function SimpleIconMark({ icon, size }: { icon: SimpleIcon; size: number }) {
-  const inner = Math.round(size * 0.72);
+  const inner = Math.round(size * 0.86);
   return (
     <svg
       role="img"
@@ -51,8 +51,8 @@ export interface ProviderTypeLogoProps {
 }
 
 /**
- * Brand-ish logo for a compute provider type: bundled Simple Icon for `local`,
- * otherwise Wikimedia / official repo / favicon URLs with a lucide fallback.
+ * Brand-ish logo for a compute provider type: bundled Simple Icons for `gcp`
+ * and `local`; otherwise Wikimedia / repo / favicon URLs with a lucide fallback.
  */
 export default function ProviderTypeLogo({
   providerType,
