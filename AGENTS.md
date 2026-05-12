@@ -32,6 +32,7 @@
 - **Node v22** (v23+ is not supported)
 - **Python**: Managed via conda (`~/.transformerlab/envs/transformerlab`). Install with `cd api && ./install.sh`.
 - **npm deps**: `npm install` (includes `dotenv-cli`, `cross-env`, `concurrently` used by scripts)
+- **pre-commit hooks**: Run `pip install pre-commit && pre-commit install` once after cloning. This wires up `.pre-commit-config.yaml` so `ruff check --fix`, `ruff format`, and `npm run format` run automatically on every commit.
 
 ## Architecture
 
