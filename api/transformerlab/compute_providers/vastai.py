@@ -227,7 +227,7 @@ class VastAIProvider(ComputeProvider):
             return {"status": "error", "message": f"Instance '{cluster_name}' not found"}
         instance_id = instance.get("id")
         if not instance_id:
-            return {"status": "error", "message": f"Instance '{cluster_name}' has no ID", "cluster_name": cluster_name}
+            return {"status": "error", "message": f"Instance '{cluster_name}' has no ID"}
         try:
             self._make_request("DELETE", f"/instances/{instance_id}/")
             self._cluster_name_to_instance_id.pop(cluster_name, None)
