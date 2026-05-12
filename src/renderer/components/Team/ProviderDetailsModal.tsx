@@ -31,6 +31,7 @@ import SlurmProviderFields from './providerForms/SlurmProviderFields';
 import SkypilotProviderFields from './providerForms/SkypilotProviderFields';
 import DstackProviderFields from './providerForms/DstackProviderFields';
 import RunpodProviderFields from './providerForms/RunpodProviderFields';
+import VastAiProviderFields from './providerForms/VastAiProviderFields';
 import AwsProviderFields from './providerForms/AwsProviderFields';
 import GcpProviderFields from './providerForms/GcpProviderFields';
 import AzureProviderFields from './providerForms/AzureProviderFields';
@@ -78,6 +79,7 @@ const DEFAULT_CONFIGS = {
   aws: `{
   "region": "us-east-1"
 }`,
+  vastai: `{}`,
   gcp: `{
   "region": "us-central1"
 }`,
@@ -91,6 +93,7 @@ const DEFAULT_SUPPORTED_ACCELERATORS: Record<string, string[]> = {
   local: ['AppleSilicon', 'cpu'],
   azure: ['NVIDIA'],
   aws: ['NVIDIA'],
+  vastai: ['NVIDIA'],
   gcp: ['NVIDIA'],
 };
 
@@ -161,6 +164,9 @@ export default function ProviderDetailsModal({
   const [awsAccessKeyId, setAwsAccessKeyId] = useState('');
   const [awsSecretAccessKey, setAwsSecretAccessKey] = useState('');
 
+  // Vast.ai-specific form fields
+  const [vastAiApiKey, setVastAiApiKey] = useState('');
+  const [vastAiApiKeyChanged, setVastAiApiKeyChanged] = useState(false);
   // GCP-specific form fields
   const [gcpRegion, setGcpRegion] = useState('us-central1');
   const [gcpZone, setGcpZone] = useState('');
@@ -204,6 +210,11 @@ export default function ProviderDetailsModal({
         value: 'aws',
         label: 'AWS (beta)',
         description: 'Launch and manage compute on AWS.',
+      },
+      {
+        value: 'vastai',
+        label: 'Vast.ai (beta)',
+        description: 'Rent GPU instances from the Vast.ai marketplace.',
       },
       {
         value: 'gcp',
@@ -496,6 +507,18 @@ export default function ProviderDetailsModal({
     return configObj;
   }, [awsRegion, supportedAccelerators]);
 
+  const parseVastAiConfig = (configObj: any) => {
+    if (configObj && typeof configObj === 'object') {
+      setVastAiApiKey(
+        configObj.api_key === '***' ? '' : configObj.api_key || '',
+      );
+      setVastAiApiKeyChanged(false);
+      if (configObj.supported_accelerators) {
+        setSupportedAccelerators(configObj.supported_accelerators);
+      }
+    }
+  };
+
   const parseGcpConfig = (configObj: any) => {
     if (configObj && typeof configObj === 'object') {
       const inferredRegion =
@@ -510,6 +533,17 @@ export default function ProviderDetailsModal({
       }
     }
   };
+
+  const buildVastAiConfig = useCallback(() => {
+    const configObj: any = {};
+    if (!providerId || vastAiApiKeyChanged) {
+      configObj.api_key = vastAiApiKey;
+    }
+    if (supportedAccelerators.length > 0) {
+      configObj.supported_accelerators = supportedAccelerators;
+    }
+    return configObj;
+  }, [vastAiApiKey, vastAiApiKeyChanged, supportedAccelerators, providerId]);
 
   const buildGcpConfig = useCallback(() => {
     const configObj: any = {
@@ -579,6 +613,9 @@ export default function ProviderDetailsModal({
       if (providerData.type === 'aws') {
         parseAwsConfig(rawConfigObj);
       }
+      if (providerData.type === 'vastai') {
+        parseVastAiConfig(rawConfigObj);
+      }
       if (providerData.type === 'gcp') {
         parseGcpConfig(rawConfigObj);
       }
@@ -625,6 +662,8 @@ export default function ProviderDetailsModal({
       setAwsRegion('us-east-1');
       setAwsAccessKeyId('');
       setAwsSecretAccessKey('');
+      setVastAiApiKey('');
+      setVastAiApiKeyChanged(false);
       setGcpRegion('us-central1');
       setGcpZone('');
       setGcpServiceAccountJson('');
@@ -677,6 +716,8 @@ export default function ProviderDetailsModal({
       setAwsRegion('us-east-1');
       setAwsAccessKeyId('');
       setAwsSecretAccessKey('');
+      setVastAiApiKey('');
+      setVastAiApiKeyChanged(false);
       setGcpRegion('us-central1');
       setGcpZone('');
       setGcpServiceAccountJson('');
@@ -780,6 +821,14 @@ export default function ProviderDetailsModal({
           // Ignore parse errors
         }
       }
+      if (type === 'vastai') {
+        try {
+          const configObj = JSON.parse(defaultConfig);
+          parseVastAiConfig(configObj);
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
       if (type === 'gcp') {
         try {
           const configObj = JSON.parse(DEFAULT_CONFIGS.gcp);
@@ -821,6 +870,10 @@ export default function ProviderDetailsModal({
         const configObj = buildAwsConfig();
         setConfig(JSON.stringify(configObj, null, 2));
       }
+      if (type === 'vastai') {
+        const configObj = buildVastAiConfig();
+        setConfig(JSON.stringify(configObj, null, 2));
+      }
       if (type === 'gcp') {
         const configObj = buildGcpConfig();
         setConfig(JSON.stringify(configObj, null, 2));
@@ -833,6 +886,7 @@ export default function ProviderDetailsModal({
     buildRunpodConfig,
     buildAzureConfig,
     buildAwsConfig,
+    buildVastAiConfig,
     buildGcpConfig,
     type,
     providerId,
@@ -1007,6 +1061,8 @@ export default function ProviderDetailsModal({
         parsedConfig = buildAzureConfig();
       } else if (type === 'aws') {
         parsedConfig = buildAwsConfig();
+      } else if (type === 'vastai') {
+        parsedConfig = buildVastAiConfig();
       } else if (type === 'gcp') {
         parsedConfig = buildGcpConfig();
       } else if (type === 'local') {
@@ -1414,6 +1470,15 @@ export default function ProviderDetailsModal({
                     />
                   )}
 
+                  {type === 'vastai' && (
+                    <VastAiProviderFields
+                      vastAiApiKey={vastAiApiKey}
+                      setVastAiApiKey={setVastAiApiKey}
+                      providerId={providerId}
+                      setVastAiApiKeyChanged={setVastAiApiKeyChanged}
+                    />
+                  )}
+
                   {type === 'aws' && (
                     <AwsProviderFields
                       awsRegion={awsRegion}
@@ -1461,6 +1526,7 @@ export default function ProviderDetailsModal({
                     type !== 'runpod' &&
                     type !== 'local' &&
                     type !== 'aws' &&
+                    type !== 'vastai' &&
                     type !== 'gcp' &&
                     type !== 'azure' && (
                       <FormControl sx={{ mt: 1 }}>
