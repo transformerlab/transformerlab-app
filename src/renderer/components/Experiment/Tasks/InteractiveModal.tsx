@@ -445,7 +445,7 @@ function InstructionsContent({
       </Stack>
 
       {instructions.map((block, i) => (
-        <React.Fragment key={i}>
+        <React.Fragment key={`${block.kind}-${i}`}>
           {i > 0 && block.kind !== 'text' && block.kind !== 'kv' && <Divider />}
           <InstructionRenderer block={block} values={values} />
         </React.Fragment>

@@ -19,7 +19,7 @@ import {
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import { useRef } from 'react';
-import { SafeJSONParse } from '../../Shared/SafeJSONParse';
+import SafeJSONParse from '../../Shared/SafeJSONParse';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';

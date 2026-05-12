@@ -41,7 +41,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { generateJobPermalink } from '../Jobs/jobDetailUtils';
 import JobProgress, { JobCompletionDetails } from './JobProgress';
 
-export interface LaunchProgressInfo {
+interface LaunchProgressInfo {
   phase?: string;
   percent?: number;
   message?: string;
