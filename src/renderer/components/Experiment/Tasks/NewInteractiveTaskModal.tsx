@@ -85,6 +85,8 @@ type ImportedTask = {
   interactive_type?: string;
 };
 
+const EMPTY_IMPORTED_TASKS: ImportedTask[] = [];
+
 type NewInteractiveTaskModalProps = {
   open: boolean;
   onClose: () => void;
@@ -122,7 +124,7 @@ export default function NewInteractiveTaskModal({
   isSubmitting = false,
   providers,
   isProvidersLoading = false,
-  importedTasks = [],
+  importedTasks = EMPTY_IMPORTED_TASKS,
   onDeleteTask,
   onQueueTask,
   onRefreshTasks,
@@ -133,7 +135,7 @@ export default function NewInteractiveTaskModal({
   );
   const [selectedTemplate, setSelectedTemplate] =
     React.useState<InteractiveTemplate | null>(null);
-  const [title, setTitle] = React.useState(generateFriendlyName());
+  const [title, setTitle] = React.useState(() => generateFriendlyName());
   const [cpus, setCpus] = React.useState('');
   const [memory, setMemory] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');

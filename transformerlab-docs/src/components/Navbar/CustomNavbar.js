@@ -202,6 +202,7 @@ export default function MyCustomToolbar() {
             <div className={styles.megaMenuSection}>
               <img
                 src={MultiNode}
+                alt=""
                 style={{
                   maxHeight: '100px',
                   maxWidth: '100%',
@@ -235,6 +236,7 @@ export default function MyCustomToolbar() {
             <div className={styles.megaMenuSection}>
               <img
                 src={Group}
+                alt=""
                 style={{
                   maxHeight: '100px',
                   maxWidth: '100%',
