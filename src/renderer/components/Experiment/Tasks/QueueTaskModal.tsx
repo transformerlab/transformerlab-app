@@ -2095,9 +2095,9 @@ export default function QueueTaskModal({
                               : 'Local provider may not meet task requirements'}
                           </Typography>
                           <Stack spacing={0.5}>
-                            {resourceValidation.issues.map((issue, idx) => (
+                            {resourceValidation.issues.map((issue) => (
                               <Stack
-                                key={idx}
+                                key={`${issue.type}-${issue.label}`}
                                 direction="row"
                                 spacing={1}
                                 alignItems="center"
@@ -2114,7 +2114,7 @@ export default function QueueTaskModal({
                                   {issue.label}
                                 </Chip>
                                 <Typography level="body-xs">
-                                  Required: <strong>{issue.required}</strong> —
+                                  Required: <strong>{issue.required}</strong>,
                                   Available: <strong>{issue.available}</strong>
                                 </Typography>
                               </Stack>
@@ -2160,7 +2160,7 @@ export default function QueueTaskModal({
             loading={isSubmitting}
             disabled={!selectedProviderId || isSubmitting}
           >
-            Submit
+            Queue task
           </Button>
           {isSubmitting && (
             <Typography level="body-sm" sx={{ ml: 1 }}>

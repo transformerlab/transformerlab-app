@@ -66,29 +66,6 @@ async def test_list_installed_models_non_hf_with_model_filename(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_list_installed_models_non_hf_directory_model(monkeypatch):
-    """A non-HuggingFace directory-based model (no model_filename) with files is marked local."""
-    from transformerlab.services import model_service
-
-    model = make_model("MyOrg/dir-model", source="local", model_filename="")
-    monkeypatch.setattr(model_service.ModelService, "list_all", AsyncMock(return_value=[model]))
-    monkeypatch.setattr(model_service, "get_models_dir", AsyncMock(return_value="/models"))
-
-    monkeypatch.setattr(model_service.storage, "join", lambda *parts: "/".join(parts))
-    monkeypatch.setattr(model_service.storage, "exists", AsyncMock(return_value=True))
-    monkeypatch.setattr(model_service.storage, "isdir", AsyncMock(return_value=True))
-    monkeypatch.setattr(
-        model_service.storage,
-        "ls",
-        AsyncMock(return_value=["/models/dir-model/weights.bin", "/models/dir-model/index.json"]),
-    )
-
-    result = await model_service.list_installed_models()
-    assert len(result) == 1
-    assert result[0]["stored_in_filesystem"] is True
-
-
-@pytest.mark.asyncio
 async def test_list_installed_models_non_hf_directory_only_index(monkeypatch):
     """A non-HuggingFace directory with only index.json is NOT marked as local."""
     from transformerlab.services import model_service

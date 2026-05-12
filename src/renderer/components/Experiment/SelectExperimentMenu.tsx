@@ -4,6 +4,7 @@ import MenuItem from '@mui/joy/MenuItem';
 import {
   CheckIcon,
   ChevronDownIcon,
+  LayoutGridIcon,
   PlusCircleIcon,
   SettingsIcon,
   StopCircleIcon,
@@ -35,6 +36,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { getAPIFullPath, fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import ExperimentsManagerModal from './ExperimentsManagerModal';
+
+interface ExperimentMenuItem {
+  id: string;
+  name: string;
+}
 
 function ExperimentSettingsMenu({
   experimentInfo,
@@ -98,6 +105,7 @@ function ExperimentSettingsMenu({
 
 export default function SelectExperimentMenu({ models }) {
   const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [isManagerOpen, setIsManagerOpen] = useState<boolean>(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { experimentInfo, setExperimentId } = useExperimentInfo();
@@ -105,7 +113,7 @@ export default function SelectExperimentMenu({ models }) {
 
   // This gets all the available experiments
   const { data, isLoading, mutate } = useSWR(
-    chatAPI.API_URL() === null ? null : chatAPI.Endpoints.Experiment.GetAll(),
+    chatAPI.API_URL() === null ? null : chatAPI.Endpoints.Experiment.Recent(),
     fetcher,
   );
 
@@ -122,13 +130,29 @@ export default function SelectExperimentMenu({ models }) {
   const hasProviders = providers.length > 0;
 
   const DEV_MODE = experimentInfo?.name === 'dev';
+  const experimentItems: ExperimentMenuItem[] = Array.isArray(data)
+    ? data.filter(
+        (experiment): experiment is ExperimentMenuItem =>
+          typeof experiment?.id === 'string' &&
+          typeof experiment?.name === 'string',
+      )
+    : [];
 
   useEffect(() => {
     mutate();
   }, [experimentInfo]);
 
-  const createHandleClose = (experimentId: string | number) => () => {
+  const createHandleClose = (experimentId: string | number) => async () => {
     setExperimentId(String(experimentId));
+    try {
+      await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Experiment.Touch(String(experimentId)),
+        { method: 'POST' },
+      );
+      mutate();
+    } catch {
+      // non-critical, don't block the switch
+    }
     // If currently on an experiment page, update the URL to reflect the new experiment
     const match = location.pathname.match(/^\/experiment\/[^/]+\/(.+)$/);
     if (match) {
@@ -144,7 +168,7 @@ export default function SelectExperimentMenu({ models }) {
       // Allow creation if data is an empty array (no experiments yet)
       if (isLoading || data === null || data === undefined) {
         alert('Please wait for experiments to load before creating a new one.');
-        return;
+        return false;
       }
 
       let newId = 0;
@@ -153,6 +177,11 @@ export default function SelectExperimentMenu({ models }) {
         const response = await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Experiment.Create(name),
         );
+        if (!response.ok) {
+          const errorText = await response.text();
+          alert(errorText || 'Failed to create experiment.');
+          return false;
+        }
         newId = await response.json();
       } else {
         const response = await chatAPI.authenticatedFetch(
@@ -170,31 +199,32 @@ export default function SelectExperimentMenu({ models }) {
           alert(
             `Error creating experiment from recipe: ${responseJson?.message || 'Unknown error'}`,
           );
-          return;
+          return false;
         }
         newId = responseJson?.data?.experiment_id;
       }
 
-      // After creation, refresh the list and ensure the new experiment is in it before updating state
-      await mutate();
-      const updatedData = await mutate(); // Wait for mutate to complete and get fresh data
-      const newExperimentExists = updatedData?.some(
-        (exp: any) => exp.id === newId,
+      // Recent dropdown only shows a few experiments; membership there is not a valid
+      // "exists" check. Confirm the experiment is readable, then refresh the menu.
+      const existsRes = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Experiment.Get(String(newId)),
       );
-      if (!newExperimentExists) {
+      if (!existsRes.ok) {
         alert(
-          'Experiment created, but failed to load in the list. Please refresh and try again.',
+          'Experiment created, but it could not be loaded. Please refresh and try again.',
         );
-        return;
+        return false;
       }
 
+      await mutate();
       setExperimentId(String(newId));
-      createHandleClose(newId)();
+      void createHandleClose(String(newId))();
 
       // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
       if (fromRecipeId !== null && fromRecipeId !== -1) {
         navigate(`/experiment/${encodeURIComponent(name)}/notes`);
       }
+      return true;
     },
     [setExperimentId, mutate, navigate, isLoading, data],
   );
@@ -354,50 +384,49 @@ export default function SelectExperimentMenu({ models }) {
                   'var(--joy-palette-background-level3) transparent',
               }}
             >
-              {isLoading && <MenuItem>Loading...</MenuItem>}
-              {data &&
-                data
-                  .filter(
-                    (experiment: any) => experiment?.id && experiment?.name,
-                  ) // skip bad rows
-                  .map((experiment: any) => {
-                    return (
-                      <MenuItem
-                        selected={experimentInfo?.id === experiment.id}
-                        variant={
-                          experimentInfo?.id === experiment.id
-                            ? 'soft'
-                            : undefined
-                        }
-                        onClick={createHandleClose(experiment.name)}
-                        key={experiment.id}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          textOverflow: 'ellipsis',
-                          overflow: 'hidden',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        <span
-                          style={{
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            flex: 1,
-                            minWidth: 0,
-                          }}
-                          title={experiment.name}
-                        >
-                          {experiment.name}
-                        </span>
-                        {experimentInfo?.id === experiment.id && (
-                          <CheckIcon style={{ marginLeft: 'auto' }} />
-                        )}
-                      </MenuItem>
-                    );
-                  })}
+              {isLoading && <MenuItem>Loading…</MenuItem>}
+              {experimentItems.map((experiment) => {
+                return (
+                  <MenuItem
+                    selected={experimentInfo?.id === experiment.id}
+                    variant={
+                      experimentInfo?.id === experiment.id ? 'soft' : undefined
+                    }
+                    onClick={createHandleClose(experiment.id)}
+                    key={experiment.id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      textOverflow: 'ellipsis',
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span
+                      style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        flex: 1,
+                        minWidth: 0,
+                      }}
+                      title={experiment.name}
+                    >
+                      {experiment.name}
+                    </span>
+                    {experimentInfo?.id === experiment.id && (
+                      <CheckIcon style={{ marginLeft: 'auto' }} />
+                    )}
+                  </MenuItem>
+                );
+              })}
             </Box>
+            <MenuItem onClick={() => setIsManagerOpen(true)}>
+              <ListItemDecorator>
+                <LayoutGridIcon strokeWidth={1} />
+              </ListItemDecorator>
+              See all experiments
+            </MenuItem>
             <Divider />
             <MenuItem onClick={() => setModalOpen(true)} disabled={isLoading}>
               <ListItemDecorator>
@@ -436,12 +465,14 @@ export default function SelectExperimentMenu({ models }) {
                   return;
                 }
                 // Check if experiment name already exists (fallback, as API also checks)
-                if (data?.some((exp: any) => exp.name === name)) {
+                if (experimentItems.some((exp) => exp.name === name)) {
                   alert('Experiment name already exists.');
                   return;
                 }
-                await createNewExperiment(name);
-                setModalOpen(false);
+                const created = await createNewExperiment(name);
+                if (created) {
+                  setModalOpen(false);
+                }
               }}
             >
               <Input
@@ -455,6 +486,19 @@ export default function SelectExperimentMenu({ models }) {
           </Sheet>
         </ModalDialog>
       </Modal>
+      <ExperimentsManagerModal
+        open={isManagerOpen}
+        onClose={() => setIsManagerOpen(false)}
+        onExperimentSelect={(experimentId: string) => {
+          createHandleClose(experimentId)();
+          setIsManagerOpen(false);
+        }}
+        onNewExperiment={() => {
+          setIsManagerOpen(false);
+          setModalOpen(true);
+        }}
+        mutateRecent={mutate}
+      />
     </div>
   );
 }

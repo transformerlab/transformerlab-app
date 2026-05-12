@@ -448,6 +448,7 @@ def test_lab_capture_trackio_metadata_directory(tmp_path, monkeypatch):
     ws.mkdir()
     monkeypatch.setenv("TFL_HOME_DIR", str(home))
     monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+    monkeypatch.setenv("TLAB_TRACKIO_PROJECT_NAME", "my-project")
 
     from lab.lab_facade import Lab
 
@@ -459,16 +460,14 @@ def test_lab_capture_trackio_metadata_directory(tmp_path, monkeypatch):
     trackio_src.mkdir()
     (trackio_src / "metrics.sqlite").write_text("db")
 
-    dest_path = lab.capture_trackio_metadata(str(trackio_src), project="my-project")
+    dest_path = lab.capture_trackio_metadata(str(trackio_src))
 
     assert os.path.exists(dest_path)
     assert os.path.isdir(dest_path)
-    # The copied DB file should exist under the destination
+    # The copied DB file should exist under the shared project destination
     assert os.path.exists(os.path.join(dest_path, "metrics.sqlite"))
-
-    job_data = lab.get_job_data()
-    assert job_data.get("trackio_db_artifact_path") == dest_path
-    assert job_data.get("trackio_project") == "my-project"
+    assert "trackio_runs" in dest_path
+    assert "my-project" in dest_path
 
 
 def test_lab_save_dataset(tmp_path, monkeypatch):
@@ -1226,7 +1225,7 @@ def test_lab_save_model_does_not_call_sync_log_in_async_path(tmp_path, monkeypat
 
 @pytest.mark.asyncio
 async def test_copy_file_mounts_without_lab_init(tmp_path, monkeypatch):
-    """Provider setup runs copy_file_mounts without lab.init(); env matches launch_template."""
+    """Provider setup runs copy_file_mounts without lab.init(); uses experiments/<exp>/tasks/<id> like the API."""
     _fresh(monkeypatch)
     home = tmp_path / "home"
     ws = tmp_path / ".tfl_ws"
@@ -1239,15 +1238,14 @@ async def test_copy_file_mounts_without_lab_init(tmp_path, monkeypatch):
 
     from lab.experiment import Experiment
     from lab.lab_facade import Lab
-    from lab.dirs import get_task_dir
+    from lab.dirs import get_experiment_task_dir
     from lab import storage
 
     exp = await Experiment.create("exp_mounts")
     job = await exp.create_job()
     await job.update_job_data_field("task_id", "mytask")
 
-    task_root = await get_task_dir()
-    task_path = storage.join(task_root, "mytask")
+    task_path = await get_experiment_task_dir(str(exp.id), "mytask")
     await storage.makedirs(task_path, exist_ok=True)
     hello = storage.join(task_path, "hello.txt")
     async with await storage.open(hello, "w") as f:

@@ -88,8 +88,11 @@ async def create_provider_for_team(
         ProviderType.RUNPOD,
         ProviderType.LOCAL,
         ProviderType.DSTACK,
+        ProviderType.AZURE,
         ProviderType.AWS,
         ProviderType.NEBIUS,
+        ProviderType.VASTAI,
+        ProviderType.GCP,
     ]
     if provider_data.type not in allowed_provider_types:
         allowed_values = ", ".join(provider_type.value for provider_type in allowed_provider_types)
@@ -110,8 +113,11 @@ async def create_provider_for_team(
 
     config_dict = provider_data.config.model_dump(exclude_none=True)
 
-    # Auto-inject team_id for cloud VM providers.
-    if provider_data.type in (ProviderType.AWS, ProviderType.NEBIUS):
+    if provider_data.type == ProviderType.AZURE:
+        config_dict.setdefault("azure_resource_group", f"transformerlab-{team_id}")
+
+    # Auto-inject team_id for cloud providers that require team scoping.
+    if provider_data.type in (ProviderType.AWS, ProviderType.AZURE, ProviderType.GCP, ProviderType.NEBIUS):
         config_dict["team_id"] = team_id
 
     provider = await create_team_provider(
@@ -239,7 +245,12 @@ async def update_provider_for_team(
         if new_config.get("api_key") == "***":
             new_config.pop("api_key", None)
         update_config = {**existing_config, **new_config}
-        if provider.type in (ProviderType.AWS.value, ProviderType.NEBIUS.value):
+        if provider.type in (
+            ProviderType.AWS.value,
+            ProviderType.AZURE.value,
+            ProviderType.GCP.value,
+            ProviderType.NEBIUS.value,
+        ):
             update_config["team_id"] = team_id
 
     update_disabled = provider_data.disabled if provider_data.disabled is not None else None

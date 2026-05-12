@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Sheet from '@mui/joy/Sheet';
 
 import {
@@ -97,7 +98,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
-  const [chartModalOpen, setChartModalOpen] = useState(false);
   const [viewTaskFilesFromTask, setViewTaskFilesFromTask] = useState<{
     id: string | null;
     name?: string | null;
@@ -107,12 +107,19 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     id: string;
     name?: string;
   } | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [selectMode, setSelectMode] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [stopPendingByJobId, setStopPendingByJobId] = useState<
     Record<string, boolean>
   >({});
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const chartModalOpen = searchParams.get('jobsChart') === '1';
 
   // Trigger to force re-render when localStorage changes (minimal state to avoid interfering with useSWR)
   const [pendingIdsTrigger, setPendingIdsTrigger] = useState(0);
@@ -434,6 +441,61 @@ export default function Tasks({ subtype }: { subtype?: string }) {
 
   const loading = templatesIsLoading || jobsIsLoading;
 
+  useEffect(() => {
+    setShowFavoritesOnly(false);
+    setShowHidden(false);
+    setIsCompareSelectMode(false);
+    setCompareEvalJobIds([]);
+    setCompareEvalModalOpen(false);
+    setSelectedTaskIds(new Set());
+    setSelectMode(false);
+  }, [experimentInfo?.id]);
+
+  // Prune selection when tasks disappear (e.g. after delete or filter change)
+  useEffect(() => {
+    setSelectedTaskIds((prev) => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(visibleTasks.map((t: any) => String(t.id)));
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (visible.has(id)) {
+          next.add(id);
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [visibleTasks]);
+
+  const handleToggleTaskSelected = useCallback((taskId: string) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleSelectAll = useCallback((taskIds: string[]) => {
+    setSelectedTaskIds((prev) => {
+      const allSelected =
+        taskIds.length > 0 && taskIds.every((id) => prev.has(id));
+      if (allSelected) {
+        const next = new Set(prev);
+        for (const id of taskIds) next.delete(id);
+        return next;
+      }
+      const next = new Set(prev);
+      for (const id of taskIds) next.add(id);
+      return next;
+    });
+  }, []);
+
   // Remove any pending placeholders that are now present in jobs
   useEffect(() => {
     if (!jobs || !Array.isArray(jobs)) return;
@@ -489,6 +551,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     const combined = [...placeholders, ...filteredJobs];
     return combined;
   }, [getPendingJobIds, isInteractiveJob, jobs, pendingIdsTrigger, subtype]);
+
+  const hasLoadedJobsOnce =
+    Boolean(experimentInfo?.id) && typeof jobsRemote !== 'undefined';
 
   const filteredJobsForDisplay = useMemo(() => {
     let result = jobsWithPlaceholders.map((job: any) => {
@@ -550,6 +615,43 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       }
     },
     [experimentInfo?.id, addNotification, templatesMutate, fetchWithAuth],
+  );
+
+  const deleteTaskQuiet = useCallback(
+    async (taskId: string): Promise<boolean> => {
+      if (!experimentInfo?.id) return false;
+      try {
+        const response = await fetchWithAuth(
+          chatAPI.Endpoints.Task.DeleteTemplate(experimentInfo.id, taskId),
+          { method: 'GET' },
+        );
+        return response.ok;
+      } catch (error) {
+        console.error('Error deleting template:', error);
+        return false;
+      }
+    },
+    [experimentInfo?.id, fetchWithAuth],
+  );
+
+  const handleBulkDeleteComplete = useCallback(
+    (succeeded: number, failed: number) => {
+      if (succeeded > 0) {
+        addNotification({
+          type: 'success',
+          message: `Deleted ${succeeded} task${succeeded === 1 ? '' : 's'}.`,
+        });
+      }
+      if (failed > 0) {
+        addNotification({
+          type: 'danger',
+          message: `${failed} task${failed === 1 ? '' : 's'} failed to delete.`,
+        });
+      }
+      setSelectedTaskIds(new Set());
+      templatesMutate();
+    },
+    [addNotification, templatesMutate],
   );
 
   const handleDeleteJob = async (jobId: string) => {
@@ -887,7 +989,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           }
 
           defaultSetup = template.setup || '';
-          defaultRun = template.run || template.command || '';
+          defaultRun = template.run || '';
           templateId = template.id;
         } else {
           throw new Error('Failed to fetch interactive gallery');
@@ -1245,6 +1347,19 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     }
   };
 
+  const setChartModalQuery = useCallback(
+    (open: boolean) => {
+      const nextParams = new URLSearchParams(searchParams);
+      if (open) {
+        nextParams.set('jobsChart', '1');
+      } else {
+        nextParams.delete('jobsChart');
+      }
+      setSearchParams(nextParams, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
   return (
     <Sheet
       sx={{
@@ -1371,12 +1486,28 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         gap={2}
       >
         <Typography level="title-md">Tasks</Typography>
-        <Button
-          startDecorator={isInteractivePage ? <TerminalIcon /> : <PlusIcon />}
-          onClick={handleOpen}
-        >
-          New
-        </Button>
+        <Stack direction="row" gap={1}>
+          <Button
+            variant={selectMode ? 'solid' : 'outlined'}
+            color="neutral"
+            onClick={() => {
+              setSelectMode((prev) => {
+                if (prev) {
+                  setSelectedTaskIds(new Set());
+                }
+                return !prev;
+              });
+            }}
+          >
+            {selectMode ? 'Cancel' : 'Select'}
+          </Button>
+          <Button
+            startDecorator={isInteractivePage ? <TerminalIcon /> : <PlusIcon />}
+            onClick={handleOpen}
+          >
+            New
+          </Button>
+        </Stack>
       </Stack>
       <Sheet
         variant="soft"
@@ -1387,6 +1518,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           flex: 1,
           height: '100%',
           overflow: 'auto',
+          position: 'relative',
         }}
       >
         <TaskTemplateList
@@ -1406,13 +1538,60 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           loading={templatesIsLoading}
           allJobs={filteredJobsForDisplay}
           allJobsLoading={jobsIsLoading}
+          selectedIds={selectMode ? selectedTaskIds : undefined}
+          onToggleTaskSelected={
+            selectMode ? handleToggleTaskSelected : undefined
+          }
+          onToggleSelectAll={selectMode ? handleToggleSelectAll : undefined}
         />
+        {selectedTaskIds.size > 0 && (
+          <Sheet
+            variant="outlined"
+            sx={{
+              position: 'sticky',
+              bottom: 12,
+              mx: 'auto',
+              mt: 2,
+              width: 'fit-content',
+              px: 2,
+              py: 1,
+              borderRadius: 'md',
+              boxShadow: 'lg',
+              backgroundColor: 'background.surface',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              zIndex: 5,
+            }}
+          >
+            <Typography level="body-sm">
+              {selectedTaskIds.size} selected
+            </Typography>
+            <Button
+              size="sm"
+              variant="plain"
+              color="neutral"
+              onClick={() => setSelectedTaskIds(new Set())}
+            >
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              variant="solid"
+              color="danger"
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              Delete {selectedTaskIds.size} selected
+            </Button>
+          </Sheet>
+        )}
       </Sheet>
       <JobsPanel
         title="Jobs"
         jobs={filteredJobsForDisplay as any}
         loading={jobsIsLoading}
         searchPlaceholder="Search jobs…"
+        resetSearchKey={experimentInfo?.id ?? 'unknown'}
         headerActions={
           <Stack direction="row" gap={1}>
             <Button
@@ -1449,7 +1628,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               size="sm"
               variant="outlined"
               color="neutral"
-              onClick={() => setChartModalOpen(true)}
+              onClick={() => setChartModalQuery(true)}
               title="View jobs chart"
             >
               <LineChartIcon size={16} />
@@ -1555,8 +1734,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setJobId={(jobId: string | null) => setViewSweepResultsFromJob(jobId)}
       />
       <JobsChartModal
-        open={chartModalOpen}
-        onClose={() => setChartModalOpen(false)}
+        open={chartModalOpen && hasLoadedJobsOnce && !jobsIsLoading}
+        onClose={() => setChartModalQuery(false)}
         jobs={filteredJobsForDisplay}
       />
       {(() => {
@@ -1626,9 +1805,27 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       <DeleteTaskConfirmModal
         open={taskToDelete !== null}
         onClose={() => setTaskToDelete(null)}
-        taskId={taskToDelete?.id ?? null}
+        taskIds={taskToDelete ? [taskToDelete.id] : []}
         taskName={taskToDelete?.name ?? null}
         onConfirm={handleConfirmDeleteTask}
+      />
+      <DeleteTaskConfirmModal
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        taskIds={Array.from(selectedTaskIds)}
+        taskName={
+          selectedTaskIds.size === 1
+            ? (() => {
+                const onlyId = Array.from(selectedTaskIds)[0];
+                const match = visibleTasks.find(
+                  (t: any) => String(t.id) === onlyId,
+                );
+                return match?.title || match?.name || null;
+              })()
+            : null
+        }
+        onConfirm={deleteTaskQuiet}
+        onComplete={handleBulkDeleteComplete}
       />
     </Sheet>
   );

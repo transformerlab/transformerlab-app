@@ -4,5 +4,5 @@ github_repo_dir: api/transformerlab/galleries/examples/demo-generate-task
 resources:
   cpus: 2
   memory: 4
-setup: "uv pip install transformerlab datasets;"
+setup: "uv pip install datasets;"
 run: "python demo-generate-task/fake_generate.py"

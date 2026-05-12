@@ -280,7 +280,7 @@ export default function Model3DViewer({
           <Box sx={{ textAlign: 'center' }}>
             <CircularProgress size="lg" />
             <Typography level="body-sm" sx={{ mt: 1 }}>
-              Loading 3D model...
+              Loading 3D model…
             </Typography>
           </Box>
         </Box>

@@ -1,5 +1,30 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import MDEditor from '@uiw/react-md-editor';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  MDXEditor,
+  type MDXEditorMethods,
+  headingsPlugin,
+  listsPlugin,
+  quotePlugin,
+  thematicBreakPlugin,
+  linkPlugin,
+  linkDialogPlugin,
+  imagePlugin,
+  codeBlockPlugin,
+  codeMirrorPlugin,
+  markdownShortcutPlugin,
+  diffSourcePlugin,
+  toolbarPlugin,
+  UndoRedo,
+  BoldItalicUnderlineToggles,
+  BlockTypeSelect,
+  CreateLink,
+  InsertImage,
+  InsertThematicBreak,
+  ListsToggle,
+  Separator,
+  DiffSourceToggleWrapper,
+} from '@mdxeditor/editor';
+import '@mdxeditor/editor/style.css';
 
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
@@ -13,13 +38,14 @@ import Button from '@mui/joy/Button';
 import Chip from '@mui/joy/Chip';
 import Typography from '@mui/joy/Typography';
 
+const ASSET_MARKDOWN_PREFIX = 'notes/assets/';
+
 export default function ExperimentNotes() {
   const { experimentInfo } = useExperimentInfo();
-  const [value, setValue] = useState<string>('');
   const [isDirty, setIsDirty] = useState(false);
   const isDirtyRef = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<MDXEditorMethods>(null);
 
   const experimentId: string = experimentInfo?.id ?? '';
 
@@ -28,35 +54,117 @@ export default function ExperimentNotes() {
     fetcher,
   );
 
-  useEffect(() => {
-    if (data !== undefined && !isDirtyRef.current) {
-      setValue(typeof data === 'string' ? data : '');
-    }
-  }, [data]);
+  const assetUrlPrefix = experimentId
+    ? chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, '')
+    : '';
 
-  const transformImageSrc = useCallback(
-    (src: string | undefined): string => {
-      if (!src) return '';
-      if (src.startsWith('notes/assets/')) {
-        const filename = src.slice('notes/assets/'.length);
-        return chatAPI.Endpoints.Experiment.GetNoteAsset(
-          experimentId,
-          filename,
-        );
+  const getAssetPathPrefix = useCallback((prefix: string): string => {
+    if (!prefix) return '';
+    try {
+      return new URL(prefix).pathname;
+    } catch {
+      try {
+        return new URL(prefix, window.location.origin).pathname;
+      } catch {
+        return '';
       }
-      return src;
+    }
+  }, []);
+
+  const escapeForRegex = useCallback((value: string): string => {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }, []);
+
+  const inflateMarkdown = useCallback(
+    (md: string): string => {
+      if (!experimentId) return md;
+      // Handle canonical stored format: ![...](notes/assets/<filename>)
+      let result = md.replace(
+        /(!\[[^\]]*\]\()notes\/assets\/([^)\s]+)(\))/g,
+        (_match, pre, filename, post) =>
+          `${pre}${chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, filename)}${post}`,
+      );
+      // Backward-compat: convert previously persisted absolute/path API asset URLs
+      // into the current API base so host changes do not break note images.
+      result = result.replace(
+        /(!\[[^\]]*\]\()((?:https?:\/\/[^)\s]+)?\/experiment\/[^)\s]+\/notes\/assets\/([^)\s]+))(\))/g,
+        (_match, pre, _full, filename, post) =>
+          `${pre}${chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, filename)}${post}`,
+      );
+      // Backward-compat: repair malformed URLs produced by buggy deflation
+      // (e.g. http://hostnotes/assets/<filename>).
+      result = result.replace(
+        /(!\[[^\]]*\]\()https?:\/\/[^)\s]*notes\/assets\/([^)\s]+)(\))/g,
+        (_match, pre, filename, post) =>
+          `${pre}${chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, filename)}${post}`,
+      );
+      // MDXEditor parses markdown through MDX. Raw `<` followed by a digit (e.g. `5 < 10`)
+      // can be interpreted as a malformed JSX tag start and fail rich-text parsing.
+      result = result.replace(/<(?=\d)/g, '&lt;');
+      return result;
     },
     [experimentId],
   );
 
+  const deflateMarkdown = useCallback(
+    (md: string): string => {
+      if (!assetUrlPrefix) return md;
+      const pathPrefix = getAssetPathPrefix(assetUrlPrefix);
+
+      let result = md;
+      if (pathPrefix) {
+        const escapedPathPrefix = escapeForRegex(pathPrefix);
+        // Convert both absolute and path-only asset URLs to canonical relative markdown.
+        result = result.replace(
+          new RegExp(
+            `(!\\[[^\\]]*\\]\\()(?:(?:https?:\\/\\/[^)\\s]+)?)${escapedPathPrefix}([^)\\s]+)(\\))`,
+            'g',
+          ),
+          (_match, pre, filename, post) =>
+            `${pre}${ASSET_MARKDOWN_PREFIX}${filename}${post}`,
+        );
+      }
+      return result;
+    },
+    [assetUrlPrefix, escapeForRegex, getAssetPathPrefix],
+  );
+
+  const imageUploadHandler = useCallback(
+    async (file: File): Promise<string> => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await authenticatedFetch(
+        chatAPI.Endpoints.Experiment.UploadNoteAsset(experimentId),
+        { method: 'POST', body: formData },
+      );
+      if (!response.ok) {
+        throw new Error(`Image upload failed: ${response.status}`);
+      }
+      const { path } = await response.json();
+      const filename = (path as string).replace(ASSET_MARKDOWN_PREFIX, '');
+      return chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, filename);
+    },
+    [experimentId],
+  );
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+    if (data === undefined || isDirtyRef.current) return;
+    const md = typeof data === 'string' ? data : '';
+    editorRef.current.setMarkdown(inflateMarkdown(md));
+  }, [data, inflateMarkdown]);
+
   async function saveNotes() {
+    if (!editorRef.current) return;
     setIsSaving(true);
     try {
+      const md = editorRef.current.getMarkdown();
+      const toSave = deflateMarkdown(md);
       const response = await authenticatedFetch(
         chatAPI.Endpoints.Experiment.SaveNotes(experimentId),
         {
           method: 'POST',
-          body: JSON.stringify(value || ' '),
+          body: JSON.stringify(toSave || ' '),
           headers: { 'Content-Type': 'application/json' },
         },
       );
@@ -70,40 +178,6 @@ export default function ExperimentNotes() {
     } finally {
       setIsSaving(false);
     }
-  }
-
-  async function uploadImage(file: File) {
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const response = await authenticatedFetch(
-        chatAPI.Endpoints.Experiment.UploadNoteAsset(experimentId),
-        { method: 'POST', body: formData },
-      );
-      if (!response.ok) return;
-      const { path } = await response.json();
-      const filename = (path as string).replace('notes/assets/', '');
-      const insert = `\n![${filename}](${path})\n`;
-      setValue((prev) => prev + insert);
-      setIsDirty(true);
-      isDirtyRef.current = true;
-    } catch (err) {
-      console.error('Error uploading image:', err);
-    }
-  }
-
-  function handlePaste(e: React.ClipboardEvent) {
-    const items = Array.from(e.clipboardData.items);
-    const imageItem = items.find((item) => item.type.startsWith('image/'));
-    if (!imageItem) return;
-    e.preventDefault();
-    const file = imageItem.getAsFile();
-    if (!file) return;
-    const ext = file.type.split('/')[1] || 'png';
-    const namedFile = new File([file], `pasted-${Date.now()}.${ext}`, {
-      type: file.type,
-    });
-    uploadImage(namedFile);
   }
 
   if (!experimentInfo?.id) return null;
@@ -133,13 +207,6 @@ export default function ExperimentNotes() {
           )}
           <Button
             size="sm"
-            variant="outlined"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Upload Image
-          </Button>
-          <Button
-            size="sm"
             color="success"
             onClick={saveNotes}
             loading={isSaving}
@@ -150,48 +217,75 @@ export default function ExperimentNotes() {
         </Box>
       </Box>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".png,.jpg,.jpeg,.gif,.svg"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) uploadImage(file);
-          e.target.value = '';
-        }}
-      />
-
       <Box
-        data-color-mode="dark"
-        onPaste={handlePaste}
         sx={{
           flex: 1,
-          overflow: 'hidden',
-          '& .w-md-editor': { height: '100% !important' },
+          overflow: 'auto',
+          border: '1px solid',
+          borderColor: 'neutral.outlinedBorder',
+          borderRadius: 'sm',
+          '& .mdxeditor': {
+            height: '100%',
+          },
+          '& .mdxeditor-root-contenteditable': {
+            minHeight: '100%',
+          },
         }}
       >
-        <MDEditor
-          value={value}
-          onChange={(val) => {
-            setValue(val ?? '');
-            setIsDirty(true);
-            isDirtyRef.current = true;
+        <MDXEditor
+          ref={editorRef}
+          markdown=""
+          onChange={() => {
+            if (!isDirtyRef.current) {
+              setIsDirty(true);
+              isDirtyRef.current = true;
+            }
           }}
-          preview="live"
-          height="100%"
-          previewOptions={{
-            components: {
-              img: ({
-                src,
-                alt,
-                ...props
-              }: React.ImgHTMLAttributes<HTMLImageElement>) => (
-                // eslint-disable-next-line jsx-a11y/alt-text
-                <img src={transformImageSrc(src)} alt={alt} {...props} />
+          plugins={[
+            headingsPlugin(),
+            listsPlugin(),
+            quotePlugin(),
+            thematicBreakPlugin(),
+            linkPlugin(),
+            linkDialogPlugin(),
+            imagePlugin({ imageUploadHandler }),
+            codeBlockPlugin({ defaultCodeBlockLanguage: 'text' }),
+            codeMirrorPlugin({
+              codeBlockLanguages: {
+                text: 'Plain Text',
+                json: 'JSON',
+                python: 'Python',
+                bash: 'Bash',
+                shell: 'Shell',
+                yaml: 'YAML',
+                ts: 'TypeScript',
+                tsx: 'TSX',
+                js: 'JavaScript',
+                jsx: 'JSX',
+                md: 'Markdown',
+                '': 'Plain Text',
+              },
+            }),
+            markdownShortcutPlugin(),
+            diffSourcePlugin({ viewMode: 'rich-text' }),
+            toolbarPlugin({
+              toolbarContents: () => (
+                <DiffSourceToggleWrapper options={['rich-text', 'source']}>
+                  <UndoRedo />
+                  <Separator />
+                  <BoldItalicUnderlineToggles />
+                  <Separator />
+                  <BlockTypeSelect />
+                  <Separator />
+                  <ListsToggle />
+                  <Separator />
+                  <CreateLink />
+                  <InsertImage />
+                  <InsertThematicBreak />
+                </DiffSourceToggleWrapper>
               ),
-            },
-          }}
+            }),
+          ]}
         />
       </Box>
     </Sheet>

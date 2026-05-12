@@ -13,8 +13,10 @@ DEFAULT_TIMEOUT = 300
 POLL_INTERVAL = 3
 
 
-def _get_experiment_id() -> str:
-    """Get current experiment ID from config, or exit with helpful message."""
+def _get_experiment_id(experiment_id: str | None = None) -> str:
+    """Get current experiment ID from option override or config."""
+    if experiment_id is not None and str(experiment_id).strip():
+        return str(experiment_id).strip()
     return require_current_experiment()
 
 
@@ -301,7 +303,7 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
 
         try:
             # Check job status — only keep polling if in an active state
-            jobs_resp = api.get(jobs_url, timeout=10.0)
+            jobs_resp = api.get(jobs_url, timeout=10.0, reraise_transport=True)
             if jobs_resp.status_code == 200:
                 job = next((j for j in jobs_resp.json() if j.get("id") == job_id), None)
                 if job:
@@ -321,7 +323,7 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
 
         # Stream new log lines to give the user feedback
         try:
-            logs_resp = api.get(logs_url, timeout=10.0)
+            logs_resp = api.get(logs_url, timeout=10.0, reraise_transport=True)
             if logs_resp.status_code == 200:
                 logs_data = logs_resp.json()
                 logs_text = logs_data.get("logs", "") if isinstance(logs_data, dict) else ""
@@ -337,7 +339,7 @@ def _poll_until_ready(experiment_id: str, job_id: int, timeout: int) -> dict:
             pass
 
         try:
-            response = api.get(tunnel_url, timeout=10.0)
+            response = api.get(tunnel_url, timeout=10.0, reraise_transport=True)
             if response.status_code == 200:
                 data = response.json()
                 if data.get("is_ready"):
@@ -395,16 +397,16 @@ def _print_connection_info(tunnel_info: dict, job_id: int) -> None:
     console.print(f"To check status:      [bold]lab job info {job_id}[/bold]")
 
 
-def interactive(timeout: int = DEFAULT_TIMEOUT) -> None:
+def interactive(timeout: int = DEFAULT_TIMEOUT, experiment_id: str | None = None) -> None:
     """Launch an interactive task (Jupyter, vLLM, Ollama, etc.)."""
-    experiment_id = _get_experiment_id()
+    resolved_experiment_id = _get_experiment_id(experiment_id)
 
     # 1. Select provider
     provider = _select_provider()
     is_local = provider.get("type") == "local"
 
     # 2. Select template
-    template = _select_template(experiment_id, provider)
+    template = _select_template(resolved_experiment_id, provider)
     console.print(f"\n[bold]Task:[/bold] {template.get('name', 'Unknown')}")
 
     # 3. Collect env parameters
@@ -417,10 +419,12 @@ def interactive(timeout: int = DEFAULT_TIMEOUT) -> None:
 
     # 5. Import task from gallery
     with console.status("[bold success]Importing task...[/bold success]", spinner="dots"):
-        task_id = _import_task(experiment_id, template, env_vars)
+        task_id = _import_task(resolved_experiment_id, template, env_vars)
 
     # 6. Launch
-    payload = _build_interactive_launch_payload(experiment_id, task_id, provider, template, env_vars, resources)
+    payload = _build_interactive_launch_payload(
+        resolved_experiment_id, task_id, provider, template, env_vars, resources
+    )
 
     with console.status("[bold success]Launching...[/bold success]", spinner="dots"):
         job_id = _launch(provider, payload)
@@ -428,7 +432,7 @@ def interactive(timeout: int = DEFAULT_TIMEOUT) -> None:
     console.print(f"Job [bold]{job_id}[/bold] created.")
 
     # 7. Poll until ready
-    tunnel_info = _poll_until_ready(experiment_id, job_id, timeout)
+    tunnel_info = _poll_until_ready(resolved_experiment_id, job_id, timeout)
 
     # 8. Print connection info
     _print_connection_info(tunnel_info, job_id)

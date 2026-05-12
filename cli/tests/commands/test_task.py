@@ -2,12 +2,30 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import httpx
 from typer.testing import CliRunner
 from transformerlab_cli.commands.task import build_launch_payload
 from transformerlab_cli.main import app
 from tests.helpers import strip_ansi
 
 runner = CliRunner()
+
+
+def _cli_output(result) -> str:
+    """Typer/Rich may write to stdout and/or stderr; combine for assertions."""
+    return strip_ansi((result.stdout or "") + (result.stderr or ""))
+
+
+def _patch_api_httpx_read_timeout():
+    """Force transport timeout inside transformerlab_cli.util.api (not task.api.post_text)."""
+    req = httpx.Request("POST", "http://lab.example/experiment/exp1/task/validate")
+    exc = httpx.ReadTimeout("timed out", request=req)
+    mock_client_instance = MagicMock()
+    mock_client_instance.request.side_effect = exc
+    mock_cm = MagicMock()
+    mock_cm.__enter__ = MagicMock(return_value=mock_client_instance)
+    mock_cm.__exit__ = MagicMock(return_value=None)
+    return patch("transformerlab_cli.util.api.httpx.Client", return_value=mock_cm)
 
 
 SAMPLE_TASKS = [
@@ -77,6 +95,14 @@ def test_build_launch_payload_omits_description_by_default():
     assert payload["description"] is None
 
 
+def test_build_launch_payload_includes_profiling_flags():
+    """build_launch_payload forwards profiling flags to the launch API body."""
+    task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
+    payload = build_launch_payload(task, "Local", enable_profiling=True, enable_profiling_torch=True)
+    assert payload["enable_profiling"] is True
+    assert payload["enable_profiling_torch"] is True
+
+
 SAMPLE_TASK = {
     "id": "t1",
     "name": "finetune",
@@ -98,6 +124,25 @@ def test_task_queue_sends_description(_mock_exp, _mock_get, _mock_providers, moc
     assert result.exit_code == 0, result.output
     _path, body = mock_post.call_args.args
     assert body["description"] == "hypothesis: larger batch"
+
+
+SAMPLE_PROVIDERS_MULTI = [
+    {"id": "p_other", "name": "Runpod", "is_default": False},
+    {"id": "p_default", "name": "Local", "is_default": True},
+]
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS_MULTI)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_no_interactive_picks_is_default_provider(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """When the task has no provider_id pinned, --no-interactive must pick the
+    provider marked is_default=True, not just providers[0]."""
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "-m", "x"])
+    assert result.exit_code == 0, result.output
+    path, _body = mock_post.call_args.args
+    assert "p_default" in path, f"expected launch on default provider, got path: {path}"
 
 
 SAMPLE_TASK_WITH_PARAMS = {
@@ -246,6 +291,57 @@ def test_task_queue_param_when_task_has_no_parameters_errors(_mock_exp, _mock_ge
     mock_post.assert_not_called()
 
 
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_enable_profiling_flags(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """Queue command forwards profiling flags into launch payload."""
+    result = runner.invoke(
+        app,
+        [
+            "task",
+            "queue",
+            "t1",
+            "--no-interactive",
+            "--enable-profiling",
+            "--enable-profiling-torch",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    _path, body = mock_post.call_args.args
+    assert body["enable_profiling"] is True
+    assert body["enable_profiling_torch"] is True
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_enable_torch_profiling_requires_profiling(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """Torch profiling flag without base profiling fails with a clear error."""
+    result = runner.invoke(
+        app,
+        ["task", "queue", "t1", "--no-interactive", "--enable-profiling-torch"],
+    )
+    assert result.exit_code != 0
+    assert "requires --enable-profiling" in strip_ansi(result.output).lower()
+    mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="missing-exp")
+@patch("transformerlab_cli.commands.task.api.get")
+def test_task_queue_fails_when_current_experiment_missing_on_server(mock_get, _mock_exp):
+    """Queue should fail early when resolved current experiment does not exist on the server."""
+    mock_get.side_effect = [_mock_resp([{"id": "exp1", "name": "Experiment 1"}])]
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive"])
+    assert result.exit_code == 1
+    out = strip_ansi(result.output).lower()
+    assert "does not exist on the server" in out
+    assert "missing-exp" in out
+    mock_get.assert_called_once_with("/experiment/")
+
+
 @patch(
     "transformerlab_cli.commands.task.api.post_json",
     side_effect=[
@@ -281,6 +377,45 @@ def test_task_edit_updates_yaml_from_file(_mock_exp, _mock_get, mock_put, _mock_
     assert submit_path == "/experiment/exp1/task/t1/yaml"
 
 
+@patch("transformerlab_cli.commands.task.api.post_text", return_value=_mock_resp({"valid": True}))
+@patch("transformerlab_cli.commands.task.api.put", return_value=_mock_resp({"received": [0]}))
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp({"received": []}))
+@patch("transformerlab_cli.commands.task.api.post_json")
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_edit_from_dir_uploads_directory_zip(_mock_exp, mock_post_json, _mock_get, _mock_put, _mock_post_text):
+    """`lab task edit --from-dir` zips the directory and POSTs to the /edit endpoint."""
+    mock_post_json.side_effect = [
+        _mock_resp({"upload_id": "up-1", "chunk_size": 64 * 1024 * 1024}),
+        _mock_resp({"status": "ok"}),
+        _mock_resp({"id": "t1"}),
+    ]
+    with runner.isolated_filesystem():
+        task_dir = Path("task")
+        task_dir.mkdir()
+        (task_dir / "task.yaml").write_text("name: demo\nrun: python main.py\n", encoding="utf-8")
+        (task_dir / "main.py").write_text("print('hi')\n", encoding="utf-8")
+        result = runner.invoke(app, ["task", "edit", "t1", "--from-dir", str(task_dir), "--no-interactive"])
+    assert result.exit_code == 0, result.output
+    submit_path = mock_post_json.call_args_list[-1].args[0]
+    assert submit_path == "/experiment/exp1/task/t1/edit?upload_id=up-1"
+
+
+def test_task_edit_rejects_from_file_and_from_dir_together():
+    """`lab task edit --from-file ... --from-dir ...` is rejected as mutually exclusive."""
+    with runner.isolated_filesystem():
+        task_yaml = Path("task.yaml")
+        task_yaml.write_text("name: demo\n", encoding="utf-8")
+        task_dir = Path("task")
+        task_dir.mkdir()
+        (task_dir / "task.yaml").write_text("name: demo\n", encoding="utf-8")
+        result = runner.invoke(
+            app,
+            ["task", "edit", "t1", "--from-file", str(task_yaml), "--from-dir", str(task_dir)],
+        )
+    assert result.exit_code != 0
+    assert "mutually exclusive" in strip_ansi(result.output)
+
+
 @patch("transformerlab_cli.commands.task.api.put", return_value=_mock_resp({"received": [0]}))
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp({"received": []}))
 @patch("transformerlab_cli.commands.task.api.post_json")
@@ -301,6 +436,35 @@ def test_task_upload_calls_upload_endpoint(_mock_exp, mock_post_json, _mock_get,
     assert result.exit_code == 0, result.output
     submit_path = mock_post_json.call_args_list[-1].args[0]
     assert submit_path == "/experiment/exp1/task/t1/upload?upload_id=up-1"
+
+
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_validate_friendly_message_on_timeout(_mock_exp):
+    """Validation timeouts show a clear message instead of a traceback."""
+    with _patch_api_httpx_read_timeout():
+        with runner.isolated_filesystem():
+            task_yaml = Path("task.yaml")
+            task_yaml.write_text("name: demo\nrun: echo hello\n", encoding="utf-8")
+            result = runner.invoke(app, ["task", "validate"])
+    assert result.exit_code == 1, _cli_output(result)
+    out = _cli_output(result)
+    assert "timed out" in out.lower()
+    assert "api may be unreachable" in out.lower()
+
+
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_validate_json_on_timeout(_mock_exp):
+    """JSON output includes structured error on transport failure."""
+    with _patch_api_httpx_read_timeout():
+        with runner.isolated_filesystem():
+            task_yaml = Path("task.yaml")
+            task_yaml.write_text("name: demo\nrun: echo hello\n", encoding="utf-8")
+            result = runner.invoke(app, ["--format", "json", "task", "validate"])
+    assert result.exit_code == 1, _cli_output(result)
+    combined = (result.stdout or "") + (result.stderr or "")
+    payload = json.loads(combined.strip())
+    assert payload["error"] == "API request failed"
+    assert "timed out" in payload["detail"].lower()
 
 
 @patch("transformerlab_cli.commands.task.api.post_text", return_value=_mock_resp({"valid": True}))

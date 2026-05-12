@@ -62,7 +62,7 @@ The skill exposes the full `lab` surface area to the agent, including:
 - `lab task add` / `task list` / `task info` / `task delete`
 - `lab task queue` (with provider selection and parameter prompting)
 - `lab job list` / `job info` / `job artifacts` / `job download`
-- `lab job monitor` (interactive TUI)
+- `lab job monitor` (interactive TUI for human terminal use; not for automation agents)
 - `lab config` and `lab status` for inspecting CLI state
 
 Because the agent is just driving the CLI, anything you can do from the terminal is available — the skill primarily teaches the agent _when_ and _how_ to reach for each command.

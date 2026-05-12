@@ -32,7 +32,7 @@ def list(format: str = typer.Option(None)):
 
 ### Textual TUI (interactive, long-running)
 
-Use Textual for interactive screens where the user monitors, navigates, or takes actions in real time. Currently used for the **job monitor** (`lab job monitor`) which shows a live-updating job list with log streaming.
+Use Textual for interactive screens where the user monitors, navigates, or takes actions in real time. Currently used for the **job monitor** (`lab job monitor`) which shows a live-updating job list with log streaming. This command is for human terminal use only and is not suitable for non-interactive automation or AI agents.
 
 The TUI lives in `commands/job_monitor/` and is a full Textual `App` with:
 - Custom widgets (JobDetails, JobLogs, modals)
@@ -108,6 +108,24 @@ from transformerlab_cli.util.config import get_config, set_config, check_configs
 server = get_config("server")
 set_config("team_id", "abc-123", output_format)
 check_configs(output_format)  # Validates required keys are present
+```
+
+### Per-command experiment override
+
+Experiment-scoped commands use `current_experiment` from config by default, but can be overridden for a single invocation with
+`--experiment` / `-e`.
+
+Examples:
+
+```bash
+# Uses current_experiment from ~/.lab/config.json
+lab job list
+
+# One-off override (does not change config)
+lab job list --experiment exp-b
+lab task add ./my-task -e exp-c
+lab notes show -e exp-d
+lab job monitor -e exp-z
 ```
 
 ## Adding a New Command

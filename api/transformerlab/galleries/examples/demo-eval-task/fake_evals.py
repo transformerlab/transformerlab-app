@@ -57,7 +57,7 @@ def run_evaluation():
 
         # Save evaluation results with default column names
         lab.log("Saving evaluation results (default columns)...")
-        saved_path_default = lab.save_artifact(df_default, name="eval_results_default.csv", type="eval")
+        saved_path_default = lab.save_artifact(df_default, name="eval_results_default.csv", type="evals")
         lab.log(f"✅ Saved evaluation results: {saved_path_default}")
         lab.update_progress(50)
 
@@ -90,7 +90,7 @@ def run_evaluation():
         saved_path_custom = lab.save_artifact(
             df_custom,
             name="eval_results_custom.csv",
-            type="eval",
+            type="evals",
             config={
                 "evals": {
                     "input": "question",
@@ -126,7 +126,7 @@ def run_evaluation():
         saved_path_multi = lab.save_artifact(
             df_multi,
             name="eval_results_multi_metric.csv",
-            type="eval",
+            type="evals",
             config={
                 "evals": {
                     "input": "input",

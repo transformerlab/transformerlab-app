@@ -1,6 +1,6 @@
 import * as chatAPI from './transformerlab-api-sdk';
 
-export const CHUNK_SIZE = 64 * 1024 * 1024; // 64 MB
+const CHUNK_SIZE = 64 * 1024 * 1024; // 64 MB
 
 export interface ChunkedUploadOptions {
   file: Blob;

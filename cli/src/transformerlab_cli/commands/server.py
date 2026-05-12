@@ -22,9 +22,10 @@ COMPUTE_TYPES = [
     "SkyPilot – connect to a SkyPilot server",
     "Slurm – submit jobs to an HPC/Slurm cluster",
     "RunPod – launch serverless GPU pods on RunPod",
+    "Vast.ai – rent GPUs on the Vast.ai marketplace",
     "Skip – don't configure a compute provider now",
 ]
-COMPUTE_TYPE_VALUES = ["local", "skypilot", "slurm", "runpod", None]
+COMPUTE_TYPE_VALUES = ["local", "skypilot", "slurm", "runpod", "vastai", None]
 
 AWS_PROFILE_FALLBACK = "transformerlab-s3"
 

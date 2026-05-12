@@ -4,7 +4,7 @@ github_repo_dir: api/transformerlab/galleries/examples/new-task-test
 resources:
   cpus: 2
   memory: 4
-setup: "uv pip install transformerlab wandb"
+setup: "uv pip install wandb"
 run: "python new-task-test/train.py"
 envs:
   WANDB_PROJECT: "my-training-project"

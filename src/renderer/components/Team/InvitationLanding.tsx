@@ -174,7 +174,7 @@ export default function InvitationLanding() {
           Team Invitation
         </Typography>
 
-        {loading && <Typography>Loading invitation...</Typography>}
+        {loading && <Typography>Loading invitation…</Typography>}
         {!loading && error && <Alert color="danger">{error}</Alert>}
 
         {!loading && invitation && (
