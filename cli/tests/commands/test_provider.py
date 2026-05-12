@@ -377,7 +377,8 @@ def test_provider_add_aws_partial_creds_rejected(_mock_check, _mock_post, _mock_
         ],
     )
     assert result.exit_code == 1
-    assert "both --aws-access-key-id and --aws-secret-access-key" in result.output
+    normalized_output = " ".join(result.output.split())
+    assert "both --aws-access-key-id and --aws-secret-access-key" in normalized_output
 
 
 @patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
@@ -436,7 +437,8 @@ def test_provider_add_gcp_requires_service_account_non_interactive(_mock_check):
         ],
     )
     assert result.exit_code == 1
-    assert "service account JSON" in result.output
+    normalized_output = " ".join(result.output.split())
+    assert "service account JSON" in normalized_output
 
 
 @patch("transformerlab_cli.commands.provider.check_configs")
@@ -461,4 +463,6 @@ def test_provider_add_gcp_invalid_service_account_file(_mock_check, tmp_path):
         ],
     )
     assert result.exit_code == 1
-    assert "not valid JSON" in result.output
+    # Rich's console may wrap the long path across newlines; collapse whitespace before asserting.
+    normalized_output = " ".join(result.output.split())
+    assert "not valid JSON" in normalized_output
