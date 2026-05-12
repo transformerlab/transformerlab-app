@@ -227,7 +227,7 @@ async def launch_sweep_jobs(
                 if tfl_storage_uri:
                     env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
 
-                if provider.type == ProviderType.RUNPOD.value:
+                if provider.type in (ProviderType.RUNPOD.value, ProviderType.VASTAI.value):
                     env_vars["UV_SYSTEM_PYTHON"] = "1"
 
                 if provider.type == ProviderType.LOCAL.value and team_id:
@@ -287,8 +287,10 @@ async def launch_sweep_jobs(
                             if azure_sas:
                                 env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
 
-                if provider.type == ProviderType.RUNPOD.value:
-                    setup_commands.append("curl -LsSf https://astral.sh/uv/install.sh | sh")
+                if provider.type in (ProviderType.RUNPOD.value, ProviderType.VASTAI.value):
+                    setup_commands.append(
+                        "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=$HOME/.local/bin:$PATH"
+                    )
 
                 if provider.type != ProviderType.LOCAL.value:
                     setup_commands.append("pip install -q transformerlab")
