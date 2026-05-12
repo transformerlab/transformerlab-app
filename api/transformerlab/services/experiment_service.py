@@ -219,3 +219,62 @@ async def experiment_update_configs(id, updates: dict):
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error updating experiment config: {e}")
+
+
+async def _read_current_tags(experiment_id):
+    exp = await Experiment.get(experiment_id)
+    data = await exp.get_json_data()
+    config = data.get("config", {})
+    if isinstance(config, str):
+        try:
+            config = json.loads(config)
+        except json.JSONDecodeError:
+            config = {}
+    raw = config.get("tags", []) or []
+    if not isinstance(raw, list):
+        return exp, []
+    return exp, [t for t in raw if isinstance(t, str)]
+
+
+async def experiment_add_tags(experiment_id, tags):
+    """Union-merge ``tags`` into the experiment's existing tags. Returns the full list."""
+    new_tags = normalize_tags(tags)
+    exp, current = await _read_current_tags(experiment_id)
+    merged = list(current)
+    for t in new_tags:
+        if t not in merged:
+            merged.append(t)
+    if len(merged) > TAGS_MAX_PER_EXPERIMENT:
+        raise ValueError(f"Cannot exceed {TAGS_MAX_PER_EXPERIMENT} tags per experiment (would be {len(merged)})")
+    await exp.update_config_field("tags", merged)
+    await cache.invalidate("experiments")
+    return merged
+
+
+async def experiment_remove_tags(experiment_id, tags):
+    """Set-difference ``tags`` from the experiment's existing tags. Returns the full list."""
+    to_remove = set(normalize_tags(tags))
+    exp, current = await _read_current_tags(experiment_id)
+    kept = [t for t in current if t not in to_remove]
+    await exp.update_config_field("tags", kept)
+    await cache.invalidate("experiments")
+    return kept
+
+
+def aggregate_tags(experiments):
+    """Return a sorted, deduped list of all tags across ``experiments``."""
+    bag = set()
+    for exp in experiments or []:
+        config = exp.get("config", {}) if isinstance(exp, dict) else {}
+        if isinstance(config, str):
+            try:
+                config = json.loads(config)
+            except json.JSONDecodeError:
+                config = {}
+        tags = config.get("tags", []) if isinstance(config, dict) else []
+        if not isinstance(tags, list):
+            continue
+        for t in tags:
+            if isinstance(t, str) and t:
+                bag.add(t)
+    return sorted(bag)

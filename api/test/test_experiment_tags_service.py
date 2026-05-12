@@ -58,9 +58,7 @@ def test_normalize_tags_empty_input_returns_empty_list():
 def _mock_experiment(current_tags=None):
     """Build a mock Experiment whose get_json_data returns config.tags=current_tags."""
     mock_exp = MagicMock()
-    mock_exp.get_json_data = AsyncMock(
-        return_value={"config": {"tags": list(current_tags) if current_tags else []}}
-    )
+    mock_exp.get_json_data = AsyncMock(return_value={"config": {"tags": list(current_tags) if current_tags else []}})
     mock_exp.update_config_field = AsyncMock()
     return mock_exp
 
@@ -135,3 +133,27 @@ async def test_experiment_remove_tags_absent_is_noop(mock_get, _mock_cache):
 
     assert result == ["foo"]
     mock_exp.update_config_field.assert_awaited_once_with("tags", ["foo"])
+
+
+def test_aggregate_tags_dedupes_and_sorts():
+    experiments = [
+        {"id": "a", "config": {"tags": ["foo", "bar"]}},
+        {"id": "b", "config": {"tags": ["bar", "baz"]}},
+        {"id": "c", "config": {}},
+        {"id": "d", "config": {"tags": []}},
+    ]
+    assert svc.aggregate_tags(experiments) == ["bar", "baz", "foo"]
+
+
+def test_aggregate_tags_handles_string_config_blob():
+    experiments = [{"id": "a", "config": '{"tags": ["zeta", "alpha"]}'}]
+    assert svc.aggregate_tags(experiments) == ["alpha", "zeta"]
+
+
+def test_aggregate_tags_skips_non_string_entries():
+    experiments = [{"id": "a", "config": {"tags": ["foo", 42, None, "bar"]}}]
+    assert svc.aggregate_tags(experiments) == ["bar", "foo"]
+
+
+def test_aggregate_tags_empty_input():
+    assert svc.aggregate_tags([]) == []

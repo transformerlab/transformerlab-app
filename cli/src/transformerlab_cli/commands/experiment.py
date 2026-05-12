@@ -19,8 +19,17 @@ def _extract_error_detail(response) -> str:
 
 
 @app.command("list")
-def command_experiment_list():
-    """List all experiments. Marks the current default with a *."""
+def command_experiment_list(
+    tag: list[str] = typer.Option(
+        None,
+        "--tag",
+        help="Filter experiments by tag. Repeat to AND multiple tags.",
+    ),
+):
+    """List all experiments. Marks the current default with a *.
+
+    Use --tag <name> (repeatable) to filter; multiple --tag flags are AND'd.
+    """
     check_configs(output_format=cli_state.output_format)
     output_format = cli_state.output_format
 
@@ -34,18 +43,45 @@ def command_experiment_list():
     experiments = response.json() or []
     current = get_config("current_experiment")
 
+    filter_tags = [t.strip().lower() for t in (tag or []) if t and t.strip()]
+
+    def _exp_tags(exp):
+        cfg = exp.get("config") or {}
+        if isinstance(cfg, str):
+            try:
+                cfg = json.loads(cfg)
+            except (ValueError, TypeError):
+                cfg = {}
+        tags = cfg.get("tags") or []
+        return [str(t) for t in tags if isinstance(t, str)]
+
+    if filter_tags:
+        experiments = [
+            exp for exp in experiments if set(filter_tags).issubset({t.lower() for t in _exp_tags(exp)})
+        ]
+
     if output_format == "json":
         print(json.dumps({"current_experiment": current, "experiments": experiments}))
+        return
+
+    if not experiments and filter_tags:
+        console.print(f"No experiments match tag(s): {', '.join(filter_tags)}")
         return
 
     rows = [
         {
             "default": "*" if str(exp.get("id")) == str(current) or exp.get("name") == current else "",
             "name": exp.get("name", ""),
+            "tags": ", ".join(_exp_tags(exp)),
         }
         for exp in experiments
     ]
-    render_table(data=rows, format_type=output_format, table_columns=["default", "name"], title="Experiments")
+    render_table(
+        data=rows,
+        format_type=output_format,
+        table_columns=["default", "name", "tags"],
+        title="Experiments",
+    )
 
 
 @app.command("create")
@@ -103,3 +139,69 @@ def command_experiment_set_default(
 ):
     """Set the default experiment (stored in ~/.lab/config.json)."""
     set_config("current_experiment", experiment_id, cli_state.output_format)
+
+
+tag_app = typer.Typer(help="Manage tags on an experiment.")
+app.add_typer(tag_app, name="tag")
+
+
+def _print_tags(tags):
+    if tags:
+        console.print(f"[success]Tags:[/success] {', '.join(tags)}")
+    else:
+        console.print("[success]No tags.[/success]")
+
+
+@tag_app.command("add")
+def command_experiment_tag_add(
+    experiment: str = typer.Argument(..., help="Experiment name or id"),
+    tags: list[str] = typer.Argument(..., help="One or more tags to add"),
+):
+    """Add one or more tags to an experiment."""
+    check_configs(output_format=cli_state.output_format)
+    payload = {"tags": list(tags)}
+    response = api.post_json(f"/experiment/{quote(experiment)}/tags/add", payload)
+    if response.status_code != 200:
+        console.print(f"[error]Error:[/error] {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+    _print_tags(response.json().get("tags", []))
+
+
+@tag_app.command("remove")
+def command_experiment_tag_remove(
+    experiment: str = typer.Argument(..., help="Experiment name or id"),
+    tags: list[str] = typer.Argument(..., help="One or more tags to remove"),
+):
+    """Remove one or more tags from an experiment."""
+    check_configs(output_format=cli_state.output_format)
+    payload = {"tags": list(tags)}
+    response = api.post_json(f"/experiment/{quote(experiment)}/tags/remove", payload)
+    if response.status_code != 200:
+        console.print(f"[error]Error:[/error] {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+    _print_tags(response.json().get("tags", []))
+
+
+@app.command("tags")
+def command_experiment_list_all_tags():
+    """List all distinct tags across experiments you can read."""
+    check_configs(output_format=cli_state.output_format)
+    output_format = cli_state.output_format
+
+    response = api.get("/experiment/tags")
+    if response.status_code != 200:
+        console.print(f"[error]Error:[/error] {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+
+    tags = response.json().get("tags", [])
+
+    if output_format == "json":
+        print(json.dumps({"tags": tags}))
+        return
+
+    if not tags:
+        console.print("No tags found.")
+        return
+
+    rows = [{"tag": t} for t in tags]
+    render_table(data=rows, format_type=output_format, table_columns=["tag"], title="Tags")
