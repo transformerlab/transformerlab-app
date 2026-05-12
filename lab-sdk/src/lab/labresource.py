@@ -1,7 +1,7 @@
 import asyncio
 from abc import ABC, abstractmethod
 import json
-from typing import Awaitable, Callable, Iterable, Optional
+from typing import Iterable, Union
 from . import storage
 import logging
 
@@ -176,51 +176,51 @@ class BaseLabResource(ABC):
         json_data.update(updates)
         await self._set_json_data(json_data)
 
-    async def delete(
-        self,
-        ids: Optional[Iterable] = None,
-        *,
-        loader: Optional[Callable[[str], Awaitable["BaseLabResource"]]] = None,
-    ):
-        """
-        Delete this resource by deleting the containing directory.
+    def _sibling(self, new_id):
+        """Build a same-class instance with `new_id`, inheriting context attrs (e.g. experiment_id)."""
+        sibling = self.__class__.__new__(self.__class__)
+        sibling.__dict__.update(self.__dict__)
+        sibling.id = new_id
+        return sibling
 
-        If `ids` is provided, instead delete each of those resources in parallel.
-        `loader(id)` must be supplied in that case and is awaited to obtain each
-        resource (it should raise FileNotFoundError when an id is missing).
-        Duplicate ids are de-duplicated. Returns a dict with shape:
-            {"succeeded": [id, ...], "failed": [{"id": id, "error": str}, ...]}
+    async def delete(self, id: Union[str, Iterable, None] = None):
+        """
+        Delete this resource by deleting its directory.
+
+        - `id` None (default): delete self.
+        - `id` a string: delete the sibling resource with that id.
+        - `id` an iterable: delete each id in parallel via asyncio.gather and return
+          {"succeeded": [id, ...], "failed": [{"id": id, "error": str}, ...]}.
 
         TODO: We should change to soft delete
         """
-        if ids is None:
+        if id is None:
             resource_dir = await self.get_dir()
             if await storage.exists(resource_dir):
                 await storage.rm_tree(resource_dir)
             return None
 
-        if loader is None:
-            raise ValueError("loader is required when `ids` is provided")
+        if isinstance(id, str):
+            await self._sibling(id).delete()
+            return None
 
         seen: set[str] = set()
         unique_ids: list[str] = []
-        for raw in ids:
+        for raw in id:
             rid = str(raw)
             if rid in seen:
                 continue
             seen.add(rid)
             unique_ids.append(rid)
 
-        if not unique_ids:
-            return {"succeeded": [], "failed": []}
-
         async def _delete_one(rid: str):
+            sibling = self._sibling(rid)
             try:
-                resource = await loader(rid)
-                await resource.delete()
+                resource_dir = await sibling.get_dir()
+                if not await storage.exists(resource_dir):
+                    return rid, False, "not found"
+                await storage.rm_tree(resource_dir)
                 return rid, True, None
-            except FileNotFoundError:
-                return rid, False, "not found"
             except Exception as exc:  # noqa: BLE001
                 logger.exception("delete: failed to delete %s", rid)
                 return rid, False, str(exc)

@@ -1,4 +1,4 @@
-"""Tests for the bulk-list form of BaseLabResource.delete(ids=..., loader=...)."""
+"""Tests for the iterable form of BaseLabResource.delete(id=...)."""
 
 import json
 import uuid
@@ -31,19 +31,14 @@ def _seed_task(experiments_dir, exp_id: str, task_id: str):
 
 
 @pytest.mark.asyncio
-async def test_delete_with_ids_deletes_each(tmp_experiments_dir):
+async def test_delete_with_iterable_deletes_each(tmp_experiments_dir):
     exp_id = f"exp_{uuid.uuid4().hex[:8]}"
     ids = [f"task_{uuid.uuid4().hex[:8]}" for _ in range(3)]
     for tid in ids:
         _seed_task(tmp_experiments_dir, exp_id, tid)
 
-    # Load one resource as the receiver of the bulk call; supply a loader for the rest.
     first = await task_service.task_service.get(ids[0], experiment_id=exp_id)
-
-    async def loader(rid):
-        return await task_service.task_service.get(rid, experiment_id=exp_id)
-
-    result = await first.delete(ids=ids, loader=loader)
+    result = await first.delete(ids)
 
     assert sorted(result["succeeded"]) == sorted(ids)
     assert result["failed"] == []
@@ -52,40 +47,50 @@ async def test_delete_with_ids_deletes_each(tmp_experiments_dir):
 
 
 @pytest.mark.asyncio
-async def test_delete_with_ids_reports_missing(tmp_experiments_dir):
+async def test_delete_with_iterable_reports_missing(tmp_experiments_dir):
     exp_id = f"exp_{uuid.uuid4().hex[:8]}"
     real_id = f"task_{uuid.uuid4().hex[:8]}"
     missing_id = f"task_{uuid.uuid4().hex[:8]}"
     _seed_task(tmp_experiments_dir, exp_id, real_id)
     real = await task_service.task_service.get(real_id, experiment_id=exp_id)
 
-    async def loader(rid):
-        return await task_service.task_service.get(rid, experiment_id=exp_id)
-
-    result = await real.delete(ids=[real_id, missing_id], loader=loader)
+    result = await real.delete([real_id, missing_id])
 
     assert result["succeeded"] == [real_id]
     assert result["failed"] == [{"id": missing_id, "error": "not found"}]
 
 
 @pytest.mark.asyncio
-async def test_delete_with_ids_dedups(tmp_experiments_dir):
+async def test_delete_with_iterable_dedups(tmp_experiments_dir):
     exp_id = f"exp_{uuid.uuid4().hex[:8]}"
     task_id = f"task_{uuid.uuid4().hex[:8]}"
     _seed_task(tmp_experiments_dir, exp_id, task_id)
     resource = await task_service.task_service.get(task_id, experiment_id=exp_id)
 
-    async def loader(rid):
-        return await task_service.task_service.get(rid, experiment_id=exp_id)
-
-    result = await resource.delete(ids=[task_id, task_id, task_id], loader=loader)
+    result = await resource.delete([task_id, task_id, task_id])
 
     assert result["succeeded"] == [task_id]
     assert result["failed"] == []
 
 
 @pytest.mark.asyncio
-async def test_delete_without_ids_still_deletes_self(tmp_experiments_dir):
+async def test_delete_with_string_id_deletes_sibling(tmp_experiments_dir):
+    exp_id = f"exp_{uuid.uuid4().hex[:8]}"
+    a_id = f"task_{uuid.uuid4().hex[:8]}"
+    b_id = f"task_{uuid.uuid4().hex[:8]}"
+    _seed_task(tmp_experiments_dir, exp_id, a_id)
+    _seed_task(tmp_experiments_dir, exp_id, b_id)
+
+    a = await task_service.task_service.get(a_id, experiment_id=exp_id)
+    result = await a.delete(b_id)
+
+    assert result is None
+    assert (tmp_experiments_dir / exp_id / "tasks" / a_id).exists()
+    assert not (tmp_experiments_dir / exp_id / "tasks" / b_id).exists()
+
+
+@pytest.mark.asyncio
+async def test_delete_without_args_still_deletes_self(tmp_experiments_dir):
     """Back-compat: existing single-delete callers (no args) must still work."""
     exp_id = f"exp_{uuid.uuid4().hex[:8]}"
     task_id = f"task_{uuid.uuid4().hex[:8]}"
