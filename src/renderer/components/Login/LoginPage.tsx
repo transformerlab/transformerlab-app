@@ -78,6 +78,7 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
           <Input
             type="email"
             placeholder="Enter your email"
+            autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -194,6 +195,7 @@ function ResetPasswordForm({
           <Input
             type="password"
             placeholder="Enter new password"
+            autoFocus
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={submitting}
