@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
+  Card,
   CircularProgress,
   Input,
   Modal,
@@ -1264,9 +1265,11 @@ export default function ProviderDetailsModal({
     }
   };
 
+  const selectedProviderTypeMeta = providerTypeOptions.find(
+    (option) => option.value === type,
+  );
   const selectedProviderLabel =
-    providerTypeOptions.find((option) => option.value === type)?.label ||
-    'Compute Provider';
+    selectedProviderTypeMeta?.label || 'Compute Provider';
   let dialogTitle = 'Add Compute Provider';
   if (providerId) {
     dialogTitle = 'Edit Compute Provider';
@@ -1302,13 +1305,19 @@ export default function ProviderDetailsModal({
                 <>
                   <FormControl sx={{ mt: 2 }}>
                     <FormLabel>Compute Provider Type</FormLabel>
-                    <Select value={type} disabled sx={{ width: '100%' }}>
-                      {providerTypeOptions.map((option) => (
-                        <Option key={option.value} value={option.value}>
-                          {option.label}
-                        </Option>
-                      ))}
-                    </Select>
+                    <Card variant="soft" sx={{ mt: 1, p: 1.5 }}>
+                      <Typography level="title-sm">
+                        {selectedProviderTypeMeta?.label ?? type}
+                      </Typography>
+                      {selectedProviderTypeMeta?.description ? (
+                        <Typography
+                          level="body-sm"
+                          sx={{ mt: 0.5, color: 'text.tertiary' }}
+                        >
+                          {selectedProviderTypeMeta.description}
+                        </Typography>
+                      ) : null}
+                    </Card>
                     {providerId ? (
                       <Typography
                         level="body-sm"
