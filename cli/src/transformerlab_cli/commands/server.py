@@ -22,9 +22,13 @@ COMPUTE_TYPES = [
     "SkyPilot – connect to a SkyPilot server",
     "Slurm – submit jobs to an HPC/Slurm cluster",
     "RunPod – launch serverless GPU pods on RunPod",
+    "dstack – orchestrate jobs through a dstack control plane",
+    "AWS – launch EC2 instances directly on AWS (beta)",
+    "GCP – launch Compute Engine VMs on Google Cloud (beta)",
+    "Azure – launch VMs on Microsoft Azure (beta)",
     "Skip – don't configure a compute provider now",
 ]
-COMPUTE_TYPE_VALUES = ["local", "skypilot", "slurm", "runpod", None]
+COMPUTE_TYPE_VALUES = ["local", "skypilot", "slurm", "runpod", "dstack", "aws", "gcp", "azure", None]
 
 AWS_PROFILE_FALLBACK = "transformerlab-s3"
 
