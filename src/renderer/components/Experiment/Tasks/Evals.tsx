@@ -22,6 +22,7 @@ import Trends, { TrendPoint } from 'renderer/components/Charts/Trends';
 import { normalizeJobScore } from 'renderer/lib/jobScore';
 import CompareEvalResultsModal from './CompareEvalResultsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
+import LeaderboardEvalModal from './LeaderboardEvalModal';
 
 interface EvalCapableJob {
   id: string;
@@ -37,6 +38,7 @@ type PageTab = 'evals' | 'trends';
 
 const COMPARE_MIN = 2;
 const COMPARE_MAX = 10;
+const LEADERBOARD_MIN = 2;
 
 const getEvalCapableJobs = (jobs: any[]): EvalCapableJob[] =>
   jobs.reduce<EvalCapableJob[]>((acc, job) => {
@@ -174,6 +176,7 @@ export default function Evals() {
   const [compareOpen, setCompareOpen] = useState(false);
   const [singleEvalJobId, setSingleEvalJobId] = useState<string | null>(null);
   const [now, setNow] = useState<number | null>(null);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
 
   useEffect(() => {
     if (experimentName) {
@@ -222,6 +225,11 @@ export default function Evals() {
     );
   }, [evalCapableJobs, search]);
 
+  const leaderboardJobs = useMemo(
+    () => evalCapableJobs.filter((j) => selectedIds.includes(j.id)),
+    [evalCapableJobs, selectedIds],
+  );
+
   const toggleSelected = (jobId: string) => {
     setSelectedIds((prev) => {
       if (prev.includes(jobId)) return prev.filter((id) => id !== jobId);
@@ -231,10 +239,11 @@ export default function Evals() {
   };
 
   const canCompare = selectedIds.length >= COMPARE_MIN;
+  const canOpenLeaderboard = selectedIds.length >= LEADERBOARD_MIN;
 
   const headerSubtitle =
     pageTab === 'evals'
-      ? 'Browse eval-capable jobs in this experiment. Click View to inspect a single result, or select two jobs to compare.'
+      ? 'Browse eval-capable jobs in this experiment. Click View to inspect a single result, or select two jobs to compare or rank on a leaderboard.'
       : "Score trends across this experiment's jobs.";
 
   return (
@@ -291,6 +300,13 @@ export default function Evals() {
               onClick={() => setCompareOpen(true)}
             >
               Compare selected
+            </Button>
+            <Button
+              variant="outlined"
+              disabled={!canOpenLeaderboard}
+              onClick={() => setLeaderboardOpen(true)}
+            >
+              Open leaderboard
             </Button>
             {selectedIds.length > 0 && (
               <Button variant="plain" onClick={() => setSelectedIds([])}>
@@ -464,6 +480,14 @@ export default function Evals() {
         open={singleEvalJobId !== null}
         onClose={() => setSingleEvalJobId(null)}
         jobId={singleEvalJobId}
+      />
+      <LeaderboardEvalModal
+        open={leaderboardOpen}
+        onClose={() => setLeaderboardOpen(false)}
+        jobs={leaderboardJobs.map(({ id, title, shortId }) => ({
+          id,
+          title: `${title} (${shortId})`,
+        }))}
       />
     </Box>
   );
