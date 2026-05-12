@@ -1,6 +1,8 @@
 import React from 'react';
 import { Box, Card, FormControl, FormLabel, Typography } from '@mui/joy';
 
+import ProviderTypeLogo from './ProviderTypeLogo';
+
 export interface ProviderTypeOption {
   value: string;
   label: string;
@@ -64,13 +66,24 @@ export default function ProviderTypePicker({
               },
             }}
           >
-            <Typography level="title-sm">{option.label}</Typography>
-            <Typography
-              level="body-sm"
-              sx={{ mt: 0.75, color: 'text.tertiary' }}
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1.25,
+                alignItems: 'flex-start',
+              }}
             >
-              {option.description}
-            </Typography>
+              <ProviderTypeLogo providerType={option.value} size={44} />
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography level="title-sm">{option.label}</Typography>
+                <Typography
+                  level="body-sm"
+                  sx={{ mt: 0.75, color: 'text.tertiary' }}
+                >
+                  {option.description}
+                </Typography>
+              </Box>
+            </Box>
           </Card>
         ))}
       </Box>
