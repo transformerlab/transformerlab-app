@@ -226,6 +226,7 @@ export default function SaveToRegistryDialog({
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder={`e.g. my-${typeLabel.toLowerCase()}`}
+                    autoFocus
                   />
                 </FormControl>
               )}
@@ -253,6 +254,7 @@ export default function SaveToRegistryDialog({
                       setExistingTarget(value ? value.group_id : null)
                     }
                     placeholder={`Search ${typeLabel.toLowerCase()}s…`}
+                    autoFocus
                   />
                   {selectedGroup && (
                     <Typography

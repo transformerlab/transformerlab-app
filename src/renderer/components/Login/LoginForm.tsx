@@ -251,6 +251,7 @@ export default function LoginForm() {
                   placeholder="Email Address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  autoFocus
                   disabled={loadingState !== null}
                   variant="outlined"
                   slotProps={{ input: { autoComplete: 'username' } }}
