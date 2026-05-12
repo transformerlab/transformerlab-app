@@ -56,9 +56,7 @@ def command_experiment_list(
         return [str(t) for t in tags if isinstance(t, str)]
 
     if filter_tags:
-        experiments = [
-            exp for exp in experiments if set(filter_tags).issubset({t.lower() for t in _exp_tags(exp)})
-        ]
+        experiments = [exp for exp in experiments if set(filter_tags).issubset({t.lower() for t in _exp_tags(exp)})]
 
     if output_format == "json":
         print(json.dumps({"current_experiment": current, "experiments": experiments}))
