@@ -197,7 +197,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
           {isLoading && (
             <Typography level="body-sm" sx={{ fontSize: '0.7rem' }}>
-              Loading...
+              Loading…
             </Typography>
           )}
 
@@ -247,7 +247,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           {/* Status Messages */}
           {isLoading && (
             <Typography level="body-sm" color="neutral">
-              Loading...
+              Loading…
             </Typography>
           )}
           {error && (

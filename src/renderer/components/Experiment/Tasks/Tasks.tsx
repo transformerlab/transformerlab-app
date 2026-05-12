@@ -900,7 +900,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           }
 
           defaultSetup = template.setup || '';
-          defaultRun = template.run || template.command || '';
+          defaultRun = template.run || '';
           templateId = template.id;
         } else {
           throw new Error('Failed to fetch interactive gallery');
