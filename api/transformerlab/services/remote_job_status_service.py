@@ -258,6 +258,7 @@ async def _check_job_via_provider(
         ProviderType.AWS.value,
         ProviderType.AZURE.value,
         ProviderType.GCP.value,
+        ProviderType.VASTAI.value,
     ):
         # LOCAL/RUNPOD/AWS/GCP: cluster state directly represents job lifecycle.
         if provider_type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
@@ -279,10 +280,11 @@ async def _check_job_via_provider(
 
         provider_empty_jobs_polls = _get_provider_empty_jobs_polls(job_data)
 
-        # RUNPOD: if the pod is visible again, clear consecutive "Pod not found" polls.
+        # RUNPOD/VASTAI: if the resource is visible again, clear consecutive
+        # missing-resource polls used for debounce.
         if (
-            provider_type == ProviderType.RUNPOD.value
-            and status_message != "Pod not found"
+            provider_type in (ProviderType.RUNPOD.value, ProviderType.VASTAI.value)
+            and status_message not in ("Pod not found", "Instance not found")
             and isinstance(job_data, dict)
             and provider_empty_jobs_polls > 0
         ):
@@ -323,6 +325,15 @@ async def _check_job_via_provider(
             # Local setup can be interrupted before a pid file is created.
             # If the user requested stop, treat this as terminal STOPPED so
             # the job does not remain stuck in STOPPING.
+            cluster_state = ClusterState.STOPPED
+        elif (
+            provider_type == ProviderType.VASTAI.value
+            and job_status == JobStatus.STOPPING.value
+            and cluster_state == ClusterState.UNKNOWN
+        ):
+            # Vast.ai can report UNKNOWN/Instance not found after stop_cluster because
+            # the instance has already disappeared from the API. Mirror RUNPOD behavior
+            # so STOPPING jobs do not remain stuck indefinitely.
             cluster_state = ClusterState.STOPPED
         elif (
             provider_type == ProviderType.AZURE.value
@@ -369,14 +380,19 @@ async def _check_job_via_provider(
             if empty_poll_count < EMPTY_PROVIDER_JOBS_TERMINAL_THRESHOLD:
                 return False
             cluster_state = ClusterState.STOPPED
-        elif provider_type == ProviderType.GCP.value and status_message == "Instance not found":
-            # Debounce GCP eventual-consistency and startup races. A just-launched instance can
-            # temporarily fail to appear in list calls; do not mark terminal until threshold is hit.
+        elif (
+            provider_type in (ProviderType.VASTAI.value, ProviderType.GCP.value)
+            and status_message == "Instance not found"
+        ):
+            # Vast.ai: same debounce as RunPod "Pod not found" for transient API visibility gaps.
+            # GCP: eventual-consistency / startup races — a just-launched instance can briefly
+            # fail list calls. Do not mark terminal until the threshold is hit.
             empty_poll_count = _get_provider_empty_jobs_polls(job_data) + 1
             await _set_provider_empty_jobs_polls(job_id, experiment_id, empty_poll_count, action="update")
             logger.warning(
-                "Remote job status worker: GCP reported Instance not found for cluster %s (job %s); "
+                "Remote job status worker: %s reported Instance not found for cluster %s (job %s); "
                 "instance_not_found_poll_count=%s threshold=%s.",
+                provider_type,
                 cluster_name,
                 job_id,
                 empty_poll_count,

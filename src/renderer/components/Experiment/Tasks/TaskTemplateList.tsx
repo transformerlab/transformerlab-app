@@ -12,6 +12,7 @@ import {
   MenuItem,
   Skeleton,
   Box,
+  Checkbox,
 } from '@mui/joy';
 import {
   PlayIcon,
@@ -38,6 +39,7 @@ type TaskRow = {
   created?: string;
   updated?: string;
   remote_task?: boolean;
+  provider_name?: string;
 };
 
 type TaskTemplateListProps = {
@@ -51,6 +53,9 @@ type TaskTemplateListProps = {
   interactTasks?: boolean;
   allJobs?: any[];
   allJobsLoading?: boolean;
+  selectedIds?: Set<string>;
+  onToggleTaskSelected?: (taskId: string) => void;
+  onToggleSelectAll?: (taskIds: string[]) => void;
 };
 
 function relativeTime(ts: string | undefined): string {
@@ -89,7 +94,30 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   interactTasks = false,
   allJobs = [],
   allJobsLoading = false,
+  selectedIds,
+  onToggleTaskSelected,
+  onToggleSelectAll,
 }) => {
+  const selectionEnabled = Boolean(selectedIds && onToggleTaskSelected);
+  const visibleTaskIds = useMemo(
+    () => tasksList.map((t) => String(t.id)),
+    [tasksList],
+  );
+  const selectedVisibleCount = useMemo(() => {
+    if (!selectedIds) return 0;
+    return visibleTaskIds.reduce(
+      (acc, id) => (selectedIds.has(id) ? acc + 1 : acc),
+      0,
+    );
+  }, [selectedIds, visibleTaskIds]);
+  const allVisibleSelected =
+    selectionEnabled &&
+    visibleTaskIds.length > 0 &&
+    selectedVisibleCount === visibleTaskIds.length;
+  const someVisibleSelected =
+    selectionEnabled &&
+    selectedVisibleCount > 0 &&
+    selectedVisibleCount < visibleTaskIds.length;
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const { experimentInfo } = useExperimentInfo();
   const experimentName = experimentInfo?.name || experimentInfo?.id || '';
@@ -253,7 +281,20 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     >
       <thead>
         <tr>
-          <th style={{ width: '20%' }}>Name</th>
+          <th style={{ width: '20%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {selectionEnabled && (
+                <Checkbox
+                  size="sm"
+                  checked={allVisibleSelected}
+                  indeterminate={someVisibleSelected}
+                  onChange={() => onToggleSelectAll?.(visibleTaskIds)}
+                  aria-label="Select all tasks"
+                />
+              )}
+              Name
+            </Box>
+          </th>
           {interactTasks && <th style={{ width: '10%' }}>Provider</th>}
           <th style={{ width: '6%', textAlign: 'center' }}>Runs</th>
           <th
@@ -280,30 +321,56 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
           const runsHref = experimentName
             ? `/experiment/${experimentName}/tasks/${row.id}/runs`
             : '';
+          const rowId = String(row.id);
+          const rowSelected = selectionEnabled
+            ? Boolean(selectedIds?.has(rowId))
+            : false;
           return (
             <tr key={row.id}>
               <td>
-                {runsHref ? (
-                  <RouterLink
-                    to={runsHref}
-                    style={{ textDecoration: 'none', color: 'inherit' }}
-                  >
-                    <Typography
-                      level="title-sm"
-                      sx={{
-                        overflow: 'clip',
-                        cursor: 'pointer',
-                        '&:hover': { textDecoration: 'underline' },
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  {selectionEnabled && (
+                    <Checkbox
+                      size="sm"
+                      checked={rowSelected}
+                      onChange={() => onToggleTaskSelected?.(rowId)}
+                      aria-label={`Select ${getTitle(row)}`}
+                    />
+                  )}
+                  {runsHref ? (
+                    <RouterLink
+                      to={runsHref}
+                      style={{
+                        textDecoration: 'none',
+                        color: 'inherit',
+                        minWidth: 0,
+                        overflow: 'hidden',
                       }}
                     >
+                      <Typography
+                        level="title-sm"
+                        sx={{
+                          overflow: 'clip',
+                          cursor: 'pointer',
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                      >
+                        {getTitle(row)}
+                      </Typography>
+                    </RouterLink>
+                  ) : (
+                    <Typography level="title-sm" sx={{ overflow: 'clip' }}>
                       {getTitle(row)}
                     </Typography>
-                  </RouterLink>
-                ) : (
-                  <Typography level="title-sm" sx={{ overflow: 'clip' }}>
-                    {getTitle(row)}
-                  </Typography>
-                )}
+                  )}
+                </Box>
               </td>
               <td style={{ textAlign: 'center' }}>
                 <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
