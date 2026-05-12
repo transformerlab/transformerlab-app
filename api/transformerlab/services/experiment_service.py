@@ -2,6 +2,7 @@ import asyncio
 import logging
 import json
 import os
+import re
 
 from sqlalchemy import delete
 from lab import Experiment
@@ -14,6 +15,36 @@ from transformerlab.shared.models.models import UserExperimentAccess
 
 logger = logging.getLogger(__name__)
 EXPERIMENT_LIST_CONCURRENCY = max(1, int(os.getenv("TLAB_EXPERIMENT_LIST_CONCURRENCY", "24")))
+
+_TAG_PATTERN = re.compile(r"^[a-z0-9._-]{1,32}$")
+TAG_MAX_LEN = 32
+TAGS_MAX_PER_EXPERIMENT = 20
+
+
+def normalize_tags(raw):
+    """Lowercase, trim, validate charset (a-z0-9._-, max 32 chars), and dedupe.
+
+    Raises ValueError on the first invalid tag.
+    """
+    seen = set()
+    result = []
+    for item in raw or []:
+        if not isinstance(item, str):
+            raise ValueError(f"Tag must be a string, got {type(item).__name__}: {item!r}")
+        normalized = item.strip().lower()
+        if not normalized:
+            raise ValueError("Tag is empty after trimming whitespace")
+        if len(normalized) > TAG_MAX_LEN:
+            raise ValueError(f"Tag {normalized!r} exceeds max length {TAG_MAX_LEN}")
+        if not _TAG_PATTERN.match(normalized):
+            raise ValueError(
+                f"Tag {normalized!r} contains invalid characters (allowed: lowercase a-z, 0-9, '.', '-', '_')"
+            )
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        result.append(normalized)
+    return result
 
 
 @cached(key="experiments:list", ttl="2m", tags=["experiments"])
