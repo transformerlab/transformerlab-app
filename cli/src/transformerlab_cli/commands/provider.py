@@ -9,7 +9,7 @@ from transformerlab_cli.state import cli_state
 
 app = typer.Typer()
 
-PROVIDER_TYPES = ["slurm", "skypilot", "runpod", "local"]
+PROVIDER_TYPES = ["slurm", "skypilot", "runpod", "local", "dstack", "aws", "gcp", "azure"]
 
 PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
     "skypilot": [
@@ -32,6 +32,25 @@ PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("default_region", "Default region"),
         ("default_template_id", "Default template ID"),
         ("default_network_volume_id", "Default network volume ID"),
+    ],
+    "dstack": [
+        ("server_url", "dstack server URL (e.g. http://0.0.0.0:3000)"),
+        ("api_token", "dstack API token"),
+        ("dstack_project", "dstack project name (e.g. main)"),
+    ],
+    "aws": [
+        ("region", "AWS region (e.g. us-east-1)"),
+    ],
+    "gcp": [
+        ("region", "GCP region (e.g. us-central1)"),
+        ("zone", "GCP zone (optional, e.g. us-central1-a)"),
+    ],
+    "azure": [
+        ("azure_subscription_id", "Azure subscription ID"),
+        ("azure_tenant_id", "Azure tenant ID"),
+        ("azure_client_id", "Azure client ID (Service Principal)"),
+        ("azure_client_secret", "Azure client secret (Service Principal)"),
+        ("azure_location", "Azure location (e.g. eastus)"),
     ],
     "local": [],
 }
@@ -86,6 +105,85 @@ def _extract_provider_check_reason(result: dict) -> str:
     return "Provider check returned unhealthy status without details."
 
 
+def _prompt_aws_credentials() -> tuple[str, str]:
+    """Prompt for AWS access key ID and secret access key. Returns ("", "") if both are skipped."""
+    console.print(
+        "\n[bold label]AWS Credentials[/bold label] "
+        "[muted](optional - written to the API host's ~/.aws/credentials; leave blank to skip)[/muted]"
+    )
+    access_key_id = typer.prompt("  AWS Access Key ID", default="", show_default=False, hide_input=False).strip()
+    if not access_key_id:
+        return "", ""
+    secret_access_key = typer.prompt("  AWS Secret Access Key", default="", show_default=False, hide_input=True).strip()
+    if not secret_access_key:
+        console.print("[warning]Secret access key not provided; skipping AWS credentials upload.[/warning]")
+        return "", ""
+    return access_key_id, secret_access_key
+
+
+def _prompt_gcp_service_account_json() -> str:
+    """Prompt for the path to a GCP service account JSON key file and return its contents."""
+    console.print(
+        "\n[bold label]GCP Service Account[/bold label] "
+        "[muted](required - provide the path to your service account JSON key file)[/muted]"
+    )
+    while True:
+        path = typer.prompt("  Service account JSON file path", default="", show_default=False).strip()
+        if not path:
+            console.print("[error]A service account JSON file is required for GCP providers.[/error]")
+            continue
+        try:
+            return _read_service_account_file(path)
+        except typer.Exit:
+            continue
+
+
+def _read_service_account_file(path: str) -> str:
+    """Read a GCP service account JSON key file and validate it parses as JSON."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            contents = f.read()
+    except OSError as e:
+        console.print(f"[error]Error:[/error] Could not read service account file '{path}': {e}")
+        raise typer.Exit(1)
+    try:
+        json.loads(contents)
+    except json.JSONDecodeError as e:
+        console.print(f"[error]Error:[/error] Service account file '{path}' is not valid JSON: {e}")
+        raise typer.Exit(1)
+    return contents
+
+
+def _upload_aws_credentials(provider_id: str, access_key_id: str, secret_access_key: str) -> None:
+    """POST AWS access keys to the dedicated credentials endpoint."""
+    with console.status(f"[bold success]Uploading AWS credentials for {provider_id}...[/bold success]", spinner="dots"):
+        response = api.post_json(
+            f"/compute_provider/providers/{provider_id}/aws/credentials",
+            json_data={"access_key_id": access_key_id, "secret_access_key": secret_access_key},
+        )
+    if response.status_code == 200:
+        console.print("[success]✓[/success] AWS credentials saved to API host.")
+    else:
+        console.print(f"[error]Error:[/error] Failed to upload AWS credentials. {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+
+
+def _upload_gcp_service_account(provider_id: str, service_account_json: str) -> None:
+    """POST the GCP service account JSON to the dedicated credentials endpoint."""
+    with console.status(
+        f"[bold success]Uploading GCP service account for {provider_id}...[/bold success]", spinner="dots"
+    ):
+        response = api.post_json(
+            f"/compute_provider/providers/{provider_id}/gcp/credentials",
+            json_data={"service_account_json": service_account_json},
+        )
+    if response.status_code == 200:
+        console.print("[success]✓[/success] GCP service account saved.")
+    else:
+        console.print(f"[error]Error:[/error] Failed to upload GCP service account. {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+
+
 ## COMMANDS ##
 
 
@@ -120,9 +218,28 @@ def command_provider_list(
 @app.command("add")
 def command_provider_add(
     name: str = typer.Option(None, "--name", help="Provider name"),
-    provider_type: str = typer.Option(None, "--type", help="Provider type (slurm, skypilot, runpod, local)"),
+    provider_type: str = typer.Option(
+        None,
+        "--type",
+        help=f"Provider type ({', '.join(PROVIDER_TYPES)})",
+    ),
     config: str = typer.Option(None, "--config", help="Provider config as JSON string"),
     interactive: bool = typer.Option(True, "--interactive/--no-interactive", help="Use interactive prompts"),
+    aws_access_key_id: str = typer.Option(
+        None,
+        "--aws-access-key-id",
+        help="AWS access key ID (only used with --type aws; written to the API host's ~/.aws/credentials)",
+    ),
+    aws_secret_access_key: str = typer.Option(
+        None,
+        "--aws-secret-access-key",
+        help="AWS secret access key (only used with --type aws; written to the API host's ~/.aws/credentials)",
+    ),
+    gcp_service_account_file: str = typer.Option(
+        None,
+        "--gcp-service-account-file",
+        help="Path to a GCP service account JSON key file (required for --type gcp)",
+    ),
 ):
     """Add a new compute provider."""
     check_configs(output_format=cli_state.output_format)
@@ -160,34 +277,66 @@ def command_provider_add(
         else:
             config_dict = _prompt_config_fields(provider_type)
 
+    # AWS access key pair: must be both-or-neither.
+    if provider_type == "aws":
+        if bool(aws_access_key_id) != bool(aws_secret_access_key):
+            console.print(
+                "[error]Error:[/error] Provide both --aws-access-key-id and --aws-secret-access-key, or neither."
+            )
+            raise typer.Exit(1)
+        if interactive and not aws_access_key_id and not aws_secret_access_key:
+            aws_access_key_id, aws_secret_access_key = _prompt_aws_credentials()
+
+    # GCP service account JSON: required at create time (provider will be unhealthy without it).
+    gcp_service_account_json: str | None = None
+    if provider_type == "gcp":
+        if gcp_service_account_file:
+            gcp_service_account_json = _read_service_account_file(gcp_service_account_file)
+        elif interactive:
+            gcp_service_account_json = _prompt_gcp_service_account_json()
+        if not gcp_service_account_json:
+            console.print(
+                "[error]Error:[/error] GCP providers require a service account JSON key. "
+                "Pass --gcp-service-account-file PATH (or run interactively)."
+            )
+            raise typer.Exit(1)
+
     payload = {"name": name, "type": provider_type, "config": config_dict}
 
     with console.status("[bold success]Creating provider...[/bold success]", spinner="dots"):
         response = api.post_json("/compute_provider/providers/", json_data=payload)
 
-    if response.status_code == 200:
-        result = response.json()
-        provider_id = result.get("id", "unknown")
-        console.print(f"[success]✓[/success] Provider created with ID: [bold]{provider_id}[/bold]")
-        with console.status(f"[bold success]Checking provider {provider_id}...[/bold success]", spinner="dots"):
-            check_response = api.get(f"/compute_provider/providers/{provider_id}/check", timeout=60.0)
+    if response.status_code != 200:
+        console.print(f"[error]Error:[/error] Failed to create provider. {_extract_error_detail(response)}")
+        raise typer.Exit(1)
 
-        if check_response.status_code == 200:
-            check_result = check_response.json()
-            if check_result.get("status"):
-                console.print("[success]✓[/success] Provider health check passed.")
-            else:
-                reason = _extract_provider_check_reason(check_result)
-                console.print(f"[error]Error:[/error] Provider health check failed. {reason}")
-                raise typer.Exit(1)
+    result = response.json()
+    provider_id = result.get("id", "unknown")
+    console.print(f"[success]✓[/success] Provider created with ID: [bold]{provider_id}[/bold]")
+
+    # Submit AWS credentials and GCP service account JSON via their dedicated endpoints,
+    # before the health check (the check will fail without credentials).
+    if provider_type == "aws" and aws_access_key_id and aws_secret_access_key:
+        _upload_aws_credentials(provider_id, aws_access_key_id, aws_secret_access_key)
+    if provider_type == "gcp" and gcp_service_account_json:
+        _upload_gcp_service_account(provider_id, gcp_service_account_json)
+
+    with console.status(f"[bold success]Checking provider {provider_id}...[/bold success]", spinner="dots"):
+        check_response = api.get(f"/compute_provider/providers/{provider_id}/check", timeout=60.0)
+
+    if check_response.status_code == 200:
+        check_result = check_response.json()
+        if check_result.get("status"):
+            console.print("[success]✓[/success] Provider health check passed.")
         else:
-            console.print(
-                "[error]Error:[/error] Provider was created, but health check failed. "
-                f"{_extract_error_detail(check_response)}"
-            )
+            reason = _extract_provider_check_reason(check_result)
+            console.print(f"[error]Error:[/error] Provider health check failed. {reason}")
             raise typer.Exit(1)
     else:
-        console.print(f"[error]Error:[/error] Failed to create provider. {_extract_error_detail(response)}")
+        console.print(
+            "[error]Error:[/error] Provider was created, but health check failed. "
+            f"{_extract_error_detail(check_response)}"
+        )
         raise typer.Exit(1)
 
 

@@ -285,9 +285,12 @@ Add a new compute provider. Interactive prompts by default.
 | Option | Description |
 |---|---|
 | `--name <name>` | Provider name |
-| `--type <type>` | Provider type: `slurm`, `skypilot`, `runpod`, `local` |
+| `--type <type>` | Provider type: `slurm`, `skypilot`, `runpod`, `local`, `dstack`, `aws`, `gcp`, `azure` |
 | `--config <json>` | Config as JSON string |
 | `--interactive` / `--no-interactive` | Toggle prompts. Non-interactive requires `--name`, `--type`, AND `--config` (pass `'{}'` for `local`). |
+| `--aws-access-key-id <id>` | AWS access key ID (only with `--type aws`; uploaded to the API host's `~/.aws/credentials`). Must be paired with `--aws-secret-access-key`. |
+| `--aws-secret-access-key <secret>` | AWS secret access key (only with `--type aws`). |
+| `--gcp-service-account-file <path>` | Path to a GCP service account JSON key file (required for `--type gcp`). |
 
 **Always use `--no-interactive` with `--name`, `--type`, and `--config` in automated workflows.**
 
@@ -301,6 +304,10 @@ The shape of `--config` depends on `--type`:
 | `skypilot` | `server_url`, `api_token` |
 | `slurm` | `mode` (`ssh` or `rest`); for `ssh`: `ssh_host`, `ssh_user`, `ssh_key_path`, `ssh_port`; for `rest`: `rest_url`, `api_token` |
 | `runpod` | `api_key` (required), `api_base_url`, `default_gpu_type`, `default_region`, `default_template_id`, `default_network_volume_id` |
+| `dstack` | `server_url`, `api_token`, `dstack_project` |
+| `aws` | `region`. Access keys are uploaded separately via `--aws-access-key-id` / `--aws-secret-access-key`. |
+| `gcp` | `region`, optional `zone`. Service account JSON is uploaded separately via `--gcp-service-account-file PATH`. |
+| `azure` | `azure_subscription_id`, `azure_tenant_id`, `azure_client_id`, `azure_client_secret`, `azure_location` |
 
 ```bash
 lab provider add --no-interactive --name local --type local --config '{}'
@@ -310,6 +317,16 @@ lab provider add --no-interactive --name slurm-ssh --type slurm \
   --config '{"mode": "ssh", "ssh_host": "cluster.example.com", "ssh_user": "ali", "ssh_key_path": "~/.ssh/id_rsa", "ssh_port": "22"}'
 lab provider add --no-interactive --name rp1 --type runpod \
   --config '{"api_key": "KEY", "default_gpu_type": "NVIDIA H100"}'
+lab provider add --no-interactive --name dstack1 --type dstack \
+  --config '{"server_url": "http://0.0.0.0:3000", "api_token": "TOKEN", "dstack_project": "main"}'
+lab provider add --no-interactive --name aws1 --type aws \
+  --config '{"region": "us-east-1"}' \
+  --aws-access-key-id AKIA... --aws-secret-access-key REDACTED
+lab provider add --no-interactive --name gcp1 --type gcp \
+  --config '{"region": "us-central1"}' \
+  --gcp-service-account-file ~/.config/gcloud/sa-key.json
+lab provider add --no-interactive --name azure1 --type azure \
+  --config '{"azure_subscription_id": "sub", "azure_tenant_id": "tenant", "azure_client_id": "client", "azure_client_secret": "REDACTED", "azure_location": "eastus"}'
 ```
 
 ### `provider update <provider_id>`
