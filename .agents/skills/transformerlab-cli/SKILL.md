@@ -616,6 +616,8 @@ lab provider add --no-interactive --name my-azure --type azure \
 
 Provider configs (`api_token`, `api_key`, `ssh_key_path`) contain secrets. If the user has not provided them already, ask them to either run `lab provider add` interactively themselves (the CLI prompts for each field privately) or to paste the values from a secure source. Don't request the user paste raw keys into a multi-message conversation.
 
+Also note that secrets passed as flags (`--aws-secret-access-key`, `azure_client_secret` inside `--config`, etc.) appear in shell history and `ps` listings. Prefer the interactive flow, or have the user prefix the command with a space under `HISTCONTROL=ignorespace`.
+
 ## Agent-Specific Rules
 
 1. **NEVER call the REST API as a workaround for the CLI.** The CLI is the supported interface — don't reach for `curl` because a CLI command appears missing or broken. Run `lab <command> --help` first and check this skill. *Reading* the API source under `api/transformerlab/` (routers, services) when debugging a CLI failure is fine and often necessary; the rule is against substituting `curl` for `lab`, not against understanding what the server does.

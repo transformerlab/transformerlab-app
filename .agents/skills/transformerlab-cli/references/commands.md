@@ -329,6 +329,8 @@ lab provider add --no-interactive --name azure1 --type azure \
   --config '{"azure_subscription_id": "sub", "azure_tenant_id": "tenant", "azure_client_id": "client", "azure_client_secret": "REDACTED", "azure_location": "eastus"}'
 ```
 
+> **Security note:** Secrets passed via flags (`--aws-secret-access-key`, `azure_client_secret` inside `--config`, `api_token`, `api_key`, etc.) appear in your shell history and in `ps`/proc listings while the command runs. For one-off use, prefix the command with a space (with `HISTCONTROL=ignorespace`) or run `set +o history` first. For scripted use on shared hosts, prefer the interactive `lab provider add` flow, which prompts for secrets without echoing them to argv.
+
 ### `provider update <provider_id>`
 
 Update a compute provider. Fields are merged with existing config.
