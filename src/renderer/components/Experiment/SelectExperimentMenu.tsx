@@ -479,6 +479,7 @@ export default function SelectExperimentMenu({ models }) {
                 placeholder="Experiment Name"
                 name="experiment-name"
                 required
+                autoFocus
               />
               <Button type="submit">Create</Button>
             </form>

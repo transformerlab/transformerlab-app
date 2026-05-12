@@ -644,6 +644,7 @@ export default function NewInteractiveTaskModal({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Interactive session name"
+                    autoFocus
                     disabled={isSubmitting}
                   />
                 </FormControl>

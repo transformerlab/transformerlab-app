@@ -203,6 +203,7 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
                 placeholder="First Name"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
+                autoFocus
                 disabled={loadingState !== null}
               />
             </FormControl>
