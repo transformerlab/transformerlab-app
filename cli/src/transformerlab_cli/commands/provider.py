@@ -9,7 +9,7 @@ from transformerlab_cli.state import cli_state
 
 app = typer.Typer()
 
-PROVIDER_TYPES = ["slurm", "skypilot", "runpod", "local", "dstack", "aws", "gcp", "azure"]
+PROVIDER_TYPES = ["slurm", "skypilot", "runpod", "vastai", "dstack", "aws", "gcp", "azure", "local"]
 
 PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
     "skypilot": [
@@ -51,6 +51,9 @@ PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("azure_client_id", "Azure client ID (Service Principal)"),
         ("azure_client_secret", "Azure client secret (Service Principal)"),
         ("azure_location", "Azure location (e.g. eastus)"),
+    ],
+    "vastai": [
+        ("api_key", "Vast.ai API key"),
     ],
     "local": [],
 }

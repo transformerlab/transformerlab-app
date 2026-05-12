@@ -26,9 +26,10 @@ COMPUTE_TYPES = [
     "AWS – launch EC2 instances directly on AWS (beta)",
     "GCP – launch Compute Engine VMs on Google Cloud (beta)",
     "Azure – launch VMs on Microsoft Azure (beta)",
+    "Vast.ai – rent GPUs on the Vast.ai marketplace",
     "Skip – don't configure a compute provider now",
 ]
-COMPUTE_TYPE_VALUES = ["local", "skypilot", "slurm", "runpod", "dstack", "aws", "gcp", "azure", None]
+COMPUTE_TYPE_VALUES = ["local", "skypilot", "slurm", "runpod", "dstack", "aws", "gcp", "azure", "vastai", None]
 
 AWS_PROFILE_FALLBACK = "transformerlab-s3"
 
