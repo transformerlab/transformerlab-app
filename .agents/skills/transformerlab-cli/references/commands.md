@@ -76,6 +76,20 @@ Show current user, team, and server.
 
 ---
 
+## Experiment Commands
+
+### `experiment list [--tag <tag>]...`
+
+List experiments. Pass `--tag` one or more times to filter to experiments that have **all** of the given tags (AND semantics). Filtering is client-side.
+
+```bash
+lab experiment list --tag fine-tuning            # all experiments tagged fine-tuning
+lab experiment list --tag fine-tuning --tag llama  # must have both tags
+lab --format json experiment list --tag llama    # JSON output includes `tags` field
+```
+
+---
+
 ## Task Commands
 
 **All task commands require `current_experiment` to be set.**

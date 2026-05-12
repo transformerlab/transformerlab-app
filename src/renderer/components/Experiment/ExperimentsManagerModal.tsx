@@ -4,11 +4,8 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  Dropdown,
   IconButton,
   Input,
-  Menu,
-  MenuButton,
   Modal,
   ModalClose,
   ModalDialog,
@@ -17,7 +14,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/joy';
-import { PencilIcon, ShareIcon, Trash2Icon, XIcon } from 'lucide-react';
+import { ShareIcon, Trash2Icon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   useSWRWithAuth as useSWR,
@@ -27,7 +24,7 @@ import {
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import ShareExperimentModal from './ShareExperimentModal';
-import { parseTagInput } from './tagUtils';
+import TagEditor from './TagEditorModal';
 
 interface Experiment {
   id: string;
@@ -60,129 +57,6 @@ function formatRelativeTime(isoString: string | null): string {
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
   return date.toLocaleDateString();
-}
-
-interface TagEditorProps {
-  experimentId: string;
-  experimentName: string;
-  tags: string[];
-  onChanged: () => void | Promise<unknown>;
-}
-
-function TagEditor({
-  experimentId,
-  experimentName,
-  tags,
-  onChanged,
-}: TagEditorProps) {
-  const [draft, setDraft] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const id = experimentId || experimentName;
-
-  async function callTagApi(url: string, tagList: string[]) {
-    setBusy(true);
-    setError(null);
-    try {
-      await fetcher(url, {
-        method: 'POST',
-        body: JSON.stringify({ tags: tagList }),
-      });
-      await onChanged();
-    } catch (e: any) {
-      const detail =
-        e?.response && typeof e.response === 'object' && 'detail' in e.response
-          ? String(e.response.detail)
-          : e instanceof Error
-            ? e.message
-            : String(e);
-      setError(detail);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleAdd() {
-    const parsed = parseTagInput(draft);
-    if (parsed.length === 0) return;
-    await callTagApi(chatAPI.Endpoints.Experiment.TagsAdd(id), parsed);
-    setDraft('');
-  }
-
-  async function handleRemove(tag: string) {
-    await callTagApi(chatAPI.Endpoints.Experiment.TagsRemove(id), [tag]);
-  }
-
-  return (
-    <Dropdown>
-      <Tooltip title="Edit tags">
-        <MenuButton
-          slots={{ root: IconButton }}
-          slotProps={{ root: { size: 'sm', variant: 'plain' } }}
-        >
-          <PencilIcon size={14} />
-        </MenuButton>
-      </Tooltip>
-      <Menu sx={{ p: 1.5, minWidth: 260 }}>
-        <Stack spacing={1}>
-          <Typography level="body-xs">Tags</Typography>
-          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-            {tags.length === 0 && (
-              <Typography level="body-xs" color="neutral">
-                No tags yet.
-              </Typography>
-            )}
-            {tags.map((t) => (
-              <Chip
-                key={t}
-                size="sm"
-                variant="soft"
-                color="neutral"
-                endDecorator={
-                  <IconButton
-                    size="sm"
-                    variant="plain"
-                    onClick={() => handleRemove(t)}
-                    disabled={busy}
-                  >
-                    <XIcon size={10} />
-                  </IconButton>
-                }
-              >
-                {t}
-              </Chip>
-            ))}
-          </Box>
-          <Input
-            size="sm"
-            placeholder="Add tags (comma or Enter)"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAdd();
-              }
-            }}
-            disabled={busy}
-          />
-          <Button
-            size="sm"
-            onClick={handleAdd}
-            disabled={busy || draft.trim().length === 0}
-          >
-            Add
-          </Button>
-          {error && (
-            <Typography level="body-xs" color="danger">
-              {error}
-            </Typography>
-          )}
-        </Stack>
-      </Menu>
-    </Dropdown>
-  );
 }
 
 export default function ExperimentsManagerModal({
