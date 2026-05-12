@@ -628,6 +628,7 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
                     "cluster_id": status.cluster_name,
                     "cluster_name": status.cluster_name,
                     "backend_type": "AWS EC2",
+                    "cloud_provider": "AWS",
                     "elastic_enabled": True,
                     "max_nodes": 1,
                     "head_node_ip": (status.provider_data or {}).get("PublicIpAddress"),

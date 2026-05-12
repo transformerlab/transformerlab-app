@@ -507,7 +507,7 @@ export default function NewTaskModal2({
               (selectedOption === 'gallery' && !selectedGalleryItem)
             }
           >
-            Submit
+            Create task
           </Button>
           <Button variant="plain" color="danger" onClick={onClose}>
             Cancel
@@ -517,5 +517,3 @@ export default function NewTaskModal2({
     </Modal>
   );
 }
-
-NewTaskModal2.defaultProps = { title: defaultTitle };

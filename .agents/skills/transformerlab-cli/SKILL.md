@@ -1,12 +1,22 @@
 ---
 name: transformerlab-cli
-description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "add provider", "configure provider", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset".
-allowed-tools: Bash(lab *), Bash(curl *beta.lab.cloud*), Bash(curl *localhost:8338*)
+description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, run autonomous experiment loops (autoresearch), or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "add provider", "configure provider", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset", "run autoresearch", "optimize X in a loop", "set up autoresearch", "/lab-autoresearch".
+allowed-tools: Bash(lab *), Bash(curl *lab.cloud*), Bash(curl *localhost:8338*), WebFetch(domain:lab.cloud)
 ---
 
 # Transformer Lab CLI
 
 Use the `lab` CLI to interact with Transformer Lab programmatically — managing tasks, jobs, compute providers, models, datasets, and server configuration from the terminal.
+
+## Official Documentation
+
+The canonical Transformer Lab documentation is published at **https://lab.cloud**. When in doubt about a feature, schema, or SDK call, fetch the relevant page rather than guessing.
+
+- **Documentation index (LLM-friendly):** https://lab.cloud/llms.txt — start here to discover all available pages.
+- **`task.yaml` structure:** https://lab.cloud/for-teams/running-a-task/task-yaml-structure.md — full schema reference for every field in `task.yaml` (resources, sweeps, parameters, envs, etc.).
+- **Lab SDK (Python):** https://lab.cloud/for-teams/lab-sdk.md — how to use the optional `transformerlab` SDK inside a task's `main.py` (or any Python script) — `lab.init()`, `lab.log()`, `lab.update_progress()`, `lab.get_config()`, `lab.save_artifact()`, `lab.finish()`, `lab.error()`.
+
+Use `WebFetch` to load these directly when working on related code — the `task.yaml` and Lab SDK pages are the source of truth and may contain newer fields than this skill captures.
 
 ## Installation
 
@@ -37,7 +47,10 @@ lab config set server https://your-server-url
 # Step 2: Login with an API key
 lab login --api-key YOUR_API_KEY --server https://your-server-url
 
-# Step 3: Set the current experiment
+# Step 3: Set the current experiment.
+#   Use `lab experiment list` to see existing experiments.
+#   If yours doesn't exist yet, run `lab experiment create your_experiment_name` first.
+#   `lab experiment set-default <id>` is a convenience equivalent to this command.
 lab config set current_experiment your_experiment_name
 
 # Step 4: Verify connectivity
@@ -120,7 +133,7 @@ lab task init --interactive   # prompts for name, CPUs, memory, setup, and run c
 
 ### task.yaml Structure
 
-Full docs: https://lab.cloud/for-teams/running-a-task/task-yaml-structure
+**Full schema reference:** https://lab.cloud/for-teams/running-a-task/task-yaml-structure.md — fetch this page when adding any field not shown below or when validating an unfamiliar `task.yaml`.
 
 ```yaml
 name: my-task                          # Required — task identifier
@@ -132,8 +145,7 @@ resources:                             # Optional but recommended
   num_nodes: 2                         # For distributed training
   compute_provider: my-provider        # Target provider name
 setup: |                               # Optional — runs before main task
-  pip install transformerlab
-  pip install -r requirements.txt
+  pip install -r requirements.txt      # The `transformerlab` SDK is preinstalled — do NOT add `pip install transformerlab`
 run: python main.py                    # Required — main entry point
 envs:                                  # Optional environment variables
   HF_TOKEN: "${HF_TOKEN}"
@@ -159,19 +171,26 @@ github_repo_branch: main
 
 To validate without creating, use `lab task add ./my-task --dry-run`.
 
-### Editing task.yaml for an existing task
+### Editing an existing task
 
-Use `lab task edit` to update the `task.yaml` for a task that already exists on the server:
+Use `lab task edit` to update an existing task on the server. Three modes:
 
 ```bash
-# Interactive editor flow
+# Interactive editor flow (opens $EDITOR with current task.yaml)
 lab task edit TASK_ID
 
-# Apply a local task.yaml directly
+# Replace ONLY task.yaml (leaves main.py and other attachments untouched)
 lab task edit TASK_ID --from-file ./task.yaml --no-interactive
+
+# Replace task.yaml AND attachments (main.py, configs, etc.) from a directory
+lab task edit TASK_ID --from-dir ./my-task --no-interactive
 ```
 
-`lab task edit` expects a `TASK_ID` and supports `--from-file`, `--no-interactive`, and `--timeout`.
+**Choosing between `--from-file` and `--from-dir`:**
+- `--from-file <task.yaml>` only updates the YAML. Use it when you're tweaking parameters or the `run` command and the rest of the task directory is unchanged.
+- `--from-dir <directory>` zips and uploads the whole directory (must contain `task.yaml`), replacing the task's files server-side. Use it when you've also modified `main.py` or any sibling files. **If the task's `run` references a script (e.g. `python main.py`), reuploading just the YAML will leave the old script in place — use `--from-dir` to keep them in sync.**
+
+`--from-file` and `--from-dir` are mutually exclusive. `lab task edit` also supports `--no-interactive`, `--dry-run` (with `--from-dir`), and `--timeout`.
 
 ### Uploading extra files to an existing task
 
@@ -189,6 +208,8 @@ lab task upload TASK_ID ./prompts --no-interactive
 
 ### Lab SDK Quick Reference
 
+**Full SDK docs:** https://lab.cloud/for-teams/lab-sdk.md — fetch this page when using the SDK from a Python script (inside or outside a task), or when you need a method not covered below.
+
 Tasks use the Lab SDK (`transformerlab` PyPI package). Import pattern:
 
 ```python
@@ -198,13 +219,19 @@ lab.init()                                    # Required — connects to the job
 lab.log("message")                            # Write to job output log
 lab.update_progress(50)                       # Set progress 0-100
 config = lab.get_config()                     # Read parameters from task.yaml
+lab.save_artifact("metrics.json")             # Save a generic artifact
+lab.save_artifact("eval_results.csv", name="eval_results.csv", type="evals")  # Save eval results
 
-lab.finish(message="Done!")                   # Mark job as SUCCESS
-lab.error(message="Something went wrong")     # Mark job as FAILED
+lab.finish(message="Done!")                              # success, no score
+lab.finish(message="Done!", score={"accuracy": 0.78})    # success with metric(s)
+lab.finish(score={"accuracy": 0.78, "f1": 0.83})         # multiple metrics
+lab.error(message="Something went wrong")                # Mark job as FAILED
 ```
 
 **Common mistakes:**
 - `lab.finish()` has NO `status` parameter — just `message`. For failures, use `lab.error()`.
+- `score=` takes a **dict** of named metrics, not a scalar. Use `score={"accuracy": 0.78}`, never `score=0.78`. The dict populates `job_data.score`, visible in `lab job list` (Score column) and `lab job info`, and is read by sweep / autoresearch flows.
+- Use `lab.save_artifact(..., type="evals")` for file-based eval outputs so they appear in eval results metadata, not as generic artifacts.
 - Always call `lab.init()` before any other SDK call.
 - Always call `lab.finish()` or `lab.error()` at the end — otherwise the job stays in RUNNING state.
 
@@ -213,8 +240,7 @@ lab.error(message="Something went wrong")     # Mark job as FAILED
 **task.yaml:**
 ```yaml
 name: hello-world
-setup: pip install transformerlab
-run: python main.py
+run: python main.py                    # No `setup:` needed — the `transformerlab` SDK is preinstalled in the task environment
 resources:
   cpus: 2
   memory: 4
@@ -242,6 +268,89 @@ lab.finish(message="Hello world complete!")
 lab task add ./hello-world-task --no-interactive
 ```
 
+## Managing Experiments
+
+Use `lab experiment` commands to list, create, delete, and set the default experiment. **Experiments are the container for tasks and jobs** — most `lab task` / `lab job` commands operate against the *current* experiment (the one stored in `~/.lab/config.json` as `current_experiment`).
+
+```bash
+# List all experiments. The current default is marked with `*`.
+lab experiment list
+lab --format json experiment list
+
+# Create a new experiment
+lab experiment create my-experiment
+
+# Create and immediately set as the default
+lab experiment create my-experiment --set-default
+
+# Delete an experiment (`--no-interactive` to skip confirmation)
+lab experiment delete my-experiment --no-interactive
+
+# Switch which experiment is the default. This writes to ~/.lab/config.json.
+lab experiment set-default my-experiment
+```
+
+### `lab experiment set-default` vs `lab config set current_experiment`
+
+Both write the same key (`current_experiment`) to `~/.lab/config.json`. Differences:
+
+- `lab experiment set-default <id>` validates that the experiment exists on the server before writing. Prefer this when scripting — it fails fast on a typo.
+- `lab config set current_experiment <id>` is a raw config write and does not validate. Useful when bootstrapping a config (e.g. before the server is reachable) or when you've already confirmed the experiment exists.
+
+### Finding an experiment ID by name
+
+`lab experiment list` (and the JSON form) is the only sanctioned way to discover experiment IDs. **Do not fall back to `curl /experiment/`** — even when you only have a name and need the ID, this CLI surface covers it:
+
+```bash
+# Get just the ID for a given name
+lab --format json experiment list | jq -r '.experiments[] | select(.name=="my-experiment") | .id'
+```
+
+`lab --format json experiment list` returns:
+```json
+{
+  "current_experiment": "my-experiment",
+  "experiments": [
+    {"id": "my-experiment", "name": "my-experiment", "config": {}}
+  ]
+}
+```
+
+## Experiment Notes
+
+Each experiment has a single shared markdown document — the "experiment notes" — that persists on the server. It's separate from per-job `-m/--description` notes: those describe one run, the experiment notes describe the experiment as a whole (hypothesis, running findings, decisions, links to key job IDs).
+
+```bash
+# Render the notes (markdown, with formatting)
+lab notes show
+lab notes show --raw           # plain markdown, no rendering — better for piping/grepping
+
+# Edit interactively in $EDITOR (defaults to nano if unset)
+lab notes edit
+
+# Append a single line, non-interactive — best for agents
+lab notes append "2026-05-05: switched provider from local to skypilot; queue depth was >12"
+```
+
+All three commands operate on the **current experiment** (`require_current_experiment` — set it first via `lab experiment set-default`). There is no `--format json` output; `show` returns the raw string and `append`/`edit` write it back.
+
+### When agents should use it
+
+Experiment notes are the right place for context that future conversations (or teammates) will need but that doesn't belong on a single job:
+
+- **Running hypothesis log** — append after each batch of runs: "Tried lr ∈ {1e-5, 3e-5, 5e-5}; 3e-5 wins on eval/loss. Next: try larger batch."
+- **Decisions and their rationale** — "Dropped baseline-v1 from comparison; tokenizer mismatch made eval scores incomparable."
+- **Pointers** — "Best run so far: job 7f21abcd, score 0.83. Worst: 9c12, diverged at step 500."
+- **Open questions / next steps** — so the next session picks up where this one stopped.
+
+**Default flow for agents working in an experiment:**
+
+1. At the start of a session, run `lab notes show --raw` to load prior context.
+2. After each meaningful action (queueing a sweep, finding a winning config, hitting a blocker), `lab notes append "..."` with a dated one-liner. Always lead with today's date (e.g. `2026-05-05:`) so the log stays chronological.
+3. Use `lab notes edit` only when the user asks to reorganize or rewrite — appending is safer because it never destroys prior content.
+
+Don't duplicate per-run details (those go in `lab task queue -m`). Don't use experiment notes as a TODO list for the conversation — that's what plans/tasks are for. Keep entries terse and specific.
+
 ## Managing Models
 
 Use `lab model` commands to list, inspect, create, edit, and delete model groups on the server. Models are organized as **groups** — each group can contain multiple versions (e.g. v1, v2, …).
@@ -253,7 +362,7 @@ lab --format json model list
 # Get details for a specific model (by group_id or group_name)
 lab --format json model info GROUP_ID
 
-# Register a new model (e.g. a HuggingFace model ID)
+# Register a new model (e.g. a HuggingFace model ID) — creates a new group with version v1
 lab --format json model create my-hf-model-id --name "My Fine-tuned Model" --description "SFT on custom data"
 
 # Edit a model group's name or description
@@ -262,6 +371,23 @@ lab model edit GROUP_ID --name "New Name" --description "Updated description"
 # Delete a model group and all its versions (--yes to skip confirmation)
 lab model delete GROUP_ID --yes
 ```
+
+### Adding a new version to an existing model group
+
+Re-run `lab model create` with the **same `--name`** as an existing group. The server resolves the group by name and appends a new version with an auto-incremented label (`v2`, `v3`, …). The `latest` tag (or whatever you pass via `--tag`) is moved to the new version automatically.
+
+```bash
+# Adds version v2 to "My Fine-tuned Model" (assuming v1 already exists).
+# The server scans existing v\d+ labels and picks the next one.
+lab --format json model create my-hf-model-id-v2 --name "My Fine-tuned Model" --description "Retrained with more data"
+
+# Pin a specific version label instead of auto-incrementing.
+# Labels are free-form strings — server only auto-increments the v\d+ pattern.
+# Collisions within a group are rejected with an error.
+lab model create my-hf-model-id-exp --name "My Fine-tuned Model" --version-label "experimental-2026-05"
+```
+
+The version label is the human-readable identifier in `lab model info` output. The internal `id` (UUID) remains unique per version regardless of label.
 
 ### Uploading model files
 
@@ -324,19 +450,42 @@ lab --format json dataset list
 # Get details for a specific dataset (by group_id or group_name)
 lab --format json dataset info GROUP_ID
 
-# Upload local files to a dataset (creates it if it doesn't exist)
-lab dataset upload my-dataset train.jsonl eval.jsonl
-
-# Download a dataset from HuggingFace Hub to the server
-lab dataset download Trelis/touch-rugby-rules
-lab dataset download Trelis/touch-rugby-rules --config default
-
 # Edit a dataset group's name or description
 lab dataset edit GROUP_ID --name "New Name" --description "Updated description"
 
 # Delete a dataset group and all its versions (--yes to skip confirmation)
 lab dataset delete GROUP_ID --yes
 ```
+
+### Uploading dataset files
+
+```bash
+# Upload local files/directories to a dataset on the server.
+# Creates the dataset if it doesn't exist; DATASET_ID is what you'll use
+# in subsequent lab dataset commands.
+lab dataset upload DATASET_ID ./train.jsonl ./eval.jsonl
+
+# Upload a directory (preserves relative paths under DATASET_ID/)
+lab dataset upload DATASET_ID ./my-dataset-dir
+
+# Overwrite server-side files that already exist
+lab dataset upload DATASET_ID ./train.jsonl --force
+```
+
+Re-running `lab dataset upload` against the same `DATASET_ID` skips files that already exist on the server and exits with code 2 (skipped some, did not fail). Use `--force` to overwrite. Adding a brand-new file to an existing dataset is a normal upload (no conflict, exit 0) — just include the new path in the command.
+
+The first successful upload registers the dataset in the asset_versions registry as `v1`/`latest`, which is what makes it appear in `lab dataset list`, `lab dataset info`, and the Dataset Registry UI. Re-uploads (with or without `--force`) do **not** spawn a new version — the registry stays at `v1`/`latest` and points at the same on-disk directory. To explicitly create a new version, use `lab job publish dataset` from a job that produced new outputs.
+
+### Downloading dataset files
+
+```bash
+# Download a previously-uploaded dataset to <dest>/<DATASET_ID>/
+lab dataset download DATASET_ID ./local-datasets
+```
+
+Both `DATASET_ID` and `DEST_DIR` are required. The server streams every file in the dataset directory; the destination is created if missing, and files land under `<dest>/<DATASET_ID>/` (including a server-generated `index.json`).
+
+**Note:** `lab dataset download` no longer pulls from HuggingFace Hub — it only downloads a dataset that already lives on the server. To get a HuggingFace dataset onto the server, either (a) upload it via `lab dataset upload` after fetching it locally, or (b) reference it from inside a task's code using `datasets.load_dataset("user/repo")`.
 
 ### Publishing a dataset from a job
 
@@ -358,10 +507,8 @@ When a task needs a specific dataset, ensure it exists on the server **before** 
 # 1. Check if the dataset already exists
 lab --format json dataset list
 
-# 2. If not, download from HuggingFace or upload local files
-lab dataset download user/my-dataset
-# or
-lab dataset upload my-dataset train.jsonl eval.jsonl
+# 2. If not, upload local files (creates the dataset)
+lab dataset upload my-dataset ./train.jsonl ./eval.jsonl
 
 # 3. Reference the dataset in task.yaml parameters
 #    The task code uses lab.get_config()["dataset_id"] to access it
@@ -454,14 +601,15 @@ Provider configs (`api_token`, `api_key`, `ssh_key_path`) contain secrets. If th
 3. **Use `--format json`** when you need to parse output, but be prepared to fall back to pretty output parsing if it doesn't work
 4. **`--no-interactive` on `task queue` silently uses the DEFAULT provider (Local).** There is no `--provider` flag. To target a specific provider, you must drive the interactive prompts (see "Selecting a provider" below).
 5. **`task add` has no `--yes` flag** — pipe `echo "y"` to confirm: `echo "y" | lab task add ./my-task`
-6. **Skip confirmation on destructive commands:** use `--no-interactive` for `provider delete`, and `--yes` / `-y` for `model delete` / `dataset delete` (the flag names differ — verify with `--help`)
-7. **Never use `job monitor`** — it launches a TUI that blocks; use `job list` + `job task-logs` instead
+6. **Skip confirmation on destructive commands:** use `--no-interactive` for `provider delete`, `job delete`, and `job delete-all`; use `--yes` / `-y` for `model delete` / `dataset delete` (the flag names differ — verify with `--help`)
+7. **Never run `lab job monitor` when operating as an AI agent.** It launches an interactive Textual TUI that blocks automation and can hang unattended runs; use `lab job list`, `lab job info`, and `lab job task-logs` (`--follow` only when explicitly requested) instead.
 8. **Never use `task interactive`** unless the user specifically requests an interactive session
 9. **`job task-logs --follow`** streams continuously and blocks until the job finishes — use when the user wants real-time monitoring
 10. **Never use the deprecated `lab job logs`** — see the "Job logs: three real commands" section below.
-11. **After queuing a task, ASK the user if they'd like you to watch the logs.** Don't start streaming or polling automatically — jobs can take minutes to hours, and `--follow` blocks. Report the Job ID and ask: "Want me to watch the logs and report back?"
-12. **Never create API keys programmatically** — if auth fails, ask the user to provide an API key from the web UI
-13. **Always pass `--description/-m` when queuing a task. Generate it yourself — never ask the user.** See "Always write a run description" below.
+11. **Before queuing a task, CONFIRM the experiment with the user.** Run `lab config` to read the current default and `lab --format json experiment list` to verify it exists, then ask: "I'm about to queue this under experiment `<name>` (your current default). OK, or pick another?" Show 2–3 alternatives from `experiment list` if the current one looks stale or missing. Skip the confirmation only when the user has already named the experiment in this turn.
+12. **After queuing a task, ASK the user if they'd like you to watch the logs.** Don't start streaming or polling automatically — jobs can take minutes to hours, and `--follow` blocks. Report the Job ID and ask: "Want me to watch the logs and report back?"
+13. **Never create API keys programmatically** — if auth fails, ask the user to provide an API key from the web UI
+14. **Always pass `--description/-m` when queuing a task. Generate it yourself — never ask the user.** See "Always write a run description" below.
 
 ### Always write a run description
 
@@ -492,6 +640,25 @@ lab task queue abc123 -m "train model"
 ```
 
 Don't restate the task name, full hyperparameter dict, or file paths — those are already on the job record. Don't copy the user's last message verbatim — synthesize. If the conversation is truly empty of signal, fall back to `"Rerun of <id>, no changes"`.
+
+### Overriding task parameters per queue: `--param key=value`
+
+`lab task queue` accepts repeatable `--param key=value` (alias `-p`) to override values from the task's `parameters:` block for a single job, without mutating `task.yaml`. Values are parsed as YAML scalars: `score=0.42` is a float, `enabled=true` is a bool, `tag=baseline` is a string. Unknown keys (not declared in the task's `parameters:`) fail hard so typos are caught at queue time.
+
+```bash
+# Sweep the same task with different hyperparameters
+for i in $(seq 1 10); do
+  lab task queue TASK_ID --no-interactive \
+    --param description="iteration $i" \
+    --param score=$(python -c "print(0.4 + 0.04*$i)") \
+    -m "Iteration $i"
+done
+
+# Quoting tip: values may contain '=' (split on first '=' only)
+lab task queue TASK_ID --no-interactive --param notes="key=value pairs OK"
+```
+
+Use this instead of `lab task edit --from-file` between queue calls — editing the task affects already-queued-but-not-yet-dispatched jobs and is racy.
 
 ### Selecting a provider when queuing a task
 
@@ -571,14 +738,21 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab logout` | Remove stored API key | No |
 | `lab whoami` | Show current user and team | No |
 | `lab version` | Show CLI version | No |
+| `lab experiment list` | List all experiments (current default marked with `*`) | No |
+| `lab experiment create <name>` | Create a new experiment (`--set-default` to also switch to it) | No |
+| `lab experiment delete <id>` | Delete an experiment (`--no-interactive` to skip prompt) | No |
+| `lab experiment set-default <id>` | Set the default experiment (validates server-side, then writes `current_experiment` to `~/.lab/config.json`) | No |
+| `lab notes show` | Render the current experiment's shared markdown notes (`--raw` for plain markdown) | Yes |
+| `lab notes edit` | Open the current experiment's notes in `$EDITOR` (defaults to nano) | Yes |
+| `lab notes append <text>` | Append a line to the current experiment's notes non-interactively — preferred for agents | Yes |
 | `lab task list` | List tasks in current experiment | Yes |
 | `lab task info <id>` | Get task details | Yes |
 | `lab task init` | Scaffold `task.yaml` + `main.py` in the current directory (`--interactive` to prompt) | No |
 | `lab task add [dir]` | Add task from directory or `--from-git` URL (`--no-interactive`, `--dry-run`) | Yes |
-| `lab task edit <id>` | Edit an existing task's `task.yaml` (`--from-file`, `--no-interactive`, `--timeout`) | Yes |
+| `lab task edit <id>` | Edit an existing task. `--from-file <task.yaml>` for YAML-only; `--from-dir <dir>` to also replace attachments like `main.py` (`--no-interactive`, `--dry-run`, `--timeout`) | Yes |
 | `lab task upload <id> <path>` | Upload files/directories into an existing task (`--no-interactive`) | Yes |
 | `lab task delete <id>` | Delete a task (`--no-interactive` to skip confirmation) | Yes |
-| `lab task queue <id>` | Queue task on compute provider (`-m/--description` for a markdown run note; required for agents, see "Always write a run description") | Yes |
+| `lab task queue <id>` | Queue task on compute provider (`-m/--description` for a markdown run note; `-p/--param key=value` to override task parameters per run; required for agents, see "Always write a run description") | Yes |
 | `lab task gallery` | Browse/import from task gallery | Yes |
 | `lab job list` | List jobs (`--running` for active only) | Yes |
 | `lab job info <id>` | Get detailed job information | Yes |
@@ -588,6 +762,8 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab job artifacts <id>` | List job artifacts | Yes |
 | `lab job download <id>` | Download artifacts (`--file` for glob) | Yes |
 | `lab job stop <id>` | Stop a running job | Yes |
+| `lab job delete <id>` | Delete a job (`--no-interactive` to skip prompt) | Yes |
+| `lab job delete-all` | Delete all jobs in the current experiment (`--no-interactive` to skip prompt) | Yes |
 | `lab provider list` | List compute providers | No |
 | `lab provider info <id>` | Show provider details | No |
 | `lab provider add` | Add a new provider | No |
@@ -598,15 +774,15 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab provider disable <id>` | Disable a provider | No |
 | `lab model list` | List all model groups | No |
 | `lab model info <id>` | Show model group details (by group_id or group_name) | No |
-| `lab model create <asset_id>` | Create a new model group + first version (`--name`, `--description`, `--tag`) | No |
+| `lab model create <asset_id>` | Create a model group version. New group if `--name` is unused; otherwise appends a new version with auto-incremented `vN` label (or `--version-label` to override). Supports `--description`, `--tag`. | No |
 | `lab model edit <id>` | Edit model group name or description | No |
 | `lab model delete <id>` | Delete a model group and all versions (`--yes` to skip prompt) | No |
 | `lab model upload <id> <path...>` | Upload local files/dirs to a model (creates if needed; `--force` to overwrite) | No |
 | `lab model download <id> <dest>` | Download a model's files to `<dest>/<id>/` | No |
 | `lab dataset list` | List all dataset groups | No |
 | `lab dataset info <id>` | Show dataset group details (by group_id or group_name) | No |
-| `lab dataset upload <id> <files...>` | Upload local files to a dataset (creates if needed) | No |
-| `lab dataset download <id>` | Download a dataset from HuggingFace Hub (`--config` for subset) | No |
+| `lab dataset upload <id> <path...>` | Upload local files/dirs to a dataset (creates if needed; `--force` to overwrite) | No |
+| `lab dataset download <id> <dest>` | Download a dataset's files from the server to `<dest>/<id>/` | No |
 | `lab dataset edit <id>` | Edit dataset group name or description | No |
 | `lab dataset delete <id>` | Delete a dataset group and all versions (`--yes` to skip prompt) | No |
 | `lab job publish model <job_id>` | Publish a model from a job to the registry | Yes |
@@ -639,7 +815,7 @@ With non-zero exit code.
 - Commands exit with non-zero status on failure
 - With `--format json`, errors return `{"error": "<message>"}`
 - "config not set" errors → run `lab login` first
-- "current_experiment not set" → run `lab config set current_experiment <id>`
+- "current_experiment not set" → run `lab experiment list` to find an existing experiment, then `lab experiment set-default <id>` (or `lab experiment create <name> --set-default` if none exists)
 - Connection refused → check server URL with `lab config`, verify server is running
 - "No compute providers available" → add a provider in team settings first, or check `provider list`
 
@@ -655,11 +831,22 @@ With non-zero exit code.
 
 **If a CLI command appears missing, broken, or returns unexpected output:** investigate (run `--help`, re-read this skill, read the relevant router/service under `api/transformerlab/`), then tell the user what you found. **Don't** silently fall back to `curl` against the REST API or `/openapi.json` — that's the workaround pattern this skill explicitly forbids.
 
+## `/lab-autoresearch` — autonomous experiment loop
+
+When the user says **"run autoresearch"**, **"optimize X in a loop"**, **"set up autoresearch for …"**, or types **`/lab-autoresearch …`**, enter the autoresearch workflow. It's an agent-driven optimization loop layered on top of the `lab` CLI: pick an idea → queue it as a job → score via `lab.finish(score=…)` → keep or `lab job discard` → repeat, up to a parallelism budget. For hyperparameter fan-out, prefer the task's `sweeps:` block over manually queuing N jobs.
+
+State lives entirely on Transformer Lab — one **experiment** per session, one **job** per iteration (its `-m/--description` is the iteration note, its `score` dict is the result, `lab job discard` is the keep/discard flag). The session plan (objective, files in scope, constraints, backlog, what's been tried) is written to **experiment notes** via `lab notes` — there is no local `autoresearch.md` file.
+
+Subcommands worth naming: `init <goal>`, `run`, `finalize`. Everything else mid-session (status, keep/discard, sweeps, ideas, stopping running jobs, exiting the loop) is just the agent running the right `lab` call from this skill in response to natural-language requests — no dedicated subcommand needed.
+
+**Read `references/autoresearch.md` before doing any of this.** It has the three subcommand workflows, the during-session natural-language → `lab` mapping, the experiment-notes template, and loop rules (parallelism, fire-and-advance, stale-job sweep, keep/discard policy, run-description discipline).
+
 ## Deep-Dive References
 
 - `references/commands.md` — Full command reference with all options
 - `references/workflows.md` — End-to-end workflow patterns
 - `references/troubleshooting.md` — Error patterns and recovery
+- `references/autoresearch.md` — `/lab-autoresearch` autonomous experiment loop spec
 
 ## Ready-to-Use Templates
 

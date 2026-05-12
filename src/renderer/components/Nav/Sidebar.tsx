@@ -4,6 +4,7 @@ import {
   CodeIcon,
   BoxesIcon,
   FileTextIcon,
+  BarChart3Icon,
   MonitorIcon,
   FlaskConicalIcon,
   SettingsIcon,
@@ -65,6 +66,13 @@ function ExperimentMenuItems({ experimentInfo }: ExperimentMenuItemsProps) {
           path={`${basePath}/interactive`}
           matchPattern="/experiment/:experimentName/interactive"
           icon={<CodeIcon strokeWidth={1} />}
+          disabled={!experimentReady}
+        />
+        <SubNavItem
+          title="Evals"
+          path={`${basePath}/evals`}
+          matchPattern="/experiment/:experimentName/evals"
+          icon={<BarChart3Icon />}
           disabled={!experimentReady}
         />
         <SubNavItem

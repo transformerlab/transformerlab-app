@@ -115,11 +115,11 @@ function notifyListeners() {
   });
 }
 
-export function getCurrentTeam(): Team | null {
+function getCurrentTeam(): Team | null {
   return _currentTeam;
 }
 
-export function updateCurrentTeam(team: Team | null) {
+function updateCurrentTeam(team: Team | null) {
   _currentTeam = team;
   try {
     if (team) localStorage.setItem('current_team', JSON.stringify(team));
@@ -130,12 +130,12 @@ export function updateCurrentTeam(team: Team | null) {
   notifyListeners();
 }
 
-export function logoutUser() {
+function logoutUser() {
   updateCurrentTeam(null);
 }
 
 // allow components to re-render when auth changes
-export function subscribeAuthChange(cb: () => void) {
+function subscribeAuthChange(cb: () => void) {
   listeners.add(cb);
   return () => {
     listeners.delete(cb);
@@ -200,7 +200,10 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   // Handle cases where url might be partial or full
   // Ideally fetchWithAuth is passed a relative path, but we handle both.
   let fullUrl: string;
-  if (url.startsWith('http')) {
+  if (url.startsWith('http') || url.startsWith('//') || url.startsWith('/')) {
+    // Already an absolute URL (http://...) or absolute path (/lab/...).
+    // getAPIFullPath returns the latter when API_URL is configured as a path
+    // prefix (e.g. when the app is hosted behind a reverse proxy at /lab/).
     fullUrl = url;
   } else {
     const baseUrl = API_URL();

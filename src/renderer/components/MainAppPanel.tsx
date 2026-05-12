@@ -28,18 +28,20 @@ import ExperimentNotes from './Experiment/ExperimentNotes';
 import UserSettings from './User/UserSettings';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
 import Tasks from './Experiment/Tasks/Tasks';
+import Evals from './Experiment/Tasks/Evals';
 import Interactive from './Experiment/Interactive/Interactive';
 import Team from './Team/Team';
 import UsageReport from './Team/UsageReport';
 import TasksGallery from './TasksGallery/TasksGallery';
 import JobDetailPage from './Experiment/Jobs/JobDetailPage';
 import TaskRunsPage from './Experiment/Tasks/TaskRunsPage';
+import CliAuthPage from './CliAuth/CliAuthPage';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
 
 // PageTracker component to track page views
-export const PageTracker = () => {
+const PageTracker = () => {
   const location = useLocation();
   const analytics = useAnalytics();
 
@@ -233,6 +235,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         >
           <Route path="notes" element={<ExperimentNotes />} />
           <Route path="tasks" element={<Tasks />} />
+          <Route path="evals" element={<Evals />} />
           <Route path="interactive" element={<Interactive />} />
           <Route path="documents" element={<Documents />} />
           <Route path="settings" element={<Settings />} />
@@ -245,17 +248,14 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
           path="/experiment/:experimentName/tasks/:taskId/runs"
           element={<TaskRunsPage />}
         />
+        <Route path="/cli-auth" element={<CliAuthPage />} />
         <Route path="/api" element={<Api />} />
-        <Route path="/zoo" element={<ModelZoo tab="groups" />} />
-        <Route path="/zoo/local" element={<ModelZoo tab="local" />} />
-        <Route path="/zoo/generated" element={<ModelZoo tab="generated" />} />
-        <Route path="/zoo/store" element={<ModelZoo tab="store" />} />
-        <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
-        <Route path="/zoo/registry" element={<ModelZoo tab="registry" />} />
+        <Route path="/zoo" element={<ModelZoo />} />
+        <Route path="/zoo/registry" element={<ModelZoo />} />
+        <Route path="/zoo/registry/:groupId" element={<ModelZoo />} />
         <Route path="/data" element={<Data />} />
-        <Route path="/data/generated" element={<Data tab="generated" />} />
-        <Route path="/data/store" element={<Data tab="store" />} />
-        <Route path="/data/registry" element={<Data tab="registry" />} />
+        <Route path="/data/registry" element={<Data />} />
+        <Route path="/data/registry/:groupId" element={<Data />} />
         <Route path="/tasks-gallery" element={<TasksGallery />} />
         <Route path="/compute" element={<Compute />} />
         <Route path="/settings" element={<TransformerLabSettings />} />

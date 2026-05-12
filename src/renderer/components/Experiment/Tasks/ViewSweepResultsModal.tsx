@@ -26,7 +26,7 @@ export function SweepResultsBody({ jobId }: { jobId: string }) {
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  const { data, error, isLoading } = useSWR(
+  const { data, isError, isLoading } = useSWR(
     jobId && experimentInfo
       ? chatAPI.Endpoints.ComputeProvider.GetSweepResults(jobId)
       : null,
@@ -56,12 +56,12 @@ export function SweepResultsBody({ jobId }: { jobId: string }) {
           sx={{ py: 4 }}
         >
           <CircularProgress size="sm" />
-          <Typography level="body-md">Loading sweep results...</Typography>
+          <Typography level="body-md">Loading sweep results…</Typography>
         </Stack>
       );
     }
 
-    if (error || data?.status === 'error') {
+    if (isError || data?.status === 'error') {
       return (
         <Typography level="body-md" sx={{ color: 'danger.500', py: 2 }}>
           {data?.message || 'Failed to load sweep results'}
@@ -252,7 +252,7 @@ export default function ViewSweepResultsModal({
 
   return (
     <Modal
-      open={jobId !== -1}
+      open={Boolean(jobId)}
       onClose={() => {
         setJobId(null);
       }}

@@ -156,39 +156,24 @@ class Lab:
 
                 self._trackio_available = True
                 existing_run = context_vars.current_run.get()
-                if existing_run is None:
-                    if trackio_project_name_env:
-                        # Shared project: metrics dir should be set by compute launch (TRACKIO_DIR) before
-                        # trackio is imported; fall back for local/scripts without a provider.
-                        job_id_env = os.environ.get("_TFL_JOB_ID", "unknown")
-                        trackio_dir = (os.environ.get("TRACKIO_DIR") or "").strip()
-                        if not trackio_dir:
-                            trackio_dir = dirs.get_trackio_dir(job_id_env)
-                        os.makedirs(trackio_dir, exist_ok=True)
-                        os.environ.setdefault("TRACKIO_DIR", trackio_dir)
-                        _run_async(
-                            self._seed_trackio_shared_path_async(
-                                experiment_id or "", trackio_project_name_env, trackio_dir
-                            )
-                        )
-                        trackio.init(
-                            project=trackio_project_name_env,
-                            name=trackio_run_name_env or f"job-{job_id_env}",
-                        )
-                        self._trackio_managed = True
-                        logger.info(f"📊 Trackio auto-init enabled for shared project '{trackio_project_name_env}'")
-                    else:
-                        # Legacy: per-job project name (still avoid Trackio default under HF cache).
-                        job_id_env = os.environ.get("_TFL_JOB_ID", "unknown")
-                        trackio_dir = (os.environ.get("TRACKIO_DIR") or "").strip()
-                        if not trackio_dir:
-                            trackio_dir = dirs.get_trackio_dir(job_id_env)
-                        os.makedirs(trackio_dir, exist_ok=True)
-                        os.environ.setdefault("TRACKIO_DIR", trackio_dir)
-                        project_name = str(experiment_id or "TransformerLab")
-                        trackio.init(project=project_name)
-                        self._trackio_managed = True
-                        logger.info(f"📊 Trackio auto-init enabled for project '{project_name}'")
+                if existing_run is None and trackio_project_name_env:
+                    # Shared project: metrics dir should be set by compute launch (TRACKIO_DIR) before
+                    # trackio is imported; fall back for local/scripts without a provider.
+                    job_id_env = os.environ.get("_TFL_JOB_ID", "unknown")
+                    trackio_dir = (os.environ.get("TRACKIO_DIR") or "").strip()
+                    if not trackio_dir:
+                        trackio_dir = dirs.get_trackio_dir(job_id_env)
+                    os.makedirs(trackio_dir, exist_ok=True)
+                    os.environ.setdefault("TRACKIO_DIR", trackio_dir)
+                    _run_async(
+                        self._seed_trackio_shared_path_async(experiment_id or "", trackio_project_name_env, trackio_dir)
+                    )
+                    trackio.init(
+                        project=trackio_project_name_env,
+                        name=trackio_run_name_env or f"job-{job_id_env}",
+                    )
+                    self._trackio_managed = True
+                    logger.info(f"📊 Trackio auto-init enabled for shared project '{trackio_project_name_env}'")
             except Exception:
                 # Silently ignore any Trackio issues; lab core behavior must not be affected
                 self._trackio_available = False
@@ -378,7 +363,9 @@ class Lab:
         task_id = job_data.get("task_id")
         if not task_id:
             return
-        task_template = TaskTemplate(task_id)
+        # Use the same experiment scope as Job.get(); otherwise TaskTemplate falls back to
+        # legacy workspace/task/<id> and misses files under experiments/<exp>/tasks/<id>.
+        task_template = TaskTemplate(task_id, experiment_id=experiment_id)
         task_dir = await task_template.get_dir()
         if not await storage.exists(task_dir):
             return
@@ -588,6 +575,28 @@ class Lab:
     ) -> None:
         """
         Mark the job as successfully completed and set completion metadata.
+
+        Args:
+            message: Human-readable completion message stored in ``completion_details``.
+            score: Optional **dict** of named metrics for this run (e.g. ``{"accuracy": 0.78}``).
+                The dict shape is required — pass ``{"score": 0.78}`` rather than ``0.78``.
+                Stored in ``job_data.score`` and surfaced by ``lab job list`` / ``lab job info``,
+                and read by sweep / autoresearch flows for optimization.
+            additional_output_path: Optional path to a directory of extra output files.
+            plot_data_path: Optional path to a JSON file with plot data for the job UI.
+
+        Examples:
+            Mark success with no metrics::
+
+                lab.finish(message="Done!")
+
+            Report a single metric::
+
+                lab.finish(message="Done!", score={"accuracy": 0.78})
+
+            Report multiple metrics::
+
+                lab.finish(score={"accuracy": 0.78, "f1": 0.83, "loss": 0.21})
         """
         self._ensure_initialized()
         # Copy profiling from temp dir into job's profiling folder (when run under remote trap).
@@ -606,15 +615,28 @@ class Lab:
         except Exception:
             pass
         _run_async(self._job.update_progress(100))  # type: ignore[union-attr]
-        _run_async(
-            self._job.update_job_data_fields(  # type: ignore[union-attr]
-                {
-                    "completion_status": "success",
-                    "completion_details": message,
-                    "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                }
-            )
-        )
+
+        # Resolve score before the first write so it's included atomically with the
+        # other completion fields. This prevents a window where completion_status is
+        # "success" but score is still null (observable by caches or concurrent readers).
+        resolved_score: Dict[str, Any] = {}
+        if isinstance(score, dict):
+            resolved_score.update(score)
+        resolved_score.setdefault("discard", False)
+
+        completion_fields: Dict[str, Any] = {
+            "completion_status": "success",
+            "completion_details": message,
+            "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+            "score": resolved_score,
+        }
+        if additional_output_path is not None and additional_output_path.strip() != "":
+            completion_fields["additional_output_path"] = additional_output_path
+        if plot_data_path is not None and plot_data_path.strip() != "":
+            completion_fields["plot_data_path"] = plot_data_path
+
+        _run_async(self._job.update_job_data_fields(completion_fields))  # type: ignore[union-attr]
+
         # Best-effort Trackio integration: finish our own run if we created one,
         # then capture the active Trackio DB (managed or user-created) into job artifacts.
         try:
@@ -638,12 +660,6 @@ class Lab:
         except Exception:
             # Never let optional Trackio integration break finish()
             logger.debug("Trackio integration failed during finish()", exc_info=True)
-        if score is not None:
-            _run_async(self._job.update_job_data_field("score", score))  # type: ignore[union-attr]
-        if additional_output_path is not None and additional_output_path.strip() != "":
-            _run_async(self._job.update_job_data_field("additional_output_path", additional_output_path))  # type: ignore[union-attr]
-        if plot_data_path is not None and plot_data_path.strip() != "":
-            _run_async(self._job.update_job_data_field("plot_data_path", plot_data_path))  # type: ignore[union-attr]
 
         # Important: update cached_jobs only when all completion fields are already written.
         _run_async(self._job.update_status(JobStatus.COMPLETE))  # type: ignore[union-attr]
@@ -687,7 +703,7 @@ class Lab:
 
         Args:
             source_path: Path to the file or directory to save, OR a pandas DataFrame
-                         when type="eval" or type="dataset"
+                         when type="evals" or type="dataset"
             name: Optional name for the artifact. If not provided, uses source basename
                   or generates a default name for DataFrames. When type="dataset",
                   this is used as the dataset_id. When type="model", this is used as the model name
@@ -698,7 +714,7 @@ class Lab:
                   - If "model", saves to job-specific models directory and tracks in job data.
                   - Otherwise saves to artifacts directory.
             config: Optional configuration dict.
-                   When type="eval", can contain column mappings under "evals" key, e.g.:
+                   When type="evals", can contain column mappings under "evals" key, e.g.:
                    {"evals": {"input": "input_col", "output": "output_col",
                              "expected_output": "expected_col", "score": "score_col"}}
                    When type="dataset", can contain:
@@ -1670,27 +1686,28 @@ class Lab:
             _run_async(self._job.update_job_data_field("wandb_run_url", clean_url))
             logger.info(f"📊 Captured wandb run URL: {clean_url}")
 
-    def capture_trackio_metadata(self, db_path: str, project: Optional[str] = None) -> str:
+    def capture_trackio_metadata(self, db_path: str) -> str:
         """
-        Save a local Trackio metrics directory or database file into this job's artifacts and
-        record its location in job_data.
+        Save a local Trackio metrics directory or database file into the shared
+        trackio_runs project directory for this experiment.
 
-        This is a sync wrapper around the async implementation.
+        This is a sync wrapper around the async implementation. Requires
+        TLAB_TRACKIO_PROJECT_NAME to be set.
 
         Args:
             db_path: Path to the Trackio directory (or single DB file) on the current machine.
-            project: Optional Trackio project name to record for convenience when launching dashboards.
 
         Returns:
-            The destination path under this job's artifacts directory where the Trackio data was saved.
+            The destination path where the Trackio data was saved.
         """
-        return _run_async(self.async_capture_trackio_metadata(db_path, project))
+        return _run_async(self.async_capture_trackio_metadata(db_path))
 
-    async def async_capture_trackio_metadata(self, db_path: str, project: Optional[str] = None) -> str:
+    async def async_capture_trackio_metadata(self, db_path: str) -> str:
         """
         Async implementation of capture_trackio_metadata().
-        When TLAB_TRACKIO_PROJECT_NAME is set (shared project), copies to trackio_runs/{experiment_id}/{project_name}/
-        and does not write trackio_db_artifact_path (dashboard derives path).
+        Requires TLAB_TRACKIO_PROJECT_NAME (shared project); copies to
+        trackio_runs/{experiment_id}/{project_name}/ and does not write
+        trackio_db_artifact_path (dashboard derives path).
         """
         self._ensure_initialized()
 
@@ -1703,47 +1720,29 @@ class Lab:
             raise FileNotFoundError(f"Trackio path does not exist: {src}")
 
         trackio_project_name_env = (os.environ.get("TLAB_TRACKIO_PROJECT_NAME") or "").strip()
-        if trackio_project_name_env and self._experiment is not None:
-            # Shared project: copy to trackio_runs/{experiment_id}/{project_name}/ (merge, do not rm)
-            workspace_dir = await dirs.get_workspace_dir()
-            trackio_dir = storage.join(
-                workspace_dir,
-                "trackio_runs",
-                secure_filename(str(self._experiment.id)),
-                secure_filename(trackio_project_name_env),
+        if not (trackio_project_name_env and self._experiment is not None):
+            raise RuntimeError(
+                "TLAB_TRACKIO_PROJECT_NAME env var and an experiment context are required to capture Trackio metadata."
             )
-            await storage.makedirs(trackio_dir, exist_ok=True)
-            if os.path.isdir(src):
-                await storage.copy_dir(src, trackio_dir)
-            else:
-                base_name = posixpath.basename(src)
-                dest_file = storage.join(trackio_dir, base_name)
-                await storage.copy_file(src, dest_file)
-            # Do not write trackio_db_artifact_path; dashboard derives from trackio_project_name
-            logger.info(f"📊 Saved Trackio metrics to shared project: {trackio_dir}")
-            return trackio_dir
+
+        # Shared project: copy to trackio_runs/{experiment_id}/{project_name}/ (merge, do not rm)
+        workspace_dir = await dirs.get_workspace_dir()
+        trackio_dir = storage.join(
+            workspace_dir,
+            "trackio_runs",
+            secure_filename(str(self._experiment.id)),
+            secure_filename(trackio_project_name_env),
+        )
+        await storage.makedirs(trackio_dir, exist_ok=True)
+        if os.path.isdir(src):
+            await storage.copy_dir(src, trackio_dir)
         else:
-            # Legacy: per-job artifacts/trackio
-            artifacts_dir = await self._job.get_artifacts_dir()  # type: ignore[union-attr]
-            trackio_dir = storage.join(artifacts_dir, "trackio")
-
-            if await storage.exists(trackio_dir):
-                await storage.rm_tree(trackio_dir)
-            await storage.makedirs(trackio_dir, exist_ok=True)
-
-            if os.path.isdir(src):
-                await storage.copy_dir(src, trackio_dir)
-            else:
-                base_name = posixpath.basename(src)
-                dest_file = storage.join(trackio_dir, base_name)
-                await storage.copy_file(src, dest_file)
-
-            await self._job.update_job_data_field("trackio_db_artifact_path", trackio_dir)  # type: ignore[union-attr]
-            if project is not None and isinstance(project, str) and project.strip() != "":
-                await self._job.update_job_data_field("trackio_project", project.strip())  # type: ignore[union-attr]
-
-            logger.info(f"📊 Saved Trackio metrics for job to: {trackio_dir}")
-            return trackio_dir
+            base_name = posixpath.basename(src)
+            dest_file = storage.join(trackio_dir, base_name)
+            await storage.copy_file(src, dest_file)
+        # Do not write trackio_db_artifact_path; dashboard derives from trackio_project_name
+        logger.info(f"📊 Saved Trackio metrics to shared project: {trackio_dir}")
+        return trackio_dir
 
     async def _seed_trackio_shared_path_async(self, experiment_id: str, project_name: str, dest_dir: str) -> None:
         """If shared project path exists, copy its contents into dest_dir (seed for new run)."""
@@ -1774,7 +1773,7 @@ class Lab:
             current_project = context_vars.current_project.get()
             if current_project:
                 db_path = str(TRACKIO_DIR)
-                self.capture_trackio_metadata(db_path=db_path, project=str(current_project))
+                self.capture_trackio_metadata(db_path=db_path)
         except Exception:
             # Completely best-effort; ignore all errors here
             return

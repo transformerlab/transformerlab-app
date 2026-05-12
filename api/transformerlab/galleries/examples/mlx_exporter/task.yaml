@@ -3,7 +3,7 @@ github_repo_url: https://github.com/transformerlab/transformerlab-app
 github_repo_dir: api/transformerlab/galleries/examples/mlx_exporter
 resources:
   accelerators: "RTX3090:1"
-setup: "uv pip install transformerlab mlx==0.29.3 mlx-lm==0.28.3 huggingface-hub;"
+setup: "uv pip install mlx==0.29.3 mlx-lm==0.28.3 huggingface-hub;"
 run: "python mlx_exporter/train.py"
 envs:
   PYTHONUNBUFFERED: "1"

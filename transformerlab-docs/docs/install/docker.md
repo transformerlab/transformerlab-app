@@ -5,6 +5,10 @@ draft: true
 # I made this document DRAFT for now as we need to re-test under our new architecture
 ---
 
+:::warning
+This page is no longer maintained. See the latest setup steps on the [For Teams install page](/for-teams/install).
+:::
+
 Transformer Lab provides pre-built Docker images that make it easy to get started quickly without worrying about dependencies or environment setup. This guide covers how to run Transformer Lab using Docker containers.
 
 ## Prerequisites

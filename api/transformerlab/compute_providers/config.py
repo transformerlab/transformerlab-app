@@ -1,10 +1,16 @@
 """Configuration loading and provider factory."""
 
+from __future__ import annotations
+
 import os
 import yaml
 import json
-from typing import Dict, Any, Optional
+from typing import TYPE_CHECKING, Dict, Any, Optional
+
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from .base import ComputeProvider
 
 
 class ComputeProviderConfig(BaseModel):
@@ -39,13 +45,30 @@ class ComputeProviderConfig(BaseModel):
     # Accelerators supported by this provider
     supported_accelerators: Optional[list[str]] = Field(default=None)
 
-    # AWS-specific config
+    # AWS/GCP-specific config
     aws_profile: Optional[str] = None  # e.g. "transformerlab-compute-{team_id}"
-    region: Optional[str] = None  # e.g. "us-east-1"
-    team_id: Optional[str] = None  # team identifier for resource naming
+    region: Optional[str] = None  # e.g. AWS "us-east-1" or GCP "us-central1"
+
+    # GCP-specific config
+    project_id: Optional[str] = None
+    zone: Optional[str] = None  # e.g. "us-central1-a"
+    credentials_path: Optional[str] = None
+    service_account_json: Optional[Dict[str, Any]] = None
+    service_account_email: Optional[str] = None
 
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
+
+    # Azure-specific config
+    azure_subscription_id: Optional[str] = None
+    azure_tenant_id: Optional[str] = None
+    azure_client_id: Optional[str] = None
+    azure_client_secret: Optional[str] = None
+    azure_location: Optional[str] = None
+    azure_resource_group: Optional[str] = None
+
+    # Used by AWS, Azure and GCP for resource naming
+    team_id: Optional[str] = None
 
 
 def load_compute_providers_config(
@@ -128,7 +151,7 @@ def load_compute_providers_config(
     return providers
 
 
-def create_compute_provider(config: ComputeProviderConfig):
+def create_compute_provider(config: ComputeProviderConfig) -> "ComputeProvider":
     """
     Factory function to create a compute provider instance from config.
 
@@ -206,6 +229,29 @@ def create_compute_provider(config: ComputeProviderConfig):
             project_name=config.dstack_project or "main",
             extra_config=config.extra_config,
         )
+    elif config.type == "azure":
+        from .azure import AzureProvider
+
+        if not config.azure_subscription_id:
+            raise ValueError("Azure provider requires azure_subscription_id in config")
+        if not config.azure_tenant_id:
+            raise ValueError("Azure provider requires azure_tenant_id in config")
+        if not config.azure_client_id:
+            raise ValueError("Azure provider requires azure_client_id in config")
+        if not config.azure_client_secret:
+            raise ValueError("Azure provider requires azure_client_secret in config")
+        if not config.team_id:
+            raise ValueError("Azure provider requires team_id in config")
+        return AzureProvider(
+            subscription_id=config.azure_subscription_id,
+            tenant_id=config.azure_tenant_id,
+            client_id=config.azure_client_id,
+            client_secret=config.azure_client_secret,
+            location=config.azure_location or "eastus",
+            resource_group=config.azure_resource_group or f"transformerlab-{config.team_id}",
+            team_id=config.team_id,
+            extra_config=config.extra_config,
+        )
     elif config.type == "aws":
         from .aws import AWSProvider
 
@@ -226,6 +272,26 @@ def create_compute_provider(config: ComputeProviderConfig):
             raise ValueError("Vast.ai provider requires api_key in config")
         return VastAIProvider(
             api_key=config.api_key,
+            extra_config=config.extra_config,
+        )
+
+    elif config.type == "gcp":
+        from .gcp import GCPProvider
+
+        if not config.project_id:
+            raise ValueError("GCP provider requires project_id in config")
+        if not config.team_id:
+            raise ValueError("GCP provider requires team_id in config")
+        if not config.zone and not config.region:
+            raise ValueError("GCP provider requires either zone or region in config")
+        return GCPProvider(
+            project_id=config.project_id,
+            zone=config.zone,
+            region=config.region,
+            team_id=config.team_id,
+            credentials_path=config.credentials_path,
+            service_account_json=config.service_account_json,
+            service_account_email=config.service_account_email,
             extra_config=config.extra_config,
         )
     else:

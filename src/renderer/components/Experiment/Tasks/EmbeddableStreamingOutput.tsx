@@ -655,8 +655,3 @@ export default function EmbeddableStreamingOutput({
     </Box>
   );
 }
-
-EmbeddableStreamingOutput.defaultProps = {
-  tabs: ['output', 'provider'],
-  jobStatus: '',
-};

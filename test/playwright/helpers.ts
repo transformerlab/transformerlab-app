@@ -17,10 +17,9 @@ export async function dismissStartupWizard(page: Page) {
     return;
   }
   await dialog.getByRole('button', { name: 'Skip' }).click();
-  await expect(dialog.getByRole('button', { name: 'Done' })).toBeVisible({
-    timeout: 5000,
-  });
-  await dialog.getByRole('button', { name: 'Done' }).click();
+  const finishButton = dialog.getByRole('button', { name: 'Finish setup' });
+  await expect(finishButton).toBeVisible({ timeout: 5000 });
+  await finishButton.click();
   await expect(dialog).toBeHidden({ timeout: 5000 });
 }
 
@@ -42,11 +41,11 @@ export async function selectFirstExperiment(page: Page) {
   await menuTrigger.click();
   const dropdown = page.locator('.select-experiment-menu').first();
   await dropdown.waitFor({ state: 'visible', timeout: 10000 });
-  // Wait for experiments to load — skip "Loading..." and the "New" item at the end
-  // by waiting for a menuitem that is NOT "Loading..." and NOT "New"
+  // Wait for experiments to load — skip control items ("Loading...", "See all experiments", "New")
+  // by waiting for a menuitem that is a real experiment entry
   const experimentItem = dropdown
     .getByRole('menuitem')
-    .filter({ hasNotText: /^(Loading\.\.\.|New)$/ })
+    .filter({ hasNotText: /^(Loading\.\.\.|See all experiments|New)$/ })
     .first();
   await expect(experimentItem).toBeVisible({ timeout: 10000 });
   await experimentItem.click();

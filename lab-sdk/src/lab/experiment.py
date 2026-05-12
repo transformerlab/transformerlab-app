@@ -753,11 +753,16 @@ class Experiment(BaseLabResource):
             await storage.rm_tree(exp_dir)
 
     async def delete_all_jobs(self):
-        """Delete all jobs associated with this experiment."""
+        """Delete all jobs associated with this experiment.
+
+        Per-job failures are logged but do not stop the bulk operation; partial
+        success is preferable to losing a whole batch when one entry is bad.
+        """
         jobs_dir = await get_jobs_dir(self.id)
         try:
             entries = await storage.ls(jobs_dir, detail=False)
         except Exception:
+            logger.exception("delete_all_jobs: failed to list jobs dir for experiment=%s", self.id)
             return
 
         for job_path in entries:
@@ -769,4 +774,9 @@ class Experiment(BaseLabResource):
                 job = await Job.get(job_id, self.id)
                 await job.delete()
             except Exception:
-                pass  # Job might not exist
+                logger.warning(
+                    "delete_all_jobs: failed to delete job %s in experiment %s",
+                    job_id,
+                    self.id,
+                    exc_info=True,
+                )

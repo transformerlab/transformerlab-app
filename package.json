@@ -25,7 +25,7 @@
       "url": "https://github.com/dadmobile"
     }
   ],
-  "version": "0.37.0",
+  "version": "0.37.2",
   "scripts": {
     "build": "dotenv -e .env -- cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
     "build:multiuser": "cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
@@ -92,6 +92,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@mdxeditor/editor": "^3.55.0",
     "@monaco-editor/react": "^4.7.0",
     "@mui/joy": "^5.0.0-beta.48",
     "@nivo/bar": "^0.88.0",
@@ -103,7 +104,6 @@
     "@rjsf/validator-ajv8": "^5.24.3",
     "@segment/analytics-next": "^1.77.0",
     "@sentry/react": "^10.35.0",
-    "@uiw/react-md-editor": "^4.1.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "dayjs": "^1.11.13",
@@ -184,8 +184,13 @@
     "webpack": "^5.98.0",
     "webpack-bundle-analyzer": "^4.9.0",
     "webpack-cli": "^5.1.1",
-    "webpack-dev-server": "^4.15.0",
+    "webpack-dev-server": "^5.2.1",
     "webpack-merge": "^5.9.0"
+  },
+  "overrides": {
+    "serialize-javascript": "^7.0.3",
+    "minimatch": "^10.2.3",
+    "postcss": "^8.5.10"
   },
   "engines": {
     "node": ">=14.x",

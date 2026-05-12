@@ -107,12 +107,12 @@ function Step1({
   return (
     <Stack gap={1.5}>
       <Typography level="body-sm" color="neutral">
-        Add tokens for external services. Fill in whichever ones you use — you
+        Add tokens for external services. Fill in whichever ones you use; you
         can always update these later in User Settings.
       </Typography>
       {hasTeamSecrets && (
         <Alert color="primary" variant="soft">
-          Some secrets are already configured at the team level — you can skip
+          Some secrets are already configured at the team level; you can skip
           this step.
         </Alert>
       )}
@@ -157,7 +157,7 @@ function Step2({
   return (
     <Stack gap={2}>
       <Typography level="body-sm" color="neutral">
-        A few more things — these can be done anytime. We just want to make sure
+        A few more things; these can be done anytime. We just want to make sure
         you know about them.
       </Typography>
 
@@ -354,7 +354,7 @@ export default function StartupWizard() {
           )}
           {step === 2 && (
             <Button sx={{ ml: 'auto' }} onClick={dismiss}>
-              Done
+              Finish setup
             </Button>
           )}
         </Box>

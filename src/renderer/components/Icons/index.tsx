@@ -112,19 +112,6 @@ export const FaGithub: React.FC<IconProps> = ({ size = '1em', ...props }) => (
   </svg>
 );
 
-// Eject
-export const FaEject: React.FC<IconProps> = ({ size = '1em', ...props }) => (
-  <svg
-    viewBox="0 0 448 512"
-    width={size}
-    height={size}
-    fill="currentColor"
-    {...props}
-  >
-    <path d="M48 432h352c8.8 0 16 7.2 16 16v48c0 8.8-7.2 16-16 16H48c-8.8 0-16-7.2-16-16v-48c0-8.8 7.2-16 16-16zm0-80l176-272 176 272H48z" />
-  </svg>
-);
-
 // Regular File Alt
 export const FaRegFileAlt: React.FC<IconProps> = ({
   size = '1em',
@@ -174,93 +161,6 @@ export const LuFileJson: React.FC<IconProps> = ({ size = '1em', ...props }) => (
     <polyline points="14 2 14 8 20 8" />
     <path d="M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1" />
     <path d="M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1" />
-  </svg>
-);
-
-// Cloud Upload Outline
-export const IoCloudUploadOutline: React.FC<IconProps> = ({
-  size = '1em',
-  ...props
-}) => (
-  <svg
-    viewBox="0 0 512 512"
-    width={size}
-    height={size}
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="32"
-    {...props}
-  >
-    <path d="M320 367.79h76c55 0 100-29.21 100-83.6s-53-81.47-96-83.6c-8.89-85.06-71-136.8-144-136.8-69 0-113.44 45.79-128 91.2-60 5.7-112 43.88-112 106.4s54 106.4 120 106.4h84" />
-    <path d="M320 255.79l-64-64-64 64M256 448.21V207.79" />
-  </svg>
-);
-
-// Mask Off
-export const RxMaskOff: React.FC<IconProps> = ({ size = '1em', ...props }) => (
-  <svg
-    viewBox="0 0 15 15"
-    width={size}
-    height={size}
-    fill="currentColor"
-    {...props}
-  >
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M1.5 1h12a.5.5 0 0 1 .5.5v12a.5.5 0 0 1-.5.5h-12a.5.5 0 0 1-.5-.5v-12a.5.5 0 0 1 .5-.5zM2 2v11h11V2H2zm2.5 2a.5.5 0 0 0-.5.5v6a.5.5 0 0 0 1 0v-6a.5.5 0 0 0-.5-.5zm5 0a.5.5 0 0 0-.5.5v6a.5.5 0 0 0 1 0v-6a.5.5 0 0 0-.5-.5z"
-    />
-  </svg>
-);
-
-// Mask On
-export const RxMaskOn: React.FC<IconProps> = ({ size = '1em', ...props }) => (
-  <svg
-    viewBox="0 0 15 15"
-    width={size}
-    height={size}
-    fill="currentColor"
-    {...props}
-  >
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M1.5 1h12a.5.5 0 0 1 .5.5v12a.5.5 0 0 1-.5.5h-12a.5.5 0 0 1-.5-.5v-12a.5.5 0 0 1 .5-.5zM2 2v11h11V2H2zm2 2.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5z"
-    />
-  </svg>
-);
-
-// Image AI Line
-export const RiImageAiLine: React.FC<IconProps> = ({
-  size = '1em',
-  ...props
-}) => (
-  <svg
-    viewBox="0 0 24 24"
-    width={size}
-    height={size}
-    fill="currentColor"
-    {...props}
-  >
-    <path d="M21 15v3.99L17.914 19l-2.828-2.828-3.172 3.172-1.414-1.414 4.586-4.586L18.914 17H21V3H3v15.17l4-4 4.343 4.343 1.414-1.414L9 13.757l-6 6V21h18v-6h-2v2h-2v-4h10v2h-4zM5 7a2 2 0 1 1 0 4 2 2 0 0 1 0-4z" />
-  </svg>
-);
-
-// Chat AI Line
-export const RiChatAiLine: React.FC<IconProps> = ({
-  size = '1em',
-  ...props
-}) => (
-  <svg
-    viewBox="0 0 24 24"
-    width={size}
-    height={size}
-    fill="currentColor"
-    {...props}
-  >
-    <path d="M11 14.062V20h2v-5.938c3.946.492 7 3.858 7 7.938H4a8.001 8.001 0 0 1 7-7.938zM12 13c-3.315 0-6-2.685-6-6s2.685-6 6-6 6 2.685 6 6-2.685 6-6 6zm0-2c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" />
   </svg>
 );
 

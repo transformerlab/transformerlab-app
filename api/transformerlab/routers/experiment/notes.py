@@ -25,6 +25,24 @@ IMAGE_MEDIA_TYPES = {
 }
 
 
+async def resolve_unique_asset_filename(assets_dir: str, filename: str) -> str:
+    """
+    Return a collision-free filename inside assets_dir.
+
+    If filename exists, append an incrementing suffix before the extension:
+    image.png -> image-1.png -> image-2.png -> ...
+    """
+    stem, ext = os.path.splitext(filename)
+    candidate = filename
+    suffix = 1
+
+    while await storage.exists(storage.join(assets_dir, candidate)):
+        candidate = f"{stem}-{suffix}{ext}"
+        suffix += 1
+
+    return candidate
+
+
 async def read_notes(experimentId: str) -> str:
     """Read notes content, falling back to legacy readme.md at experiment root."""
     exp_obj = Experiment(experimentId)
@@ -119,6 +137,7 @@ async def upload_asset(
     assets_dir = storage.join(experiment_dir, "notes", "assets")
     await storage.makedirs(assets_dir, exist_ok=True)
 
+    filename = await resolve_unique_asset_filename(assets_dir, filename)
     asset_path = storage.join(assets_dir, filename)
     async with await storage.open(asset_path, "wb") as f:
         await f.write(content)

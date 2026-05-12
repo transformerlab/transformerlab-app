@@ -5,6 +5,10 @@ sidebar_position: 200
 
 # Uninstall Transformer Lab
 
+:::warning
+This page is no longer maintained. See the latest setup steps on the [For Teams install page](/for-teams/install).
+:::
+
 - **MacOS:** Delete the `~/.transformerlab/` Directory
 - **Windows:** Delete the `~/.transformerlab/` Directory in WSL
 - **Linux:** Delete the `~/.transformerlab/` Directory

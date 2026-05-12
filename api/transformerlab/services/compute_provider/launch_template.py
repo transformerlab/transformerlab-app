@@ -270,7 +270,9 @@ async def launch_template_on_provider(
         # Install torch as well if torch profiler is enabled
         if request.enable_profiling_torch:
             setup_commands.append("pip install -q torch")
-    if request.file_mounts is True and request.task_id:
+    # Local provider always uses lab.copy_file_mounts() to land task files at $HOME (= cwd).
+    # Other providers only inject it when file_mounts is explicitly enabled.
+    if request.task_id and (request.file_mounts is True or provider.type == ProviderType.LOCAL.value):
         setup_commands.append(COPY_FILE_MOUNTS_SETUP)
     # For providers that rely on base container images without uv preinstalled,
     # tell uv to use system Python and bootstrap uv before user setup/run steps.

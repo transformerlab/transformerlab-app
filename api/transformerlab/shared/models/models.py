@@ -132,8 +132,10 @@ class ProviderType(str, enum.Enum):
     RUNPOD = "runpod"
     LOCAL = "local"
     DSTACK = "dstack"
+    AZURE = "azure"
     AWS = "aws"
     VASTAI = "vastai"
+    GCP = "gcp"
 
 
 class AcceleratorType(str, enum.Enum):
@@ -345,4 +347,23 @@ class JobQueue(Base):
     __table_args__ = (
         Index("idx_job_queue_status_type", "status", "queue_type"),
         Index("idx_job_queue_job_id", "job_id"),
+    )
+
+
+class UserExperimentAccess(Base):
+    """Tracks when each user last opened each experiment."""
+
+    __tablename__ = "user_experiment_access"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
+    team_id: Mapped[str] = mapped_column(String, nullable=False)
+    experiment_id: Mapped[str] = mapped_column(String, nullable=False)
+    last_opened_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "team_id", "experiment_id", name="uq_user_experiment_access"),
+        Index("idx_user_experiment_access_user_team", "user_id", "team_id"),
     )

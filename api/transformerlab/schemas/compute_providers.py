@@ -36,8 +36,14 @@ class ProviderConfigBase(BaseModel):
     ssh_key_path: Optional[str] = None
     ssh_port: int = 22
 
-    # AWS-specific config
-    region: Optional[str] = None  # AWS region (e.g. "us-east-1")
+    # AWS/GCP-specific config
+    region: Optional[str] = None  # AWS region (e.g. "us-east-1") or GCP region (e.g. "us-central1")
+
+    # GCP-specific config
+    project_id: Optional[str] = None
+    zone: Optional[str] = None  # Optional GCP zone (e.g. "us-central1-a"); falls back to <region>-a
+    credentials_path: Optional[str] = None
+    service_account_email: Optional[str] = None
 
     # Runpod-specific config
     api_key: Optional[str] = None  # Runpod API key (sensitive)
@@ -46,6 +52,14 @@ class ProviderConfigBase(BaseModel):
     default_region: Optional[str] = None  # Default region
     default_template_id: Optional[str] = None  # Default Docker template ID
     default_network_volume_id: Optional[str] = None  # Default network volume ID
+
+    # Azure-specific config
+    azure_subscription_id: Optional[str] = None
+    azure_tenant_id: Optional[str] = None
+    azure_client_id: Optional[str] = None
+    azure_client_secret: Optional[str] = None  # sensitive
+    azure_location: Optional[str] = None
+    azure_resource_group: Optional[str] = None
 
     # Accelerators supported by this provider
     supported_accelerators: Optional[List[AcceleratorType]] = Field(default=None)
@@ -81,8 +95,8 @@ class ProviderRead(BaseModel):
     type: str
     config: Dict[str, Any]  # Will mask sensitive fields
     created_by_user_id: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     disabled: bool
     is_default: bool
 
@@ -116,6 +130,12 @@ def mask_sensitive_config(config: Dict[str, Any], provider_type: str) -> Dict[st
         masked["password"] = "***"
     if "secret" in masked:
         masked["secret"] = "***"
+    if "service_account_json" in masked and masked["service_account_json"]:
+        masked["service_account_json"] = "***"
+
+    # Mask Azure Service Principal secret.
+    if "azure_client_secret" in masked and masked["azure_client_secret"]:
+        masked["azure_client_secret"] = "***"
 
     return masked
 

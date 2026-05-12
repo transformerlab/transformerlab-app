@@ -46,6 +46,16 @@ async def test_missing_experiment_returns_none(tmp_experiments_dir):
     assert await experiment_service.experiment_get("no_such_experiment") is None
 
 
+@pytest.mark.asyncio
+async def test_duplicate_experiment_create_raises_file_exists(tmp_experiments_dir):
+    _ = tmp_experiments_dir
+    name = f"duplicate_exp_{uuid.uuid4().hex[:8]}"
+    await experiment_service.experiment_create(name, {"a": 1})
+
+    with pytest.raises(FileExistsError):
+        await experiment_service.experiment_create(name, {"a": 2})
+
+
 # Added test to hit the new FileNotFoundError except-clauses in experiment_service
 @pytest.mark.asyncio
 async def test_missing_experiment_operations_handle_FileNotFound(tmp_experiments_dir):
