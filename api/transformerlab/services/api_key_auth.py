@@ -1,7 +1,7 @@
 """API Key authentication helpers (service layer)."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException, Request
@@ -104,7 +104,7 @@ async def validate_api_key_and_get_user(
         raise HTTPException(status_code=401, detail="User account is inactive")
 
     # Update last_used_at
-    api_key_obj.last_used_at = datetime.utcnow()
+    api_key_obj.last_used_at = datetime.now(timezone.utc).replace(tzinfo=None)
     session.add(api_key_obj)
     await session.commit()
 

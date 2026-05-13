@@ -7,7 +7,7 @@ import uuid
 import os
 import tempfile
 import zipfile
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from lab.task_template import TaskTemplate as TaskTemplateService
 from lab.dirs import get_experiment_task_dir_nocreate
@@ -155,7 +155,7 @@ class TaskService:
                 if existing_mounts is True or (isinstance(existing_mounts, dict) and len(existing_mounts) > 0):
                     out["file_mounts"] = existing_mounts
 
-            out["updated_at"] = datetime.utcnow().isoformat()
+            out["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
             await task._set_json_data(out)
             return True
         except FileNotFoundError:
@@ -169,7 +169,7 @@ class TaskService:
                         existing_mounts = data.get("file_mounts")
                         if existing_mounts is True or (isinstance(existing_mounts, dict) and len(existing_mounts) > 0):
                             out["file_mounts"] = existing_mounts
-                    out["updated_at"] = datetime.utcnow().isoformat()
+                    out["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
                     await task._set_json_data(out)
                     return True
                 except FileNotFoundError:

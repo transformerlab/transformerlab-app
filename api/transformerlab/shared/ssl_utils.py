@@ -62,8 +62,8 @@ async def ensure_persistent_self_signed_cert() -> Tuple[str, str]:
             .issuer_name(issuer)
             .public_key(key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(_dt.datetime.utcnow() - _dt.timedelta(days=1))
-            .not_valid_after(_dt.datetime.utcnow() + _dt.timedelta(days=3650))
+            .not_valid_before(_dt.datetime.now(_dt.timezone.utc).replace(tzinfo=None) - _dt.timedelta(days=1))
+            .not_valid_after(_dt.datetime.now(_dt.timezone.utc).replace(tzinfo=None) + _dt.timedelta(days=3650))
             .add_extension(
                 x509.SubjectAlternativeName(
                     [

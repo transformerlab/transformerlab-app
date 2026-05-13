@@ -1,7 +1,7 @@
 """Utilities for API key generation, hashing, and validation."""
 
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
@@ -66,7 +66,7 @@ def is_key_expired(expires_at: Optional[datetime]) -> bool:
     """
     if expires_at is None:
         return False
-    return datetime.utcnow() > expires_at
+    return datetime.now(timezone.utc).replace(tzinfo=None) > expires_at
 
 
 def mask_key(pat: str, max_len: int = 16) -> str:

@@ -2,7 +2,7 @@
 Quota service for managing team and user quotas, quota holds, and quota usage tracking.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
@@ -232,7 +232,7 @@ async def release_quota_hold(
 
     if quota_hold:
         quota_hold.status = "RELEASED"
-        quota_hold.released_at = datetime.utcnow()
+        quota_hold.released_at = datetime.now(timezone.utc).replace(tzinfo=None)
         await session.flush()
 
     return quota_hold
@@ -346,16 +346,12 @@ async def ensure_quota_recorded_for_completed_job(
     if not end_time_str:
         # Try to calculate from current time if job is complete
         if status == JobStatus.COMPLETE:
-            from datetime import datetime
-
-            end_time_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            end_time_str = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
         else:
             return False  # Can't calculate without end_time
 
     # Calculate minutes used
     try:
-        from datetime import datetime
-
         if isinstance(start_time_str, str):
             start_dt = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M:%S")
         elif isinstance(start_time_str, datetime):
