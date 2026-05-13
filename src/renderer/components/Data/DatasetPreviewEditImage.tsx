@@ -88,10 +88,10 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
         setColumns(orderedColumns);
 
         const splits = [
-          ...new Set(updatedRows.map((r) => r.split).filter(Boolean)),
+          ...new Set(updatedRows.flatMap((r) => (r.split ? [r.split] : []))),
         ];
         const labels = [
-          ...new Set(updatedRows.map((r) => r.label).filter(Boolean)),
+          ...new Set(updatedRows.flatMap((r) => (r.label ? [r.label] : []))),
         ];
         setAvailableSplits(splits);
         setAvailableLabels(labels);

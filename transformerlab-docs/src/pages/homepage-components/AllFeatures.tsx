@@ -20,7 +20,7 @@ export default function AllFeatures() {
   return (
     <>
       <FeatureCard
-        video={<img src={TrainImage} />}
+        video={<img src={TrainImage} alt="Training orchestration" />}
         text={<FeatureOrchestrate />}
         flip
       />
@@ -40,22 +40,27 @@ export default function AllFeatures() {
         text={<FeatureDiffusion />}
       />
       <FeatureCard
-        video={<img src={ExperimentImage} />}
+        video={<img src={ExperimentImage} alt="Experiment workspace" />}
         text={<FeatureExperiments />}
         flip
       />
       <FeatureCard
-        video={<img src={CheckpointsImage} />}
+        video={<img src={CheckpointsImage} alt="Training checkpoints" />}
         text={<FeatureCheckpoints />}
       />
       <FeatureCard
-        video={<img src={LossFunctionImage} />}
+        video={<img src={LossFunctionImage} alt="Loss function chart" />}
         text={<FeatureTrain />}
         flip
       />
-      <FeatureCard video={<img src={EvalImage} />} text={<FeatureEvals />} />
       <FeatureCard
-        video={<img src={WorksWithImage} />}
+        video={<img src={EvalImage} alt="Evaluation results" />}
+        text={<FeatureEvals />}
+      />
+      <FeatureCard
+        video={
+          <img src={WorksWithImage} alt="Compatible tools and frameworks" />
+        }
         text={<FeaturesWorksWith />}
         flip
       />
