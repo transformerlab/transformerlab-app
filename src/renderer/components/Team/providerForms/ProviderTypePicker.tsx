@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { FormControl, FormLabel, Option, Select, Typography } from '@mui/joy';
+import React from 'react';
+import { Box, Card, FormControl, FormLabel, Typography } from '@mui/joy';
+
+import ProviderTypeLogo from './ProviderTypeLogo';
 
 export interface ProviderTypeOption {
   value: string;
@@ -12,40 +14,79 @@ interface ProviderTypePickerProps {
   onSelect: (providerType: string) => void;
 }
 
+function activateCardKey(event: React.KeyboardEvent, onActivate: () => void) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    onActivate();
+  }
+}
+
 export default function ProviderTypePicker({
   options,
   onSelect,
 }: ProviderTypePickerProps) {
-  const [selectedType, setSelectedType] = useState<string | null>(null);
-
   return (
     <FormControl sx={{ mt: 2 }}>
       <FormLabel>Choose Compute Provider Type</FormLabel>
       <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
-        Select a provider type to open its dedicated setup form.
+        Pick a provider to open its setup form.
       </Typography>
-      <Select
-        value={selectedType}
-        placeholder="Select provider type"
-        sx={{ mt: 1 }}
-        slotProps={{ listbox: { sx: { maxHeight: 'none' } } }}
-        onChange={(event, value) => {
-          if (!value) return;
-          setSelectedType(value);
-          onSelect(value);
+      <Box
+        sx={{
+          mt: 1.5,
+          display: 'grid',
+          gap: 1.25,
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, minmax(0, 1fr))',
+          },
         }}
       >
         {options.map((option) => (
-          <Option key={option.value} value={option.value}>
-            <div>
-              <Typography level="title-sm">{option.label}</Typography>
-              <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
-                {option.description}
-              </Typography>
-            </div>
-          </Option>
+          <Card
+            key={option.value}
+            role="button"
+            tabIndex={0}
+            variant="outlined"
+            onClick={() => onSelect(option.value)}
+            onKeyDown={(e) => activateCardKey(e, () => onSelect(option.value))}
+            sx={{
+              cursor: 'pointer',
+              outlineOffset: 2,
+              transition:
+                'background-color 0.15s, border-color 0.15s, box-shadow 0.15s',
+              '&:hover': {
+                borderColor: 'primary.outlinedHoverBorder',
+                bgcolor: 'background.level1',
+                boxShadow: 'sm',
+              },
+              '&:focus-visible': {
+                outline: '2px solid',
+                outlineColor: 'primary.500',
+              },
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1.25,
+                alignItems: 'flex-start',
+              }}
+            >
+              <ProviderTypeLogo providerType={option.value} size={44} />
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography level="title-sm">{option.label}</Typography>
+                <Typography
+                  level="body-sm"
+                  sx={{ mt: 0.75, color: 'text.tertiary' }}
+                >
+                  {option.description}
+                </Typography>
+              </Box>
+            </Box>
+          </Card>
         ))}
-      </Select>
+      </Box>
     </FormControl>
   );
 }
