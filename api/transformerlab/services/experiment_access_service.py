@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 async def touch_experiment(session: AsyncSession, user_id: str, team_id: str, experiment_id: str) -> None:
     """Upsert last_opened_at for a user-experiment pair."""
-    now = datetime.now(timezone.utc)
+    # Naive UTC to match the TIMESTAMP WITHOUT TIME ZONE column on Postgres.
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     result = await session.execute(
         update(UserExperimentAccess)
         .where(
