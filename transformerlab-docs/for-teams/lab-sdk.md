@@ -142,7 +142,7 @@ Saves a file or directory as an artifact for the current job. Artifacts are stor
 
 **Parameters:**
 
-- `source_path` (str or DataFrame): Path to the file/directory to save, or a pandas DataFrame when `type="eval"` or `type="dataset"`.
+- `source_path` (str or DataFrame): Path to the file/directory to save, or a pandas DataFrame when `type="evals"` or `type="dataset"`.
 - `name` (str, optional): Name for the artifact. If not provided, uses the source basename.
 - `type` (str, optional): Type of artifact. Special types:
   - `"eval"`: Saves to eval_results directory and updates job data accordingly. Visible as Eval Results in the GUI.
@@ -475,7 +475,7 @@ dataset_path = lab.save_artifact(
 
 ## Evaluation Results
 
-### lab.save_artifact() with type="eval"
+### lab.save_artifact() with type="evals"
 
 Saves evaluation results as a CSV file. The results are stored in the job's eval_results directory and are visible in the Transformer Lab UI.
 
@@ -483,7 +483,7 @@ Saves evaluation results as a CSV file. The results are stored in the job's eval
 
 - `source_path`: A pandas DataFrame or Hugging Face datasets.Dataset with evaluation results.
 - `name` (str, optional): Name for the evaluation results file. Defaults to `eval_results_{job_id}_{timestamp}.csv`.
-- `type` (str): Must be `"eval"`.
+- `type` (str): Must be `"evals"`.
 - `config` (dict, optional): Configuration dict with column mappings under `"evals"` key:
 
   ```python
@@ -525,7 +525,7 @@ results = pd.DataFrame({
 eval_path = lab.save_artifact(
     source_path=results,
     name="eval_results.csv",
-    type="eval"
+    type="evals"
 )
 lab.log(f"Evaluation results saved to: {eval_path}")
 ```
@@ -550,7 +550,7 @@ results = pd.DataFrame({
 eval_path = lab.save_artifact(
     source_path=results,
     name="eval_results_custom.csv",
-    type="eval",
+    type="evals",
     config={
         "evals": {
             "input": "question",
@@ -748,7 +748,7 @@ def train_model():
     eval_path = lab.save_artifact(
         eval_results,
         name="eval_results.csv",
-        type="eval"
+        type="evals"
     )
     lab.log(f"Evaluation results saved: {eval_path}")
 
@@ -792,6 +792,6 @@ if __name__ == "__main__":
 
 6. **Complete jobs**: Always call `lab.finish()` or `lab.error()` at the end of your script.
 
-7. **Use appropriate artifact types**: Use `type="model"` for models, `type="eval"` for evaluation results, and `type="dataset"` for datasets.
+7. **Use appropriate artifact types**: Use `type="model"` for models, `type="evals"` for evaluation results, and `type="dataset"` for datasets.
 
 8. **Check for resume**: Use `lab.get_checkpoint_to_resume()` to support resuming from checkpoints.

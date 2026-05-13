@@ -253,7 +253,7 @@ Stop a running job.
 
 Launch the interactive job monitor TUI (Textual app).
 
-**Warning:** This launches a full terminal UI. **Never use in automated or agent contexts.** Use `job list` + `job machine-logs` instead.
+**Warning:** This launches a full terminal UI. **Never use when operating as an AI agent or in non-interactive automation.** Use `job list`, `job info`, and `job task-logs` instead.
 
 ---
 
@@ -285,9 +285,10 @@ Add a new compute provider. Interactive prompts by default.
 | Option | Description |
 |---|---|
 | `--name <name>` | Provider name |
-| `--type <type>` | Provider type: `slurm`, `skypilot`, `runpod`, `local` |
+| `--type <type>` | Provider type: `slurm`, `skypilot`, `runpod`, `local`, `dstack`, `aws`, `gcp`, `azure` |
 | `--config <json>` | Config as JSON string |
 | `--interactive` / `--no-interactive` | Toggle prompts. Non-interactive requires `--name`, `--type`, AND `--config` (pass `'{}'` for `local`). |
+| `--credentials-file <path>` | Path to a JSON file containing provider secrets. Shape depends on `--type` (see below). Keeps secrets out of `argv` (shell history, `ps`). |
 
 **Always use `--no-interactive` with `--name`, `--type`, and `--config` in automated workflows.**
 
@@ -295,22 +296,59 @@ Add a new compute provider. Interactive prompts by default.
 
 The shape of `--config` depends on `--type`:
 
-| Type | Config keys |
-|---|---|
-| `local` | (none — pass `{}`) |
-| `skypilot` | `server_url`, `api_token` |
-| `slurm` | `mode` (`ssh` or `rest`); for `ssh`: `ssh_host`, `ssh_user`, `ssh_key_path`, `ssh_port`; for `rest`: `rest_url`, `api_token` |
-| `runpod` | `api_key` (required), `api_base_url`, `default_gpu_type`, `default_region`, `default_template_id`, `default_network_volume_id` |
+| Type | Config keys | `--credentials-file` shape |
+|---|---|---|
+| `local` | (none — pass `{}`) | (n/a) |
+| `skypilot` | `server_url` | `{"api_token": "..."}` (or any other secret keys to merge into config) |
+| `slurm` | `mode` (`ssh` or `rest`); for `ssh`: `ssh_host`, `ssh_user`, `ssh_key_path`, `ssh_port`; for `rest`: `rest_url` | `{"api_token": "..."}` for REST mode |
+| `runpod` | `api_base_url`, `default_gpu_type`, `default_region`, `default_template_id`, `default_network_volume_id` | `{"api_key": "..."}` |
+| `dstack` | `server_url`, `dstack_project` | `{"api_token": "..."}` |
+| `aws` | `region`. | `{"aws_access_key_id": "...", "aws_secret_access_key": "..."}` — uploaded to `~/.aws/credentials` on the API host. |
+| `gcp` | `region`, optional `zone`. | The **raw service account JSON key file** (point `--credentials-file` directly at the file you'd pass to `gcloud auth activate-service-account --key-file=`). |
+| `azure` | `azure_subscription_id`, `azure_tenant_id`, `azure_client_id`, `azure_location` | `{"azure_client_secret": "..."}` |
+
+You can put any combination of secret fields in `--credentials-file` — for non-AWS/GCP types they merge on top of `--config` and take precedence on conflict. AWS access keys and GCP service account JSON are routed to their dedicated upload endpoints.
 
 ```bash
 lab provider add --no-interactive --name local --type local --config '{}'
+
+# Secrets via --credentials-file — preferred for scripted / CI flows
+# skypilot-creds.json: {"api_token": "TOKEN"}
 lab provider add --no-interactive --name sky1 --type skypilot \
-  --config '{"server_url": "https://sky.example.com", "api_token": "TOKEN"}'
+  --config '{"server_url": "https://sky.example.com"}' \
+  --credentials-file ./skypilot-creds.json
+
+# slurm-creds.json: {"api_token": "TOKEN"}
 lab provider add --no-interactive --name slurm-ssh --type slurm \
   --config '{"mode": "ssh", "ssh_host": "cluster.example.com", "ssh_user": "ali", "ssh_key_path": "~/.ssh/id_rsa", "ssh_port": "22"}'
+
+# runpod-creds.json: {"api_key": "KEY"}
 lab provider add --no-interactive --name rp1 --type runpod \
-  --config '{"api_key": "KEY", "default_gpu_type": "NVIDIA H100"}'
+  --config '{"default_gpu_type": "NVIDIA H100"}' \
+  --credentials-file ./runpod-creds.json
+
+# dstack-creds.json: {"api_token": "TOKEN"}
+lab provider add --no-interactive --name dstack1 --type dstack \
+  --config '{"server_url": "http://0.0.0.0:3000", "dstack_project": "main"}' \
+  --credentials-file ./dstack-creds.json
+
+# aws-creds.json: {"aws_access_key_id": "AKIA...", "aws_secret_access_key": "..."}
+lab provider add --no-interactive --name aws1 --type aws \
+  --config '{"region": "us-east-1"}' \
+  --credentials-file ./aws-creds.json
+
+# Pass the GCP service account JSON file directly
+lab provider add --no-interactive --name gcp1 --type gcp \
+  --config '{"region": "us-central1"}' \
+  --credentials-file ~/.config/gcloud/sa-key.json
+
+# azure-creds.json: {"azure_client_secret": "REDACTED"}
+lab provider add --no-interactive --name azure1 --type azure \
+  --config '{"azure_subscription_id": "sub", "azure_tenant_id": "tenant", "azure_client_id": "client", "azure_location": "eastus"}' \
+  --credentials-file ./azure-creds.json
 ```
+
+> **Security note:** Secrets embedded inside `--config` (`api_token`, `api_key`, `azure_client_secret`, etc.) appear in your shell history and in `ps`/proc listings while the command runs. **For scripted / CI use, prefer `--credentials-file PATH`** — values stay on disk, never on `argv`. `chmod 600` the file, source it from a secret manager / CI vault, and delete it after the `lab provider add` call. For one-off interactive use, the interactive `lab provider add` flow prompts for secrets without echoing them to argv.
 
 ### `provider update <provider_id>`
 
@@ -320,6 +358,7 @@ Update a compute provider. Fields are merged with existing config.
 |---|---|
 | `--name <name>` | New provider name |
 | `--config <json>` | Config fields as JSON string (merged with existing) |
+| `--credentials-file <path>` | Path to a JSON file whose fields are merged into the config patch (file values win over `--config`). Use this for credential rotation — keeps secrets out of `argv`. |
 | `--disabled` / `--enabled` | Disable or enable the provider |
 
 ### `provider delete <provider_id>`

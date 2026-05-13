@@ -5,15 +5,7 @@
 
 import { useAPI } from 'renderer/lib/authContext';
 
-/** Category IDs for notification types. Extend when adding new sources. */
-export const NOTIFICATION_CATEGORIES = {
-  TEAM_INVITES: 'teamInvites',
-} as const;
-
-export type NotificationCategoryId =
-  (typeof NOTIFICATION_CATEGORIES)[keyof typeof NOTIFICATION_CATEGORIES];
-
-export interface NotificationsByCategory {
+interface NotificationsByCategory {
   teamInvites: number;
 }
 
@@ -21,13 +13,6 @@ export interface NotificationsSummary {
   totalCount: number;
   byCategory: NotificationsByCategory;
 }
-
-const EMPTY_SUMMARY: NotificationsSummary = {
-  totalCount: 0,
-  byCategory: {
-    teamInvites: 0,
-  },
-};
 
 /**
  * Returns a single summary of all pending notifications.
@@ -51,5 +36,3 @@ export function useNotificationsSummary(
     byCategory,
   };
 }
-
-export { EMPTY_SUMMARY };

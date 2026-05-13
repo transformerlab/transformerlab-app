@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class ComputeProviderConfig(BaseModel):
     """Configuration for a single compute provider."""
 
-    type: str  # "skypilot", "slurm", or "runpod"
+    type: str  # "skypilot", "slurm", "runpod", "local", "dstack", "aws", or "vastai"
     name: str  # Provider name/identifier
 
     # SkyPilot-specific config
@@ -265,6 +265,16 @@ def create_compute_provider(config: ComputeProviderConfig) -> "ComputeProvider":
             team_id=config.team_id,
             extra_config=config.extra_config,
         )
+    elif config.type == "vastai":
+        from .vastai import VastAIProvider
+
+        if not config.api_key:
+            raise ValueError("Vast.ai provider requires api_key in config")
+        return VastAIProvider(
+            api_key=config.api_key,
+            extra_config=config.extra_config,
+        )
+
     elif config.type == "gcp":
         from .gcp import GCPProvider
 

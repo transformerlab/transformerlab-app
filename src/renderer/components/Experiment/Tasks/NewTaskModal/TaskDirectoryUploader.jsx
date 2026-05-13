@@ -267,8 +267,7 @@ const TaskDirectoryUploader = ({ onUpload }) => {
           multiple
           onChange={handleInputChange}
           style={{ display: 'none' }}
-          webkitdirectory="true"
-          directory=""
+          webkitdirectory=""
         />
 
         <Box sx={{ mb: 1, pointerEvents: 'none' }}>
@@ -284,7 +283,7 @@ const TaskDirectoryUploader = ({ onUpload }) => {
             color="neutral"
             sx={{ pointerEvents: 'none' }}
           >
-            Drop the folder here...
+            Drop the folder here…
           </Typography>
         ) : (
           <Typography
@@ -366,11 +365,13 @@ const TaskDirectoryUploader = ({ onUpload }) => {
             Ready to Upload ({fileList.length} files):
           </Typography>
           <List size="sm" sx={{ pl: 2 }}>
-            {fileList.slice(0, 5).map((file, i) => (
-              <ListItem key={i}>{file.webkitRelativePath}</ListItem>
+            {fileList.slice(0, 5).map((file) => (
+              <ListItem key={file.webkitRelativePath}>
+                {file.webkitRelativePath}
+              </ListItem>
             ))}
             {fileList.length > 5 && (
-              <ListItem>...and {fileList.length - 5} more</ListItem>
+              <ListItem>…and {fileList.length - 5} more</ListItem>
             )}
           </List>
         </Box>

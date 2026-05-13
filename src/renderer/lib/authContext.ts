@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { API_URL } from './transformerlab-api-sdk';
 import useSWR from 'swr';
-import { getAPIFullPath, getPath } from './api-client/urls';
+import { deriveApiBaseUrl, getAPIFullPath, getPath } from './api-client/urls';
 import {
   identifyUser,
   resetUser,
@@ -115,11 +115,11 @@ function notifyListeners() {
   });
 }
 
-export function getCurrentTeam(): Team | null {
+function getCurrentTeam(): Team | null {
   return _currentTeam;
 }
 
-export function updateCurrentTeam(team: Team | null) {
+function updateCurrentTeam(team: Team | null) {
   _currentTeam = team;
   try {
     if (team) localStorage.setItem('current_team', JSON.stringify(team));
@@ -130,12 +130,12 @@ export function updateCurrentTeam(team: Team | null) {
   notifyListeners();
 }
 
-export function logoutUser() {
+function logoutUser() {
   updateCurrentTeam(null);
 }
 
 // allow components to re-render when auth changes
-export function subscribeAuthChange(cb: () => void) {
+function subscribeAuthChange(cb: () => void) {
   listeners.add(cb);
   return () => {
     listeners.delete(cb);
@@ -206,18 +206,9 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     // prefix (e.g. when the app is hosted behind a reverse proxy at /lab/).
     fullUrl = url;
   } else {
-    const baseUrl = API_URL();
-    if (baseUrl === null) {
-      // Default to same host as frontend with API port if API_URL is not set
-      // Ensure URL doesn't start with / (baseUrl already has trailing slash)
-      const cleanPath = url.startsWith('/') ? url.slice(1) : url;
-      const protocol = window.location.protocol;
-      const hostname = window.location.hostname;
-      fullUrl = `${protocol}//${hostname}:8338/${cleanPath}`;
-    } else {
-      // baseUrl already has trailing slash from API_URL()
-      fullUrl = `${baseUrl}${url}`;
-    }
+    const baseUrl = API_URL() ?? deriveApiBaseUrl();
+    // baseUrl always has a trailing slash
+    fullUrl = `${baseUrl}${url}`;
   }
 
   const method = (options.method ?? 'GET').toUpperCase();

@@ -149,33 +149,7 @@ class TaskTemplate(BaseLabResource):
 
     async def get_metadata(self):
         """Get task metadata"""
-        data = await self.get_json_data()
-
-        # Fix experiment_id if it's a digit - convert to experiment name
-        if data.get("experiment_id") and str(data["experiment_id"]).isdigit():
-            experiment_name = await self._get_experiment_name_by_id(data["experiment_id"])
-            if experiment_name:
-                data["experiment_id"] = experiment_name
-                # Save the corrected data back to the file
-                await self._set_json_data(data)
-
-        return data
-
-    async def _get_experiment_name_by_id(self, experiment_id):
-        """Get experiment name by ID, return None if not found"""
-        try:
-            from .experiment import Experiment
-
-            # Get all experiments and search for one with matching db_experiment_id
-            all_experiments = await Experiment.get_all()
-            for exp_data in all_experiments:
-                if exp_data.get("db_experiment_id") == int(experiment_id):
-                    return exp_data.get("name", experiment_id)
-
-            # If no match found, return the original ID
-            return experiment_id
-        except Exception:
-            return experiment_id
+        return await self.get_json_data()
 
     @staticmethod
     async def list_all():
@@ -244,32 +218,24 @@ class TaskTemplate(BaseLabResource):
                 task = await TaskTemplate.get(task_id, experiment_id=experiment_id)
                 return await task.get_metadata()
             except FileNotFoundError:
-                pass
-
-        # Legacy fallback location for pre-migration tasks.
-        try:
-            task = await TaskTemplate.get(task_id)
-            return await task.get_metadata()
-        except FileNotFoundError:
-            pass
+                return None
 
         # Best-effort fallback for callers that only know task_id:
         # scan experiment-scoped task folders to locate a matching id.
-        if not experiment_id:
-            try:
-                experiments_dir = await get_experiments_dir()
-                if await storage.isdir(experiments_dir):
-                    exp_entries = await storage.ls(experiments_dir, detail=False)
-                    for exp_path in exp_entries:
-                        if not await storage.isdir(exp_path):
-                            continue
-                        exp_id = exp_path.rstrip("/").split("/")[-1]
-                        candidate = await get_experiment_task_dir(exp_id, task_id)
-                        if await storage.isdir(candidate):
-                            task = await TaskTemplate.get(task_id, experiment_id=exp_id)
-                            return await task.get_metadata()
-            except Exception:
-                return None
+        try:
+            experiments_dir = await get_experiments_dir()
+            if await storage.isdir(experiments_dir):
+                exp_entries = await storage.ls(experiments_dir, detail=False)
+                for exp_path in exp_entries:
+                    if not await storage.isdir(exp_path):
+                        continue
+                    exp_id = exp_path.rstrip("/").split("/")[-1]
+                    candidate = await get_experiment_task_dir(exp_id, task_id)
+                    if await storage.isdir(candidate):
+                        task = await TaskTemplate.get(task_id, experiment_id=exp_id)
+                        return await task.get_metadata()
+        except Exception:
+            return None
         return None
 
     @staticmethod

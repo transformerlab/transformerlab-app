@@ -134,6 +134,7 @@ class ProviderType(str, enum.Enum):
     DSTACK = "dstack"
     AZURE = "azure"
     AWS = "aws"
+    VASTAI = "vastai"
     GCP = "gcp"
 
 

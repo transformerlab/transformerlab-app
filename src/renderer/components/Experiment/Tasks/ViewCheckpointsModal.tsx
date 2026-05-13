@@ -136,7 +136,7 @@ export function CheckpointsBody({
               '--CircularProgress-progressThickness': '2px',
             }}
           />
-          <Typography level="body-md">Loading checkpoints...</Typography>
+          <Typography level="body-md">Loading checkpoints…</Typography>
         </Box>
       ) : (
         <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
