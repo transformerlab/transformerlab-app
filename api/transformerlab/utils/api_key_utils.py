@@ -1,10 +1,12 @@
 """Utilities for API key generation, hashing, and validation."""
 
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
+
+from transformerlab.utils.datetime_utils import utc_now_naive
 
 # Use the same password hashing as FastAPI Users (Argon2 via pwdlib)
 # Initialize exactly as FastAPI Users does (see https://fastapi-users.github.io/fastapi-users/latest/configuration/password-hash/)
@@ -66,7 +68,7 @@ def is_key_expired(expires_at: Optional[datetime]) -> bool:
     """
     if expires_at is None:
         return False
-    return datetime.now(timezone.utc).replace(tzinfo=None) > expires_at
+    return utc_now_naive() > expires_at
 
 
 def mask_key(pat: str, max_len: int = 16) -> str:

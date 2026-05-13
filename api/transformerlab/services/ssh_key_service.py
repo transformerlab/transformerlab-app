@@ -10,13 +10,13 @@ import stat
 import json
 import uuid
 from typing import Tuple, Optional, Dict, Any
-from datetime import datetime, timezone
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 
 from lab import storage
 from lab.dirs import get_workspace_dir
+from transformerlab.utils.datetime_utils import utc_now_naive
 
 
 async def get_ssh_keys_dir(team_id: str) -> str:
@@ -126,7 +126,7 @@ async def get_or_create_org_ssh_key_pair(team_id: str) -> Tuple[str, str]:
         status = {
             "key_id": key_id,
             "name": None,
-            "created_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            "created_at": utc_now_naive().isoformat(),
             "created_by_user_id": "system",  # Legacy key creation
         }
         await save_status(team_id, status)
@@ -235,7 +235,7 @@ async def create_ssh_key(team_id: str, name: Optional[str], created_by_user_id: 
     status = {
         "key_id": key_id,
         "name": name,
-        "created_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+        "created_at": utc_now_naive().isoformat(),
         "created_by_user_id": created_by_user_id,
     }
 

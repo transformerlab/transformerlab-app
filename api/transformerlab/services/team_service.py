@@ -3,7 +3,7 @@ import json
 import logging
 import re
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from os import getenv
 from typing import List, Optional
 from uuid import UUID
@@ -28,6 +28,7 @@ from transformerlab.shared.models.models import (
 from transformerlab.shared.remote_workspace import create_bucket_for_team
 from transformerlab.schemas.secrets import SPECIAL_SECRET_KEYS, SPECIAL_SECRET_TYPES
 from transformerlab.utils.api_key_utils import mask_key
+from transformerlab.utils.datetime_utils import utc_now_naive
 from transformerlab.utils.email import send_team_invitation_email
 
 logger = logging.getLogger(__name__)
@@ -356,8 +357,8 @@ async def invite_member(
     app_url = getenv("FRONTEND_URL", "http://localhost:1212")
 
     if existing:
-        if existing.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
-            existing.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7)
+        if existing.expires_at < utc_now_naive():
+            existing.expires_at = utc_now_naive() + timedelta(days=7)
             await session.commit()
             await session.refresh(existing)
             message = "Invitation renewed and resent"
@@ -383,7 +384,7 @@ async def invite_member(
         invited_by_user_id=str(inviter_user.id),
         role=role,
         status=InvitationStatus.PENDING.value,
-        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7),
+        expires_at=utc_now_naive() + timedelta(days=7),
     )
     session.add(invitation)
     await session.commit()
@@ -421,7 +422,7 @@ async def get_my_invitations(session: AsyncSession, user_email: str) -> dict:
 
     valid = []
     for inv in invitations:
-        if inv.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
+        if inv.expires_at < utc_now_naive():
             inv.status = InvitationStatus.EXPIRED.value
         else:
             valid.append(inv)
@@ -469,9 +470,7 @@ async def get_invitation_by_token(session: AsyncSession, token: str) -> dict:
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
 
-    if invitation.status == InvitationStatus.PENDING.value and invitation.expires_at < datetime.now(
-        timezone.utc
-    ).replace(tzinfo=None):
+    if invitation.status == InvitationStatus.PENDING.value and invitation.expires_at < utc_now_naive():
         invitation.status = InvitationStatus.EXPIRED.value
         await session.commit()
 
@@ -504,9 +503,7 @@ async def get_team_invitations(session: AsyncSession, team_id: str) -> dict:
     team = result.scalar_one_or_none()
 
     for inv in invitations:
-        if inv.status == InvitationStatus.PENDING.value and inv.expires_at < datetime.now(timezone.utc).replace(
-            tzinfo=None
-        ):
+        if inv.status == InvitationStatus.PENDING.value and inv.expires_at < utc_now_naive():
             inv.status = InvitationStatus.EXPIRED.value
     await session.commit()
 
@@ -560,7 +557,7 @@ async def accept_invitation(
         raise HTTPException(status_code=403, detail="This invitation is not for your email address")
     if invitation.status != InvitationStatus.PENDING.value:
         raise HTTPException(status_code=400, detail=f"Invitation is no longer pending (status: {invitation.status})")
-    if invitation.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
+    if invitation.expires_at < utc_now_naive():
         invitation.status = InvitationStatus.EXPIRED.value
         await session.commit()
         raise HTTPException(status_code=400, detail="Invitation has expired")

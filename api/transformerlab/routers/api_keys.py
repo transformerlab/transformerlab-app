@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, update
 from typing import Optional, List
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
 
 from transformerlab.shared.models.user_model import get_async_session
@@ -15,6 +15,7 @@ from transformerlab.utils.api_key_utils import (
     hash_api_key,
     get_key_prefix,
 )
+from transformerlab.utils.datetime_utils import utc_now_naive
 from transformerlab.services.provider_service import (
     validate_team_exists,
     validate_user_exists,
@@ -103,7 +104,7 @@ async def create_api_key(
     # Calculate expiration
     expires_at = None
     if api_key_data.expires_in_days:
-        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=api_key_data.expires_in_days)
+        expires_at = utc_now_naive() + timedelta(days=api_key_data.expires_in_days)
 
     # Create API key record
     api_key_obj = ApiKey(
