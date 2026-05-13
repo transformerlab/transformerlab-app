@@ -28,6 +28,7 @@ export default function ProviderTypePicker({
         value={selectedType}
         placeholder="Select provider type"
         sx={{ mt: 1 }}
+        slotProps={{ listbox: { sx: { maxHeight: 'none' } } }}
         onChange={(event, value) => {
           if (!value) return;
           setSelectedType(value);
