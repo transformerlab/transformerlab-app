@@ -118,7 +118,6 @@
     "react-router-dom": "^6.11.2",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^3.0.1",
-    "simple-icons": "^16.19.0",
     "swr": "^2.3.2",
     "three": "^0.175.0",
     "use-debounce": "^9.0.4",
