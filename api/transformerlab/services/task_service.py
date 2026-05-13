@@ -7,13 +7,14 @@ import uuid
 import os
 import tempfile
 import zipfile
-from datetime import datetime
 from typing import List, Dict, Any, Optional
 from lab.task_template import TaskTemplate as TaskTemplateService
 from lab.dirs import get_experiment_task_dir_nocreate
 from lab import storage
 from fastapi import HTTPException
 from werkzeug.utils import secure_filename
+
+from transformerlab.utils.datetime_utils import utc_now_naive
 
 # Keys that are never removed when syncing from task.yaml (system-owned).
 # Any other key in stored metadata that is not in the parsed task_data is
@@ -155,7 +156,7 @@ class TaskService:
                 if existing_mounts is True or (isinstance(existing_mounts, dict) and len(existing_mounts) > 0):
                     out["file_mounts"] = existing_mounts
 
-            out["updated_at"] = datetime.utcnow().isoformat()
+            out["updated_at"] = utc_now_naive().isoformat()
             await task._set_json_data(out)
             return True
         except FileNotFoundError:
@@ -169,7 +170,7 @@ class TaskService:
                         existing_mounts = data.get("file_mounts")
                         if existing_mounts is True or (isinstance(existing_mounts, dict) and len(existing_mounts) > 0):
                             out["file_mounts"] = existing_mounts
-                    out["updated_at"] = datetime.utcnow().isoformat()
+                    out["updated_at"] = utc_now_naive().isoformat()
                     await task._set_json_data(out)
                     return True
                 except FileNotFoundError:
