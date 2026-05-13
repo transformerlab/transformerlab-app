@@ -4,28 +4,30 @@ import { Cloud, Laptop } from 'lucide-react';
 import type { SimpleIcon } from 'simple-icons/types';
 import { siGooglecloud } from 'simple-icons';
 
+import AwsLogo from './img/aws.png';
+import AzureLogo from './img/azure.svg';
+import SkypilotLogo from './img/skypilot.svg';
+import SlurmLogo from './img/slurm.svg';
+import RunpodLogo from './img/runpod.png';
+import DstackLogo from './img/dstack.png';
+import VastaiLogo from './img/vastai.png';
+
 const SIMPLE_ICONS: Record<string, SimpleIcon> = {
   /** Google Cloud product symbol (no wordmark), reads well in a square tile. */
   gcp: siGooglecloud,
 };
 
-/**
- * Remote marks (Wikimedia, repo SVG/PNG, favicons). `gcp` / `local` use bundled
- * Simple Icons; SkyPilot uses icon-only SVG from the project Helm chart.
- */
-const REMOTE_LOGO_URL: Record<string, string> = {
-  aws: 'https://www.google.com/s2/favicons?domain=aws.amazon.com&sz=128',
-  /** Commons: File:Microsoft_Azure.svg — sourced from azure.microsoft.com (Aug 2021). */
-  azure:
-    'https://upload.wikimedia.org/wikipedia/commons/f/fa/Microsoft_Azure.svg',
-  /** Icon-only mark (square), charts/skypilot/skypilot.svg in skypilot-org/skypilot. */
-  skypilot:
-    'https://raw.githubusercontent.com/skypilot-org/skypilot/master/charts/skypilot/skypilot.svg',
-  /** Commons: File:Slurm_logo.svg — SLURM Workload Manager logo (GPL, not SchedMD favicon). */
-  slurm: 'https://upload.wikimedia.org/wikipedia/commons/3/3a/Slurm_logo.svg',
-  runpod: 'https://www.google.com/s2/favicons?domain=runpod.io&sz=128',
-  dstack: 'https://www.google.com/s2/favicons?domain=dstack.ai&sz=128',
-  vastai: 'https://www.google.com/s2/favicons?domain=vast.ai&sz=128',
+type SvgComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
+type LogoAsset = string | SvgComponent;
+
+const PROVIDER_LOGOS: Record<string, LogoAsset> = {
+  aws: AwsLogo,
+  azure: AzureLogo,
+  skypilot: SkypilotLogo,
+  slurm: SlurmLogo,
+  runpod: RunpodLogo,
+  dstack: DstackLogo,
+  vastai: VastaiLogo,
 };
 
 function SimpleIconMark({ icon, size }: { icon: SimpleIcon; size: number }) {
@@ -50,24 +52,24 @@ export interface ProviderTypeLogoProps {
 }
 
 /**
- * Brand-ish logo for a compute provider type: bundled Simple Icons for `gcp`
- * and `local`; otherwise Wikimedia / repo / favicon URLs with a lucide fallback.
+ * Brand-ish logo for a compute provider type: bundled Simple Icons for `gcp`,
+ * a lucide laptop for `local`, and locally-bundled PNG/SVG assets for the rest.
  */
 export default function ProviderTypeLogo({
   providerType,
-  size,
+  size = 44,
 }: ProviderTypeLogoProps) {
-  const boxSize = size ?? 44;
-  const [remoteFailed, setRemoteFailed] = useState(false);
+  const boxSize = size;
+  const [assetFailed, setAssetFailed] = useState(false);
   const simple = SIMPLE_ICONS[providerType];
-  const remoteUrl = REMOTE_LOGO_URL[providerType];
+  const logo = PROVIDER_LOGOS[providerType];
 
   useEffect(() => {
-    setRemoteFailed(false);
+    setAssetFailed(false);
   }, [providerType]);
 
-  const onRemoteError = useCallback(() => {
-    setRemoteFailed(true);
+  const onAssetError = useCallback(() => {
+    setAssetFailed(true);
   }, []);
 
   const shellSx = {
@@ -104,22 +106,30 @@ export default function ProviderTypeLogo({
     );
   }
 
-  if (remoteUrl && !remoteFailed) {
+  if (logo && !assetFailed) {
+    if (typeof logo === 'string') {
+      return (
+        <Box
+          component="img"
+          src={logo}
+          alt=""
+          loading="lazy"
+          onError={onAssetError}
+          sx={{
+            ...shellSx,
+            objectFit: 'contain',
+            p: 0.75,
+            boxSizing: 'border-box',
+          }}
+        />
+      );
+    }
+    const SvgLogo = logo;
+    const inner = Math.round(boxSize * 0.7);
     return (
-      <Box
-        component="img"
-        src={remoteUrl}
-        alt=""
-        loading="lazy"
-        referrerPolicy="no-referrer"
-        onError={onRemoteError}
-        sx={{
-          ...shellSx,
-          objectFit: 'contain',
-          p: 0.75,
-          boxSizing: 'border-box',
-        }}
-      />
+      <Box sx={shellSx}>
+        <SvgLogo width={inner} height={inner} aria-hidden />
+      </Box>
     );
   }
 
@@ -129,7 +139,3 @@ export default function ProviderTypeLogo({
     </Box>
   );
 }
-
-ProviderTypeLogo.defaultProps = {
-  size: 44,
-};
