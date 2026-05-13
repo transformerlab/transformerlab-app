@@ -328,6 +328,13 @@ def command_provider_add(
             raise typer.Exit(1)
         if interactive and not aws_access_key_id and not aws_secret_access_key:
             aws_access_key_id, aws_secret_access_key = _prompt_aws_credentials()
+        if not interactive and not aws_access_key_id and not aws_secret_access_key:
+            console.print(
+                "[error]Error:[/error] AWS providers require credentials. "
+                "Pass --credentials-file PATH pointing at a JSON file containing "
+                "'aws_access_key_id' and 'aws_secret_access_key' (or run interactively)."
+            )
+            raise typer.Exit(1)
 
     # GCP service account JSON: required at create time (provider will be unhealthy without it).
     if provider_type == "gcp":

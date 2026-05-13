@@ -384,6 +384,30 @@ def test_provider_add_aws_partial_creds_rejected(_mock_check, _mock_post, _mock_
 
 
 @patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
+@patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200, {"id": "p7b"}))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_aws_no_interactive_requires_credentials(_mock_check, mock_post, _mock_get):
+    """`provider add --type aws --no-interactive` without --credentials-file should error before creating the provider."""
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-aws",
+            "--type",
+            "aws",
+            "--config",
+            '{"region": "us-east-1"}',
+        ],
+    )
+    assert result.exit_code == 1
+    assert "AWS providers require credentials" in result.output
+    mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
 @patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200, {"id": "p8"}))
 @patch("transformerlab_cli.commands.provider.check_configs")
 def test_provider_add_gcp_uploads_service_account(_mock_check, mock_post, _mock_get, tmp_path):
