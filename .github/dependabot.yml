@@ -13,7 +13,7 @@ updates:
           - "minor"
           - "patch"
 
-  # Docs site
+  # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
   - package-ecosystem: "npm"
     directory: "/transformerlab-docs"
     schedule:
