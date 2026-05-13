@@ -27,7 +27,7 @@ export interface GraphModel {
   axisLegend: string;
 }
 
-export function parseDiscardValue(value: unknown): boolean {
+function parseDiscardValue(value: unknown): boolean {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number')
     return value === 0 || value === 1 ? Boolean(value) : false;
@@ -41,9 +41,7 @@ export function parseDiscardValue(value: unknown): boolean {
   return false;
 }
 
-export function parseNumericScoreFields(
-  score: unknown,
-): Record<string, number> {
+function parseNumericScoreFields(score: unknown): Record<string, number> {
   if (typeof score === 'number' && Number.isFinite(score)) return { score };
   if (typeof score === 'string') {
     const parsed = Number.parseFloat(score);
@@ -91,7 +89,7 @@ export function resolveLowerIsBetter(jobs: unknown[]): boolean {
   return counts.trueCount > counts.falseCount;
 }
 
-export function extractDate(job: {
+function extractDate(job: {
   created_at?: string;
   job_data?: { start_time?: string; end_time?: string };
 }): Date | null {
@@ -105,7 +103,7 @@ export function extractDate(job: {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function getJobDescription(job: {
+function getJobDescription(job: {
   job_data?: { description?: unknown };
 }): string {
   const description = job.job_data?.description;

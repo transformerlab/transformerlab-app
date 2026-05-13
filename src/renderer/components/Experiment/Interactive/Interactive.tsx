@@ -649,7 +649,7 @@ export default function Interactive() {
           }
 
           defaultSetup = template.setup || '';
-          defaultRun = template.run || template.command || '';
+          defaultRun = template.run || '';
           templateId = template.id;
           galleryTemplate = template;
         } else {
@@ -1370,7 +1370,7 @@ export default function Interactive() {
       <DeleteTaskConfirmModal
         open={taskToDelete !== null}
         onClose={() => setTaskToDelete(null)}
-        taskId={taskToDelete?.id ?? null}
+        taskIds={taskToDelete ? [taskToDelete.id] : []}
         taskName={taskToDelete?.name ?? null}
         onConfirm={handleConfirmDeleteTask}
       />

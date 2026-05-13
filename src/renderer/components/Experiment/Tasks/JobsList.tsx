@@ -41,7 +41,9 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { generateJobPermalink } from '../Jobs/jobDetailUtils';
 import JobProgress, { JobCompletionDetails } from './JobProgress';
 
-export interface LaunchProgressInfo {
+const EMPTY_SELECTED_JOB_IDS: string[] = [];
+
+interface LaunchProgressInfo {
   phase?: string;
   percent?: number;
   message?: string;
@@ -122,7 +124,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewTrackio,
   hideOutputButton = false,
   selectMode = false,
-  selectedJobIds = [],
+  selectedJobIds = EMPTY_SELECTED_JOB_IDS,
   onToggleJobSelected,
   onToggleFavorite,
   onToggleHidden,

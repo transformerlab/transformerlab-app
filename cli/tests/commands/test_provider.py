@@ -1,5 +1,6 @@
 """Tests for provider commands."""
 
+import json
 from unittest.mock import patch, MagicMock
 
 from typer.testing import CliRunner
@@ -236,3 +237,232 @@ def test_provider_set_default_not_found(_mock_check, _mock_api):
     result = runner.invoke(app, ["provider", "set-default", "nonexistent"])
     assert result.exit_code == 1
     assert "not found" in result.output
+
+
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_rejects_unknown_type(_mock_check):
+    """`provider add --no-interactive --type foo` should fail with a helpful error."""
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "test",
+            "--type",
+            "not-a-real-type",
+            "--config",
+            "{}",
+        ],
+    )
+    assert result.exit_code == 1
+    assert "Invalid type" in result.output
+
+
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
+@patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200, {"id": "p4"}))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_dstack(_mock_check, mock_post, _mock_get):
+    """`provider add` accepts the dstack provider type."""
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-dstack",
+            "--type",
+            "dstack",
+            "--config",
+            '{"server_url": "http://0.0.0.0:3000", "api_token": "tok", "dstack_project": "main"}',
+        ],
+    )
+    assert result.exit_code == 0
+    assert "p4" in result.output
+    # The create call should have gone to the providers endpoint with type=dstack.
+    create_call = mock_post.call_args_list[0]
+    assert create_call.args[0] == "/compute_provider/providers/"
+    assert create_call.kwargs["json_data"]["type"] == "dstack"
+
+
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
+@patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200, {"id": "p5"}))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_azure(_mock_check, mock_post, _mock_get):
+    """`provider add` accepts the azure provider type with required config."""
+    config = {
+        "azure_subscription_id": "sub",
+        "azure_tenant_id": "tenant",
+        "azure_client_id": "client",
+        "azure_client_secret": "secret",
+        "azure_location": "eastus",
+    }
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-azure",
+            "--type",
+            "azure",
+            "--config",
+            json.dumps(config),
+        ],
+    )
+    assert result.exit_code == 0
+    create_call = mock_post.call_args_list[0]
+    assert create_call.kwargs["json_data"]["type"] == "azure"
+    assert create_call.kwargs["json_data"]["config"] == config
+
+
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
+@patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200, {"id": "p6"}))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_aws_uploads_credentials(_mock_check, mock_post, _mock_get):
+    """`provider add --type aws` with creds posts to the AWS credentials endpoint after create."""
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-aws",
+            "--type",
+            "aws",
+            "--config",
+            '{"region": "us-east-1"}',
+            "--aws-access-key-id",
+            "AKIATEST",
+            "--aws-secret-access-key",
+            "secret-value",
+        ],
+    )
+    assert result.exit_code == 0
+    # First POST creates the provider, second uploads credentials.
+    assert len(mock_post.call_args_list) == 2
+    create_call, creds_call = mock_post.call_args_list
+    assert create_call.args[0] == "/compute_provider/providers/"
+    assert creds_call.args[0] == "/compute_provider/providers/p6/aws/credentials"
+    assert creds_call.kwargs["json_data"] == {
+        "access_key_id": "AKIATEST",
+        "secret_access_key": "secret-value",
+    }
+    assert "AWS credentials saved" in result.output
+
+
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
+@patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200, {"id": "p7"}))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_aws_partial_creds_rejected(_mock_check, _mock_post, _mock_get):
+    """`provider add --type aws` must not accept just one of the AWS credential flags."""
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-aws",
+            "--type",
+            "aws",
+            "--config",
+            '{"region": "us-east-1"}',
+            "--aws-access-key-id",
+            "AKIATEST",
+        ],
+    )
+    assert result.exit_code == 1
+    normalized_output = " ".join(result.output.split())
+    assert "both --aws-access-key-id and --aws-secret-access-key" in normalized_output
+
+
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
+@patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200, {"id": "p8"}))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_gcp_uploads_service_account(_mock_check, mock_post, _mock_get, tmp_path):
+    """`provider add --type gcp` reads the service account JSON file and uploads it."""
+    sa_path = tmp_path / "sa.json"
+    sa_payload = {
+        "project_id": "proj",
+        "client_email": "sa@proj.iam.gserviceaccount.com",
+        "private_key": "fake",
+    }
+    sa_path.write_text(json.dumps(sa_payload))
+
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-gcp",
+            "--type",
+            "gcp",
+            "--config",
+            '{"region": "us-central1"}',
+            "--gcp-service-account-file",
+            str(sa_path),
+        ],
+    )
+    assert result.exit_code == 0
+    assert len(mock_post.call_args_list) == 2
+    create_call, creds_call = mock_post.call_args_list
+    assert create_call.args[0] == "/compute_provider/providers/"
+    assert creds_call.args[0] == "/compute_provider/providers/p8/gcp/credentials"
+    assert json.loads(creds_call.kwargs["json_data"]["service_account_json"]) == sa_payload
+    assert "GCP service account saved" in result.output
+
+
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_gcp_requires_service_account_non_interactive(_mock_check):
+    """Non-interactive `provider add --type gcp` without service account file should fail."""
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-gcp",
+            "--type",
+            "gcp",
+            "--config",
+            '{"region": "us-central1"}',
+        ],
+    )
+    assert result.exit_code == 1
+    normalized_output = " ".join(result.output.split())
+    assert "service account JSON" in normalized_output
+
+
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_gcp_invalid_service_account_file(_mock_check, tmp_path):
+    """A service account file with invalid JSON should be rejected before any API call."""
+    bad_path = tmp_path / "bad.json"
+    bad_path.write_text("not-json")
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-gcp",
+            "--type",
+            "gcp",
+            "--config",
+            '{"region": "us-central1"}',
+            "--gcp-service-account-file",
+            str(bad_path),
+        ],
+    )
+    assert result.exit_code == 1
+    # Rich's console may wrap the long path across newlines; collapse whitespace before asserting.
+    normalized_output = " ".join(result.output.split())
+    assert "not valid JSON" in normalized_output

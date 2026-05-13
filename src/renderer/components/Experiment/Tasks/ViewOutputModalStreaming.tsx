@@ -63,9 +63,4 @@ function ViewOutputModalStreaming({
   );
 }
 
-ViewOutputModalStreaming.defaultProps = {
-  tabs: ['output', 'provider'],
-  jobStatus: '',
-};
-
 export default ViewOutputModalStreaming;

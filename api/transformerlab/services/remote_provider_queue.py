@@ -3,7 +3,6 @@ import json as _json
 import logging
 import os
 import uuid
-from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
@@ -18,6 +17,7 @@ from transformerlab.services.provider_service import (
     normalize_provider_check_result,
 )
 from transformerlab.shared.models.models import JobQueue
+from transformerlab.utils.datetime_utils import utc_now_naive
 from lab import dirs as lab_dirs
 from lab.job_status import JobStatus
 
@@ -102,7 +102,7 @@ async def _poll_pending_remote_entries() -> list[JobQueue]:
 async def _mark_entry_dispatched(entry_id: str) -> None:
     """Transition a job_queue row from PENDING to DISPATCHED."""
     async with async_session() as session:
-        stmt = update(JobQueue).where(JobQueue.id == entry_id).values(status="DISPATCHED", updated_at=datetime.utcnow())
+        stmt = update(JobQueue).where(JobQueue.id == entry_id).values(status="DISPATCHED", updated_at=utc_now_naive())
         await session.execute(stmt)
         await session.commit()
 
@@ -110,7 +110,7 @@ async def _mark_entry_dispatched(entry_id: str) -> None:
 async def _mark_entry_failed(entry_id: str) -> None:
     """Transition a job_queue row to FAILED (could not reconstruct work item)."""
     async with async_session() as session:
-        stmt = update(JobQueue).where(JobQueue.id == entry_id).values(status="FAILED", updated_at=datetime.utcnow())
+        stmt = update(JobQueue).where(JobQueue.id == entry_id).values(status="FAILED", updated_at=utc_now_naive())
         await session.execute(stmt)
         await session.commit()
 

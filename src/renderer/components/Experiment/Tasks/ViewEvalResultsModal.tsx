@@ -261,7 +261,7 @@ export function EvalResultsBody({
           }}
         >
           <CircularProgress size="lg" />
-          <Typography level="body-lg">Loading evaluation results...</Typography>
+          <Typography level="body-lg">Loading evaluation results…</Typography>
         </Box>
       );
     }

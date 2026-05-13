@@ -299,14 +299,14 @@ export default function QueueTaskModal({
     const providerSupported = selectedProvider?.config?.supported_accelerators;
     if (!Array.isArray(providerSupported)) return null;
 
-    const providerSupportedLower = providerSupported.map((s: any) =>
-      String(s).toLowerCase(),
+    const providerSupportedLower = new Set(
+      providerSupported.map((s: any) => String(s).toLowerCase()),
     );
 
     const priority = ['NVIDIA', 'AMD', 'AppleSilicon', 'cpu'];
     for (const candidate of priority) {
       const candidateLower = candidate.toLowerCase();
-      if (!providerSupportedLower.includes(candidateLower)) continue;
+      if (!providerSupportedLower.has(candidateLower)) continue;
 
       const entry = (mapping as any)[candidate];
       const resources = entry?.resources;
@@ -2095,9 +2095,9 @@ export default function QueueTaskModal({
                               : 'Local provider may not meet task requirements'}
                           </Typography>
                           <Stack spacing={0.5}>
-                            {resourceValidation.issues.map((issue, idx) => (
+                            {resourceValidation.issues.map((issue) => (
                               <Stack
-                                key={idx}
+                                key={`${issue.type}-${issue.label}`}
                                 direction="row"
                                 spacing={1}
                                 alignItems="center"
@@ -2114,7 +2114,7 @@ export default function QueueTaskModal({
                                   {issue.label}
                                 </Chip>
                                 <Typography level="body-xs">
-                                  Required: <strong>{issue.required}</strong> —
+                                  Required: <strong>{issue.required}</strong>,
                                   Available: <strong>{issue.available}</strong>
                                 </Typography>
                               </Stack>
@@ -2160,7 +2160,7 @@ export default function QueueTaskModal({
             loading={isSubmitting}
             disabled={!selectedProviderId || isSubmitting}
           >
-            Submit
+            Queue task
           </Button>
           {isSubmitting && (
             <Typography level="body-sm" sx={{ ml: 1 }}>
