@@ -141,6 +141,30 @@ def _prompt_gcp_service_account_json() -> str:
             continue
 
 
+def _read_credentials_file(path: str) -> dict:
+    """Read a JSON credentials file and return its parsed contents.
+
+    The file is expected to be a flat JSON object. Used by `--credentials-file`
+    on `provider add` / `provider update` to keep secrets out of argv (and
+    therefore out of shell history and `ps` listings).
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            contents = f.read()
+    except OSError as e:
+        console.print(f"[error]Error:[/error] Could not read credentials file '{path}': {e}")
+        raise typer.Exit(1)
+    try:
+        data = json.loads(contents)
+    except json.JSONDecodeError as e:
+        console.print(f"[error]Error:[/error] Credentials file '{path}' is not valid JSON: {e}")
+        raise typer.Exit(1)
+    if not isinstance(data, dict):
+        console.print(f"[error]Error:[/error] Credentials file '{path}' must contain a JSON object.")
+        raise typer.Exit(1)
+    return data
+
+
 def _read_service_account_file(path: str) -> str:
     """Read a GCP service account JSON key file and validate it parses as JSON."""
     try:
@@ -228,20 +252,16 @@ def command_provider_add(
     ),
     config: str = typer.Option(None, "--config", help="Provider config as JSON string"),
     interactive: bool = typer.Option(True, "--interactive/--no-interactive", help="Use interactive prompts"),
-    aws_access_key_id: str = typer.Option(
+    credentials_file: str = typer.Option(
         None,
-        "--aws-access-key-id",
-        help="AWS access key ID (only used with --type aws; written to the API host's ~/.aws/credentials)",
-    ),
-    aws_secret_access_key: str = typer.Option(
-        None,
-        "--aws-secret-access-key",
-        help="AWS secret access key (only used with --type aws; written to the API host's ~/.aws/credentials)",
-    ),
-    gcp_service_account_file: str = typer.Option(
-        None,
-        "--gcp-service-account-file",
-        help="Path to a GCP service account JSON key file (required for --type gcp)",
+        "--credentials-file",
+        help=(
+            "Path to a JSON file containing provider secrets. Keeps secrets out of argv "
+            "(shell history, ps listings). Shape depends on --type: for aws, "
+            '{"aws_access_key_id": "...", "aws_secret_access_key": "..."}; for gcp, the '
+            "raw service account JSON key file; for everything else, a flat object whose "
+            "fields are merged on top of --config (file values take precedence)."
+        ),
     ),
 ):
     """Add a new compute provider."""
@@ -280,27 +300,44 @@ def command_provider_add(
         else:
             config_dict = _prompt_config_fields(provider_type)
 
+    # --credentials-file: shape depends on provider type.
+    #   aws: JSON object with aws_access_key_id / aws_secret_access_key (uploaded via /aws/credentials).
+    #        Any remaining keys merge into config.
+    #   gcp: the raw service account JSON key file (uploaded via /gcp/credentials).
+    #   other: a flat JSON object merged on top of --config (file values win).
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    gcp_service_account_json: str | None = None
+    if credentials_file:
+        if provider_type == "gcp":
+            gcp_service_account_json = _read_service_account_file(credentials_file)
+        else:
+            creds = _read_credentials_file(credentials_file)
+            if provider_type == "aws":
+                aws_access_key_id = str(creds.pop("aws_access_key_id", "") or "")
+                aws_secret_access_key = str(creds.pop("aws_secret_access_key", "") or "")
+            config_dict.update(creds)
+
     # AWS access key pair: must be both-or-neither.
     if provider_type == "aws":
         if bool(aws_access_key_id) != bool(aws_secret_access_key):
             console.print(
-                "[error]Error:[/error] Provide both --aws-access-key-id and --aws-secret-access-key, or neither."
+                "[error]Error:[/error] --credentials-file for --type aws must contain both "
+                "'aws_access_key_id' and 'aws_secret_access_key' (or neither)."
             )
             raise typer.Exit(1)
         if interactive and not aws_access_key_id and not aws_secret_access_key:
             aws_access_key_id, aws_secret_access_key = _prompt_aws_credentials()
 
     # GCP service account JSON: required at create time (provider will be unhealthy without it).
-    gcp_service_account_json: str | None = None
     if provider_type == "gcp":
-        if gcp_service_account_file:
-            gcp_service_account_json = _read_service_account_file(gcp_service_account_file)
-        elif interactive:
+        if not gcp_service_account_json and interactive:
             gcp_service_account_json = _prompt_gcp_service_account_json()
         if not gcp_service_account_json:
             console.print(
                 "[error]Error:[/error] GCP providers require a service account JSON key. "
-                "Pass --gcp-service-account-file PATH (or run interactively)."
+                "Pass --credentials-file PATH pointing at your service account JSON "
+                "(or run interactively)."
             )
             raise typer.Exit(1)
 
@@ -368,6 +405,14 @@ def command_provider_update(
     provider_id: str = typer.Argument(..., help="Provider ID"),
     name: str = typer.Option(None, "--name", help="New provider name"),
     config: str = typer.Option(None, "--config", help="Config fields as JSON string (merged with existing)"),
+    credentials_file: str = typer.Option(
+        None,
+        "--credentials-file",
+        help=(
+            "Path to a JSON file containing provider secrets to merge into the config patch. "
+            "Values take precedence over --config. Keeps secrets out of argv."
+        ),
+    ),
     disabled: bool = typer.Option(None, "--disabled/--enabled", help="Disable or enable the provider"),
     is_default: bool = typer.Option(
         None,
@@ -381,12 +426,20 @@ def command_provider_update(
     payload: dict = {}
     if name is not None:
         payload["name"] = name
+    config_patch: dict | None = None
     if config is not None:
         try:
-            payload["config"] = json.loads(config)
+            config_patch = json.loads(config)
         except json.JSONDecodeError as e:
             console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
             raise typer.Exit(1)
+    if credentials_file is not None:
+        creds = _read_credentials_file(credentials_file)
+        if config_patch is None:
+            config_patch = {}
+        config_patch.update(creds)
+    if config_patch is not None:
+        payload["config"] = config_patch
     if disabled is not None:
         payload["disabled"] = disabled
     if is_default is not None:
@@ -395,7 +448,8 @@ def command_provider_update(
     if not payload:
         console.print(
             "[warning]Nothing to update.[/warning] "
-            "Provide at least one of --name, --config, --disabled/--enabled, --default/--no-default."
+            "Provide at least one of --name, --config, --credentials-file, "
+            "--disabled/--enabled, --default/--no-default."
         )
         raise typer.Exit(0)
 

@@ -322,8 +322,10 @@ def test_provider_add_azure(_mock_check, mock_post, _mock_get):
 @patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
 @patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200, {"id": "p6"}))
 @patch("transformerlab_cli.commands.provider.check_configs")
-def test_provider_add_aws_uploads_credentials(_mock_check, mock_post, _mock_get):
-    """`provider add --type aws` with creds posts to the AWS credentials endpoint after create."""
+def test_provider_add_aws_uploads_credentials(_mock_check, mock_post, _mock_get, tmp_path):
+    """`provider add --type aws` with creds-file posts to the AWS credentials endpoint after create."""
+    creds_path = tmp_path / "aws.json"
+    creds_path.write_text(json.dumps({"aws_access_key_id": "AKIATEST", "aws_secret_access_key": "secret-value"}))
     result = runner.invoke(
         app,
         [
@@ -336,10 +338,8 @@ def test_provider_add_aws_uploads_credentials(_mock_check, mock_post, _mock_get)
             "aws",
             "--config",
             '{"region": "us-east-1"}',
-            "--aws-access-key-id",
-            "AKIATEST",
-            "--aws-secret-access-key",
-            "secret-value",
+            "--credentials-file",
+            str(creds_path),
         ],
     )
     assert result.exit_code == 0
@@ -358,8 +358,10 @@ def test_provider_add_aws_uploads_credentials(_mock_check, mock_post, _mock_get)
 @patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
 @patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200, {"id": "p7"}))
 @patch("transformerlab_cli.commands.provider.check_configs")
-def test_provider_add_aws_partial_creds_rejected(_mock_check, _mock_post, _mock_get):
-    """`provider add --type aws` must not accept just one of the AWS credential flags."""
+def test_provider_add_aws_partial_creds_rejected(_mock_check, _mock_post, _mock_get, tmp_path):
+    """`provider add --type aws` must not accept just one of the AWS credential fields."""
+    creds_path = tmp_path / "aws.json"
+    creds_path.write_text(json.dumps({"aws_access_key_id": "AKIATEST"}))
     result = runner.invoke(
         app,
         [
@@ -372,20 +374,20 @@ def test_provider_add_aws_partial_creds_rejected(_mock_check, _mock_post, _mock_
             "aws",
             "--config",
             '{"region": "us-east-1"}',
-            "--aws-access-key-id",
-            "AKIATEST",
+            "--credentials-file",
+            str(creds_path),
         ],
     )
     assert result.exit_code == 1
     normalized_output = " ".join(result.output.split())
-    assert "both --aws-access-key-id and --aws-secret-access-key" in normalized_output
+    assert "aws_access_key_id" in normalized_output and "aws_secret_access_key" in normalized_output
 
 
 @patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
 @patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200, {"id": "p8"}))
 @patch("transformerlab_cli.commands.provider.check_configs")
 def test_provider_add_gcp_uploads_service_account(_mock_check, mock_post, _mock_get, tmp_path):
-    """`provider add --type gcp` reads the service account JSON file and uploads it."""
+    """`provider add --type gcp --credentials-file` reads the SA JSON and uploads it."""
     sa_path = tmp_path / "sa.json"
     sa_payload = {
         "project_id": "proj",
@@ -406,7 +408,7 @@ def test_provider_add_gcp_uploads_service_account(_mock_check, mock_post, _mock_
             "gcp",
             "--config",
             '{"region": "us-central1"}',
-            "--gcp-service-account-file",
+            "--credentials-file",
             str(sa_path),
         ],
     )
@@ -441,6 +443,139 @@ def test_provider_add_gcp_requires_service_account_non_interactive(_mock_check):
     assert "service account JSON" in normalized_output
 
 
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
+@patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200, {"id": "pcf1"}))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_credentials_file_merges_into_config(_mock_check, mock_post, _mock_get, tmp_path):
+    """--credentials-file values merge into --config and take precedence."""
+    creds_path = tmp_path / "creds.json"
+    creds_path.write_text(json.dumps({"api_token": "secret-token", "dstack_project": "from-file"}))
+
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-dstack",
+            "--type",
+            "dstack",
+            "--config",
+            '{"server_url": "http://0.0.0.0:3000", "dstack_project": "from-flag"}',
+            "--credentials-file",
+            str(creds_path),
+        ],
+    )
+    assert result.exit_code == 0
+    create_call = mock_post.call_args_list[0]
+    sent_config = create_call.kwargs["json_data"]["config"]
+    assert sent_config["api_token"] == "secret-token"
+    assert sent_config["server_url"] == "http://0.0.0.0:3000"
+    assert sent_config["dstack_project"] == "from-file"
+
+
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_credentials_file_invalid_json(_mock_check, tmp_path):
+    """An invalid JSON credentials file should be rejected before any API call."""
+    bad_path = tmp_path / "creds.json"
+    bad_path.write_text("not-json")
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-dstack",
+            "--type",
+            "dstack",
+            "--config",
+            "{}",
+            "--credentials-file",
+            str(bad_path),
+        ],
+    )
+    assert result.exit_code == 1
+    normalized_output = " ".join(result.output.split())
+    assert "not valid JSON" in normalized_output
+
+
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_credentials_file_must_be_object(_mock_check, tmp_path):
+    """A credentials file that is not a JSON object should be rejected."""
+    bad_path = tmp_path / "creds.json"
+    bad_path.write_text("[1, 2, 3]")
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-dstack",
+            "--type",
+            "dstack",
+            "--config",
+            "{}",
+            "--credentials-file",
+            str(bad_path),
+        ],
+    )
+    assert result.exit_code == 1
+    normalized_output = " ".join(result.output.split())
+    assert "must contain a JSON object" in normalized_output
+
+
+@patch("transformerlab_cli.commands.provider.api.patch", return_value=_mock_response(200))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_update_credentials_file_merges_into_config(_mock_check, mock_patch, tmp_path):
+    """`provider update --credentials-file` merges the file into the config patch."""
+    creds_path = tmp_path / "creds.json"
+    creds_path.write_text(json.dumps({"api_token": "rotated-token"}))
+
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "update",
+            "p1",
+            "--config",
+            '{"server_url": "http://new.example.com"}',
+            "--credentials-file",
+            str(creds_path),
+        ],
+    )
+    assert result.exit_code == 0
+    call_kwargs = mock_patch.call_args.kwargs
+    assert call_kwargs["json_data"]["config"] == {
+        "server_url": "http://new.example.com",
+        "api_token": "rotated-token",
+    }
+
+
+@patch("transformerlab_cli.commands.provider.api.patch", return_value=_mock_response(200))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_update_credentials_file_only(_mock_check, mock_patch, tmp_path):
+    """`provider update --credentials-file` alone is a valid update."""
+    creds_path = tmp_path / "creds.json"
+    creds_path.write_text(json.dumps({"api_token": "rotated-token"}))
+
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "update",
+            "p1",
+            "--credentials-file",
+            str(creds_path),
+        ],
+    )
+    assert result.exit_code == 0
+    call_kwargs = mock_patch.call_args.kwargs
+    assert call_kwargs["json_data"] == {"config": {"api_token": "rotated-token"}}
+
+
 @patch("transformerlab_cli.commands.provider.check_configs")
 def test_provider_add_gcp_invalid_service_account_file(_mock_check, tmp_path):
     """A service account file with invalid JSON should be rejected before any API call."""
@@ -458,7 +593,7 @@ def test_provider_add_gcp_invalid_service_account_file(_mock_check, tmp_path):
             "gcp",
             "--config",
             '{"region": "us-central1"}',
-            "--gcp-service-account-file",
+            "--credentials-file",
             str(bad_path),
         ],
     )
