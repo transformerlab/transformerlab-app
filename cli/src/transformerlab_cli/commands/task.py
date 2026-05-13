@@ -105,7 +105,7 @@ def list_tasks(output_format: str = "pretty", experiment_id: str = "alpha", subt
 
     if response.status_code == 200:
         tasks = response.json()
-        table_columns = ["id", "name", "type", "subtype", "created_at", "updated_at"]
+        table_columns = ["id", "name", "type", "created_at", "updated_at"]
         render_table(data=tasks, format_type=output_format, table_columns=table_columns, title="Tasks")
     else:
         if output_format == "json":
