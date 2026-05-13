@@ -527,10 +527,13 @@ def test_provider_add_credentials_file_must_be_object(_mock_check, tmp_path):
     assert "must contain a JSON object" in normalized_output
 
 
+@patch(
+    "transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"id": "p1", "type": "skypilot"})
+)
 @patch("transformerlab_cli.commands.provider.api.patch", return_value=_mock_response(200))
 @patch("transformerlab_cli.commands.provider.check_configs")
-def test_provider_update_credentials_file_merges_into_config(_mock_check, mock_patch, tmp_path):
-    """`provider update --credentials-file` merges the file into the config patch."""
+def test_provider_update_credentials_file_merges_into_config(_mock_check, mock_patch, _mock_get, tmp_path):
+    """`provider update --credentials-file` merges the file into the config patch for non-aws/gcp providers."""
     creds_path = tmp_path / "creds.json"
     creds_path.write_text(json.dumps({"api_token": "rotated-token"}))
 
@@ -554,9 +557,12 @@ def test_provider_update_credentials_file_merges_into_config(_mock_check, mock_p
     }
 
 
+@patch(
+    "transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"id": "p1", "type": "skypilot"})
+)
 @patch("transformerlab_cli.commands.provider.api.patch", return_value=_mock_response(200))
 @patch("transformerlab_cli.commands.provider.check_configs")
-def test_provider_update_credentials_file_only(_mock_check, mock_patch, tmp_path):
+def test_provider_update_credentials_file_only(_mock_check, mock_patch, _mock_get, tmp_path):
     """`provider update --credentials-file` alone is a valid update."""
     creds_path = tmp_path / "creds.json"
     creds_path.write_text(json.dumps({"api_token": "rotated-token"}))
@@ -574,6 +580,62 @@ def test_provider_update_credentials_file_only(_mock_check, mock_patch, tmp_path
     assert result.exit_code == 0
     call_kwargs = mock_patch.call_args.kwargs
     assert call_kwargs["json_data"] == {"config": {"api_token": "rotated-token"}}
+
+
+@patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200))
+@patch("transformerlab_cli.commands.provider.api.patch", return_value=_mock_response(200))
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"id": "p1", "type": "aws"}))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_update_credentials_file_aws_routes_to_dedicated_endpoint(
+    _mock_check, _mock_get, mock_patch, mock_post, tmp_path
+):
+    """For aws providers, --credentials-file uploads via /aws/credentials, not into config."""
+    creds_path = tmp_path / "creds.json"
+    creds_path.write_text(json.dumps({"aws_access_key_id": "AKIA...", "aws_secret_access_key": "secret"}))
+
+    result = runner.invoke(app, ["provider", "update", "p1", "--credentials-file", str(creds_path)])
+    assert result.exit_code == 0
+    # No PATCH should fire (nothing else to update).
+    mock_patch.assert_not_called()
+    mock_post.assert_called_once()
+    call_args = mock_post.call_args
+    assert call_args.args[0] == "/compute_provider/providers/p1/aws/credentials"
+    assert call_args.kwargs["json_data"] == {"access_key_id": "AKIA...", "secret_access_key": "secret"}
+
+
+@patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200))
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"id": "p1", "type": "aws"}))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_update_credentials_file_aws_requires_both_keys(_mock_check, _mock_get, _mock_post, tmp_path):
+    """aws --credentials-file with only one of the key pair should error."""
+    creds_path = tmp_path / "creds.json"
+    creds_path.write_text(json.dumps({"aws_access_key_id": "AKIA..."}))
+
+    result = runner.invoke(app, ["provider", "update", "p1", "--credentials-file", str(creds_path)])
+    assert result.exit_code == 1
+    normalized_output = " ".join(result.output.split())
+    assert "must contain both" in normalized_output
+
+
+@patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200))
+@patch("transformerlab_cli.commands.provider.api.patch", return_value=_mock_response(200))
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"id": "p1", "type": "gcp"}))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_update_credentials_file_gcp_routes_to_dedicated_endpoint(
+    _mock_check, _mock_get, mock_patch, mock_post, tmp_path
+):
+    """For gcp providers, --credentials-file uploads the raw JSON via /gcp/credentials."""
+    sa_path = tmp_path / "sa.json"
+    sa_contents = json.dumps({"type": "service_account", "project_id": "p", "client_email": "x@y.iam"})
+    sa_path.write_text(sa_contents)
+
+    result = runner.invoke(app, ["provider", "update", "p1", "--credentials-file", str(sa_path)])
+    assert result.exit_code == 0
+    mock_patch.assert_not_called()
+    mock_post.assert_called_once()
+    call_args = mock_post.call_args
+    assert call_args.args[0] == "/compute_provider/providers/p1/gcp/credentials"
+    assert call_args.kwargs["json_data"] == {"service_account_json": sa_contents}
 
 
 @patch("transformerlab_cli.commands.provider.check_configs")

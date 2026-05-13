@@ -409,8 +409,13 @@ def command_provider_update(
         None,
         "--credentials-file",
         help=(
-            "Path to a JSON file containing provider secrets to merge into the config patch. "
-            "Values take precedence over --config. Keeps secrets out of argv."
+            "Path to a JSON file containing provider secrets. Keeps secrets out of argv. "
+            "Shape depends on the provider's type: for aws, "
+            '{"aws_access_key_id": "...", "aws_secret_access_key": "..."} (uploaded via the '
+            "dedicated credentials endpoint; any remaining keys merge into the config patch); "
+            "for gcp, the raw service account JSON key file (uploaded via the dedicated "
+            "credentials endpoint); for everything else, a flat object merged into the config "
+            "patch (file values take precedence over --config)."
         ),
     ),
     disabled: bool = typer.Option(None, "--disabled/--enabled", help="Disable or enable the provider"),
@@ -433,11 +438,43 @@ def command_provider_update(
         except json.JSONDecodeError as e:
             console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
             raise typer.Exit(1)
+
+    # For aws/gcp, --credentials-file routes to dedicated endpoints rather than into config.
+    # We need the provider's type to branch correctly, so fetch it up front when credentials
+    # are supplied.
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    gcp_service_account_json: str | None = None
+    provider_type: str | None = None
     if credentials_file is not None:
-        creds = _read_credentials_file(credentials_file)
-        if config_patch is None:
-            config_patch = {}
-        config_patch.update(creds)
+        with console.status(f"[bold success]Fetching provider {provider_id}...[/bold success]", spinner="dots"):
+            get_response = api.get(f"/compute_provider/providers/{provider_id}")
+        if get_response.status_code == 404:
+            console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
+            raise typer.Exit(1)
+        if get_response.status_code != 200:
+            console.print(f"[error]Error:[/error] Failed to fetch provider. {_extract_error_detail(get_response)}")
+            raise typer.Exit(1)
+        provider_type = get_response.json().get("type")
+
+        if provider_type == "gcp":
+            gcp_service_account_json = _read_service_account_file(credentials_file)
+        else:
+            creds = _read_credentials_file(credentials_file)
+            if provider_type == "aws":
+                aws_access_key_id = str(creds.pop("aws_access_key_id", "") or "")
+                aws_secret_access_key = str(creds.pop("aws_secret_access_key", "") or "")
+                if bool(aws_access_key_id) != bool(aws_secret_access_key):
+                    console.print(
+                        "[error]Error:[/error] --credentials-file for an aws provider must contain both "
+                        "'aws_access_key_id' and 'aws_secret_access_key' (or neither)."
+                    )
+                    raise typer.Exit(1)
+            if creds:
+                if config_patch is None:
+                    config_patch = {}
+                config_patch.update(creds)
+
     if config_patch is not None:
         payload["config"] = config_patch
     if disabled is not None:
@@ -445,7 +482,8 @@ def command_provider_update(
     if is_default is not None:
         payload["is_default"] = is_default
 
-    if not payload:
+    has_dedicated_credentials = bool(aws_access_key_id and aws_secret_access_key) or bool(gcp_service_account_json)
+    if not payload and not has_dedicated_credentials:
         console.print(
             "[warning]Nothing to update.[/warning] "
             "Provide at least one of --name, --config, --credentials-file, "
@@ -453,17 +491,23 @@ def command_provider_update(
         )
         raise typer.Exit(0)
 
-    with console.status(f"[bold success]Updating provider {provider_id}...[/bold success]", spinner="dots"):
-        response = api.patch(f"/compute_provider/providers/{provider_id}", json_data=payload)
+    if payload:
+        with console.status(f"[bold success]Updating provider {provider_id}...[/bold success]", spinner="dots"):
+            response = api.patch(f"/compute_provider/providers/{provider_id}", json_data=payload)
 
-    if response.status_code == 200:
-        console.print(f"[success]✓[/success] Provider [bold]{provider_id}[/bold] updated.")
-    elif response.status_code == 404:
-        console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
-        raise typer.Exit(1)
-    else:
-        console.print(f"[error]Error:[/error] Failed to update provider. {_extract_error_detail(response)}")
-        raise typer.Exit(1)
+        if response.status_code == 404:
+            console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
+            raise typer.Exit(1)
+        elif response.status_code != 200:
+            console.print(f"[error]Error:[/error] Failed to update provider. {_extract_error_detail(response)}")
+            raise typer.Exit(1)
+
+    if provider_type == "aws" and aws_access_key_id and aws_secret_access_key:
+        _upload_aws_credentials(provider_id, aws_access_key_id, aws_secret_access_key)
+    if provider_type == "gcp" and gcp_service_account_json:
+        _upload_gcp_service_account(provider_id, gcp_service_account_json)
+
+    console.print(f"[success]✓[/success] Provider [bold]{provider_id}[/bold] updated.")
 
 
 @app.command("delete")
