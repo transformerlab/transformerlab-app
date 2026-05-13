@@ -299,14 +299,14 @@ export default function QueueTaskModal({
     const providerSupported = selectedProvider?.config?.supported_accelerators;
     if (!Array.isArray(providerSupported)) return null;
 
-    const providerSupportedLower = providerSupported.map((s: any) =>
-      String(s).toLowerCase(),
+    const providerSupportedLower = new Set(
+      providerSupported.map((s: any) => String(s).toLowerCase()),
     );
 
     const priority = ['NVIDIA', 'AMD', 'AppleSilicon', 'cpu'];
     for (const candidate of priority) {
       const candidateLower = candidate.toLowerCase();
-      if (!providerSupportedLower.includes(candidateLower)) continue;
+      if (!providerSupportedLower.has(candidateLower)) continue;
 
       const entry = (mapping as any)[candidate];
       const resources = entry?.resources;
