@@ -10,6 +10,7 @@ from lab import storage
 
 from lab.job_status import JobStatus, TERMINAL_STATUSES
 from transformerlab.services.cache_service import cache
+from transformerlab.utils.datetime_utils import utc_now_naive
 
 logger = logging.getLogger(__name__)
 
@@ -664,12 +665,10 @@ async def _record_quota_usage_internal(
     elif final_status == JobStatus.STOPPED:
         end_time_str = job_data.get("stop_time") or job_data.get("end_time")
     elif final_status in (JobStatus.FAILED, JobStatus.DELETED):
-        end_time_str = job_data.get("end_time") or datetime.datetime.now(datetime.timezone.utc).replace(
-            tzinfo=None
-        ).strftime("%Y-%m-%d %H:%M:%S")
+        end_time_str = job_data.get("end_time") or utc_now_naive().strftime("%Y-%m-%d %H:%M:%S")
 
     if not end_time_str:
-        end_time_str = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
+        end_time_str = utc_now_naive().strftime("%Y-%m-%d %H:%M:%S")
 
     # Calculate minutes used
     try:
