@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Box } from '@mui/joy';
-import { Cloud } from 'lucide-react';
+import { Cloud, Laptop } from 'lucide-react';
 import type { SimpleIcon } from 'simple-icons/types';
-import { siGooglecloud, siLocal } from 'simple-icons';
+import { siGooglecloud } from 'simple-icons';
 
 const SIMPLE_ICONS: Record<string, SimpleIcon> = {
   /** Google Cloud product symbol (no wordmark), reads well in a square tile. */
   gcp: siGooglecloud,
-  local: siLocal,
 };
 
 /**
@@ -89,6 +88,18 @@ export default function ProviderTypeLogo({
     return (
       <Box sx={shellSx}>
         <SimpleIconMark icon={simple} size={boxSize} />
+      </Box>
+    );
+  }
+
+  if (providerType === 'local') {
+    return (
+      <Box sx={{ ...shellSx, color: 'neutral.500' }}>
+        <Laptop
+          size={Math.round(boxSize * 0.5)}
+          strokeWidth={1.75}
+          aria-hidden
+        />
       </Box>
     );
   }
