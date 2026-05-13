@@ -58,7 +58,7 @@ test.describe('Dataset Generation Task From GitHub', () => {
     await addTaskDialog
       .getByPlaceholder('Optional: subdirectory (e.g. tasks/my-task)')
       .fill(GITHUB_SUBDIR);
-    await addTaskDialog.getByRole('button', { name: 'Submit' }).click();
+    await addTaskDialog.getByRole('button', { name: 'Create task' }).click();
     const taskYamlDialog = page.getByRole('dialog', {
       name: /(Edit Task|task\.ya?ml)/i,
     });
@@ -82,11 +82,13 @@ test.describe('Dataset Generation Task From GitHub', () => {
     await expect(
       queueDialog.getByRole('combobox', { name: 'Compute Provider' }),
     ).toHaveText('Local', { timeout: 5000 });
-    await queueDialog.getByRole('button', { name: 'Submit' }).click();
-    const jobNamePrefix = `${taskName}-`;
+    await queueDialog.getByRole('button', { name: 'Queue task' }).click();
+    // The Jobs list renders the task as a cluster_name (underscores converted to
+    // hyphens and the short job id appended), so match by the unique suffix which
+    // is preserved verbatim in both the task name and the rendered cluster name.
     const queuedJobRow = page.locator('tr', {
       has: page.getByRole('button', { name: 'Output' }),
-      hasText: jobNamePrefix,
+      hasText: uniqueSuffix,
     });
 
     // Stop once COMPLETE - 100% is reached.
