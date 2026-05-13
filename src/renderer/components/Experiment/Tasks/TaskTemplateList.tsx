@@ -58,6 +58,8 @@ type TaskTemplateListProps = {
   onToggleSelectAll?: (taskIds: string[]) => void;
 };
 
+const EMPTY_ALL_JOBS: any[] = [];
+
 function relativeTime(ts: string | undefined): string {
   if (!ts) return '—';
   const ms = Date.now() - new Date(ts).getTime();
@@ -92,7 +94,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   onViewFilesTask,
   loading,
   interactTasks = false,
-  allJobs = [],
+  allJobs = EMPTY_ALL_JOBS,
   allJobsLoading = false,
   selectedIds,
   onToggleTaskSelected,
@@ -139,7 +141,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   }, [allJobs]);
 
   const sortedTasks = useMemo(() => {
-    return [...tasksList].sort((a, b) => {
+    return tasksList.toSorted((a, b) => {
       const tsA = lastRunByTaskId[String(a.id)] ?? '';
       const tsB = lastRunByTaskId[String(b.id)] ?? '';
       if (!tsA && !tsB) return 0;

@@ -36,8 +36,10 @@ export default function NotificationsSection() {
             }),
           ),
         ]);
-        const enabledVal = await enabledRes.json();
-        const urlVal = await urlRes.json();
+        const [enabledVal, urlVal] = await Promise.all([
+          enabledRes.json(),
+          urlRes.json(),
+        ]);
         setEnabled(enabledVal === 'true');
         setWebhookUrl(urlVal || '');
       } catch (err) {

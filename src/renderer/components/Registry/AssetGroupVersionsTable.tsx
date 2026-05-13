@@ -48,22 +48,26 @@ const TAG_COLORS: Record<
   draft: 'warning',
 };
 
+interface MetadataColumn {
+  label: string;
+  width: number;
+  field: string;
+}
+
 interface AssetGroupVersionsTableProps {
   groupId: string;
   assetType: 'model' | 'dataset';
   /** Extra columns to show between Tag and Job, rendered per row from metadata. */
-  metadataColumns?: Array<{
-    label: string;
-    width: number;
-    field: string;
-  }>;
+  metadataColumns?: MetadataColumn[];
   onAfterMutation?: () => void;
 }
+
+const EMPTY_METADATA_COLUMNS: MetadataColumn[] = [];
 
 export default function AssetGroupVersionsTable({
   groupId,
   assetType,
-  metadataColumns = [],
+  metadataColumns = EMPTY_METADATA_COLUMNS,
   onAfterMutation,
 }: AssetGroupVersionsTableProps) {
   const [updatingVersion, setUpdatingVersion] = useState<string | null>(null);
@@ -252,7 +256,7 @@ export default function AssetGroupVersionsTable({
                 </Tooltip>
               ) : (
                 <Typography level="body-xs" color="neutral">
-                  —
+                  -
                 </Typography>
               )}
             </td>
