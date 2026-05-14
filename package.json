@@ -173,7 +173,7 @@
     "react-test-renderer": "^18.2.0",
     "rimraf": "^5.0.1",
     "sass": "^1.77.8",
-    "sass-loader": "^13.3.1",
+    "sass-loader": "^16.0.8",
     "style-loader": "^3.3.3",
     "ts-jest": "^29.4.9",
     "tsconfig-paths-webpack-plugin": "^4.2.0",
