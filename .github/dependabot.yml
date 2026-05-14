@@ -34,6 +34,12 @@ updates:
         versions: [">0.88.0"]
       - dependency-name: "@nivo/radar"
         versions: [">0.88.0"]
+      # @testing-library/jest-dom 6.x crashes our Jest setup with
+      # `ReferenceError: TextEncoder is not defined` when react-router-dom 7's modules
+      # load (jsdom env doesn't expose TextEncoder). Stay on 5.x until we add a
+      # TextEncoder polyfill in jest.setup. See PR #2113.
+      - dependency-name: "@testing-library/jest-dom"
+        versions: [">=6"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
   # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
