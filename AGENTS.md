@@ -80,10 +80,11 @@ Agent skills and browser automation references live in `.agents/skills/`.
   - **Functional Components**: Use React functional components with Hooks. Avoid class components.
   - **State Management**: The app uses `easy-peasy` (Redux wrapper). Use actions for state mutations; avoid prop drilling deep hierarchies.
 - **Python**:
-  - **Linting**: Ruff (Black-compatible), 120 char line length, 4-space indent
-  - **Type Hints**: Mandatory for all function arguments and return types.
-  - **Pydantic**: Use Pydantic models (in `schemas/`) for distinct data validation and serialization layers.
-  - **Service Pattern**: Business logic goes in `api/transformerlab/services/`, NOT in routers. Routers (`api/transformerlab/routers/`) should only handle HTTP request/response validation and calling services.
+ - **Linting**: Ruff (Black-compatible), 120 char line length, 4-space indent
+ - **Type Hints**: Mandatory for all function arguments and return types.
+ - **Pydantic**: Use Pydantic models (in `schemas/`) for distinct data validation and serialization layers.
+ - **Service Pattern**: Business logic goes in `api/transformerlab/services/`, NOT in routers. Routers (`api/transformerlab/routers/`) should only handle HTTP request/response validation and calling services.
+ - **UTC timestamps**: Our SQLAlchemy `DateTime` columns are declared without `timezone=True` (i.e. naive datetimes that represent UTC). Whenever you assign to or compare against one of these columns, use `utc_now_naive()` from `transformerlab.utils.datetime_utils`. Do **not** use `datetime.now()` (that's local time), `datetime.utcnow()` (deprecated in Python 3.12+), or hand-roll `datetime.now(timezone.utc).replace(tzinfo=None)` at the call site.
 
 
 ## Storing Data

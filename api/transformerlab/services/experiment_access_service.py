@@ -1,18 +1,18 @@
 import logging
-from datetime import datetime, timezone
 
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from transformerlab.shared.models.models import UserExperimentAccess
+from transformerlab.utils.datetime_utils import utc_now_naive
 
 logger = logging.getLogger(__name__)
 
 
 async def touch_experiment(session: AsyncSession, user_id: str, team_id: str, experiment_id: str) -> None:
     """Upsert last_opened_at for a user-experiment pair."""
-    now = datetime.now(timezone.utc)
+    now = utc_now_naive()
     result = await session.execute(
         update(UserExperimentAccess)
         .where(

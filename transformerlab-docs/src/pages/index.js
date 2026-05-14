@@ -56,6 +56,7 @@ function HomepageHeader() {
               >
                 <img
                   src="/img/milkyway.webp"
+                  alt=""
                   style={{
                     maxWidth: 'none',
                     objectFit: 'none',
