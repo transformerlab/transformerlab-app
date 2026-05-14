@@ -45,6 +45,9 @@ updates:
       # mermaid >= 11.12 requires Node 20+; we're pinned to Node 18 in Netlify.
       - dependency-name: "mermaid"
         versions: [">=11.12"]
+      # Major bumps on docs deps need manual coordination; minor/patch is enough for security.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # API (FastAPI, managed with uv)
   - package-ecosystem: "uv"
