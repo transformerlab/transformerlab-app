@@ -92,9 +92,8 @@ updates:
         versions: [">=30"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
-  # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
-  # the board (manual coordination needed); packages that drop Node 18 support in a minor or patch
-  # bump are listed individually under `ignore` below. Revisit when the build moves to Node 20+.
+  # Build runs on Node 22 via transformerlab-docs/netlify.toml. Major bumps are ignored across
+  # the board (manual coordination needed); minor/patch updates flow through for security.
   - package-ecosystem: "npm"
     directory: "/transformerlab-docs"
     schedule:
@@ -121,19 +120,6 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # mermaid >= 11.12 requires Node 20+; we're pinned to Node 18 in Netlify.
-      - dependency-name: "mermaid"
-        versions: [">=11.12"]
-      # @docusaurus/* >= 3.9 requires Node >=20 (engines field), Netlify build is Node 18.
-      # Hold the docusaurus packages at 3.8.x until the docs build moves to Node 20+.
-      # See PRs #2111 (3.10.1) and #2120 (3.9.2) — both failed with EBADENGINE.
-      - dependency-name: "@docusaurus/*"
-        versions: [">=3.9"]
-      # Keep typescript pinned alongside the docusaurus 3.8.x line (which ships with
-      # TS 5.6.x in its templates). Avoids surprise breaks from TS bumps before the
-      # docs build moves off Node 18.
-      - dependency-name: "typescript"
-        versions: [">=5.7"]
       # Major bumps on docs deps need manual coordination; minor/patch is enough for security.
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
