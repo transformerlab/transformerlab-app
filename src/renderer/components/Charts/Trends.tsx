@@ -45,6 +45,18 @@ export interface TrendsProps {
 }
 
 type XMode = 'time' | 'index';
+type TimeRange = '1D' | '1W' | '1M' | '6M' | '1Y' | '5Y' | 'ALL';
+
+const RANGE_OPTIONS: { value: TimeRange; label: string; ms: number | null }[] =
+  [
+    { value: '1D', label: '1D', ms: 24 * 60 * 60 * 1000 },
+    { value: '1W', label: '1W', ms: 7 * 24 * 60 * 60 * 1000 },
+    { value: '1M', label: '1M', ms: 30 * 24 * 60 * 60 * 1000 },
+    { value: '6M', label: '6M', ms: 182 * 24 * 60 * 60 * 1000 },
+    { value: '1Y', label: '1Y', ms: 365 * 24 * 60 * 60 * 1000 },
+    { value: '5Y', label: '5Y', ms: 5 * 365 * 24 * 60 * 60 * 1000 },
+    { value: 'ALL', label: 'Max', ms: null },
+  ];
 
 const PALETTE = [
   '#1f77b4',
@@ -103,6 +115,7 @@ export default function Trends({
     Math.min(Math.max(smoothingDefault, 0), 0.99),
   );
   const [includeDiscarded, setIncludeDiscarded] = useState<boolean>(false);
+  const [timeRange, setTimeRange] = useState<TimeRange>('ALL');
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -149,6 +162,18 @@ export default function Trends({
     return p.xIndex;
   };
 
+  const timeRangeBounds = useMemo<{ min: number; max: number } | null>(() => {
+    if (effectiveMode !== 'time') return null;
+    let latest = -Infinity;
+    for (const p of points) {
+      if (typeof p.xTime === 'number' && p.xTime > latest) latest = p.xTime;
+    }
+    if (!Number.isFinite(latest)) return null;
+    const opt = RANGE_OPTIONS.find((r) => r.value === timeRange);
+    if (!opt || opt.ms == null) return null;
+    return { min: latest - opt.ms, max: latest };
+  }, [effectiveMode, points, timeRange]);
+
   const dataSeries: Serie[] = useMemo(() => {
     const grouped = new Map<
       string,
@@ -159,6 +184,11 @@ export default function Trends({
       if (p.discarded && !includeDiscarded) continue;
       const x = getX(p);
       if (x === null || !Number.isFinite(p.y)) continue;
+      if (
+        timeRangeBounds &&
+        (x < timeRangeBounds.min || x > timeRangeBounds.max)
+      )
+        continue;
       const arr = grouped.get(p.series) ?? [];
       arr.push({ x, y: p.y, label: p.label });
       grouped.set(p.series, arr);
@@ -213,6 +243,7 @@ export default function Trends({
     showTrendline,
     smoothing,
     includeDiscarded,
+    timeRangeBounds,
   ]);
 
   const xLabel =
@@ -311,6 +342,24 @@ export default function Trends({
           </FormControl>
         )}
 
+        {effectiveMode === 'time' && (
+          <FormControl>
+            <FormLabel>Range</FormLabel>
+            <ToggleButtonGroup
+              value={timeRange}
+              onChange={(_, value) => {
+                if (value) setTimeRange(value as TimeRange);
+              }}
+            >
+              {RANGE_OPTIONS.map((opt) => (
+                <Button key={opt.value} value={opt.value}>
+                  {opt.label}
+                </Button>
+              ))}
+            </ToggleButtonGroup>
+          </FormControl>
+        )}
+
         <FormControl>
           <FormLabel>&nbsp;</FormLabel>
           <Stack spacing={0.5}>
@@ -356,7 +405,15 @@ export default function Trends({
           <ResponsiveLine
             data={dataSeries}
             margin={{ top: 24, right: 140, bottom: 56, left: 64 }}
-            xScale={{ type: 'linear' }}
+            xScale={
+              timeRangeBounds
+                ? {
+                    type: 'linear',
+                    min: timeRangeBounds.min,
+                    max: timeRangeBounds.max,
+                  }
+                : { type: 'linear' }
+            }
             yScale={{ type: 'linear', stacked: false }}
             axisBottom={{
               legend: xLabel,

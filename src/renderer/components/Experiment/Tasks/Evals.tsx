@@ -63,14 +63,18 @@ const getScoreTrendPoints = (jobs: any[]): TrendPoint[] => {
         String(job?.short_id ?? '').trim() || id.slice(0, 8) || id;
       const rawTime =
         job?.updated_at ?? job?.finished_at ?? job?.created_at ?? null;
-      const xTime = rawTime != null ? new Date(rawTime).getTime() : Number.NaN;
+      const parsed = rawTime != null ? new Date(rawTime).getTime() : Number.NaN;
+      // Reject pre-2000 timestamps (incl. epoch 0 / negative / NaN) so that
+      // missing or zeroed-out times don't drag the time axis back to 1970.
+      const MIN_VALID_MS = Date.UTC(2000, 0, 1);
+      const isValidTime = Number.isFinite(parsed) && parsed >= MIN_VALID_MS;
       return {
         id,
         shortId,
         normalized,
         discarded: isJobDiscarded(job),
-        sortKey: Number.isFinite(xTime) ? xTime : Number.POSITIVE_INFINITY,
-        xTime: Number.isFinite(xTime) ? xTime : undefined,
+        sortKey: isValidTime ? parsed : Number.POSITIVE_INFINITY,
+        xTime: isValidTime ? parsed : undefined,
       };
     })
     .filter(
