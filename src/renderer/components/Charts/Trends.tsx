@@ -251,18 +251,33 @@ export default function Trends({
       ? (xAxis.timeLabel ?? 'Time')
       : (xAxis.indexLabel ?? 'Run #');
 
+  const toNumber = (value: number | string | Date): number => {
+    if (typeof value === 'number') return value;
+    if (value instanceof Date) return value.getTime();
+    return Number(value);
+  };
+
   const formatX = (value: number | string | Date): string => {
-    const n =
-      typeof value === 'number'
-        ? value
-        : value instanceof Date
-          ? value.getTime()
-          : Number(value);
+    const n = toNumber(value);
     if (!Number.isFinite(n)) return String(value);
     if (effectiveMode === 'time') {
       return new Date(n).toLocaleString();
     }
     return String(n);
+  };
+
+  const formatXAxisTick = (value: number | string | Date): string => {
+    const n = toNumber(value);
+    if (!Number.isFinite(n)) return String(value);
+    if (effectiveMode !== 'time') return String(n);
+    const d = new Date(n);
+    if (timeRange === '1D') {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    if (timeRange === '5Y' || timeRange === 'ALL') {
+      return d.toLocaleDateString([], { month: 'short', year: 'numeric' });
+    }
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
   return (
@@ -404,7 +419,7 @@ export default function Trends({
         ) : (
           <ResponsiveLine
             data={dataSeries}
-            margin={{ top: 24, right: 140, bottom: 56, left: 64 }}
+            margin={{ top: 24, right: 140, bottom: 72, left: 64 }}
             xScale={
               timeRangeBounds
                 ? {
@@ -417,9 +432,10 @@ export default function Trends({
             yScale={{ type: 'linear', stacked: false }}
             axisBottom={{
               legend: xLabel,
-              legendOffset: 40,
+              legendOffset: 56,
               legendPosition: 'middle',
-              format: formatX,
+              format: formatXAxisTick,
+              tickRotation: effectiveMode === 'time' ? -30 : 0,
             }}
             axisLeft={{
               legend: yAxisLabel,
