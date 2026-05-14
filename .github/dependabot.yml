@@ -51,12 +51,6 @@ updates:
       # Hold at 8.x until that refactor happens. See PR #2117.
       - dependency-name: "react-markdown"
         versions: [">=9"]
-      # @rjsf/* v6 changes the validator interface; @rjsf/core, @rjsf/utils, and
-      # @rjsf/validator-ajv8 must all move together. Hold the whole family at 5.x until
-      # we do the coordinated bump (or remove rjsf entirely if it turns out to be unused).
-      # See PR #2119.
-      - dependency-name: "@rjsf/*"
-        versions: [">=6"]
       # eslint-plugin-compat is pulled in transitively via eslint-config-erb
       # (`extends: "plugin:compat/recommended"`). ERB's package.json wants ^4.2.0, so
       # we can't move to 5+ ahead of ERB. Hold at 4.x until ERB itself bumps.
