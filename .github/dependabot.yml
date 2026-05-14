@@ -57,6 +57,12 @@ updates:
       # See PR #2119.
       - dependency-name: "@rjsf/*"
         versions: [">=6"]
+      # eslint-plugin-compat is pulled in transitively via eslint-config-erb
+      # (`extends: "plugin:compat/recommended"`). ERB's package.json wants ^4.2.0, so
+      # we can't move to 5+ ahead of ERB. Hold at 4.x until ERB itself bumps.
+      # See PR #2115.
+      - dependency-name: "eslint-plugin-compat"
+        versions: [">=5"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
   # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
