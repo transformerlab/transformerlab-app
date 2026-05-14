@@ -28,7 +28,8 @@ interface EvalCapableJob {
   provider: string;
 }
 
-const COMPARE_LIMIT = 2;
+const COMPARE_MIN = 2;
+const COMPARE_MAX = 10;
 
 const getEvalCapableJobs = (jobs: any[]): EvalCapableJob[] =>
   jobs.reduce<EvalCapableJob[]>((acc, job) => {
@@ -152,12 +153,12 @@ export default function Evals() {
   const toggleSelected = (jobId: string) => {
     setSelectedIds((prev) => {
       if (prev.includes(jobId)) return prev.filter((id) => id !== jobId);
-      if (prev.length >= COMPARE_LIMIT) return prev;
+      if (prev.length >= COMPARE_MAX) return prev;
       return [...prev, jobId];
     });
   };
 
-  const canCompare = selectedIds.length === COMPARE_LIMIT;
+  const canCompare = selectedIds.length >= COMPARE_MIN;
 
   return (
     <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
@@ -182,7 +183,7 @@ export default function Evals() {
           sx={{ minWidth: 280, flexGrow: 1, maxWidth: 480 }}
         />
         <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
-          {selectedIds.length}/{COMPARE_LIMIT} selected to compare
+          {selectedIds.length} selected (min {COMPARE_MIN}, max {COMPARE_MAX})
         </Typography>
         <Button
           variant="solid"
@@ -248,7 +249,7 @@ export default function Evals() {
             {filteredJobs.map((job) => {
               const isSelected = selectedIds.includes(job.id);
               const selectDisabled =
-                !isSelected && selectedIds.length >= COMPARE_LIMIT;
+                !isSelected && selectedIds.length >= COMPARE_MAX;
               const createdAtTooltip =
                 now !== null ? formatAbsolute(job.createdAt) : '';
               return (
