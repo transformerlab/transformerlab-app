@@ -34,12 +34,6 @@ updates:
         versions: [">0.88.0"]
       - dependency-name: "@nivo/radar"
         versions: [">0.88.0"]
-      # @testing-library/jest-dom 6.x crashes our Jest setup with
-      # `ReferenceError: TextEncoder is not defined` when react-router-dom 7's modules
-      # load (jsdom env doesn't expose TextEncoder). Stay on 5.x until we add a
-      # TextEncoder polyfill in jest.setup. See PR #2113.
-      - dependency-name: "@testing-library/jest-dom"
-        versions: [">=6"]
       # @typescript-eslint/* v6+ requires bumping plugin AND parser in lockstep, plus
       # ESLint 8.57+/9 and updates to eslint-config-erb. Hold the whole family at 5.x
       # until we do a coordinated upgrade. Security patches on 5.x still flow through.
