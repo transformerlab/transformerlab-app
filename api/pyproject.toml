@@ -38,7 +38,7 @@ dependencies = [
   "azure-mgmt-authorization==4.0.0",
   "azure-storage-blob==12.28.0",
   "cashews==7.5.0",
-  "paramiko==4.0.0",
+  "paramiko==5.0.0",
 ]
 name = "transformerlab-api"
 version = "0.27.0"
