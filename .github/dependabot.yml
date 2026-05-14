@@ -14,8 +14,9 @@ updates:
           - "patch"
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
-  # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Packages that drop Node 18
-  # support are explicitly ignored below; revisit those ignores when the build moves to Node 20+.
+  # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
+  # the board (manual coordination needed); packages that drop Node 18 support in a minor or patch
+  # bump are listed individually under `ignore` below. Revisit when the build moves to Node 20+.
   - package-ecosystem: "npm"
     directory: "/transformerlab-docs"
     schedule:
