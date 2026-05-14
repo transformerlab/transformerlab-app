@@ -289,7 +289,10 @@ const CompareEvalResultsModal = ({
     return filename;
   };
 
-  const titleSuffix = normalizedIds.map((id) => `Job ${id}`).join(' vs ');
+  const shortenJobId = (id: string) => {
+    const s = String(id);
+    return s.length > 8 ? `${s.slice(0, 8)}…` : s;
+  };
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -297,7 +300,7 @@ const CompareEvalResultsModal = ({
         <ModalClose />
         <Stack spacing={2} sx={{ mb: 2 }}>
           <Typography level="h4">
-            Compare Evaluation Results: {titleSuffix}
+            Comparing {normalizedIds.length} jobs
           </Typography>
 
           <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
@@ -306,7 +309,9 @@ const CompareEvalResultsModal = ({
               const fileIndex = fileIndexByJob[jobId] ?? 0;
               return (
                 <FormControl key={jobId} sx={{ minWidth: 220 }}>
-                  <FormLabel>Job {jobId} eval file</FormLabel>
+                  <FormLabel title={`Job ${jobId} eval file`}>
+                    Job {shortenJobId(jobId)} eval file
+                  </FormLabel>
                   <Select
                     value={fileIndex}
                     onChange={(_, value) => {
