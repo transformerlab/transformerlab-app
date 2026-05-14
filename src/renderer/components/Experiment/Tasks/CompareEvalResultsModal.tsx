@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import useSWR from 'swr';
 import {
   Modal,
   ModalDialog,
@@ -17,9 +18,14 @@ import { CheckIcon } from 'lucide-react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
-import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 import Chart, { type ChartMetric } from './Chart';
+
+async function fetchJson(url: string): Promise<any> {
+  const res = await fetchWithAuth(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
 
 function formatColumnNames(name: string): string {
   return name
@@ -27,6 +33,13 @@ function formatColumnNames(name: string): string {
     .replace(/^./, (str: string) => str.toUpperCase())
     .replace(/_/g, ' ');
 }
+
+interface JobReport {
+  header: string[];
+  body: unknown[][];
+}
+
+const EMPTY_REPORT: JobReport = { header: [], body: [] };
 
 interface CompareEvalResultsModalProps {
   open: boolean;
@@ -40,165 +53,146 @@ const CompareEvalResultsModal = ({
   jobIds,
 }: CompareEvalResultsModalProps) => {
   const { experimentInfo } = useExperimentInfo();
-  const [selectedFileIndexA, setSelectedFileIndexA] = useState(0);
-  const [selectedFileIndexB, setSelectedFileIndexB] = useState(0);
+  const [fileIndexByJob, setFileIndexByJob] = useState<Record<string, number>>(
+    {},
+  );
   const [chartCategoryCol, setChartCategoryCol] = useState<number>(0);
   const [chartValueCols, setChartValueCols] = useState<number[]>([]);
 
-  const jobIdA = jobIds[0];
-  const jobIdB = jobIds[1];
-
-  const hasTwoJobs =
-    jobIds.length === 2 && jobIdA !== undefined && jobIdB !== undefined;
-
-  const {
-    data: jobAData,
-    isError: jobAError,
-    isLoading: isLoadingJobA,
-  } = useSWR(
-    open && hasTwoJobs && experimentInfo?.id && jobIdA
-      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, String(jobIdA))
-      : null,
-    fetcher,
-  );
-
-  const {
-    data: jobBData,
-    isError: jobBError,
-    isLoading: isLoadingJobB,
-  } = useSWR(
-    open && hasTwoJobs && experimentInfo?.id && jobIdB
-      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, String(jobIdB))
-      : null,
-    fetcher,
-  );
-
-  const evalResultsFilesA =
-    jobAData?.job_data?.eval_results &&
-    Array.isArray(jobAData.job_data.eval_results)
-      ? jobAData.job_data.eval_results
-      : [];
-
-  const evalResultsFilesB =
-    jobBData?.job_data?.eval_results &&
-    Array.isArray(jobBData.job_data.eval_results)
-      ? jobBData.job_data.eval_results
-      : [];
+  const normalizedIds = useMemo(() => jobIds.map((id) => String(id)), [jobIds]);
+  const hasEnoughJobs = normalizedIds.length >= 2;
+  const experimentId = experimentInfo?.id ?? null;
 
   useEffect(() => {
-    if (open && evalResultsFilesA.length > 0) {
-      setSelectedFileIndexA(0);
-    }
-  }, [open, evalResultsFilesA.length]);
+    if (!open) return;
+    setFileIndexByJob((prev) => {
+      const next: Record<string, number> = {};
+      normalizedIds.forEach((id) => {
+        next[id] = prev[id] ?? 0;
+      });
+      return next;
+    });
+  }, [open, normalizedIds]);
 
-  useEffect(() => {
-    if (open && evalResultsFilesB.length > 0) {
-      setSelectedFileIndexB(0);
-    }
-  }, [open, evalResultsFilesB.length]);
-
-  const {
-    data: reportDataA,
-    isError: reportAError,
-    isLoading: isLoadingReportA,
-  } = useSWR(
-    open &&
-      hasTwoJobs &&
-      experimentInfo?.id &&
-      jobIdA &&
-      evalResultsFilesA.length > 0 &&
-      selectedFileIndexA >= 0 &&
-      selectedFileIndexA < evalResultsFilesA.length
-      ? chatAPI.Endpoints.Experiment.GetEvalResults(
-          experimentInfo.id,
-          String(jobIdA),
-          'view',
-          selectedFileIndexA,
-        )
-      : null,
-    fetcher,
-  );
+  const jobsKey =
+    open && experimentId && hasEnoughJobs
+      ? ['compare-jobs', experimentId, normalizedIds.join(',')]
+      : null;
 
   const {
-    data: reportDataB,
-    isError: reportBError,
-    isLoading: isLoadingReportB,
-  } = useSWR(
-    open &&
-      hasTwoJobs &&
-      experimentInfo?.id &&
-      jobIdB &&
-      evalResultsFilesB.length > 0 &&
-      selectedFileIndexB >= 0 &&
-      selectedFileIndexB < evalResultsFilesB.length
-      ? chatAPI.Endpoints.Experiment.GetEvalResults(
-          experimentInfo.id,
-          String(jobIdB),
-          'view',
-          selectedFileIndexB,
-        )
-      : null,
-    fetcher,
-  );
+    data: jobsData,
+    isLoading: isLoadingJobs,
+    error: jobsError,
+  } = useSWR<any[]>(jobsKey, async () => {
+    const responses = await Promise.all(
+      normalizedIds.map((id) =>
+        fetchJson(chatAPI.Endpoints.Jobs.Get(experimentId as any, id)),
+      ),
+    );
+    return responses;
+  });
 
-  const reportA = useMemo(
-    () =>
-      reportDataA?.header && reportDataA?.body
-        ? {
-            header: reportDataA.header as string[],
-            body: reportDataA.body as unknown[][],
-          }
-        : { header: [] as string[], body: [] as unknown[][] },
-    [reportDataA?.header, reportDataA?.body],
-  );
+  const evalFilesByIndex: string[][] = useMemo(() => {
+    if (!Array.isArray(jobsData)) return normalizedIds.map(() => []);
+    return normalizedIds.map((_, i) => {
+      const list = jobsData[i]?.job_data?.eval_results;
+      return Array.isArray(list) ? list : [];
+    });
+  }, [jobsData, normalizedIds]);
 
-  const reportB = useMemo(
-    () =>
-      reportDataB?.header && reportDataB?.body
-        ? {
-            header: reportDataB.header as string[],
-            body: reportDataB.body as unknown[][],
-          }
-        : { header: [] as string[], body: [] as unknown[][] },
-    [reportDataB?.header, reportDataB?.body],
-  );
+  const safeFileIndices = normalizedIds.map((id, i) => {
+    const f = fileIndexByJob[id] ?? 0;
+    const len = evalFilesByIndex[i]?.length ?? 0;
+    return f >= 0 && f < len ? f : 0;
+  });
 
+  const allHaveFiles =
+    evalFilesByIndex.length === normalizedIds.length &&
+    evalFilesByIndex.every((files) => files.length > 0);
+
+  const reportsKey =
+    open && experimentId && hasEnoughJobs && allHaveFiles
+      ? [
+          'compare-reports',
+          experimentId,
+          normalizedIds.join(','),
+          safeFileIndices.join(','),
+        ]
+      : null;
+
+  const {
+    data: reportsData,
+    isLoading: isLoadingReports,
+    error: reportsError,
+  } = useSWR<JobReport[]>(reportsKey, async () => {
+    const responses = await Promise.all(
+      normalizedIds.map((id, i) =>
+        fetchJson(
+          chatAPI.Endpoints.Experiment.GetEvalResults(
+            experimentId as any,
+            id,
+            'view',
+            safeFileIndices[i],
+          ),
+        ),
+      ),
+    );
+    return responses.map((r) => ({
+      header: Array.isArray(r?.header) ? (r.header as string[]) : [],
+      body: Array.isArray(r?.body) ? (r.body as unknown[][]) : [],
+    }));
+  });
+
+  const reports: JobReport[] = useMemo(() => {
+    if (
+      Array.isArray(reportsData) &&
+      reportsData.length === normalizedIds.length
+    )
+      return reportsData;
+    return normalizedIds.map(() => EMPTY_REPORT);
+  }, [reportsData, normalizedIds]);
+
+  const isLoading = isLoadingJobs || isLoadingReports;
+  const anyError = Boolean(jobsError || reportsError);
+  const anyEmptyFiles =
+    !isLoading &&
+    Array.isArray(jobsData) &&
+    evalFilesByIndex.some((files) => files.length === 0);
+
+  const firstHeader = reports[0]?.header ?? [];
   const headersMatch =
-    reportA.header.length > 0 &&
-    reportA.header.length === reportB.header.length &&
-    reportA.header.every((col, idx) => col === reportB.header[idx]);
+    firstHeader.length > 0 &&
+    reports.every(
+      (r) =>
+        r.header.length === firstHeader.length &&
+        r.header.every((col, idx) => col === firstHeader[idx]),
+    );
 
-  const header = headersMatch ? reportA.header : [];
-
+  const header = headersMatch ? firstHeader : [];
   const scoreColumnIndex = header.findIndex(
     (col: string) => col.toLowerCase() === 'score',
   );
 
+  const headerKey = header.join(',');
   useEffect(() => {
-    if (header.length > 0) {
-      setChartCategoryCol(0);
-      setChartValueCols(scoreColumnIndex >= 0 ? [scoreColumnIndex] : []);
-    } else {
-      setChartCategoryCol(0);
-      setChartValueCols([]);
-    }
-  }, [header.join(','), scoreColumnIndex]);
-
-  const isLoading =
-    isLoadingJobA || isLoadingJobB || isLoadingReportA || isLoadingReportB;
+    setChartCategoryCol(0);
+    setChartValueCols(
+      header.length > 0 && scoreColumnIndex >= 0 ? [scoreColumnIndex] : [],
+    );
+  }, [headerKey, scoreColumnIndex, header.length]);
 
   let error: string | null = null;
-  if (!hasTwoJobs) {
-    error = 'Select two jobs to compare evaluation results.';
-  } else if (jobAError || jobBError || reportAError || reportBError) {
-    error = 'Failed to load evaluation results for one or both jobs.';
+  if (!hasEnoughJobs) {
+    error = 'Select at least two jobs to compare evaluation results.';
+  } else if (anyError) {
+    error = 'Failed to load evaluation results for one or more jobs.';
+  } else if (anyEmptyFiles) {
+    error = 'No evaluation results found for one or more jobs.';
   } else if (
-    (evalResultsFilesA.length === 0 || evalResultsFilesB.length === 0) &&
-    !isLoadingJobA &&
-    !isLoadingJobB
+    reports.every((r) => r.header.length > 0) &&
+    !headersMatch &&
+    !isLoading
   ) {
-    error = 'No evaluation results found for one or both jobs.';
-  } else if (reportA.header.length && reportB.header.length && !headersMatch) {
     error =
       'Cannot compare these evaluation files because their columns differ.';
   }
@@ -213,12 +207,7 @@ const CompareEvalResultsModal = ({
   const chartMetrics: ChartMetric[] = useMemo(() => {
     if (!headersMatch) return [];
     const headerRow = header;
-    const bodyA = reportA.body;
-    const bodyB = reportB.body;
-
     if (
-      bodyA.length === 0 ||
-      bodyB.length === 0 ||
       headerRow.length === 0 ||
       effectiveValueCols.length === 0 ||
       chartCategoryCol < 0 ||
@@ -241,19 +230,16 @@ const CompareEvalResultsModal = ({
       { type: string; series: string; sum: number; count: number }
     >();
 
-    const jobs = [
-      { label: `Job ${jobIdA}`, body: bodyA },
-      { label: `Job ${jobIdB}`, body: bodyB },
-    ];
-
-    jobs.forEach((job) => {
-      job.body.forEach((row: unknown[]) => {
+    normalizedIds.forEach((jobId, jobIdx) => {
+      const body = reports[jobIdx]?.body ?? [];
+      if (body.length === 0) return;
+      const label = `Job ${jobId}`;
+      body.forEach((row: unknown[]) => {
         const type = String(row[chartCategoryCol] ?? '');
-
         safeValueCols.forEach((valueColIdx, k) => {
           const valueName = valueColNames[k];
           const score = parseFloat(String(row[valueColIdx] ?? 0)) || 0;
-          const series = `${job.label} · ${valueName}`;
+          const series = `${label} · ${valueName}`;
           const key = `${type}|||${series}`;
           const existing = aggregator.get(key);
           if (existing) {
@@ -280,12 +266,10 @@ const CompareEvalResultsModal = ({
   }, [
     headersMatch,
     header,
-    reportA.body,
-    reportB.body,
+    reports,
     effectiveValueCols,
     chartCategoryCol,
-    jobIdA,
-    jobIdB,
+    normalizedIds,
   ]);
 
   const needsFieldMapping =
@@ -305,53 +289,52 @@ const CompareEvalResultsModal = ({
     return filename;
   };
 
+  const shortenJobId = (id: string) => {
+    const s = String(id);
+    return s.length > 8 ? `${s.slice(0, 8)}…` : s;
+  };
+
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ width: '90vw', height: '90vh', pt: 5 }}>
+      <ModalDialog
+        sx={{ width: '90vw', height: '90vh', pt: 5, overflow: 'auto' }}
+      >
         <ModalClose />
         <Stack spacing={2} sx={{ mb: 2 }}>
           <Typography level="h4">
-            Compare Evaluation Results: Job {jobIdA} vs Job {jobIdB}
+            Comparing {normalizedIds.length} jobs
           </Typography>
 
-          <Stack direction="row" spacing={2}>
-            <FormControl sx={{ minWidth: 220 }}>
-              <FormLabel>Job {jobIdA} eval file</FormLabel>
-              <Select
-                value={selectedFileIndexA}
-                onChange={(_, value) => {
-                  if (value !== null) {
-                    setSelectedFileIndexA(value as number);
-                  }
-                }}
-                disabled={evalResultsFilesA.length === 0}
-              >
-                {evalResultsFilesA.map((filePath: string, index: number) => (
-                  <Option key={getFileName(filePath, index)} value={index}>
-                    {getFileName(filePath, index)}
-                  </Option>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl sx={{ minWidth: 220 }}>
-              <FormLabel>Job {jobIdB} eval file</FormLabel>
-              <Select
-                value={selectedFileIndexB}
-                onChange={(_, value) => {
-                  if (value !== null) {
-                    setSelectedFileIndexB(value as number);
-                  }
-                }}
-                disabled={evalResultsFilesB.length === 0}
-              >
-                {evalResultsFilesB.map((filePath: string, index: number) => (
-                  <Option key={getFileName(filePath, index)} value={index}>
-                    {getFileName(filePath, index)}
-                  </Option>
-                ))}
-              </Select>
-            </FormControl>
+          <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
+            {normalizedIds.map((jobId, idx) => {
+              const evalFiles = evalFilesByIndex[idx] ?? [];
+              const fileIndex = fileIndexByJob[jobId] ?? 0;
+              return (
+                <FormControl key={jobId} sx={{ minWidth: 220 }}>
+                  <FormLabel title={`Job ${jobId} eval file`}>
+                    Job {shortenJobId(jobId)} eval file
+                  </FormLabel>
+                  <Select
+                    value={fileIndex}
+                    onChange={(_, value) => {
+                      if (value !== null) {
+                        setFileIndexByJob((prev) => ({
+                          ...prev,
+                          [jobId]: value as number,
+                        }));
+                      }
+                    }}
+                    disabled={evalFiles.length === 0}
+                  >
+                    {evalFiles.map((filePath: string, fIdx: number) => (
+                      <Option key={getFileName(filePath, fIdx)} value={fIdx}>
+                        {getFileName(filePath, fIdx)}
+                      </Option>
+                    ))}
+                  </Select>
+                </FormControl>
+              );
+            })}
           </Stack>
         </Stack>
 
@@ -368,7 +351,7 @@ const CompareEvalResultsModal = ({
           >
             <CircularProgress size="lg" />
             <Typography level="body-lg">
-              Loading evaluation results for both jobs…
+              Loading evaluation results for {normalizedIds.length} jobs…
             </Typography>
           </Box>
         ) : error ? (
