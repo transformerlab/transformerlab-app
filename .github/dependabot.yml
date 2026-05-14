@@ -57,6 +57,19 @@ updates:
       # See PR #2119.
       - dependency-name: "@rjsf/*"
         versions: [">=6"]
+      # eslint-plugin-compat is pulled in transitively via eslint-config-erb
+      # (`extends: "plugin:compat/recommended"`). ERB's package.json wants ^4.2.0, so
+      # we can't move to 5+ ahead of ERB. Hold at 4.x until ERB itself bumps.
+      # See PR #2115.
+      - dependency-name: "eslint-plugin-compat"
+        versions: [">=5"]
+      # sass-loader 14+ uses sass's "modern compiler API" by default, which surfaces
+      # deprecation warnings for legacy `@import`, `/` division, and color functions
+      # used throughout our .scss files. Build still succeeds but dev console gets
+      # noisy. Hold at 13.x until the .scss files are migrated to `@use`/`@forward`.
+      # See PR #2116.
+      - dependency-name: "sass-loader"
+        versions: [">=14"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
   # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
