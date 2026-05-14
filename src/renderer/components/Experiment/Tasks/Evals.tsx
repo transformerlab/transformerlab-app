@@ -19,6 +19,7 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import CompareEvalResultsModal from './CompareEvalResultsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
+import LeaderboardEvalModal from './LeaderboardEvalModal';
 
 interface EvalCapableJob {
   id: string;
@@ -26,7 +27,9 @@ interface EvalCapableJob {
   title: string;
 }
 
-type EvalMode = 'single' | 'compare';
+type EvalMode = 'single' | 'compare' | 'leaderboard';
+
+const LEADERBOARD_DEFAULT_LIMIT = 20;
 
 const getEvalCapableJobs = (jobs: any[]): EvalCapableJob[] =>
   jobs
@@ -53,6 +56,11 @@ export default function Evals() {
   const [selectedJobB, setSelectedJobB] = useState<string | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
   const [singleEvalJobId, setSingleEvalJobId] = useState<string | null>(null);
+  const [leaderboardSelection, setLeaderboardSelection] = useState<string[]>(
+    [],
+  );
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [leaderboardSeeded, setLeaderboardSeeded] = useState(false);
 
   useEffect(() => {
     if (experimentName) {
@@ -73,9 +81,23 @@ export default function Evals() {
     return getEvalCapableJobs(jobs);
   }, [jobsRaw]);
 
+  useEffect(() => {
+    if (leaderboardSeeded || evalCapableJobs.length === 0) return;
+    setLeaderboardSelection(
+      evalCapableJobs.slice(0, LEADERBOARD_DEFAULT_LIMIT).map((j) => j.id),
+    );
+    setLeaderboardSeeded(true);
+  }, [evalCapableJobs, leaderboardSeeded]);
+
+  const leaderboardJobs = useMemo(
+    () => evalCapableJobs.filter((j) => leaderboardSelection.includes(j.id)),
+    [evalCapableJobs, leaderboardSelection],
+  );
+
   const compareDisabled =
     !selectedJobA || !selectedJobB || selectedJobA === selectedJobB;
   const canViewSingleEval = Boolean(selectedJobA);
+  const leaderboardDisabled = leaderboardJobs.length < 2;
 
   return (
     <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
@@ -105,7 +127,11 @@ export default function Evals() {
             <Tabs
               value={mode}
               onChange={(_, value) => {
-                if (value === 'single' || value === 'compare') {
+                if (
+                  value === 'single' ||
+                  value === 'compare' ||
+                  value === 'leaderboard'
+                ) {
                   setMode(value);
                 }
               }}
@@ -113,10 +139,11 @@ export default function Evals() {
               <TabList variant="soft" sx={{ width: 'fit-content' }}>
                 <Tab value="single">View single eval</Tab>
                 <Tab value="compare">Compare evals</Tab>
+                <Tab value="leaderboard">Leaderboard</Tab>
               </TabList>
             </Tabs>
 
-            {mode === 'single' ? (
+            {mode === 'single' && (
               <>
                 <FormControl>
                   <FormLabel>Job</FormLabel>
@@ -144,7 +171,9 @@ export default function Evals() {
                   </Button>
                 </Stack>
               </>
-            ) : (
+            )}
+
+            {mode === 'compare' && (
               <>
                 <FormControl>
                   <FormLabel>Job A</FormLabel>
@@ -184,6 +213,48 @@ export default function Evals() {
                 </Stack>
               </>
             )}
+
+            {mode === 'leaderboard' && (
+              <>
+                <FormControl>
+                  <FormLabel>
+                    Jobs ({leaderboardSelection.length} selected, pick 2+)
+                  </FormLabel>
+                  <Select
+                    multiple
+                    value={leaderboardSelection}
+                    onChange={(_, value) =>
+                      setLeaderboardSelection(Array.isArray(value) ? value : [])
+                    }
+                    renderValue={(selected) =>
+                      `${selected.length} job${selected.length === 1 ? '' : 's'} selected`
+                    }
+                  >
+                    {evalCapableJobs.map((job) => (
+                      <Option key={`lb-${job.id}`} value={job.id}>
+                        {job.title} ({job.shortId})
+                      </Option>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                  <Button
+                    variant="plain"
+                    color="neutral"
+                    onClick={() => setLeaderboardSelection([])}
+                    disabled={leaderboardSelection.length === 0}
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    onClick={() => setLeaderboardOpen(true)}
+                    disabled={leaderboardDisabled}
+                  >
+                    Open leaderboard
+                  </Button>
+                </Stack>
+              </>
+            )}
           </Stack>
         )}
       </Card>
@@ -204,6 +275,14 @@ export default function Evals() {
         open={singleEvalJobId !== null}
         onClose={() => setSingleEvalJobId(null)}
         jobId={singleEvalJobId}
+      />
+      <LeaderboardEvalModal
+        open={leaderboardOpen}
+        onClose={() => setLeaderboardOpen(false)}
+        jobs={leaderboardJobs.map(({ id, title, shortId }) => ({
+          id,
+          title: `${title} (${shortId})`,
+        }))}
       />
     </Box>
   );
