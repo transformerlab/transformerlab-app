@@ -24,7 +24,7 @@
     "@signalwire/docusaurus-plugin-llms-txt": "^1.2.2",
     "asciinema-player": "^3.14.0",
     "clsx": "^2.0.0",
-    "dotenv": "^16.3.1",
+    "dotenv": "^17.4.2",
     "prism-react-renderer": "^2.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
