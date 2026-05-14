@@ -12,19 +12,97 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # chalk v5 is pure ESM. `check-build-exists.ts` is in Jest's setupFiles and ts-jest
+      # compiles `import chalk from 'chalk'` to `require('chalk')`, which throws
+      # ERR_REQUIRE_ESM against chalk 5. Stay on v4 until the Jest setup is refactored to
+      # dynamic import or chalk is dropped from setup. See PR #2092.
+      - dependency-name: "chalk"
+        versions: [">=5"]
+      # sass 1.99.0 introduces a sass-loader deprecation warning on `npm start`.
+      # Hold at 1.77.8 until sass-loader catches up. See PR #2091 (reverted by dadmobile).
+      - dependency-name: "sass"
+        versions: [">1.77.8"]
+      # @nivo/* is pre-1.0 and each minor can ship breaking changes. 0.99.0 broke `<Bar>`
+      # elements. Hold the nivo packages at 0.88.0 until they're upgraded deliberately.
+      # See PR #2091 (reverted by dadmobile).
+      - dependency-name: "@nivo/bar"
+        versions: [">0.88.0"]
+      - dependency-name: "@nivo/core"
+        versions: [">0.88.0"]
+      - dependency-name: "@nivo/line"
+        versions: [">0.88.0"]
+      - dependency-name: "@nivo/radar"
+        versions: [">0.88.0"]
+      # @testing-library/jest-dom 6.x crashes our Jest setup with
+      # `ReferenceError: TextEncoder is not defined` when react-router-dom 7's modules
+      # load (jsdom env doesn't expose TextEncoder). Stay on 5.x until we add a
+      # TextEncoder polyfill in jest.setup. See PR #2113.
+      - dependency-name: "@testing-library/jest-dom"
+        versions: [">=6"]
+      # @typescript-eslint/* v6+ requires bumping plugin AND parser in lockstep, plus
+      # ESLint 8.57+/9 and updates to eslint-config-erb. Hold the whole family at 5.x
+      # until we do a coordinated upgrade. Security patches on 5.x still flow through.
+      # See PR #2114.
+      - dependency-name: "@typescript-eslint/*"
+        versions: [">=6"]
+      # react-markdown v9 went pure ESM and reworked the `components` API (notably the
+      # inline-code renderer signature). Three callsites need updates before we can move.
+      # Hold at 8.x until that refactor happens. See PR #2117.
+      - dependency-name: "react-markdown"
+        versions: [">=9"]
+      # @rjsf/* v6 changes the validator interface; @rjsf/core, @rjsf/utils, and
+      # @rjsf/validator-ajv8 must all move together. Hold the whole family at 5.x until
+      # we do the coordinated bump (or remove rjsf entirely if it turns out to be unused).
+      # See PR #2119.
+      - dependency-name: "@rjsf/*"
+        versions: [">=6"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
+  # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
+  # the board (manual coordination needed); packages that drop Node 18 support in a minor or patch
+  # bump are listed individually under `ignore` below. Revisit when the build moves to Node 20+.
   - package-ecosystem: "npm"
     directory: "/transformerlab-docs"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "docs-deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docs"
     groups:
+      docusaurus:
+        patterns:
+          - "@docusaurus/*"
+          - "@mdx-js/*"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
       minor-and-patch:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # mermaid >= 11.12 requires Node 20+; we're pinned to Node 18 in Netlify.
+      - dependency-name: "mermaid"
+        versions: [">=11.12"]
+      # @docusaurus/* >= 3.10 requires Node >=20 (engines field), Netlify build is Node 18.
+      # Hold the docusaurus packages at 3.9.x until the docs build moves to Node 20+.
+      # See PR #2111 (build failed with EBADENGINE on @docusaurus/core@3.10.1).
+      - dependency-name: "@docusaurus/*"
+        versions: [">=3.10"]
+      # typescript >= 5.9 also bumped its minimum Node version; keep aligned with the
+      # docusaurus pin above until the build moves off Node 18.
+      - dependency-name: "typescript"
+        versions: [">=5.9"]
+      # Major bumps on docs deps need manual coordination; minor/patch is enough for security.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # API (FastAPI, managed with uv)
   - package-ecosystem: "uv"
@@ -38,6 +116,17 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # datasets 4.x removes loading-script support (`trust_remote_code` workflows) that
+      # several gallery training scripts rely on. Deliberately pinned to 3.x; a datasets
+      # upgrade needs its own dedicated PR with full validation. See PR #2090.
+      - dependency-name: "datasets"
+        versions: [">=4"]
+      # azure-mgmt-resource 25.0.0 removed/relocated `SubscriptionClient`, which our
+      # Azure compute provider imports from `azure.mgmt.resource`. Provider health check
+      # fails immediately on import. Revisit after refactoring the import path. See PR #2083.
+      - dependency-name: "azure-mgmt-resource"
+        versions: [">=25"]
 
   # CLI (Typer, managed with uv)
   - package-ecosystem: "uv"
