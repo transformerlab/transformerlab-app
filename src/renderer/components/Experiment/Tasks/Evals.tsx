@@ -31,32 +31,28 @@ interface EvalCapableJob {
 const COMPARE_LIMIT = 2;
 
 const getEvalCapableJobs = (jobs: any[]): EvalCapableJob[] =>
-  jobs
-    .filter((job) => {
-      const evalResults = job?.job_data?.eval_results;
-      return Array.isArray(evalResults) && evalResults.length > 0;
-    })
-    .map((job) => {
-      const id = String(job?.id ?? '');
-      const shortId = String(job?.short_id ?? '').trim() || id.slice(0, 8);
-      const jobData = job?.job_data ?? {};
-      const title =
-        jobData.task_name ||
-        jobData.cluster_name ||
-        jobData.template_name ||
-        `Job ${shortId}`;
-      return {
-        id,
-        shortId,
-        title,
-        status: String(job?.status ?? ''),
-        createdAt: job?.created_at ?? null,
-        evalFileCount: Array.isArray(jobData.eval_results)
-          ? jobData.eval_results.length
-          : 0,
-        provider: String(jobData.provider_name ?? ''),
-      };
+  jobs.reduce<EvalCapableJob[]>((acc, job) => {
+    const evalResults = job?.job_data?.eval_results;
+    if (!Array.isArray(evalResults) || evalResults.length === 0) return acc;
+    const id = String(job?.id ?? '');
+    const shortId = String(job?.short_id ?? '').trim() || id.slice(0, 8);
+    const jobData = job?.job_data ?? {};
+    const title =
+      jobData.task_name ||
+      jobData.cluster_name ||
+      jobData.template_name ||
+      `Job ${shortId}`;
+    acc.push({
+      id,
+      shortId,
+      title,
+      status: String(job?.status ?? ''),
+      createdAt: job?.created_at ?? null,
+      evalFileCount: evalResults.length,
+      provider: String(jobData.provider_name ?? ''),
     });
+    return acc;
+  }, []);
 
 function statusColor(
   status: string,
@@ -78,11 +74,18 @@ function statusColor(
   }
 }
 
-function formatRelative(iso: string | null): string {
+function formatAbsolute(iso: string | null): string {
+  if (!iso) return '';
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return '';
+  return new Date(ms).toLocaleString();
+}
+
+function formatRelative(iso: string | null, now: number): string {
   if (!iso) return '—';
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '—';
-  const seconds = Math.round((Date.now() - then) / 1000);
+  const seconds = Math.round((now - then) / 1000);
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
@@ -102,12 +105,19 @@ export default function Evals() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
   const [singleEvalJobId, setSingleEvalJobId] = useState<string | null>(null);
+  const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
     if (experimentName) {
       setExperimentId(experimentName);
     }
   }, [experimentName, setExperimentId]);
+
+  useEffect(() => {
+    setNow(Date.now());
+    const interval = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const { data: jobsRaw, isLoading: jobsLoading } = useSWR(
     experimentInfo?.id
@@ -239,6 +249,8 @@ export default function Evals() {
               const isSelected = selectedIds.includes(job.id);
               const selectDisabled =
                 !isSelected && selectedIds.length >= COMPARE_LIMIT;
+              const createdAtTooltip =
+                now !== null ? formatAbsolute(job.createdAt) : '';
               return (
                 <tr key={job.id}>
                   <td>
@@ -281,15 +293,11 @@ export default function Evals() {
                     </Chip>
                   </td>
                   <td>
-                    <Tooltip
-                      title={
-                        job.createdAt
-                          ? new Date(job.createdAt).toLocaleString()
-                          : ''
-                      }
-                    >
+                    <Tooltip title={createdAtTooltip}>
                       <Typography level="body-sm">
-                        {formatRelative(job.createdAt)}
+                        {now === null
+                          ? '—'
+                          : formatRelative(job.createdAt, now)}
                       </Typography>
                     </Tooltip>
                   </td>
