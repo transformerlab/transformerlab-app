@@ -158,7 +158,7 @@
     "eslint-plugin-jest": "^27.2.1",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-prettier": "^5.5.5",
-    "eslint-plugin-promise": "^6.1.1",
+    "eslint-plugin-promise": "^7.3.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^4.6.0",
     "file-loader": "^6.2.0",
