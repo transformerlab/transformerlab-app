@@ -296,7 +296,9 @@ const CompareEvalResultsModal = ({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ width: '90vw', height: '90vh', pt: 5 }}>
+      <ModalDialog
+        sx={{ width: '90vw', height: '90vh', pt: 5, overflow: 'auto' }}
+      >
         <ModalClose />
         <Stack spacing={2} sx={{ mb: 2 }}>
           <Typography level="h4">
