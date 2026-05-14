@@ -22,7 +22,7 @@
     "@mdx-js/react": "^3.0.0",
     "@mux/mux-player-react": "^2.6.0",
     "@signalwire/docusaurus-plugin-llms-txt": "^1.2.2",
-    "asciinema-player": "^3.14.0",
+    "asciinema-player": "^3.15.1",
     "clsx": "^2.0.0",
     "dotenv": "^16.3.1",
     "prism-react-renderer": "^2.3.0",
@@ -31,9 +31,9 @@
     "react-icons": "^4.12.0"
   },
   "devDependencies": {
-    "@docusaurus/module-type-aliases": "3.7.0",
-    "@docusaurus/tsconfig": "3.7.0",
-    "@docusaurus/types": "3.7.0",
+    "@docusaurus/module-type-aliases": "3.8.1",
+    "@docusaurus/tsconfig": "3.8.1",
+    "@docusaurus/types": "3.8.1",
     "typescript": "~5.6.2"
   },
   "browserslist": {
