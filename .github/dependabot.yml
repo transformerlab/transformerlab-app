@@ -40,6 +40,23 @@ updates:
       # TextEncoder polyfill in jest.setup. See PR #2113.
       - dependency-name: "@testing-library/jest-dom"
         versions: [">=6"]
+      # @typescript-eslint/* v6+ requires bumping plugin AND parser in lockstep, plus
+      # ESLint 8.57+/9 and updates to eslint-config-erb. Hold the whole family at 5.x
+      # until we do a coordinated upgrade. Security patches on 5.x still flow through.
+      # See PR #2114.
+      - dependency-name: "@typescript-eslint/*"
+        versions: [">=6"]
+      # react-markdown v9 went pure ESM and reworked the `components` API (notably the
+      # inline-code renderer signature). Three callsites need updates before we can move.
+      # Hold at 8.x until that refactor happens. See PR #2117.
+      - dependency-name: "react-markdown"
+        versions: [">=9"]
+      # @rjsf/* v6 changes the validator interface; @rjsf/core, @rjsf/utils, and
+      # @rjsf/validator-ajv8 must all move together. Hold the whole family at 5.x until
+      # we do the coordinated bump (or remove rjsf entirely if it turns out to be unused).
+      # See PR #2119.
+      - dependency-name: "@rjsf/*"
+        versions: [">=6"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
   # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
