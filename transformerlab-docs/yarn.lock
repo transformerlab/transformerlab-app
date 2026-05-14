@@ -1722,19 +1722,6 @@
     vfile "^6.0.1"
     webpack "^5.88.1"
 
-"@docusaurus/module-type-aliases@3.7.0":
-  version "3.7.0"
-  resolved "https://registry.yarnpkg.com/@docusaurus/module-type-aliases/-/module-type-aliases-3.7.0.tgz#15c0745b829c6966c5b3b2c2527c72b54830b0e5"
-  integrity sha512-g7WdPqDNaqA60CmBrr0cORTrsOit77hbsTj7xE2l71YhBn79sxdm7WMK7wfhcaafkbpIh7jv5ef5TOpf1Xv9Lg==
-  dependencies:
-    "@docusaurus/types" "3.7.0"
-    "@types/history" "^4.7.11"
-    "@types/react" "*"
-    "@types/react-router-config" "*"
-    "@types/react-router-dom" "*"
-    react-helmet-async "npm:@slorber/react-helmet-async@*"
-    react-loadable "npm:@docusaurus/react-loadable@6.0.0"
-
 "@docusaurus/module-type-aliases@3.8.1":
   version "3.8.1"
   resolved "https://registry.yarnpkg.com/@docusaurus/module-type-aliases/-/module-type-aliases-3.8.1.tgz#454de577bd7f50b5eae16db0f76b49ca5e4e281a"
@@ -2007,25 +1994,10 @@
     fs-extra "^11.1.1"
     tslib "^2.6.0"
 
-"@docusaurus/tsconfig@3.7.0":
-  version "3.7.0"
-  resolved "https://registry.yarnpkg.com/@docusaurus/tsconfig/-/tsconfig-3.7.0.tgz#654dcc524e25b8809af0f1b0b42485c18c047ab5"
-  integrity sha512-vRsyj3yUZCjscgfgcFYjIsTcAru/4h4YH2/XAE8Rs7wWdnng98PgWKvP5ovVc4rmRpRg2WChVW0uOy2xHDvDBQ==
-
-"@docusaurus/types@3.7.0":
-  version "3.7.0"
-  resolved "https://registry.yarnpkg.com/@docusaurus/types/-/types-3.7.0.tgz#3f5a68a60f80ecdcb085666da1d68f019afda943"
-  integrity sha512-kOmZg5RRqJfH31m+6ZpnwVbkqMJrPOG5t0IOl4i/+3ruXyNfWzZ0lVtVrD0u4ONc/0NOsS9sWYaxxWNkH1LdLQ==
-  dependencies:
-    "@mdx-js/mdx" "^3.0.0"
-    "@types/history" "^4.7.11"
-    "@types/react" "*"
-    commander "^5.1.0"
-    joi "^17.9.2"
-    react-helmet-async "npm:@slorber/react-helmet-async@1.3.0"
-    utility-types "^3.10.0"
-    webpack "^5.95.0"
-    webpack-merge "^5.9.0"
+"@docusaurus/tsconfig@3.8.1":
+  version "3.8.1"
+  resolved "https://registry.yarnpkg.com/@docusaurus/tsconfig/-/tsconfig-3.8.1.tgz#a1f7daadfc93455289200647f4ee10cdca540f7b"
+  integrity sha512-XBWCcqhRHhkhfolnSolNL+N7gj3HVE3CoZVqnVjfsMzCoOsuQw2iCLxVVHtO+rePUUfouVZHURDgmqIySsF66A==
 
 "@docusaurus/types@3.8.1":
   version "3.8.1"
@@ -3379,10 +3351,10 @@ array-union@^2.1.0:
   resolved "https://registry.yarnpkg.com/array-union/-/array-union-2.1.0.tgz#b798420adbeb1de828d84acd8a2e23d3efe85e8d"
   integrity sha512-HGyxoOTYUyCM6stUe6EJgnd4EoewAI7zMdfqO+kGjnlZmBDz/cR5pf8r/cR4Wq60sL/p0IkcjUEEPwS3GFrIyw==
 
-asciinema-player@^3.14.0:
-  version "3.14.0"
-  resolved "https://registry.yarnpkg.com/asciinema-player/-/asciinema-player-3.14.0.tgz#4660595433dd538cc5a31badadb9e76d3eee6d17"
-  integrity sha512-44m3CpNavn8i7DSr/AeeV+rJpHpcqc/OCildCs9FAu5gnXB6XNBdbhfg6mHMG4uU3R1rxFNA3ZRTt8FMhHC48Q==
+asciinema-player@^3.15.1:
+  version "3.15.1"
+  resolved "https://registry.yarnpkg.com/asciinema-player/-/asciinema-player-3.15.1.tgz#3facad2782330f4c843f9fdbbf339be405d0bfea"
+  integrity sha512-agVYeNlPxthLyAb92l9AS7ypW0uhesqOuQzyR58Q4Sj+MvesQztZBgx86lHqNJkB8rQ6EP0LeA9czGytQUBpYw==
   dependencies:
     "@babel/runtime" "^7.21.0"
     solid-js "^1.3.0"
@@ -8508,19 +8480,19 @@ rc@1.2.8:
     minimist "^1.2.0"
     strip-json-comments "~2.0.1"
 
-react-dom@^19.0.0:
-  version "19.1.1"
-  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-19.1.1.tgz#2daa9ff7f3ae384aeb30e76d5ee38c046dc89893"
-  integrity sha512-Dlq/5LAZgF0Gaz6yiqZCf6VCcZs1ghAJyrsu84Q/GT0gV+mCxbfmKNoGRKBYMJ8IEdGPqu49YWXD02GCknEDkw==
+react-dom@^19.2.6:
+  version "19.2.6"
+  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-19.2.6.tgz#44a81b0bcca22da814c00847d09d01c8615529b7"
+  integrity sha512-0prMI+hvBbPjsWnxDLxlCGyM8PN6UuWjEUCYmZhO67xIV9Xasa/r/vDnq+Xyq4Lo27g8QSbO5YzARu0D1Sps3g==
   dependencies:
-    scheduler "^0.26.0"
+    scheduler "^0.27.0"
 
 react-fast-compare@^3.2.0:
   version "3.2.2"
   resolved "https://registry.yarnpkg.com/react-fast-compare/-/react-fast-compare-3.2.2.tgz#929a97a532304ce9fee4bcae44234f1ce2c21d49"
   integrity sha512-nsO+KSNgo1SbJqJEYRE9ERzo7YtYbou/OqjSQKxV7jcKox7+usiUVZOAC+XnDOABXggQTno0Y1CpVnuWEc1boQ==
 
-"react-helmet-async@npm:@slorber/react-helmet-async@*", "react-helmet-async@npm:@slorber/react-helmet-async@1.3.0":
+"react-helmet-async@npm:@slorber/react-helmet-async@1.3.0":
   version "1.3.0"
   resolved "https://registry.yarnpkg.com/@slorber/react-helmet-async/-/react-helmet-async-1.3.0.tgz#11fbc6094605cf60aa04a28c17e0aab894b4ecff"
   integrity sha512-e9/OK8VhwUSc67diWI8Rb3I0YgI9/SBQtnhe9aEuK6MhZm7ntZZimXgwXnd8W96YTmSOb9M4d8LwhRZyhWr/1A==
@@ -8595,10 +8567,10 @@ react-router@5.3.4, react-router@^5.3.4:
     tiny-invariant "^1.0.2"
     tiny-warning "^1.0.0"
 
-react@^19.0.0:
-  version "19.1.1"
-  resolved "https://registry.yarnpkg.com/react/-/react-19.1.1.tgz#06d9149ec5e083a67f9a1e39ce97b06a03b644af"
-  integrity sha512-w8nqGImo45dmMIfljjMwOGtbmC/mk4CMYhWIicdSflH91J9TyCyczcPFXJzrZ/ZXcgGRFeP6BU0BEJTw6tZdfQ==
+react@^19.2.6:
+  version "19.2.6"
+  resolved "https://registry.yarnpkg.com/react/-/react-19.2.6.tgz#3dadb8e12b2a7934c1d5317973e5dce1301f9a4d"
+  integrity sha512-sfWGGfavi0xr8Pg0sVsyHMAOziVYKgPLNrS7ig+ivMNb3wbCBw3KxtflsGBAwD3gYQlE/AEZsTLgToRrSCjb0Q==
 
 readable-stream@^2.0.1:
   version "2.3.8"
@@ -8987,10 +8959,10 @@ sax@^1.2.4:
   resolved "https://registry.yarnpkg.com/sax/-/sax-1.4.1.tgz#44cc8988377f126304d3b3fc1010c733b929ef0f"
   integrity sha512-+aWOz7yVScEGoKNd4PA10LZ8sk0A/z5+nXQG5giUO5rprX9jgYsTdov9qCchZiPIZezbZH+jRut8nPodFAX4Jg==
 
-scheduler@^0.26.0:
-  version "0.26.0"
-  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.26.0.tgz#4ce8a8c2a2095f13ea11bf9a445be50c555d6337"
-  integrity sha512-NlHwttCI/l5gCPR3D1nNXtWABUmBwvZpEQiD4IXSbIDq8BzLIK/7Ir5gTFSGZDUu37K5cMNp0hFtzO38sC7gWA==
+scheduler@^0.27.0:
+  version "0.27.0"
+  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.27.0.tgz#0c4ef82d67d1e5c1e359e8fc76d3a87f045fe5bd"
+  integrity sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==
 
 schema-dts@^1.1.2:
   version "1.1.5"
