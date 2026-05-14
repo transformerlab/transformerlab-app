@@ -56,7 +56,7 @@ export function SweepResultsBody({ jobId }: { jobId: string }) {
           sx={{ py: 4 }}
         >
           <CircularProgress size="sm" />
-          <Typography level="body-md">Loading sweep results...</Typography>
+          <Typography level="body-md">Loading sweep results…</Typography>
         </Stack>
       );
     }

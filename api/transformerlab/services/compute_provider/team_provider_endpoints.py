@@ -86,6 +86,7 @@ async def create_provider_for_team(
         ProviderType.DSTACK,
         ProviderType.AZURE,
         ProviderType.AWS,
+        ProviderType.VASTAI,
         ProviderType.GCP,
     ]
     if provider_data.type not in allowed_provider_types:

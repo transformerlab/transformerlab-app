@@ -183,7 +183,7 @@ export default function Evals() {
             sx={{ alignItems: 'center', justifyContent: 'center', py: 3 }}
           >
             <CircularProgress size="sm" />
-            <Typography level="body-sm">Loading jobs...</Typography>
+            <Typography level="body-sm">Loading jobs…</Typography>
           </Stack>
         ) : pageTab === 'evals' ? (
           evalCapableJobs.length === 0 ? (

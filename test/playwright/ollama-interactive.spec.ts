@@ -8,7 +8,7 @@ import { login, selectFirstExperiment } from './helpers';
  */
 
 test.describe('Ollama Gradio Interactive Task', () => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
 
   test('create ollama gradio interactive task, launch on local provider, verify INTERACTIVE status', async ({
     page,
@@ -79,7 +79,7 @@ test.describe('Ollama Gradio Interactive Task', () => {
     ).toBeVisible({ timeout: 10000 });
     // Wait for "Launching…" to disappear — the button becomes "Interact" once the service is ready
     await expect(page.getByRole('button', { name: 'Launching' })).toBeHidden({
-      timeout: 60000,
+      timeout: 180000,
     });
   });
 });

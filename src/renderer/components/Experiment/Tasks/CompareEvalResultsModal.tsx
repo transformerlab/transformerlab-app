@@ -368,7 +368,7 @@ const CompareEvalResultsModal = ({
           >
             <CircularProgress size="lg" />
             <Typography level="body-lg">
-              Loading evaluation results for both jobs...
+              Loading evaluation results for both jobs…
             </Typography>
           </Box>
         ) : error ? (

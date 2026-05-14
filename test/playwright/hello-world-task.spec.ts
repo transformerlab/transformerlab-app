@@ -73,7 +73,7 @@ test.describe('Hello World Task', () => {
       .click();
     await page
       .getByRole('dialog', { name: 'Add New Task' })
-      .getByRole('button', { name: 'Submit' })
+      .getByRole('button', { name: 'Create task' })
       .click();
 
     // A YAML editor dialog opens – set a unique task name to isolate this test's job row.
@@ -108,10 +108,13 @@ test.describe('Hello World Task', () => {
       queueDialog.getByRole('combobox', { name: 'Compute Provider' }),
     ).toHaveText('Local', { timeout: 5000 });
 
-    await queueDialog.getByRole('button', { name: 'Submit' }).click();
+    await queueDialog.getByRole('button', { name: 'Queue task' }).click();
+    // The Jobs list renders the task as a cluster_name (underscores converted to
+    // hyphens and the short job id appended, e.g. "hello-world-task-<suffix>-<jobid>"),
+    // so match by the unique suffix which is preserved verbatim in both forms.
     const queuedJobRow = page.locator('tr', {
       has: page.getByRole('button', { name: 'Output' }),
-      hasText: taskName,
+      hasText: uniqueSuffix,
     });
 
     // ── Step 5: Wait for the job to complete ──

@@ -690,7 +690,7 @@ export default function Documents({ fullPage = false, fixedFolder = '' }) {
             <Sheet sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {renderFilters()}
               <Button color="primary" onClick={() => setOpen(false)}>
-                Submit
+                Apply filters
               </Button>
             </Sheet>
           </ModalDialog>
@@ -844,6 +844,7 @@ export default function Documents({ fullPage = false, fixedFolder = '' }) {
                   {stableSort(rows, getComparator(order, 'name'))?.map((row) =>
                     row?.type === 'folder' ? (
                       <Folder
+                        key={row?.name ?? row?.path}
                         row={row}
                         experimentInfo={experimentInfo}
                         currentFolder={currentFolder}
@@ -853,6 +854,7 @@ export default function Documents({ fullPage = false, fixedFolder = '' }) {
                       />
                     ) : (
                       <File
+                        key={row?.name ?? row?.path}
                         row={row}
                         fullPage={fullPage}
                         experimentInfo={experimentInfo}

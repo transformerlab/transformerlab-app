@@ -27,7 +27,7 @@ export function getModelHistoryKey(
 // ---------------------------------------------------------------------------
 
 /** Read the saved history array for a given storage key. */
-export function readModelHistory(storageKey: string): string[] {
+function readModelHistory(storageKey: string): string[] {
   try {
     const raw = window.localStorage.getItem(storageKey);
     if (!raw) return [];
@@ -62,10 +62,7 @@ export function saveModelToHistory(
 }
 
 /** Remove a single entry from the stored history. */
-export function removeModelFromHistory(
-  storageKey: string,
-  modelName: string,
-): void {
+function removeModelFromHistory(storageKey: string, modelName: string): void {
   try {
     const current = readModelHistory(storageKey);
     const updated = current.filter((v) => v !== modelName);

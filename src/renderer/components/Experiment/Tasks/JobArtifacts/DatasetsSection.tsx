@@ -210,7 +210,7 @@ export default function DatasetsSection({
           }}
         >
           {isLoading ? (
-            <Typography level="body-md">Loading datasets...</Typography>
+            <Typography level="body-md">Loading datasets…</Typography>
           ) : (
             <List
               sx={{

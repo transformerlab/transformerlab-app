@@ -76,11 +76,14 @@ export default function AnnouncementBanner() {
         const lastViewedDate = await getStoredDate();
         const now = new Date();
 
-        const sortedAll = [...announcements].sort(
-          (a, b) =>
-            parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime(),
-        );
-        const latestOverall = sortedAll[0];
+        const latestOverall = announcements.reduce<
+          (typeof announcements)[number] | undefined
+        >((latest, a) => {
+          if (!latest) return a;
+          return parseLocalDate(a.date) > parseLocalDate(latest.date)
+            ? a
+            : latest;
+        }, undefined);
 
         // If no announcement viewed yet and the latest is expired, mark viewed silently
         if (!lastViewedDate && latestOverall?.expires) {
@@ -121,10 +124,9 @@ export default function AnnouncementBanner() {
           return;
         }
 
-        const latest = [...valid].sort(
-          (a, b) =>
-            parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime(),
-        )[0];
+        const latest = valid.reduce((acc, a) =>
+          parseLocalDate(a.date) > parseLocalDate(acc.date) ? a : acc,
+        );
 
         setHasChecked(true);
 

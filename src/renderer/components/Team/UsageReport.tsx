@@ -89,7 +89,7 @@ export default function UsageReport(): JSX.Element {
       >
         <Stack direction="column" alignItems="center" gap={2}>
           <CircularProgress />
-          <Typography>Loading usage data...</Typography>
+          <Typography>Loading usage data…</Typography>
         </Stack>
       </Sheet>
     );
