@@ -12,6 +12,13 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # chalk v5 is pure ESM. `check-build-exists.ts` is in Jest's setupFiles and ts-jest
+      # compiles `import chalk from 'chalk'` to `require('chalk')`, which throws
+      # ERR_REQUIRE_ESM against chalk 5. Stay on v4 until the Jest setup is refactored to
+      # dynamic import or chalk is dropped from setup. See PR #2092.
+      - dependency-name: "chalk"
+        versions: [">=5"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
   # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
@@ -62,6 +69,17 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # datasets 4.x removes loading-script support (`trust_remote_code` workflows) that
+      # several gallery training scripts rely on. Deliberately pinned to 3.x; a datasets
+      # upgrade needs its own dedicated PR with full validation. See PR #2090.
+      - dependency-name: "datasets"
+        versions: [">=4"]
+      # azure-mgmt-resource 25.0.0 removed/relocated `SubscriptionClient`, which our
+      # Azure compute provider imports from `azure.mgmt.resource`. Provider health check
+      # fails immediately on import. Revisit after refactoring the import path. See PR #2083.
+      - dependency-name: "azure-mgmt-resource"
+        versions: [">=25"]
 
   # CLI (Typer, managed with uv)
   - package-ecosystem: "uv"
