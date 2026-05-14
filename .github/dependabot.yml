@@ -14,17 +14,37 @@ updates:
           - "patch"
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
+  # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Packages that drop Node 18
+  # support are explicitly ignored below; revisit those ignores when the build moves to Node 20+.
   - package-ecosystem: "npm"
     directory: "/transformerlab-docs"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "docs-deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docs"
     groups:
+      docusaurus:
+        patterns:
+          - "@docusaurus/*"
+          - "@mdx-js/*"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
       minor-and-patch:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # mermaid >= 11.12 requires Node 20+; we're pinned to Node 18 in Netlify.
+      - dependency-name: "mermaid"
+        versions: [">=11.12"]
 
   # API (FastAPI, managed with uv)
   - package-ecosystem: "uv"
