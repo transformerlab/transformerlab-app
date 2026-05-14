@@ -32,7 +32,7 @@ jobs:
           python-version: "3.11"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
 
       - name: Install CLI from PyPI
         run: uv tool install transformerlab-cli
