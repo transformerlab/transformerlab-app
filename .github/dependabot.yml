@@ -12,6 +12,28 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # chalk v5 is pure ESM. `check-build-exists.ts` is in Jest's setupFiles and ts-jest
+      # compiles `import chalk from 'chalk'` to `require('chalk')`, which throws
+      # ERR_REQUIRE_ESM against chalk 5. Stay on v4 until the Jest setup is refactored to
+      # dynamic import or chalk is dropped from setup. See PR #2092.
+      - dependency-name: "chalk"
+        versions: [">=5"]
+      # sass 1.99.0 introduces a sass-loader deprecation warning on `npm start`.
+      # Hold at 1.77.8 until sass-loader catches up. See PR #2091 (reverted by dadmobile).
+      - dependency-name: "sass"
+        versions: [">1.77.8"]
+      # @nivo/* is pre-1.0 and each minor can ship breaking changes. 0.99.0 broke `<Bar>`
+      # elements. Hold the nivo packages at 0.88.0 until they're upgraded deliberately.
+      # See PR #2091 (reverted by dadmobile).
+      - dependency-name: "@nivo/bar"
+        versions: [">0.88.0"]
+      - dependency-name: "@nivo/core"
+        versions: [">0.88.0"]
+      - dependency-name: "@nivo/line"
+        versions: [">0.88.0"]
+      - dependency-name: "@nivo/radar"
+        versions: [">0.88.0"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
   # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
@@ -62,6 +84,17 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # datasets 4.x removes loading-script support (`trust_remote_code` workflows) that
+      # several gallery training scripts rely on. Deliberately pinned to 3.x; a datasets
+      # upgrade needs its own dedicated PR with full validation. See PR #2090.
+      - dependency-name: "datasets"
+        versions: [">=4"]
+      # azure-mgmt-resource 25.0.0 removed/relocated `SubscriptionClient`, which our
+      # Azure compute provider imports from `azure.mgmt.resource`. Provider health check
+      # fails immediately on import. Revisit after refactoring the import path. See PR #2083.
+      - dependency-name: "azure-mgmt-resource"
+        versions: [">=25"]
 
   # CLI (Typer, managed with uv)
   - package-ecosystem: "uv"
