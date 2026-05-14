@@ -81,6 +81,42 @@ def test_task_list_json_no_spinner(_mock_exp, _mock_api):
     json.loads(result.output.strip())  # must not raise
 
 
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASKS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_list_no_subtype_hits_list_by_type(_mock_exp, mock_api_get):
+    """Without --subtype, list calls list_by_type_in_experiment."""
+    result = runner.invoke(app, ["--format", "json", "task", "list"])
+    assert result.exit_code == 0
+    called_url = mock_api_get.call_args.args[0]
+    assert "list_by_type_in_experiment" in called_url
+    assert "type=REMOTE" in called_url
+    assert "subtype=" not in called_url
+
+
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASKS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_list_with_subtype_hits_list_by_subtype(_mock_exp, mock_api_get):
+    """--subtype interactive routes to list_by_subtype_in_experiment with the right query params."""
+    result = runner.invoke(app, ["--format", "json", "task", "list", "--subtype", "interactive"])
+    assert result.exit_code == 0
+    called_url = mock_api_get.call_args.args[0]
+    assert "list_by_subtype_in_experiment" in called_url
+    assert "subtype=interactive" in called_url
+    assert "type=REMOTE" in called_url
+
+
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASKS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_list_rejects_unknown_subtype(_mock_exp, mock_api_get):
+    """--subtype <unknown> exits non-zero with an Allowed: ... error and does not hit the server."""
+    result = runner.invoke(app, ["task", "list", "--subtype", "cuckoo"])
+    assert result.exit_code != 0
+    out = _cli_output(result)
+    assert "Invalid value for '--subtype'" in out
+    assert "Allowed: interactive" in out
+    mock_api_get.assert_not_called()
+
+
 def test_build_launch_payload_includes_description():
     """build_launch_payload forwards the description to the launch API body."""
     task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
