@@ -63,6 +63,39 @@ updates:
       # See PR #2115.
       - dependency-name: "eslint-plugin-compat"
         versions: [">=5"]
+      # sass-loader 14+ uses sass's "modern compiler API" by default, which surfaces
+      # deprecation warnings for legacy `@import`, `/` division, and color functions
+      # used throughout our .scss files. Build still succeeds but dev console gets
+      # noisy. Hold at 13.x until the .scss files are migrated to `@use`/`@forward`.
+      # See PR #2116.
+      - dependency-name: "sass-loader"
+        versions: [">=14"]
+      # eslint-plugin-promise v7 requires ESLint >=8.56; our `eslint` is pinned at
+      # ^8.42.0. Hold until we bump ESLint (which is itself blocked by the
+      # @typescript-eslint/* family upgrade — see ignore above). See PR #2122.
+      - dependency-name: "eslint-plugin-promise"
+        versions: [">=7"]
+      # React 19 is a major API change (ref-as-prop, removed legacy APIs, new JSX
+      # transform). `react`, `react-dom`, and their @types must move together, and
+      # @testing-library/react must move in lockstep (see below). Hold the whole
+      # React family at 18.x until a coordinated migration. See PR #2126.
+      - dependency-name: "react"
+        versions: [">=19"]
+      - dependency-name: "react-dom"
+        versions: [">=19"]
+      - dependency-name: "@types/react"
+        versions: [">=19"]
+      - dependency-name: "@types/react-dom"
+        versions: [">=19"]
+      # @testing-library/react v15 dropped React 17 and v16 requires React 19. Bundle
+      # this with the React 19 migration. See PR #2127.
+      - dependency-name: "@testing-library/react"
+        versions: [">=15"]
+      # jest-environment-jsdom v30 requires jest@30; we're on jest@29. Hold until a
+      # coordinated jest 30 upgrade (which also affects ts-jest, @types/jest, etc.).
+      # See PR #2130.
+      - dependency-name: "jest-environment-jsdom"
+        versions: [">=30"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
   # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
@@ -97,15 +130,16 @@ updates:
       # mermaid >= 11.12 requires Node 20+; we're pinned to Node 18 in Netlify.
       - dependency-name: "mermaid"
         versions: [">=11.12"]
-      # @docusaurus/* >= 3.10 requires Node >=20 (engines field), Netlify build is Node 18.
-      # Hold the docusaurus packages at 3.9.x until the docs build moves to Node 20+.
-      # See PR #2111 (build failed with EBADENGINE on @docusaurus/core@3.10.1).
+      # @docusaurus/* >= 3.9 requires Node >=20 (engines field), Netlify build is Node 18.
+      # Hold the docusaurus packages at 3.8.x until the docs build moves to Node 20+.
+      # See PRs #2111 (3.10.1) and #2120 (3.9.2) — both failed with EBADENGINE.
       - dependency-name: "@docusaurus/*"
-        versions: [">=3.10"]
-      # typescript >= 5.9 also bumped its minimum Node version; keep aligned with the
-      # docusaurus pin above until the build moves off Node 18.
+        versions: [">=3.9"]
+      # Keep typescript pinned alongside the docusaurus 3.8.x line (which ships with
+      # TS 5.6.x in its templates). Avoids surprise breaks from TS bumps before the
+      # docs build moves off Node 18.
       - dependency-name: "typescript"
-        versions: [">=5.9"]
+        versions: [">=5.7"]
       # Major bumps on docs deps need manual coordination; minor/patch is enough for security.
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
