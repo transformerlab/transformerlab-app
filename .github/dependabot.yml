@@ -104,15 +104,16 @@ updates:
       # mermaid >= 11.12 requires Node 20+; we're pinned to Node 18 in Netlify.
       - dependency-name: "mermaid"
         versions: [">=11.12"]
-      # @docusaurus/* >= 3.10 requires Node >=20 (engines field), Netlify build is Node 18.
-      # Hold the docusaurus packages at 3.9.x until the docs build moves to Node 20+.
-      # See PR #2111 (build failed with EBADENGINE on @docusaurus/core@3.10.1).
+      # @docusaurus/* >= 3.9 requires Node >=20 (engines field), Netlify build is Node 18.
+      # Hold the docusaurus packages at 3.8.x until the docs build moves to Node 20+.
+      # See PRs #2111 (3.10.1) and #2120 (3.9.2) — both failed with EBADENGINE.
       - dependency-name: "@docusaurus/*"
-        versions: [">=3.10"]
-      # typescript >= 5.9 also bumped its minimum Node version; keep aligned with the
-      # docusaurus pin above until the build moves off Node 18.
+        versions: [">=3.9"]
+      # Keep typescript pinned alongside the docusaurus 3.8.x line (which ships with
+      # TS 5.6.x in its templates). Avoids surprise breaks from TS bumps before the
+      # docs build moves off Node 18.
       - dependency-name: "typescript"
-        versions: [">=5.9"]
+        versions: [">=5.7"]
       # Major bumps on docs deps need manual coordination; minor/patch is enough for security.
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
