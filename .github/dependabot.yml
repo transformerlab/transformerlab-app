@@ -70,6 +70,32 @@ updates:
       # See PR #2116.
       - dependency-name: "sass-loader"
         versions: [">=14"]
+      # eslint-plugin-promise v7 requires ESLint >=8.56; our `eslint` is pinned at
+      # ^8.42.0. Hold until we bump ESLint (which is itself blocked by the
+      # @typescript-eslint/* family upgrade — see ignore above). See PR #2122.
+      - dependency-name: "eslint-plugin-promise"
+        versions: [">=7"]
+      # React 19 is a major API change (ref-as-prop, removed legacy APIs, new JSX
+      # transform). `react`, `react-dom`, and their @types must move together, and
+      # @testing-library/react must move in lockstep (see below). Hold the whole
+      # React family at 18.x until a coordinated migration. See PR #2126.
+      - dependency-name: "react"
+        versions: [">=19"]
+      - dependency-name: "react-dom"
+        versions: [">=19"]
+      - dependency-name: "@types/react"
+        versions: [">=19"]
+      - dependency-name: "@types/react-dom"
+        versions: [">=19"]
+      # @testing-library/react v15 dropped React 17 and v16 requires React 19. Bundle
+      # this with the React 19 migration. See PR #2127.
+      - dependency-name: "@testing-library/react"
+        versions: [">=15"]
+      # jest-environment-jsdom v30 requires jest@30; we're on jest@29. Hold until a
+      # coordinated jest 30 upgrade (which also affects ts-jest, @types/jest, etc.).
+      # See PR #2130.
+      - dependency-name: "jest-environment-jsdom"
+        versions: [">=30"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
   # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
