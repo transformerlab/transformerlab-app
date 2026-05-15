@@ -65,7 +65,6 @@ function PasswordChangeForm({ open, onClose }) {
       if (!response.ok) {
         throw new Error(`Failed to update password: ${response.statusText}`);
       }
-      console.log('Password updated successfully');
       onClose();
     } catch (error) {
       console.error('Error updating password:', error);
@@ -138,7 +137,6 @@ function UserNameChangeForm({
         throw new Error(`Failed to update user: ${response.statusText}`);
       }
 
-      console.log('User updated successfully');
       onClose();
     } catch (error) {
       console.error('Error updating user:', error);
