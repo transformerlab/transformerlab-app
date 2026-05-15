@@ -357,8 +357,8 @@ export default function UnifiedComputeCluster({
           gap: 3,
         }}
       >
-        {cluster?.nodes.map((node, index) => (
-          <NodeCard key={index} node={node} />
+        {cluster?.nodes.map((node) => (
+          <NodeCard key={node.node_name} node={node} />
         ))}
       </Box>
     </Sheet>

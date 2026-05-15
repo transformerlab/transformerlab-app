@@ -490,8 +490,6 @@ class LocalProvider(ComputeProvider):
         _lab_sdk_dir = _resolve_lab_sdk_dir(localprovider_pyproject)
         _source_code_dir = os.environ.get("_TFL_SOURCE_CODE_DIR", "")
         _sandbox_read_paths = [
-            env.get("HF_HOME", ""),
-            env.get("XDG_CACHE_HOME", ""),
             env["UV_CACHE_DIR"],
             _CONDA_ENV_DIR,
             venv_path,
@@ -510,7 +508,16 @@ class LocalProvider(ComputeProvider):
 
         # The lab SDK writes job/experiment data under ~/.transformerlab (org workspace).
         # This path must be writable in both sandbox backends.
-        _sandbox_rw_paths = [job_dir, env["UV_CACHE_DIR"], _TLAB_DIR]
+        # HF_HOME and XDG_CACHE_HOME point at the user's real ~/.cache so downloads
+        # are shared across jobs; they need rw so first-time model/asset downloads
+        # can populate the cache.
+        _sandbox_rw_paths = [
+            job_dir,
+            env["UV_CACHE_DIR"],
+            _TLAB_DIR,
+            env.get("HF_HOME", ""),
+            env.get("XDG_CACHE_HOME", ""),
+        ]
 
         # macOS: preexec_fn applies Seatbelt policy inside the child before exec.
         # workspace_home is the subprocess CWD (also $HOME) and must be rw; job_dir is rw

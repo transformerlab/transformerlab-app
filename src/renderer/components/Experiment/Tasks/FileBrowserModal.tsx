@@ -541,7 +541,7 @@ export default function FileBrowserModal({
                 }}
               >
                 <Typography level="body-sm" color="neutral">
-                  Binary file — preview not available
+                  Binary file (preview not available)
                 </Typography>
               </Box>
             )}

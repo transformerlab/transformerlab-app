@@ -410,7 +410,7 @@ export default function ArtifactsSection({
             }}
           >
             {artifactsLoading ? (
-              <Typography level="body-md">Loading artifacts...</Typography>
+              <Typography level="body-md">Loading artifacts…</Typography>
             ) : (
               <List
                 sx={{

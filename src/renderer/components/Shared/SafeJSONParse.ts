@@ -4,10 +4,7 @@
  * @param fallback - The fallback value to return if parsing fails
  * @returns The parsed object or the fallback value
  */
-export function SafeJSONParse<T = any>(
-  data: string | T,
-  fallback: T = null as T,
-): T {
+function SafeJSONParse<T = any>(data: string | T, fallback: T = null as T): T {
   if (data === null || data === undefined) {
     return fallback;
   }

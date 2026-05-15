@@ -91,11 +91,9 @@ function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
               )
               .then((response) => {
                 if (response.ok) {
-                  console.log(response);
                   mutate();
                   return response;
                 }
-                console.log('Error deleting file');
                 throw new Error('Error deleting file');
               })
               .catch((error) => {
@@ -369,8 +367,7 @@ export default function Documents({ fullPage = false, fixedFolder = '' }) {
         }
         throw new Error(errorMessage);
       })
-      .then((data) => {
-        console.log('Server response:', data);
+      .then(() => {
         setLoading(false);
         mutate();
       })
@@ -392,8 +389,7 @@ export default function Documents({ fullPage = false, fixedFolder = '' }) {
       if (!response.ok) {
         throw new Error('Folder creation failed');
       }
-      const data = await response.json();
-      console.log('Server response:', data);
+      await response.json();
       setLoading(false);
       mutate();
     } catch (error) {
@@ -627,7 +623,6 @@ export default function Documents({ fullPage = false, fixedFolder = '' }) {
                 input.multiple = true;
                 input.onchange = async (e) => {
                   let files = Array.from(input.files);
-                  console.log(files);
                   const formData = new FormData();
                   for (const file of files) {
                     formData.append('files', file);
@@ -690,7 +685,7 @@ export default function Documents({ fullPage = false, fixedFolder = '' }) {
             <Sheet sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {renderFilters()}
               <Button color="primary" onClick={() => setOpen(false)}>
-                Submit
+                Apply filters
               </Button>
             </Sheet>
           </ModalDialog>
@@ -844,6 +839,7 @@ export default function Documents({ fullPage = false, fixedFolder = '' }) {
                   {stableSort(rows, getComparator(order, 'name'))?.map((row) =>
                     row?.type === 'folder' ? (
                       <Folder
+                        key={row?.name ?? row?.path}
                         row={row}
                         experimentInfo={experimentInfo}
                         currentFolder={currentFolder}
@@ -853,6 +849,7 @@ export default function Documents({ fullPage = false, fixedFolder = '' }) {
                       />
                     ) : (
                       <File
+                        key={row?.name ?? row?.path}
                         row={row}
                         fullPage={fullPage}
                         experimentInfo={experimentInfo}

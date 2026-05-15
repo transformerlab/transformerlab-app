@@ -116,7 +116,7 @@ Modals follow a consistent structure throughout the app:
 
 ### Forms
 
-Use Joy UI's `FormControl` + `FormLabel` + `Input`/`Select`/`Textarea`. For dynamic JSON-schema-driven forms, the app uses `@rjsf/core` (React JSON Schema Form).
+Use Joy UI's `FormControl` + `FormLabel` + `Input`/`Select`/`Textarea`.
 
 ## Authentication Flow
 
@@ -141,7 +141,6 @@ Cookie-based JWT auth managed by `AuthContext` (`src/renderer/lib/authContext.ts
 | `@xterm/xterm` | Terminal output display |
 | `@nivo/*` | Charts (bar, line, radar) |
 | `react-markdown` | Markdown rendering |
-| `@rjsf/core` | JSON Schema forms |
 | `react-dropzone` | File upload drag-and-drop |
 
 ## Common Mistakes to Avoid
