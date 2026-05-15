@@ -117,17 +117,32 @@ lab --format json provider list --include-disabled
 # 2. Add a new provider (non-interactive — see SKILL.md "Managing Providers"
 #    for the per-type config schema). Examples:
 
-# SkyPilot
-lab --format json provider add --no-interactive --name my-skypilot --type skypilot \
-  --config '{"server_url": "https://sky.example.com", "api_token": "TOKEN"}'
+# For all examples below, prefer --credentials-file PATH for secrets so they
+# stay out of shell history and `ps`. `chmod 600` the file and delete it after.
 
-# Slurm over SSH
+# SkyPilot — skypilot-creds.json: {"api_token": "TOKEN"}
+lab --format json provider add --no-interactive --name my-skypilot --type skypilot \
+  --config '{"server_url": "https://sky.example.com"}' \
+  --credentials-file ./skypilot-creds.json
+
+# Slurm over SSH (SSH key path lives on the API host; no secret on argv)
 lab --format json provider add --no-interactive --name my-slurm --type slurm \
   --config '{"mode": "ssh", "ssh_host": "cluster.example.com", "ssh_user": "admin", "ssh_key_path": "~/.ssh/id_rsa", "ssh_port": "22"}'
 
-# RunPod
+# RunPod — runpod-creds.json: {"api_key": "RUNPOD_KEY"}
 lab --format json provider add --no-interactive --name my-runpod --type runpod \
-  --config '{"api_key": "RUNPOD_KEY", "default_gpu_type": "NVIDIA H100"}'
+  --config '{"default_gpu_type": "NVIDIA H100"}' \
+  --credentials-file ./runpod-creds.json
+
+# AWS — aws-creds.json: {"aws_access_key_id": "...", "aws_secret_access_key": "..."}
+lab --format json provider add --no-interactive --name my-aws --type aws \
+  --config '{"region": "us-east-1"}' \
+  --credentials-file ./aws-creds.json
+
+# GCP — point --credentials-file directly at the service account JSON key file
+lab --format json provider add --no-interactive --name my-gcp --type gcp \
+  --config '{"region": "us-central1"}' \
+  --credentials-file ~/.config/gcloud/sa-key.json
 
 # 3. Health-check immediately after creating
 lab --format json provider check PROVIDER_ID
@@ -136,7 +151,10 @@ lab --format json provider check PROVIDER_ID
 lab provider disable PROVIDER_ID
 lab provider enable PROVIDER_ID
 
-# 5. Update fields (config is MERGED — pass only changed keys)
+# 5. Update fields (config is MERGED — pass only changed keys).
+#    For credential rotation prefer --credentials-file over inline --config.
+lab --format json provider update PROVIDER_ID --credentials-file ./rotated.json
+# Or inline (secret will appear in shell history / ps):
 lab --format json provider update PROVIDER_ID --config '{"api_token": "NEW_TOKEN"}'
 
 # 6. Delete (note: --no-interactive, NOT --yes)

@@ -384,6 +384,9 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
   UpdateJobData: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/job_data`,
+  Metrics: (experimentId: string, jobId: string, since?: number) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/metrics` +
+    (since && since > 0 ? `?since=${since}` : ''),
 };
 
 Endpoints.Quota = {

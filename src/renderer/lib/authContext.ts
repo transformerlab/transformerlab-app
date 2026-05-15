@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { API_URL } from './transformerlab-api-sdk';
 import useSWR from 'swr';
-import { getAPIFullPath, getPath } from './api-client/urls';
+import { deriveApiBaseUrl, getAPIFullPath, getPath } from './api-client/urls';
 import {
   identifyUser,
   resetUser,
@@ -206,18 +206,9 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     // prefix (e.g. when the app is hosted behind a reverse proxy at /lab/).
     fullUrl = url;
   } else {
-    const baseUrl = API_URL();
-    if (baseUrl === null) {
-      // Default to same host as frontend with API port if API_URL is not set
-      // Ensure URL doesn't start with / (baseUrl already has trailing slash)
-      const cleanPath = url.startsWith('/') ? url.slice(1) : url;
-      const protocol = window.location.protocol;
-      const hostname = window.location.hostname;
-      fullUrl = `${protocol}//${hostname}:8338/${cleanPath}`;
-    } else {
-      // baseUrl already has trailing slash from API_URL()
-      fullUrl = `${baseUrl}${url}`;
-    }
+    const baseUrl = API_URL() ?? deriveApiBaseUrl();
+    // baseUrl always has a trailing slash
+    fullUrl = `${baseUrl}${url}`;
   }
 
   const method = (options.method ?? 'GET').toUpperCase();
@@ -247,16 +238,9 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   // If Unauthorized (401)
   if (response.status === 401) {
-    console.log(
-      '[FETCH_WITH_AUTH] Got 401, attempting to refresh token for URL:',
-      fullUrl,
-    );
     try {
       // Attempt to refresh token via cookie-based refresh
       await handleRefresh();
-      console.log(
-        '[FETCH_WITH_AUTH] Refresh successful, retrying original request',
-      );
 
       // Retry the original request (cookies are refreshed automatically)
       return fetch(fullUrl, {
@@ -393,7 +377,6 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   // Login handler
   const handleLogin = useCallback(
     async (username: string, password: string) => {
-      console.log('Attempting login...');
       try {
         const form = new URLSearchParams({
           username: username,
@@ -486,6 +469,11 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     } catch {
       /* ignore errors */
     }
+    // Reset hash to root and clear any stored redirect so the next user
+    // doesn't land on the previous user's deep route. Session-expiry logout
+    // doesn't go through this handler, so its "return-to-route" UX is preserved.
+    localStorage.removeItem('redirectAfterLogin');
+    window.location.hash = '/';
     logoutUser();
     resetUser();
     setIsAuthenticated(false);
