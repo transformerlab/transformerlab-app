@@ -27,6 +27,7 @@ import CheckpointsSection from './CheckpointsSection';
 import ArtifactsSection from './ArtifactsSection';
 import EvalResultsSection from './EvalResultsSection';
 import SweepResultsSection from './SweepResultsSection';
+import MetricsSection from './MetricsSection';
 
 const SECTION_LABELS: Record<SectionKey, string> = {
   overview: 'Overview',
@@ -35,6 +36,7 @@ const SECTION_LABELS: Record<SectionKey, string> = {
   artifacts: 'Artifacts',
   evalResults: 'Eval Results',
   sweepResults: 'Sweep Results',
+  metrics: 'Metrics',
 };
 
 const VALID_SECTIONS = new Set<SectionKey>([
@@ -44,6 +46,7 @@ const VALID_SECTIONS = new Set<SectionKey>([
   'artifacts',
   'evalResults',
   'sweepResults',
+  'metrics',
 ]);
 
 export default function JobDetailPage() {
@@ -305,6 +308,9 @@ export default function JobDetailPage() {
           )}
           {effectiveSection === 'sweepResults' && (
             <SweepResultsSection jobId={jobId} />
+          )}
+          {effectiveSection === 'metrics' && job && (
+            <MetricsSection job={job} />
           )}
         </Box>
       </Box>
