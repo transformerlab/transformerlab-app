@@ -19,6 +19,7 @@ dependencies = [
   "fastapi==0.125.0",
   "fastapi-users[sqlalchemy,oauth]==15.0.5",
   "httpx-oauth==0.16.1",
+  "nebius==0.3.65",
   "packaging==26.2",
   "psutil==7.0.0",
   "pydantic>=2.13.4,<3.0",

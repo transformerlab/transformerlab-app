@@ -295,6 +295,14 @@ def db_record_to_provider_config(
         credentials_path=config_dict.get("credentials_path"),
         service_account_json=config_dict.get("service_account_json"),
         service_account_email=config_dict.get("service_account_email"),
+        nebius_profile=config_dict.get("nebius_profile"),
+        nebius_config_path=config_dict.get("nebius_config_path"),
+        parent_id=config_dict.get("parent_id"),
+        subnet_id=config_dict.get("subnet_id"),
+        default_platform=config_dict.get("default_platform"),
+        default_preset=config_dict.get("default_preset"),
+        boot_image_family=config_dict.get("boot_image_family"),
+        disk_size_gib=config_dict.get("disk_size_gib"),
         extra_config=extra_config,
         # Azure-specific config
         azure_subscription_id=config_dict.get("azure_subscription_id"),
@@ -303,10 +311,16 @@ def db_record_to_provider_config(
         azure_client_secret=config_dict.get("azure_client_secret"),
         azure_location=config_dict.get("azure_location"),
         azure_resource_group=config_dict.get("azure_resource_group"),
-        # team_id: config value (or record fallback) for AWS/Azure; None otherwise.
+        # team_id: config value (or record fallback) for AWS/GCP/Azure/Nebius; None otherwise.
         team_id=(
             config_dict.get("team_id") or record.team_id
-            if record.type in {ProviderType.AWS.value, ProviderType.GCP.value, ProviderType.AZURE.value}
+            if record.type
+            in {
+                ProviderType.AWS.value,
+                ProviderType.GCP.value,
+                ProviderType.AZURE.value,
+                ProviderType.NEBIUS.value,
+            }
             else None
         ),
     )
