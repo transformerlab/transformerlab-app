@@ -73,7 +73,11 @@ export default function Welcome() {
           </Stack>
           <Typography level="body-lg" mt={2} sx={{ fontSize: '24px' }}>
             Access our{' '}
-            <a href="https://lab.cloud/docs/" target="_blank" rel="noreferrer">
+            <a
+              href="https://lab.cloud/for-teams/"
+              target="_blank"
+              rel="noreferrer"
+            >
               full documentation
             </a>{' '}
             for more ideas!
