@@ -20,8 +20,7 @@ export type Team = {
 };
 
 type UserTeamMap = Record<string, Team>;
-const USER_TEAM_MAP_KEY = 'user_team_map:v1';
-const CURRENT_TEAM_KEY = 'current_team:v1';
+const USER_TEAM_MAP_KEY = 'user_team_map';
 
 let _userTeamMap: UserTeamMap = {};
 if (typeof window !== 'undefined') {
@@ -97,7 +96,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 let _currentTeam: Team | null = null;
 if (typeof window !== 'undefined') {
   try {
-    const raw = localStorage.getItem(CURRENT_TEAM_KEY);
+    const raw = localStorage.getItem('current_team');
     if (raw) _currentTeam = JSON.parse(raw) as Team;
   } catch {
     _currentTeam = null;
@@ -123,8 +122,8 @@ function getCurrentTeam(): Team | null {
 function updateCurrentTeam(team: Team | null) {
   _currentTeam = team;
   try {
-    if (team) localStorage.setItem(CURRENT_TEAM_KEY, JSON.stringify(team));
-    else localStorage.removeItem(CURRENT_TEAM_KEY);
+    if (team) localStorage.setItem('current_team', JSON.stringify(team));
+    else localStorage.removeItem('current_team');
   } catch {
     /* ignore */
   }
