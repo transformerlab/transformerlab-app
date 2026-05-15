@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
+  Card,
   CircularProgress,
   Input,
   Modal,
@@ -27,6 +28,7 @@ import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import ProviderTypePicker, {
   ProviderTypeOption,
 } from './providerForms/ProviderTypePicker';
+import ProviderTypeLogo from './providerForms/ProviderTypeLogo';
 import SlurmProviderFields from './providerForms/SlurmProviderFields';
 import SkypilotProviderFields from './providerForms/SkypilotProviderFields';
 import DstackProviderFields from './providerForms/DstackProviderFields';
@@ -1527,9 +1529,11 @@ export default function ProviderDetailsModal({
     }
   };
 
+  const selectedProviderTypeMeta = providerTypeOptions.find(
+    (option) => option.value === type,
+  );
   const selectedProviderLabel =
-    providerTypeOptions.find((option) => option.value === type)?.label ||
-    'Compute Provider';
+    selectedProviderTypeMeta?.label || 'Compute Provider';
   let dialogTitle = 'Add Compute Provider';
   if (providerId) {
     dialogTitle = 'Edit Compute Provider';
@@ -1565,13 +1569,30 @@ export default function ProviderDetailsModal({
                 <>
                   <FormControl sx={{ mt: 2 }}>
                     <FormLabel>Compute Provider Type</FormLabel>
-                    <Select value={type} disabled sx={{ width: '100%' }}>
-                      {providerTypeOptions.map((option) => (
-                        <Option key={option.value} value={option.value}>
-                          {option.label}
-                        </Option>
-                      ))}
-                    </Select>
+                    <Card variant="soft" sx={{ mt: 1, p: 1.5 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          gap: 1.25,
+                          alignItems: 'flex-start',
+                        }}
+                      >
+                        <ProviderTypeLogo providerType={type} size={48} />
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography level="title-sm">
+                            {selectedProviderTypeMeta?.label ?? type}
+                          </Typography>
+                          {selectedProviderTypeMeta?.description ? (
+                            <Typography
+                              level="body-sm"
+                              sx={{ mt: 0.5, color: 'text.tertiary' }}
+                            >
+                              {selectedProviderTypeMeta.description}
+                            </Typography>
+                          ) : null}
+                        </Box>
+                      </Box>
+                    </Card>
                     {providerId ? (
                       <Typography
                         level="body-sm"

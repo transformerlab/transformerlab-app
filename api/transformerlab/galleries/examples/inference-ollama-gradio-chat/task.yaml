@@ -7,8 +7,8 @@ resources:
 setup: |
   uv pip install --upgrade gradio openai
   python -c "import gradio; print('gradio installed at:', gradio.__file__)"
+  if [ "$(uname)" != "Darwin" ]; then $SUDO apt-get update && $SUDO apt-get install -y pciutils lshw zstd; fi
   if ! command -v ollama >/dev/null 2>&1; then curl -fsSL https://ollama.com/install.sh | sh; fi
-  if [ "$(uname)" != "Darwin" ]; then $SUDO apt-get update && $SUDO apt-get install -y pciutils lshw; fi
 run: |
   python inference-ollama-gradio-chat/run.py
 envs:
