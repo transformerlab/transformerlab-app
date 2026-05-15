@@ -373,7 +373,7 @@ export default function Welcome() {
                 </Button>
                 <Button
                   component="a"
-                  href="https://lab.cloud/docs/"
+                  href="https://lab.cloud/for-teams/"
                   target="_blank"
                   rel="noreferrer"
                   variant="plain"
