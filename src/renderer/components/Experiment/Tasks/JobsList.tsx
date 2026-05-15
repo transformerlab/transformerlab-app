@@ -37,6 +37,7 @@ import {
   isJobStopPending,
   isTerminalJobStatus,
 } from 'renderer/lib/utils';
+import { normalizeJobScore } from 'renderer/lib/jobScore';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { generateJobPermalink } from '../Jobs/jobDetailUtils';
 import JobProgress, { JobCompletionDetails } from './JobProgress';
@@ -176,52 +177,41 @@ const JobsList: React.FC<JobsListProps> = ({
   const getScoreDisplay = (
     score: unknown,
   ): { label: string; tooltip?: React.ReactNode } | null => {
-    if (typeof score === 'number') {
-      return { label: `Score: ${formatScoreValue(score)}` };
-    }
-
     if (typeof score === 'string') {
-      const parsed = Number.parseFloat(score);
-      if (Number.isFinite(parsed)) {
-        return { label: `Score: ${formatScoreValue(parsed)}` };
+      const trimmed = score.trim();
+      if (trimmed) {
+        const parsed = Number.parseFloat(trimmed);
+        if (!Number.isFinite(parsed)) {
+          return { label: `Score: ${trimmed}` };
+        }
       }
-      if (score.trim()) {
-        return { label: `Score: ${score.trim()}` };
-      }
-      return null;
     }
 
-    if (score && typeof score === 'object') {
-      const numericEntries = Object.entries(score as Record<string, unknown>)
-        .filter(([key]) => key.toLowerCase() !== 'discard')
-        .map(([key, val]) => [key, Number(val)] as const)
-        .filter(([, val]) => Number.isFinite(val));
+    const normalized = normalizeJobScore(score);
+    if (!normalized) return null;
 
-      if (numericEntries.length === 0) return null;
+    const entries = Object.entries(normalized);
+    const preferred =
+      entries.find(([key]) => key.toLowerCase() === 'score') ?? entries[0];
+    const [firstMetric, firstValue] = preferred;
 
-      const preferredMetric =
-        numericEntries.find(([key]) => key.toLowerCase() === 'score') ??
-        numericEntries[0];
-      const [firstMetric, firstValue] = preferredMetric;
+    const tooltip =
+      entries.length > 1 ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+          {entries.map(([metric, val]) => (
+            <span key={metric}>
+              {metric}: {formatScoreValue(val)}
+            </span>
+          ))}
+        </Box>
+      ) : undefined;
 
-      const tooltip =
-        numericEntries.length > 1 ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            {numericEntries.map(([metric, val]) => (
-              <span key={metric}>
-                {metric}: {formatScoreValue(val)}
-              </span>
-            ))}
-          </Box>
-        ) : undefined;
+    const label =
+      firstMetric.toLowerCase() === 'score'
+        ? `Score: ${formatScoreValue(firstValue)}`
+        : `${firstMetric}: ${formatScoreValue(firstValue)}`;
 
-      return {
-        label: `${firstMetric}: ${formatScoreValue(firstValue)}`,
-        tooltip,
-      };
-    }
-
-    return null;
+    return { label, tooltip };
   };
 
   const renderDescriptionControl = (job: any) => {

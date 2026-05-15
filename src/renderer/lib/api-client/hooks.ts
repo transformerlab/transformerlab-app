@@ -57,7 +57,6 @@ export const fetcher = async (
     } catch {
       err.response = null;
     }
-    console.log(response);
     throw err;
   }
 

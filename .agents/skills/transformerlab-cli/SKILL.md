@@ -539,6 +539,7 @@ lab provider disable PROVIDER_ID
 # Update fields (config is MERGED with existing — pass only the keys you change)
 lab provider update PROVIDER_ID --name "new-name"
 lab provider update PROVIDER_ID --config '{"api_token": "new-token"}'
+lab provider update PROVIDER_ID --credentials-file ./rotated-secrets.json   # merge secrets from file, keep them out of argv
 lab provider update PROVIDER_ID --enabled        # or --disabled
 lab provider update PROVIDER_ID --default        # mark as the team default (or --no-default to clear)
 
@@ -567,9 +568,19 @@ lab provider delete PROVIDER_ID --no-interactive
 | `slurm` | `mode` (`ssh` or `rest`), then either `ssh_host` + `ssh_user` + `ssh_key_path` + `ssh_port`, or `rest_url` + `api_token` |
 | `runpod` | `api_key`, plus optional `api_base_url`, `default_gpu_type`, `default_region`, `default_template_id`, `default_network_volume_id` |
 | `dstack` | `server_url`, `api_token`, `dstack_project` |
-| `aws` | `region`. Provide AWS access keys via `--aws-access-key-id` / `--aws-secret-access-key` (written to the API host's `~/.aws/credentials`) |
-| `gcp` | `region`, optional `zone`. Must also pass `--gcp-service-account-file PATH` pointing to your service account JSON key |
+| `aws` | `region`. Provide AWS access keys via `--credentials-file PATH` pointing at a JSON file with `aws_access_key_id` + `aws_secret_access_key` (uploaded to the API host's `~/.aws/credentials`) |
+| `gcp` | `region`, optional `zone`. Must also pass `--credentials-file PATH` pointing at your service account JSON key file |
 | `azure` | `azure_subscription_id`, `azure_tenant_id`, `azure_client_id`, `azure_client_secret`, `azure_location` |
+
+### `--credentials-file` for secrets (preferred)
+
+`provider add` and `provider update` both accept `--credentials-file PATH` to keep secrets out of `argv` (and therefore out of shell history and `ps` listings on shared hosts). The file shape depends on `--type`:
+
+- **`aws`**: JSON object with `aws_access_key_id` + `aws_secret_access_key`. Uploaded via the dedicated AWS credentials endpoint; remaining keys (if any) merge into `--config`.
+- **`gcp`**: the raw service account JSON key file itself (the file you'd otherwise pass to `gcloud auth activate-service-account --key-file=...`). Uploaded via the dedicated GCP credentials endpoint.
+- **everything else** (`skypilot`, `runpod`, `dstack`, `azure`, `slurm` REST, `vastai`): a flat JSON object whose fields merge on top of `--config`. File values win on conflict.
+
+`chmod 600` the file, source it from a secret manager / CI vault, and delete it after the `lab provider add` call. **Prefer this over embedding `api_token` / `azure_client_secret` / etc. inside `--config`** whenever you're scripting.
 
 ```bash
 # Local (rare — usually pre-installed)
@@ -595,19 +606,27 @@ lab provider add --no-interactive --name my-runpod --type runpod \
 lab provider add --no-interactive --name my-dstack --type dstack \
   --config '{"server_url": "http://0.0.0.0:3000", "api_token": "TOKEN", "dstack_project": "main"}'
 
-# AWS (access keys uploaded to the API host's ~/.aws/credentials)
+# AWS — credentials live in a JSON file: {"aws_access_key_id": "...", "aws_secret_access_key": "..."}
 lab provider add --no-interactive --name my-aws --type aws \
   --config '{"region": "us-east-1"}' \
-  --aws-access-key-id AKIAEXAMPLE --aws-secret-access-key REDACTED
+  --credentials-file ./aws-creds.json
 
-# GCP (service account JSON key file required)
+# GCP — point --credentials-file at your raw service account JSON key file
 lab provider add --no-interactive --name my-gcp --type gcp \
   --config '{"region": "us-central1"}' \
-  --gcp-service-account-file ~/.config/gcloud/sa-key.json
+  --credentials-file ~/.config/gcloud/sa-key.json
 
-# Azure
+# Azure — secrets can live in --credentials-file (preferred) instead of --config
+# azure-secrets.json: {"azure_client_secret": "REDACTED"}
 lab provider add --no-interactive --name my-azure --type azure \
-  --config '{"azure_subscription_id": "sub", "azure_tenant_id": "tenant", "azure_client_id": "client", "azure_client_secret": "REDACTED", "azure_location": "eastus"}'
+  --config '{"azure_subscription_id": "sub", "azure_tenant_id": "tenant", "azure_client_id": "client", "azure_location": "eastus"}' \
+  --credentials-file ./azure-secrets.json
+
+# SkyPilot / RunPod / dstack — same pattern: put api_token / api_key in --credentials-file
+# skypilot-secrets.json: {"api_token": "TOKEN"}
+lab provider add --no-interactive --name my-skypilot-prod --type skypilot \
+  --config '{"server_url": "https://sky.example.com"}' \
+  --credentials-file ./skypilot-secrets.json
 ```
 
 `provider add` automatically runs a health check after creation, so a successful `add` already confirms connectivity. **Re-run `lab provider check PROVIDER_ID` before queuing if you're using an existing provider** (credentials may have rotated, the backend may be down) or after a `provider update` that changed config. If a check fails, fix the config with `lab provider update` rather than deleting and re-adding.
@@ -616,7 +635,7 @@ lab provider add --no-interactive --name my-azure --type azure \
 
 Provider configs (`api_token`, `api_key`, `ssh_key_path`) contain secrets. If the user has not provided them already, ask them to either run `lab provider add` interactively themselves (the CLI prompts for each field privately) or to paste the values from a secure source. Don't request the user paste raw keys into a multi-message conversation.
 
-Also note that secrets passed as flags (`--aws-secret-access-key`, `azure_client_secret` inside `--config`, etc.) appear in shell history and `ps` listings. Prefer the interactive flow, or have the user prefix the command with a space under `HISTCONTROL=ignorespace`.
+Also note that secrets passed inside `--config` (e.g. `api_token`, `azure_client_secret`) appear in shell history and `ps` listings. For scripted / CI flows, prefer `--credentials-file PATH` (see above) — it keeps secrets out of `argv` entirely. For ad-hoc runs, the interactive flow is fine, or have the user prefix the command with a space under `HISTCONTROL=ignorespace`.
 
 ## Agent-Specific Rules
 
