@@ -20,7 +20,7 @@
     &nbsp;·&nbsp;
     <a href="https://lab.cloud/for-teams/install"><strong>🏢 Install for Teams</strong></a>
     &nbsp;·&nbsp;
-    <a href="https://lab.cloud/docs/"><strong>📖 Documentation</strong></a>
+    <a href="https://lab.cloud/for-teams/"><strong>📖 Documentation</strong></a>
     &nbsp;·&nbsp;
     <a href="https://youtu.be/tY5TAvKviLo"><strong>🎬 Demo</strong></a>
     &nbsp;·&nbsp;

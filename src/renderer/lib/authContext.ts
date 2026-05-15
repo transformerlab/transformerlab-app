@@ -469,6 +469,11 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     } catch {
       /* ignore errors */
     }
+    // Reset hash to root and clear any stored redirect so the next user
+    // doesn't land on the previous user's deep route. Session-expiry logout
+    // doesn't go through this handler, so its "return-to-route" UX is preserved.
+    localStorage.removeItem('redirectAfterLogin');
+    window.location.hash = '/';
     logoutUser();
     resetUser();
     setIsAuthenticated(false);
