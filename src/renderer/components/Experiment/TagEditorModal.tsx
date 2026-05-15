@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   Chip,
+  ChipDelete,
   IconButton,
   Input,
   Modal,
@@ -10,8 +11,8 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
-import { PencilIcon, XIcon } from 'lucide-react';
-import { useState } from 'react';
+import { PencilIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { parseTagInput } from './tagUtils';
@@ -33,19 +34,33 @@ export default function TagEditor({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
+  const [localTags, setLocalTags] = useState<string[]>(tags);
+
+  // Sync local state when parent data refreshes or modal reopens.
+  useEffect(() => {
+    setLocalTags(tags);
+  }, [tags, open]);
 
   const id = experimentId || experimentName;
 
-  async function callTagApi(url: string, tagList: string[]) {
+  async function callTagApi(
+    url: string,
+    tagList: string[],
+    optimistic: string[],
+    previous: string[],
+  ) {
     setBusy(true);
     setError(null);
+    setLocalTags(optimistic);
     try {
       await fetcher(url, {
         method: 'POST',
         body: JSON.stringify({ tags: tagList }),
       });
-      await onChanged();
+      // Fire-and-forget parent refresh so UI stays snappy.
+      void onChanged();
     } catch (e: any) {
+      setLocalTags(previous);
       const detail =
         e?.response && typeof e.response === 'object' && 'detail' in e.response
           ? String(e.response.detail)
@@ -61,12 +76,26 @@ export default function TagEditor({
   async function handleAdd() {
     const parsed = parseTagInput(draft);
     if (parsed.length === 0) return;
-    await callTagApi(chatAPI.Endpoints.Experiment.TagsAdd(id), parsed);
+    const previous = localTags;
+    const merged = Array.from(new Set([...previous, ...parsed]));
     setDraft('');
+    await callTagApi(
+      chatAPI.Endpoints.Experiment.TagsAdd(id),
+      parsed,
+      merged,
+      previous,
+    );
   }
 
   async function handleRemove(tag: string) {
-    await callTagApi(chatAPI.Endpoints.Experiment.TagsRemove(id), [tag]);
+    const previous = localTags;
+    const next = previous.filter((t) => t !== tag);
+    await callTagApi(
+      chatAPI.Endpoints.Experiment.TagsRemove(id),
+      [tag],
+      next,
+      previous,
+    );
   }
 
   return (
@@ -82,29 +111,25 @@ export default function TagEditor({
       <Modal open={open} onClose={() => setOpen(false)}>
         <ModalDialog sx={{ minWidth: 360 }}>
           <ModalClose />
-          <Typography level="title-md">Edit tags — {experimentName}</Typography>
+          <Typography level="title-md">Edit tags ({experimentName})</Typography>
           <Stack spacing={1.5} sx={{ mt: 1 }}>
             <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-              {tags.length === 0 && (
+              {localTags.length === 0 && (
                 <Typography level="body-sm" color="neutral">
                   No tags yet.
                 </Typography>
               )}
-              {tags.map((t) => (
+              {localTags.map((t) => (
                 <Chip
                   key={t}
                   size="sm"
                   variant="soft"
                   color="neutral"
                   endDecorator={
-                    <IconButton
-                      size="sm"
-                      variant="plain"
-                      onClick={() => handleRemove(t)}
+                    <ChipDelete
+                      onDelete={() => handleRemove(t)}
                       disabled={busy}
-                    >
-                      <XIcon size={10} />
-                    </IconButton>
+                    />
                   }
                 >
                   {t}
