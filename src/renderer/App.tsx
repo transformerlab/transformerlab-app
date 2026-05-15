@@ -48,10 +48,6 @@ function AppContent({
   const isInvitePage = location.pathname === '/invite';
   const isPublicSharePage = location.pathname.startsWith('/public/share/');
 
-  if (isPublicSharePage) {
-    return <PublicShareViewer />;
-  }
-
   const showConnectionLostModal =
     connection !== '' && !connectionHealthLoading && !!connectionHealthError;
 
@@ -79,6 +75,10 @@ function AppContent({
       }
     }
   }, [isInvitePage, authContext.isAuthenticated]);
+
+  if (isPublicSharePage) {
+    return <PublicShareViewer />;
+  }
 
   if (isInvitePage) {
     return (
