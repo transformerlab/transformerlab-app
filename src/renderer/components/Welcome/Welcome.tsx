@@ -1,10 +1,16 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box,
   Button,
   Card,
   Chip,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  Modal,
+  ModalClose,
+  ModalDialog,
   Sheet,
   Skeleton,
   Stack,
@@ -15,6 +21,7 @@ import {
   ArrowRightIcon,
   BookOpenIcon,
   CheckCircleIcon,
+  InfoIcon,
   ServerIcon,
 } from 'lucide-react';
 import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
@@ -94,6 +101,71 @@ function ExperimentCard({
         <ArrowRightIcon size={16} />
       </Box>
     </Card>
+  );
+}
+
+function HowItWorksModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <Modal open={open} onClose={onClose}>
+      <ModalDialog sx={{ maxWidth: 560 }}>
+        <ModalClose />
+        <DialogTitle>How Transformer Lab works</DialogTitle>
+        <Divider />
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Box>
+              <Typography level="title-sm">Experiments</Typography>
+              <Typography level="body-sm" color="neutral">
+                The container for a research thread — one hypothesis, one set of
+                tasks and jobs. Each experiment carries its own notes (markdown
+                log of hypotheses, decisions, and findings) so you can pick up
+                where you left off.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography level="title-sm">Tasks</Typography>
+              <Typography level="body-sm" color="neutral">
+                A reusable unit of work defined by a <code>task.yaml</code>{' '}
+                (resources, parameters, sweep config, run command) plus any
+                scripts it needs. Training, evaluation, inference, generation —
+                anything you'd want to run more than once with different inputs.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography level="title-sm">Jobs</Typography>
+              <Typography level="body-sm" color="neutral">
+                Each time you queue a task, a job is created — that&apos;s the
+                actual run. Jobs have status, progress, artifacts, and a score
+                dict (e.g. <code>{`{accuracy: 0.78}`}</code>) used to compare
+                runs and drive sweeps or autoresearch loops.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography level="title-sm">Compute providers</Typography>
+              <Typography level="body-sm" color="neutral">
+                The backends that execute jobs — Local, SkyPilot, Slurm, RunPod,
+                dstack, or your own cloud account (AWS/GCP/Azure). A task can
+                target a specific provider; otherwise it lands on your default.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography level="title-sm">Models &amp; Datasets</Typography>
+              <Typography level="body-sm" color="neutral">
+                A team-wide registry of models and datasets organized as
+                versioned groups (v1, v2, …) so trained checkpoints from one job
+                can be published and referenced by name from any future task.
+              </Typography>
+            </Box>
+          </Stack>
+        </DialogContent>
+      </ModalDialog>
+    </Modal>
   );
 }
 
@@ -191,6 +263,7 @@ export default function Welcome() {
   const showDashboard = hasProviders && hasExperiments;
   const firstName =
     typeof userInfo?.first_name === 'string' ? userInfo.first_name.trim() : '';
+  const [howItWorksOpen, setHowItWorksOpen] = useState(false);
 
   const openExperiment = async (exp: RecentExperiment) => {
     setExperimentId(String(exp.id));
@@ -226,13 +299,27 @@ export default function Welcome() {
           overflowY: 'auto',
         }}
       >
-        <Typography
-          level="h1"
-          sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
           mb={3}
         >
-          <HexLogo width={40} height={40} /> Transformer Lab
-        </Typography>
+          <Typography
+            level="h1"
+            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+          >
+            <HexLogo width={40} height={40} /> Transformer Lab
+          </Typography>
+          <Button
+            variant="outlined"
+            color="neutral"
+            startDecorator={<InfoIcon size={16} />}
+            onClick={() => setHowItWorksOpen(true)}
+          >
+            How it works
+          </Button>
+        </Stack>
 
         {experimentsLoading ? (
           <Stack spacing={2}>
@@ -320,6 +407,10 @@ export default function Welcome() {
           <OnboardingChecklist hasProviders={hasProviders} />
         )}
       </Box>
+      <HowItWorksModal
+        open={howItWorksOpen}
+        onClose={() => setHowItWorksOpen(false)}
+      />
     </Sheet>
   );
 }
