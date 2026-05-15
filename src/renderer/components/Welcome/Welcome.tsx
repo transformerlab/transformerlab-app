@@ -216,7 +216,7 @@ function OnboardingChecklist({ hasProviders }: { hasProviders: boolean }) {
           <Button
             variant={hasProviders ? 'outlined' : 'solid'}
             color={hasProviders ? 'neutral' : 'primary'}
-            onClick={() => navigate('/user/compute-providers')}
+            onClick={() => navigate('/team')}
             startDecorator={<ServerIcon size={16} />}
           >
             {hasProviders ? 'Manage' : 'Connect'}
@@ -365,7 +365,7 @@ export default function Welcome() {
                   Browse Task Gallery
                 </Button>
                 <Button
-                  onClick={() => navigate('/user/compute-providers')}
+                  onClick={() => navigate('/team')}
                   variant="outlined"
                   startDecorator={<ServerIcon size={16} />}
                 >
