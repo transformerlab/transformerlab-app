@@ -39,15 +39,18 @@ import QuotaReportSection from './QuotaReportSection';
 import UserSecretsSection from './UserSecretsSection';
 import ProviderSettingsSection from './ProviderSettingsSection';
 import NotificationsSection from './NotificationsSection';
+import { useNotification } from '../Shared/NotificationSystem';
 
 function PasswordChangeForm({ open, onClose }) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { fetchWithAuth } = useAuth();
 
   const handleSave = async () => {
+    setErrorMessage(null);
     if (newPassword !== confirmPassword) {
-      alert('Passwords do not match');
+      setErrorMessage('Passwords do not match');
       return;
     }
 
@@ -69,6 +72,9 @@ function PasswordChangeForm({ open, onClose }) {
       onClose();
     } catch (error) {
       console.error('Error updating password:', error);
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to update password',
+      );
     }
   };
   return (
@@ -97,6 +103,11 @@ function PasswordChangeForm({ open, onClose }) {
               slotProps={{ input: { autoComplete: 'new-password' } }}
             />
           </FormControl>
+          {errorMessage && (
+            <Alert color="danger" sx={{ mt: 2 }}>
+              <Typography level="body-sm">{errorMessage}</Typography>
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose} variant="plain">
@@ -415,6 +426,8 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
   const [showKey, setShowKey] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [keyIdToDelete, setKeyIdToDelete] = useState<string | null>(null);
+  const { addNotification } = useNotification();
 
   const handleCreateKey = async () => {
     setErrorMessage(null);
@@ -461,14 +474,6 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
   };
 
   const handleDeleteKey = async (keyId: string) => {
-    if (
-      !confirm(
-        'Are you sure you want to delete this API key? This action cannot be undone.',
-      )
-    ) {
-      return;
-    }
-
     try {
       const response = await fetchWithAuth(
         getAPIFullPath('auth', ['apiKeys', 'delete'], { key_id: keyId }) || '',
@@ -479,16 +484,17 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
 
       if (!response.ok) {
         const error = await response.json();
-        alert(
-          `Failed to delete API key: ${error.detail || response.statusText}`,
-        );
+        addNotification({
+          type: 'danger',
+          message: `Failed to delete API key: ${error.detail || response.statusText}`,
+        });
         return;
       }
 
       mutateApiKeys();
     } catch (error) {
       console.error('Error deleting API key:', error);
-      alert('Failed to delete API key');
+      addNotification({ type: 'danger', message: 'Failed to delete API key' });
     }
   };
 
@@ -509,22 +515,23 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
 
       if (!response.ok) {
         const error = await response.json();
-        alert(
-          `Failed to update API key: ${error.detail || response.statusText}`,
-        );
+        addNotification({
+          type: 'danger',
+          message: `Failed to update API key: ${error.detail || response.statusText}`,
+        });
         return;
       }
 
       mutateApiKeys();
     } catch (error) {
       console.error('Error updating API key:', error);
-      alert('Failed to update API key');
+      addNotification({ type: 'danger', message: 'Failed to update API key' });
     }
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Copied to clipboard!');
+    addNotification({ type: 'success', message: 'Copied to clipboard!' });
   };
 
   const formatDate = (dateString: string | null) => {
@@ -680,7 +687,7 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
                         size="sm"
                         variant="outlined"
                         color="danger"
-                        onClick={() => handleDeleteKey(key.id)}
+                        onClick={() => setKeyIdToDelete(key.id)}
                       >
                         <TrashIcon size={16} />
                       </IconButton>
@@ -776,6 +783,40 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
               disabled={isCreating}
             >
               Create
+            </Button>
+          </DialogActions>
+        </ModalDialog>
+      </Modal>
+
+      <Modal
+        open={keyIdToDelete !== null}
+        onClose={() => setKeyIdToDelete(null)}
+      >
+        <ModalDialog>
+          <DialogTitle>Delete API Key</DialogTitle>
+          <DialogContent>
+            Are you sure you want to delete this API key? This action cannot be
+            undone.
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => setKeyIdToDelete(null)}
+              variant="plain"
+              color="neutral"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (keyIdToDelete) {
+                  await handleDeleteKey(keyIdToDelete);
+                }
+                setKeyIdToDelete(null);
+              }}
+              variant="solid"
+              color="danger"
+            >
+              Delete
             </Button>
           </DialogActions>
         </ModalDialog>
