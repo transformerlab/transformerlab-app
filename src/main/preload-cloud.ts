@@ -1,5 +1,3 @@
-console.log('CLOUD PRELOAD');
-
 window.platform = {
   appmode: 'cloud',
   environment: process.env.NODE_ENV,
@@ -22,7 +20,6 @@ window.storage = {
   },
   delete: (key: string) => {
     localStorage.removeItem(key);
-    console.log('Deleted key from localStorage:', key);
     return Promise.resolve();
   },
 };
