@@ -25,7 +25,7 @@ import {
   Chip,
   Textarea,
 } from '@mui/joy';
-import { Editor } from '@monaco-editor/react';
+import Editor from 'renderer/components/Shared/LazyMonacoEditor';
 import {
   PlayIcon,
   AlertTriangleIcon,
