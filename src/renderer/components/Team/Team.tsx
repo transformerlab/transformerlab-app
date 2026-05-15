@@ -31,7 +31,6 @@ import {
   User2Icon,
   ActivityIcon,
   BarChart3Icon,
-  GithubIcon,
   Trash2Icon,
   StarIcon,
 } from 'lucide-react';
@@ -49,6 +48,8 @@ import QuotaSettingsSection from './QuotaSettingsSection';
 import TeamSecretsSection from './TeamSecretsSection';
 import SshKeySection from './SshKeySection';
 import PermissionsSection from './PermissionsSection';
+import MembersSection from './MembersSection';
+import InvitationsSection from './InvitationsSection';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 /*
@@ -97,11 +98,6 @@ export default function UserLoginTest(): JSX.Element {
   const [probeMessageMap, setProbeMessageMap] = useState<
     Record<string, string>
   >({});
-  const [githubPAT, setGithubPAT] = useState<string>('');
-  const [githubPATMasked, setGithubPATMasked] = useState<string>('');
-  const [githubPATExists, setGithubPATExists] = useState<boolean>(false);
-  const [savingPAT, setSavingPAT] = useState<boolean>(false);
-  const [loadingPAT, setLoadingPAT] = useState<boolean>(true);
   const [teamLogo, setTeamLogo] = useState<string | null>(null);
   const [teamLogoFile, setTeamLogoFile] = useState<File | null>(null);
   const [teamLogoPreview, setTeamLogoPreview] = useState<string | null>(null);
@@ -298,36 +294,6 @@ export default function UserLoginTest(): JSX.Element {
     providersMutate();
   }, [authContext?.team?.id]);
 
-  // Fetch GitHub PAT when team changes
-  useEffect(() => {
-    const fetchGitHubPAT = async () => {
-      if (!authContext?.team?.id) {
-        setLoadingPAT(false);
-        return;
-      }
-      setLoadingPAT(true);
-      try {
-        const res = await authContext.fetchWithAuth(
-          `teams/${authContext.team.id}/github_pat`,
-          { method: 'GET' },
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setGithubPATExists(data.pat_exists || false);
-          setGithubPATMasked(data.masked_pat || '');
-          if (!data.pat_exists) {
-            setGithubPAT('');
-          }
-        }
-      } catch (e: any) {
-        console.error('Error fetching GitHub PAT:', e);
-      } finally {
-        setLoadingPAT(false);
-      }
-    };
-    fetchGitHubPAT();
-  }, [authContext?.team?.id]);
-
   // Fetch team logo when team changes
   useEffect(() => {
     const fetchTeamLogo = async () => {
@@ -392,44 +358,6 @@ export default function UserLoginTest(): JSX.Element {
       });
     };
   }, [teamLogos]);
-
-  const handleSaveGitHubPAT = async () => {
-    if (!authContext?.team?.id || !iAmOwner) return;
-    setSavingPAT(true);
-    try {
-      const res = await authContext.fetchWithAuth(
-        `teams/${authContext.team.id}/github_pat`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ pat: githubPAT || '' }),
-        },
-      );
-      if (res.ok) {
-        const data = await res.json();
-        // Refresh PAT display
-        const fetchRes = await authContext.fetchWithAuth(
-          `teams/${authContext.team.id}/github_pat`,
-          { method: 'GET' },
-        );
-        if (fetchRes.ok) {
-          const fetchData = await fetchRes.json();
-          setGithubPATExists(fetchData.pat_exists || false);
-          setGithubPATMasked(fetchData.masked_pat || '');
-          if (!fetchData.pat_exists) {
-            setGithubPAT('');
-          }
-        }
-      }
-    } catch (e: any) {
-      console.error('Error saving GitHub PAT:', e);
-      alert(`Failed to save GitHub PAT: ${e?.message || String(e)}`);
-    } finally {
-      setSavingPAT(false);
-    }
-  };
 
   // Clear all role errors or add an error text
   function handleSetRoleError(message?: string) {
@@ -544,6 +472,21 @@ export default function UserLoginTest(): JSX.Element {
       handleSetRoleError(undefined);
     } catch (e: any) {
       handleSetRoleError(e?.message ?? String(e));
+    }
+  }
+
+  async function handleCancelInvitation(invitationId: string) {
+    if (!authContext?.team?.id) return;
+    try {
+      const res = await authContext.fetchWithAuth(
+        `teams/${authContext.team.id}/invitations/${invitationId}`,
+        { method: 'DELETE' },
+      );
+      if (res.ok && invitationsMutate) {
+        invitationsMutate();
+      }
+    } catch (e: any) {
+      console.error('Error cancelling invitation:', e);
     }
   }
 
@@ -1234,205 +1177,23 @@ export default function UserLoginTest(): JSX.Element {
           </Box>
         </Stack>
 
-        <Box sx={{ mt: 3 }}>
-          <Typography level="title-lg" mb={1}>
-            Members: ({members?.members?.length ?? 0})
-          </Typography>
-
-          {roleError ? (
-            <Box sx={{ mb: 0 }}>
-              <Typography level="body-sm" sx={{ color: 'red' }}>
-                {roleError}
-              </Typography>
-            </Box>
-          ) : null}
-
-          <Table variant="soft" sx={{ mb: 2 }}>
-            <thead>
-              <tr>
-                <th>Member</th>
-                <th>Role</th>
-                <th>&nbsp;</th>
-              </tr>
-            </thead>
-            <tbody>
-              {members?.members?.map((m: any, idx: number) => (
-                <tr key={m.user_id ?? m.email ?? idx}>
-                  <td>
-                    <Stack direction="row" alignItems="center" gap={1}>
-                      <User2Icon />
-                      <Box>
-                        <Typography fontWeight="md">
-                          {m?.email ?? '—'}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </td>
-                  <td>{m?.role}</td>
-                  <td>
-                    <Box
-                      sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
-                    >
-                      <Button
-                        variant="outlined"
-                        onClick={() => handleUpdateRole(m.user_id, m.role)}
-                      >
-                        {m?.role === 'owner'
-                          ? 'Change role to member'
-                          : 'Change role to owner'}
-                      </Button>
-
-                      {/* Per-member error display removed — all errors shown under the Members title */}
-                    </Box>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-          <Button
-            startDecorator={<PlusIcon />}
-            onClick={() => setOpenInviteModal(true)}
-            variant="soft"
-            disabled={!iAmOwner}
-          >
-            Invite Member {!iAmOwner ? '(Only owners can invite members)' : ''}
-          </Button>
-        </Box>
-        {iAmOwner && (
-          <Box sx={{ mt: 3 }}>
-            <Box
-              sx={{
-                mb: 1,
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 1,
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <Typography level="title-lg">Invitations</Typography>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography level="body-sm">Show expired</Typography>
-                <Switch
-                  size="sm"
-                  checked={showExpiredInvitations}
-                  onChange={(event) =>
-                    setShowExpiredInvitations(event.target.checked)
-                  }
-                />
-                <Button
-                  size="sm"
-                  variant="outlined"
-                  onClick={() => setOpenAcceptedInvitationsModal(true)}
-                >
-                  View Accepted ({acceptedInvitations.length})
-                </Button>
-              </Stack>
-            </Box>
-            {allInvitations.length === 0 && (
-              <Typography level="body-sm" color="neutral">
-                No invitations have been sent for this team yet.
-              </Typography>
-            )}
-            {allInvitations.length > 0 && visibleInvitations.length === 0 && (
-              <Typography level="body-sm" color="neutral" sx={{ mb: 2 }}>
-                No pending invitations.
-              </Typography>
-            )}
-            {visibleInvitations.length > 0 && (
-              <Table variant="soft" sx={{ mb: 2 }}>
-                <thead>
-                  <tr>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Invited By</th>
-                    <th>Expires</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleInvitations.map((invitation: any) => (
-                    <tr key={invitation.id}>
-                      <td>
-                        <Typography level="body-sm">
-                          {invitation.email}
-                        </Typography>
-                      </td>
-                      <td>
-                        <Chip size="sm" variant="soft">
-                          {invitation.role}
-                        </Chip>
-                      </td>
-                      <td>
-                        <Chip
-                          size="sm"
-                          variant="soft"
-                          color={
-                            invitation.status === 'pending'
-                              ? 'primary'
-                              : invitation.status === 'accepted'
-                                ? 'success'
-                                : invitation.status === 'rejected' ||
-                                    invitation.status === 'cancelled'
-                                  ? 'danger'
-                                  : 'neutral'
-                          }
-                        >
-                          {invitation.status}
-                        </Chip>
-                      </td>
-                      <td>
-                        <Typography level="body-sm">
-                          {invitation.invited_by_email}
-                        </Typography>
-                      </td>
-                      <td>
-                        <Typography level="body-xs">
-                          {invitation.expires_at
-                            ? new Date(
-                                invitation.expires_at,
-                              ).toLocaleDateString()
-                            : '—'}
-                        </Typography>
-                      </td>
-                      <td>
-                        {invitation.status === 'pending' && (
-                          <Button
-                            size="sm"
-                            variant="outlined"
-                            color="neutral"
-                            onClick={async () => {
-                              if (!authContext?.team?.id) return;
-                              try {
-                                const res = await authContext.fetchWithAuth(
-                                  `teams/${authContext.team.id}/invitations/${invitation.id}`,
-                                  {
-                                    method: 'DELETE',
-                                  },
-                                );
-                                if (res.ok && invitationsMutate) {
-                                  invitationsMutate();
-                                }
-                              } catch (e: any) {
-                                console.error(
-                                  'Error cancelling invitation:',
-                                  e,
-                                );
-                              }
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
-          </Box>
-        )}
+        <MembersSection
+          members={members?.members}
+          roleError={roleError}
+          iAmOwner={iAmOwner}
+          onUpdateRole={handleUpdateRole}
+          onInvite={() => setOpenInviteModal(true)}
+        />
+        <InvitationsSection
+          iAmOwner={iAmOwner}
+          allInvitations={allInvitations}
+          visibleInvitations={visibleInvitations}
+          acceptedInvitations={acceptedInvitations}
+          showExpiredInvitations={showExpiredInvitations}
+          onToggleShowExpired={setShowExpiredInvitations}
+          onViewAccepted={() => setOpenAcceptedInvitationsModal(true)}
+          onCancelInvitation={handleCancelInvitation}
+        />
         <Box sx={{ mt: 4 }}>
           <Typography level="title-lg" mb={1} startDecorator={<ServerIcon />}>
             Compute Providers: ({providers?.length ?? 0})
