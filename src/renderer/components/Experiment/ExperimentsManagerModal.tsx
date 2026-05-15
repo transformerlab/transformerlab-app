@@ -24,12 +24,13 @@ import {
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import ShareExperimentModal from './ShareExperimentModal';
+import TagEditor from './TagEditorModal';
 
 interface Experiment {
   id: string;
   name: string;
   last_opened_at: string | null;
-  config?: { created_by?: string };
+  config?: { created_by?: string; tags?: string[] };
 }
 
 interface TeamMember {
@@ -217,17 +218,40 @@ export default function ExperimentsManagerModal({
                     return (
                       <tr key={exp.id}>
                         <td>
-                          <Typography
-                            level="body-sm"
-                            fontWeight="md"
-                            sx={{
-                              cursor: 'pointer',
-                              '&:hover': { textDecoration: 'underline' },
-                            }}
-                            onClick={() => handleOpen(exp)}
-                          >
-                            {exp.name}
-                          </Typography>
+                          <Stack spacing={0.5}>
+                            <Typography
+                              level="body-sm"
+                              fontWeight="md"
+                              sx={{
+                                cursor: 'pointer',
+                                '&:hover': { textDecoration: 'underline' },
+                              }}
+                              onClick={() => handleOpen(exp)}
+                            >
+                              {exp.name}
+                            </Typography>
+                            {Array.isArray(exp.config?.tags) &&
+                              exp.config.tags.length > 0 && (
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    gap: 0.5,
+                                    flexWrap: 'wrap',
+                                  }}
+                                >
+                                  {exp.config.tags.map((t) => (
+                                    <Chip
+                                      key={t}
+                                      size="sm"
+                                      variant="soft"
+                                      color="neutral"
+                                    >
+                                      {t}
+                                    </Chip>
+                                  ))}
+                                </Box>
+                              )}
+                          </Stack>
                         </td>
                         <td>
                           <Typography level="body-xs" color="neutral">
@@ -256,6 +280,16 @@ export default function ExperimentsManagerModal({
                         </td>
                         <td>
                           <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            <TagEditor
+                              experimentId={exp.id}
+                              experimentName={exp.name}
+                              tags={
+                                Array.isArray(exp.config?.tags)
+                                  ? exp.config!.tags!
+                                  : []
+                              }
+                              onChanged={() => mutate()}
+                            />
                             <Button
                               size="sm"
                               variant="plain"
