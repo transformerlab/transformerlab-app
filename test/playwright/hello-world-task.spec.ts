@@ -43,7 +43,7 @@ test.describe('Hello World Task', () => {
     await login(page);
 
     // ── Step 1: Verify a local provider is available via the Compute page ──
-    const computeBtn = page.getByRole('button', { name: 'Compute' });
+    const computeBtn = page.getByRole('button', { name: 'Compute', exact: true });
     if ((await computeBtn.count()) > 0) {
       await computeBtn.click();
       // Wait for the Compute page to fully load (Resources tab visible)
