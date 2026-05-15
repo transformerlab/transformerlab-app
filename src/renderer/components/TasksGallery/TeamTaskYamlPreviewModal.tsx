@@ -5,7 +5,7 @@ import DialogContent from '@mui/joy/DialogContent';
 import DialogActions from '@mui/joy/DialogActions';
 import Button from '@mui/joy/Button';
 import { ModalClose, ModalDialog, Divider } from '@mui/joy';
-import { Editor } from '@monaco-editor/react';
+import Editor from 'renderer/components/Shared/LazyMonacoEditor';
 import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 import { Endpoints } from 'renderer/lib/transformerlab-api-sdk';
 import { fetchWithAuth } from 'renderer/lib/authContext';
