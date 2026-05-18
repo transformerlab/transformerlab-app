@@ -13,12 +13,6 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # chalk v5 is pure ESM. `check-build-exists.ts` is in Jest's setupFiles and ts-jest
-      # compiles `import chalk from 'chalk'` to `require('chalk')`, which throws
-      # ERR_REQUIRE_ESM against chalk 5. Stay on v4 until the Jest setup is refactored to
-      # dynamic import or chalk is dropped from setup. See PR #2092.
-      - dependency-name: "chalk"
-        versions: [">=5"]
       # sass 1.99.0 introduces a sass-loader deprecation warning on `npm start`.
       # Hold at 1.77.8 until sass-loader catches up. See PR #2091 (reverted by dadmobile).
       - dependency-name: "sass"
