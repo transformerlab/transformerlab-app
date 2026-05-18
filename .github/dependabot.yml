@@ -46,11 +46,6 @@ updates:
       # See PR #2114.
       - dependency-name: "@typescript-eslint/*"
         versions: [">=6"]
-      # react-markdown v9 went pure ESM and reworked the `components` API (notably the
-      # inline-code renderer signature). Three callsites need updates before we can move.
-      # Hold at 8.x until that refactor happens. See PR #2117.
-      - dependency-name: "react-markdown"
-        versions: [">=9"]
       # eslint-plugin-compat is pulled in transitively via eslint-config-erb
       # (`extends: "plugin:compat/recommended"`). ERB's package.json wants ^4.2.0, so
       # we can't move to 5+ ahead of ERB. Hold at 4.x until ERB itself bumps.
