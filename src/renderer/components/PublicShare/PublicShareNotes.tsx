@@ -1,3 +1,4 @@
+import { Box } from '@mui/joy';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -14,12 +15,14 @@ export default function PublicShareNotes({ markdown, apiUrl }: Props) {
   };
 
   return (
-    <Markdown
-      remarkPlugins={[remarkGfm]}
-      transformImageUri={transformUri}
-      transformLinkUri={transformUri}
-    >
-      {markdown}
-    </Markdown>
+    <Box sx={{ '& img': { maxWidth: '100%', height: 'auto' } }}>
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        transformImageUri={transformUri}
+        transformLinkUri={transformUri}
+      >
+        {markdown}
+      </Markdown>
+    </Box>
   );
 }
