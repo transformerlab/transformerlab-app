@@ -76,7 +76,8 @@
       "\\.(css|less|sass|scss)$": "identity-obj-proxy"
     },
     "setupFiles": [
-      "./.erb/scripts/check-build-exists.ts"
+      "./.erb/scripts/check-build-exists.ts",
+      "./.erb/scripts/jest.setup.ts"
     ],
     "testEnvironment": "jsdom",
     "testEnvironmentOptions": {
@@ -124,7 +125,7 @@
     "@pmmmwh/react-refresh-webpack-plugin": "^0.6.2",
     "@svgr/webpack": "^8.0.1",
     "@teamsupercell/typings-for-css-modules-loader": "^2.5.2",
-    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^14.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "20.2.5",
