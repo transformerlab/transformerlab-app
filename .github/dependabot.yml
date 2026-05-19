@@ -13,16 +13,6 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # chalk v5 is pure ESM. `check-build-exists.ts` is in Jest's setupFiles and ts-jest
-      # compiles `import chalk from 'chalk'` to `require('chalk')`, which throws
-      # ERR_REQUIRE_ESM against chalk 5. Stay on v4 until the Jest setup is refactored to
-      # dynamic import or chalk is dropped from setup. See PR #2092.
-      - dependency-name: "chalk"
-        versions: [">=5"]
-      # sass 1.99.0 introduces a sass-loader deprecation warning on `npm start`.
-      # Hold at 1.77.8 until sass-loader catches up. See PR #2091 (reverted by dadmobile).
-      - dependency-name: "sass"
-        versions: [">1.77.8"]
       # @nivo/* is pre-1.0 and each minor can ship breaking changes. 0.99.0 broke `<Bar>`
       # elements. Hold the nivo packages at 0.88.0 until they're upgraded deliberately.
       # See PR #2091 (reverted by dadmobile).
@@ -34,12 +24,6 @@ updates:
         versions: [">0.88.0"]
       - dependency-name: "@nivo/radar"
         versions: [">0.88.0"]
-      # @testing-library/jest-dom 6.x crashes our Jest setup with
-      # `ReferenceError: TextEncoder is not defined` when react-router-dom 7's modules
-      # load (jsdom env doesn't expose TextEncoder). Stay on 5.x until we add a
-      # TextEncoder polyfill in jest.setup. See PR #2113.
-      - dependency-name: "@testing-library/jest-dom"
-        versions: [">=6"]
       # @typescript-eslint/* v6+ requires bumping plugin AND parser in lockstep, plus
       # ESLint 8.57+/9 and updates to eslint-config-erb. Hold the whole family at 5.x
       # until we do a coordinated upgrade. Security patches on 5.x still flow through.
@@ -57,13 +41,6 @@ updates:
       # See PR #2115.
       - dependency-name: "eslint-plugin-compat"
         versions: [">=5"]
-      # sass-loader 14+ uses sass's "modern compiler API" by default, which surfaces
-      # deprecation warnings for legacy `@import`, `/` division, and color functions
-      # used throughout our .scss files. Build still succeeds but dev console gets
-      # noisy. Hold at 13.x until the .scss files are migrated to `@use`/`@forward`.
-      # See PR #2116.
-      - dependency-name: "sass-loader"
-        versions: [">=14"]
       # eslint-plugin-promise v7 requires ESLint >=8.56; our `eslint` is pinned at
       # ^8.42.0. Hold until we bump ESLint (which is itself blocked by the
       # @typescript-eslint/* family upgrade — see ignore above). See PR #2122.

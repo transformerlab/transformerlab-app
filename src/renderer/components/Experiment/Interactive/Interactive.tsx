@@ -19,7 +19,6 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
-import TaskTemplateList from '../Tasks/TaskTemplateList';
 import NewInteractiveTaskModal from '../Tasks/NewInteractiveTaskModal';
 import EditInteractiveTaskModal from '../Tasks/EditInteractiveTaskModal';
 import DeleteTaskConfirmModal from '../Tasks/DeleteTaskConfirmModal';
@@ -1356,17 +1355,6 @@ export default function Interactive() {
           />
         )}
       />
-      {/* TODO: remove TaskTemplateList once migration is complete
-        <TaskTemplateList
-          tasksList={tasks}
-          onDeleteTask={handleDeleteTask}
-          onQueueTask={handleQueue}
-          onEditTask={handleEditTask}
-          onExportTask={handleExportTemplateToTeamInteractiveGallery}
-          loading={templatesIsLoading || !experimentInfo?.id}
-          interactTasks
-        />
-        */}
       <DeleteTaskConfirmModal
         open={taskToDelete !== null}
         onClose={() => setTaskToDelete(null)}
