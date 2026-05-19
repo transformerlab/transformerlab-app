@@ -13,12 +13,6 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # chalk v5 is pure ESM. `check-build-exists.ts` is in Jest's setupFiles and ts-jest
-      # compiles `import chalk from 'chalk'` to `require('chalk')`, which throws
-      # ERR_REQUIRE_ESM against chalk 5. Stay on v4 until the Jest setup is refactored to
-      # dynamic import or chalk is dropped from setup. See PR #2092.
-      - dependency-name: "chalk"
-        versions: [">=5"]
       # @nivo/* is pre-1.0 and each minor can ship breaking changes. 0.99.0 broke `<Bar>`
       # elements. Hold the nivo packages at 0.88.0 until they're upgraded deliberately.
       # See PR #2091 (reverted by dadmobile).
