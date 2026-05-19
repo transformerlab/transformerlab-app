@@ -30,11 +30,6 @@ updates:
       # See PR #2114.
       - dependency-name: "@typescript-eslint/*"
         versions: [">=6"]
-      # react-markdown v9 went pure ESM and reworked the `components` API (notably the
-      # inline-code renderer signature). Three callsites need updates before we can move.
-      # Hold at 8.x until that refactor happens. See PR #2117.
-      - dependency-name: "react-markdown"
-        versions: [">=9"]
       # eslint-plugin-compat is pulled in transitively via eslint-config-erb
       # (`extends: "plugin:compat/recommended"`). ERB's package.json wants ^4.2.0, so
       # we can't move to 5+ ahead of ERB. Hold at 4.x until ERB itself bumps.
@@ -69,9 +64,8 @@ updates:
         versions: [">=30"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
-  # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
-  # the board (manual coordination needed); packages that drop Node 18 support in a minor or patch
-  # bump are listed individually under `ignore` below. Revisit when the build moves to Node 20+.
+  # Build runs on Node 22 via transformerlab-docs/netlify.toml. Major bumps are ignored across
+  # the board (manual coordination needed); minor/patch updates flow through for security.
   - package-ecosystem: "npm"
     directory: "/transformerlab-docs"
     schedule:
@@ -98,19 +92,6 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # mermaid >= 11.12 requires Node 20+; we're pinned to Node 18 in Netlify.
-      - dependency-name: "mermaid"
-        versions: [">=11.12"]
-      # @docusaurus/* >= 3.9 requires Node >=20 (engines field), Netlify build is Node 18.
-      # Hold the docusaurus packages at 3.8.x until the docs build moves to Node 20+.
-      # See PRs #2111 (3.10.1) and #2120 (3.9.2) — both failed with EBADENGINE.
-      - dependency-name: "@docusaurus/*"
-        versions: [">=3.9"]
-      # Keep typescript pinned alongside the docusaurus 3.8.x line (which ships with
-      # TS 5.6.x in its templates). Avoids surprise breaks from TS bumps before the
-      # docs build moves off Node 18.
-      - dependency-name: "typescript"
-        versions: [">=5.7"]
       # Major bumps on docs deps need manual coordination; minor/patch is enough for security.
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
@@ -138,6 +119,13 @@ updates:
       # fails immediately on import. Revisit after refactoring the import path. See PR #2083.
       - dependency-name: "azure-mgmt-resource"
         versions: [">=25"]
+      # boto3 1.41+ requires botocore >=1.41, which in turn requires newer aiobotocore /
+      # s3fs / fsspec. But `datasets` is pinned to 3.x (above), which caps
+      # fsspec at <=2025.3.0 — and the s3fs releases compatible with that fsspec cap
+      # only support botocore <1.41. Result: boto3 >=1.41 is uninstallable until the
+      # datasets pin is lifted. Hold boto3 at 1.40.x. See PR #2159.
+      - dependency-name: "boto3"
+        versions: [">=1.41"]
 
   # CLI (Typer, managed with uv)
   - package-ecosystem: "uv"

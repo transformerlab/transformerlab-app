@@ -20,7 +20,7 @@ import {
   LinearProgress,
 } from '@mui/joy';
 import { FileIcon, Trash2Icon, UploadIcon } from 'lucide-react';
-import { Editor } from '@monaco-editor/react';
+import Editor from 'renderer/components/Shared/LazyMonacoEditor';
 import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import {
