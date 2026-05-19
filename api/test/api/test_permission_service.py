@@ -6,18 +6,22 @@ from transformerlab.services.permission_service import check_permission
 from transformerlab.shared.models.models import UserTeam, TeamRole, ResourcePermission
 
 
-def _make_session(*scalar_values):
+def _make_session(membership, *acl_rows):
     """
-    Returns a mock AsyncSession whose execute() calls return each
-    scalar_values item in order (via scalar_one_or_none).
+    Returns a mock AsyncSession that:
+      - first execute() returns the membership row (via scalar_one_or_none)
+      - second execute() returns the ACL rows (via scalars().all()),
+        with None entries filtered out
     """
     session = AsyncMock()
-    results = []
-    for val in scalar_values:
-        r = MagicMock()
-        r.scalar_one_or_none.return_value = val
-        results.append(r)
-    session.execute.side_effect = results
+
+    membership_result = MagicMock()
+    membership_result.scalar_one_or_none.return_value = membership
+
+    acl_result = MagicMock()
+    acl_result.scalars.return_value.all.return_value = [r for r in acl_rows if r is not None]
+
+    session.execute.side_effect = [membership_result, acl_result]
     return session
 
 
