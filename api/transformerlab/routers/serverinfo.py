@@ -5,7 +5,7 @@ import asyncio
 import subprocess
 import zipfile
 import tempfile
-from datetime import datetime
+from transformerlab.utils.datetime_utils import utc_now_naive
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
@@ -226,7 +226,7 @@ async def download_logs():
                     print(f"Warning: Could not read log file {file_path}: {e}")
 
         # Generate a filename with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = utc_now_naive().strftime("%Y%m%d_%H%M%S")
         zip_filename = f"transformerlab_logs_{timestamp}.zip"
 
         return FileResponse(
