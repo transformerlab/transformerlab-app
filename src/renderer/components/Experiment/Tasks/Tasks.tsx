@@ -40,7 +40,6 @@ import CompareEvalResultsModal from './CompareEvalResultsModal';
 import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 import ViewSweepResultsModal from './ViewSweepResultsModal';
 import JobArtifactsModal from './JobArtifacts/JobArtifactsModal';
-import FileBrowserModal from './FileBrowserModal';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 import NewTaskModal2 from './NewTaskModal/NewTaskModal2';
 import TaskYamlEditorModal from './TaskYamlEditorModal';
@@ -98,10 +97,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [compareEvalModalOpen, setCompareEvalModalOpen] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
-  const [viewTaskFilesFromTask, setViewTaskFilesFromTask] = useState<{
-    id: string | null;
-    name?: string | null;
-  }>({ id: null, name: null });
   const [yamlEditorTaskId, setYamlEditorTaskId] = useState<string | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<{
     id: string;
@@ -1527,14 +1522,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           onQueueTask={handleQueue}
           onEditTask={handleEditTask}
           onExportTask={handleExportToTeamGallery}
-          // TODO: potentially deprecated — file browsing is now integrated into the Edit Task modal.
-          // Remove onViewFilesTask and related FileBrowserModal state once confirmed unnecessary.
-          // onViewFilesTask={(taskRow) =>
-          //   setViewTaskFilesFromTask({
-          //     id: taskRow.id,
-          //     name: (taskRow as any).name ?? (taskRow as any).title ?? null,
-          //   })
-          // }
           loading={templatesIsLoading}
           allJobs={filteredJobsForDisplay}
           allJobsLoading={jobsIsLoading}
@@ -1789,13 +1776,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         }
         dataset_id={previewDatasetModal.datasetId}
         viewType="preview"
-      />
-      <FileBrowserModal
-        mode="task"
-        open={viewTaskFilesFromTask.id !== null}
-        onClose={() => setViewTaskFilesFromTask({ id: null, name: null })}
-        taskId={viewTaskFilesFromTask.id ?? ''}
-        taskName={viewTaskFilesFromTask.name}
       />
       <TrackioModal
         jobId={trackioJobIdForModal}

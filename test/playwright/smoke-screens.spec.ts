@@ -15,7 +15,7 @@ test.describe('Smoke: main screen navigation', () => {
 
   test('welcome screen loads after login', async ({ page }) => {
     await expect(
-      page.getByText("Let's start your next Experiment"),
+      page.getByRole('heading', { name: 'Transformer Lab' }),
     ).toBeVisible();
   });
 
@@ -47,7 +47,7 @@ test.describe('Smoke: main screen navigation', () => {
   });
 
   test('navigate to Compute screen', async ({ page }) => {
-    const btn = page.getByRole('button', { name: 'Compute' });
+    const btn = page.getByRole('button', { name: 'Compute', exact: true });
     test.skip((await btn.count()) === 0, 'Compute not shown (local mode)');
     await btn.click();
     await expect(page).not.toHaveTitle(/error/i);
