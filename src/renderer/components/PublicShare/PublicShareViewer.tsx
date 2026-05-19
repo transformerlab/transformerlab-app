@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, CircularProgress, Link, Typography } from '@mui/joy';
+import { Box, CircularProgress, Link, Sheet, Typography } from '@mui/joy';
 import { API_URL } from 'renderer/lib/api-client/urls';
 import PublicShareNotes from './PublicShareNotes';
 import PublicShareChart from './PublicShareChart';
@@ -94,25 +94,38 @@ export default function PublicShareViewer() {
           width: '100%',
           maxWidth: data?.resource_type === 'experiment_chart' ? 1100 : 800,
           mx: 'auto',
-          px: 4,
+          px: { xs: 2, md: 4 },
           py: 4,
         }}
       >
-        {loading && <CircularProgress />}
-        {!loading && error && (
-          <Typography level="body-md" color="danger">
-            {error}
-          </Typography>
-        )}
-        {!loading && data?.resource_type === 'experiment_notes' && (
-          <PublicShareNotes
-            markdown={(data.payload as { markdown: string }).markdown}
-            apiUrl={apiUrl}
-          />
-        )}
-        {!loading && data?.resource_type === 'experiment_chart' && (
-          <PublicShareChart jobs={(data.payload as { jobs: unknown[] }).jobs} />
-        )}
+        <Sheet
+          variant="outlined"
+          sx={{
+            bgcolor: 'background.surface',
+            borderRadius: 'md',
+            boxShadow: 'sm',
+            p: { xs: 2, md: 4 },
+            minHeight: '60vh',
+          }}
+        >
+          {loading && <CircularProgress />}
+          {!loading && error && (
+            <Typography level="body-md" color="danger">
+              {error}
+            </Typography>
+          )}
+          {!loading && data?.resource_type === 'experiment_notes' && (
+            <PublicShareNotes
+              markdown={(data.payload as { markdown: string }).markdown}
+              apiUrl={apiUrl}
+            />
+          )}
+          {!loading && data?.resource_type === 'experiment_chart' && (
+            <PublicShareChart
+              jobs={(data.payload as { jobs: unknown[] }).jobs}
+            />
+          )}
+        </Sheet>
       </Box>
       <Box
         component="footer"
