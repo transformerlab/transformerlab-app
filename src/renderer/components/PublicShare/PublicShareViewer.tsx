@@ -63,13 +63,34 @@ export default function PublicShareViewer() {
   }, [token, apiUrl]);
 
   const marketingUrl = 'https://lab.cloud';
+  const isNotes = data?.resource_type === 'experiment_notes';
+
+  const bodyContent = (
+    <>
+      {loading && <CircularProgress />}
+      {!loading && error && (
+        <Typography level="body-md" color="danger">
+          {error}
+        </Typography>
+      )}
+      {!loading && data?.resource_type === 'experiment_notes' && (
+        <PublicShareNotes
+          markdown={(data.payload as { markdown: string }).markdown}
+          apiUrl={apiUrl}
+        />
+      )}
+      {!loading && data?.resource_type === 'experiment_chart' && (
+        <PublicShareChart jobs={(data.payload as { jobs: unknown[] }).jobs} />
+      )}
+    </>
+  );
 
   return (
     <Box
       sx={{
         height: '100vh',
         overflow: 'auto',
-        backgroundColor: 'background.body',
+        backgroundColor: isNotes ? 'background.surface' : 'background.body',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -98,34 +119,21 @@ export default function PublicShareViewer() {
           py: 4,
         }}
       >
-        <Sheet
-          variant="outlined"
-          sx={{
-            bgcolor: 'background.surface',
-            borderRadius: 'md',
-            boxShadow: 'sm',
-            p: { xs: 2, md: 4 },
-            minHeight: '60vh',
-          }}
-        >
-          {loading && <CircularProgress />}
-          {!loading && error && (
-            <Typography level="body-md" color="danger">
-              {error}
-            </Typography>
-          )}
-          {!loading && data?.resource_type === 'experiment_notes' && (
-            <PublicShareNotes
-              markdown={(data.payload as { markdown: string }).markdown}
-              apiUrl={apiUrl}
-            />
-          )}
-          {!loading && data?.resource_type === 'experiment_chart' && (
-            <PublicShareChart
-              jobs={(data.payload as { jobs: unknown[] }).jobs}
-            />
-          )}
-        </Sheet>
+        {isNotes ? (
+          bodyContent
+        ) : (
+          <Sheet
+            variant="outlined"
+            sx={{
+              bgcolor: 'background.surface',
+              borderRadius: 'md',
+              boxShadow: 'sm',
+              p: { xs: 2, md: 4 },
+            }}
+          >
+            {bodyContent}
+          </Sheet>
+        )}
       </Box>
       <Box
         component="footer"
