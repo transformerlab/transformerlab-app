@@ -461,7 +461,10 @@ def _print_storage_banner():
             f"[TFL_STORAGE_PROVIDER={STORAGE_PROVIDER} ignored: TFL_REMOTE_STORAGE_ENABLED is not set]"
         )
         return
-    print(f"✅ Storage: {effective} ({uri or 'unset'})")
+    if effective == "localfs":
+        print(f"✅ Storage: {effective} ({uri or 'unset'})")
+    else:
+        print(f"✅ Storage: {effective} ({uri or 'per-team workspace'})")
 
 
 def run():
