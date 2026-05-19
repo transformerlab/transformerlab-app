@@ -145,7 +145,7 @@
     "detect-port": "^2.1.0",
     "dotenv-cli": "^11.0.0",
     "esbuild-loader": "^4.4.3",
-    "eslint": "^8.42.0",
+    "eslint": "^10.4.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-erb": "^4.0.6",
     "eslint-import-resolver-typescript": "^4.4.4",
