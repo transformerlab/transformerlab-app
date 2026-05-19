@@ -7,5 +7,6 @@ if (typeof global.TextEncoder === 'undefined') {
   global.TextEncoder = TextEncoder;
 }
 if (typeof global.TextDecoder === 'undefined') {
+  // Node's util.TextDecoder typing differs slightly from the DOM lib, so cast.
   global.TextDecoder = TextDecoder as unknown as typeof global.TextDecoder;
 }
