@@ -111,7 +111,7 @@ export default function Trends({
   const [xMode, setXMode] = useState<XMode>(xAxis.initialMode);
   const [showTrendline, setShowTrendline] =
     useState<boolean>(showTrendlineDefault);
-  const [smoothing, setSmoothing] = useState<number>(
+  const [smoothing, setSmoothing] = useState<number>(() =>
     Math.min(Math.max(smoothingDefault, 0), 0.99),
   );
   const [includeDiscarded, setIncludeDiscarded] = useState<boolean>(false);
@@ -179,8 +179,9 @@ export default function Trends({
       string,
       { x: number; y: number; label?: string }[]
     >();
+    const selectedSet = new Set(selected);
     for (const p of points) {
-      if (!selected.includes(p.series)) continue;
+      if (!selectedSet.has(p.series)) continue;
       if (p.discarded && !includeDiscarded) continue;
       const x = getX(p);
       if (x === null || !Number.isFinite(p.y)) continue;
