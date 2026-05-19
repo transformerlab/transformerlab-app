@@ -115,7 +115,7 @@
     "react-markdown": "^8.0.7",
     "react-router-dom": "^7.15.1",
     "rehype-raw": "^7.0.0",
-    "remark-gfm": "^3.0.1",
+    "remark-gfm": "^4.0.1",
     "swr": "^2.4.1",
     "three": "^0.184.0",
     "wavesurfer.js": "^7.12.7"
