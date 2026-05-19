@@ -4,7 +4,8 @@ export type SectionKey =
   | 'checkpoints'
   | 'artifacts'
   | 'evalResults'
-  | 'sweepResults';
+  | 'sweepResults'
+  | 'metrics';
 
 export interface JobRecord {
   id: string;
@@ -17,6 +18,7 @@ export interface JobRecord {
     artifacts_dir?: string;
     eval_results?: string[];
     sweep_parent?: boolean;
+    current_metrics?: Record<string, number>;
     [key: string]: unknown;
   };
 }
@@ -38,6 +40,12 @@ export function getVisibleSections(job: JobRecord): SectionKey[] {
   }
   if (job.type === 'SWEEP') {
     sections.push('sweepResults');
+  }
+  if (
+    d.current_metrics &&
+    Object.keys(d.current_metrics as Record<string, unknown>).length > 0
+  ) {
+    sections.push('metrics');
   }
   return sections;
 }
