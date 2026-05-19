@@ -121,13 +121,50 @@ class Job(BaseLabResource):
             "progress": 0,
         }
 
-    async def update_progress(self, progress: int):
+    async def update_progress(
+        self,
+        progress: int,
+        metrics: dict | None = None,
+        step: int | None = None,
+    ):
         """
         Update the percent complete for this job.
 
-        progress: int representing percent complete
+        progress: int representing percent complete.
+        metrics:  optional dict of named scalar metrics for this point in time
+                  (e.g. {"loss": 0.42}). Stored as job_data.current_metrics
+                  (overwritten on each call) and appended to metrics.jsonl
+                  in the job directory for the full history.
+        step:     optional integer step counter associated with this row.
         """
         await self._update_json_data_field("progress", progress)
+        if metrics is not None:
+            await self.update_job_data_field("current_metrics", metrics)
+        await self._append_metrics_row(progress=progress, metrics=metrics, step=step)
+
+    async def _append_metrics_row(
+        self,
+        *,
+        progress: int,
+        metrics: dict | None,
+        step: int | None,
+    ) -> None:
+        """Append one event to {job_dir}/metrics.jsonl. Best-effort; never raises."""
+        try:
+            job_dir = await self.get_dir()
+            path = storage.join(job_dir, "metrics.jsonl")
+            row: dict = {
+                "t": datetime.now(timezone.utc).isoformat(),
+                "progress": progress,
+            }
+            if step is not None:
+                row["step"] = step
+            if metrics:
+                row["metrics"] = metrics
+            async with await storage.open(path, "a", encoding="utf-8") as f:
+                await f.write(json.dumps(row) + "\n")
+        except Exception:
+            logger.debug("Failed to append metrics.jsonl row", exc_info=True)
 
     async def update_status(self, status: str):
         await self._update_json_data_field("status", status)
