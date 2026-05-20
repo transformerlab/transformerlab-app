@@ -140,7 +140,7 @@
     "concurrently": "^9.2.1",
     "core-js": "^3.49.0",
     "cross-env": "^10.1.0",
-    "css-loader": "^6.8.1",
+    "css-loader": "^7.1.4",
     "css-minimizer-webpack-plugin": "^8.0.0",
     "detect-port": "^2.1.0",
     "dotenv-cli": "^11.0.0",
