@@ -30,7 +30,6 @@
     "build": "dotenv -e .env -- cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
     "build:multiuser": "cross-env NODE_ENV=production tsx node_modules/webpack/bin/webpack.js --config ./.erb/configs/webpack.config.cloud.prod.ts",
     "check-ports": "! lsof -i :1212 -i :8338",
-    "lint": "cross-env NODE_ENV=development eslint . --ext .js,.jsx,.ts,.tsx",
     "start": "dotenv -e .env -- cross-env NODE_ENV=development tsx node_modules/webpack-dev-server/bin/webpack-dev-server.js --config ./.erb/configs/webpack.config.cloud.dev.ts",
     "dev": "npm run check-ports && concurrently -k -n FRONTEND,API -c cyan,magenta \"npm run start\" \"npm run api:start\"",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\" \"transformerlab-docs/**/*.{js,jsx,ts,tsx,json,css,scss,md,mdx,yml,yaml}\"",
@@ -49,8 +48,7 @@
     "overrides": [
       {
         "files": [
-          ".prettierrc",
-          ".eslintrc"
+          ".prettierrc"
         ],
         "options": {
           "parser": "json"
@@ -99,8 +97,6 @@
     "@types/react-sparklines": "^1.7.2",
     "@types/three": "^0.184.1",
     "@types/webpack-bundle-analyzer": "^4.6.0",
-    "@typescript-eslint/eslint-plugin": "^5.59.8",
-    "@typescript-eslint/parser": "^5.59.8",
     "concurrently": "^9.2.1",
     "core-js": "^3.49.0",
     "cross-env": "^10.1.0",
@@ -109,18 +105,6 @@
     "detect-port": "^2.1.0",
     "dotenv-cli": "^11.0.0",
     "esbuild-loader": "^4.4.3",
-    "eslint": "^8.42.0",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-config-erb": "^4.0.6",
-    "eslint-import-resolver-typescript": "^4.4.4",
-    "eslint-import-resolver-webpack": "^0.13.11",
-    "eslint-plugin-compat": "^4.1.4",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-prettier": "^5.5.5",
-    "eslint-plugin-promise": "^6.1.1",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^4.6.0",
     "file-loader": "^6.2.0",
     "html-webpack-plugin": "^5.6.7",
     "mini-css-extract-plugin": "^2.10.2",
