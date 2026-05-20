@@ -62,6 +62,58 @@ updates:
       # See PR #2130.
       - dependency-name: "jest-environment-jsdom"
         versions: [">=30"]
+      # @types/node majors track Node runtime majors. We're pinned to Node 22 (see
+      # CLAUDE.md; conda env, scripts/dev.py, CI), and the renderer doesn't import
+      # Node builtins directly — only build tooling under .erb/ and scripts/ does.
+      # Holding at 22.x avoids a recurring PR with zero security exposure (types-only
+      # package). Lift this in lockstep when Node itself moves.
+      - dependency-name: "@types/node"
+        versions: [">=23"]
+      # Webpack loader / CLI family. These churn constantly and each major typically
+      # requires coordinated changes across .erb/configs/* (webpack 5 config shape,
+      # asset modules, postcss override compatibility — see the `overrides` note in
+      # package.json). We're not chasing the bleeding edge on the build toolchain;
+      # security fixes still land via minor/patch. Bump these deliberately as a
+      # single toolchain-upgrade PR when it's worth a focused day.
+      - dependency-name: "webpack-cli"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "webpack-dev-server"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "webpack-merge"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "webpack-bundle-analyzer"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "css-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sass-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "style-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "postcss-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "esbuild-loader"
+        update-types: ["version-update:semver-major"]
+      # file-loader and url-loader are abandoned upstream (replaced by webpack 5's
+      # built-in asset modules). No future major will be worth taking — only here
+      # for legacy compatibility.
+      - dependency-name: "file-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "url-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "mini-css-extract-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "css-minimizer-webpack-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "html-webpack-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tsconfig-paths-webpack-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@svgr/webpack"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@pmmmwh/react-refresh-webpack-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@teamsupercell/typings-for-css-modules-loader"
+        update-types: ["version-update:semver-major"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
   # Build runs on Node 22 via transformerlab-docs/netlify.toml. Major bumps are ignored across
@@ -119,13 +171,15 @@ updates:
       # fails immediately on import. Revisit after refactoring the import path. See PR #2083.
       - dependency-name: "azure-mgmt-resource"
         versions: [">=25"]
-      # boto3 1.41+ requires botocore >=1.41, which in turn requires newer aiobotocore /
-      # s3fs / fsspec. But `datasets` is pinned to 3.x (above), which caps
-      # fsspec at <=2025.3.0 — and the s3fs releases compatible with that fsspec cap
-      # only support botocore <1.41. Result: boto3 >=1.41 is uninstallable until the
-      # datasets pin is lifted. Hold boto3 at 1.40.x. See PR #2159.
+      # boto3 patches beyond 1.40.70 are uninstallable. Each boto3 patch pins a
+      # matching botocore patch, and aiobotocore's compatible window in the 1.40
+      # line is botocore>=1.40.37,<1.40.71 — so boto3 1.40.71+ (and all of 1.41.x)
+      # fall in a dead zone aiobotocore won't accept. aiobotocore is pulled in
+      # transitively via s3fs, which is capped by fsspec, which is capped by the
+      # `datasets` 3.x pin above. Hold boto3 at 1.40.70 until datasets is unpinned
+      # or a newer aiobotocore covers the gap. See PR #2159, PR #2169.
       - dependency-name: "boto3"
-        versions: [">=1.41"]
+        versions: [">1.40.70"]
 
   # CLI (Typer, managed with uv)
   - package-ecosystem: "uv"
