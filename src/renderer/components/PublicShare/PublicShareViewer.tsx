@@ -148,7 +148,7 @@ export default function PublicShareViewer() {
         <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
           Powered by Transformer Lab —{' '}
           <Link href={marketingUrl} target="_blank" rel="noreferrer">
-            Open in Transformer Lab →
+            Learn more →
           </Link>
         </Typography>
       </Box>
