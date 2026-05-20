@@ -77,6 +77,12 @@ updates:
       # single toolchain-upgrade PR when it's worth a focused day.
       - dependency-name: "webpack-cli"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "webpack-dev-server"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "webpack-merge"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "webpack-bundle-analyzer"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "css-loader"
         update-types: ["version-update:semver-major"]
       - dependency-name: "sass-loader"
@@ -84,6 +90,29 @@ updates:
       - dependency-name: "style-loader"
         update-types: ["version-update:semver-major"]
       - dependency-name: "postcss-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "esbuild-loader"
+        update-types: ["version-update:semver-major"]
+      # file-loader and url-loader are abandoned upstream (replaced by webpack 5's
+      # built-in asset modules). No future major will be worth taking — only here
+      # for legacy compatibility.
+      - dependency-name: "file-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "url-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "mini-css-extract-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "css-minimizer-webpack-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "html-webpack-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tsconfig-paths-webpack-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@svgr/webpack"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@pmmmwh/react-refresh-webpack-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@teamsupercell/typings-for-css-modules-loader"
         update-types: ["version-update:semver-major"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
