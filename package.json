@@ -73,7 +73,7 @@
     "dayjs": "^1.11.20",
     "easy-peasy": "^6.1.1",
     "jszip": "^3.10.1",
-    "lucide-react": "^0.477.0",
+    "lucide-react": "^1.16.0",
     "monaco-themes": "^0.4.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
