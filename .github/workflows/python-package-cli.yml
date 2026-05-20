@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   build-release-distributions:
