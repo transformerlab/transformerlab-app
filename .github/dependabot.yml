@@ -165,17 +165,20 @@ updates:
         versions: [">1.40.70"]
 
   # CLI (Typer, managed with uv)
+  # Security-only mode: the CLI is published to PyPI as `transformerlab-cli` and
+  # runs on end-user machines via `uv tool install`. It doesn't open a listening
+  # port and isn't part of our hosted attack surface (frontend / API). End users
+  # also receive whatever version we last published, so eager dep bumps don't
+  # reach them faster — they're gated by CLI releases. Setting the PR limit to 0
+  # disables routine version-update PRs while still allowing Dependabot security
+  # advisory PRs to fire (security updates bypass the limit). Revisit if the CLI
+  # ever grows a network listener or starts parsing untrusted input.
   - package-ecosystem: "uv"
     directory: "/cli"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
-    groups:
-      minor-and-patch:
-        update-types:
-          - "minor"
-          - "patch"
+    open-pull-requests-limit: 0
 
   # Lab SDK (published to PyPI as `transformerlab`)
   - package-ecosystem: "uv"
