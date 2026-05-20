@@ -1,11 +1,11 @@
 import secrets
-from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from transformerlab.shared.models.models import PublicShareLink
+from transformerlab.utils.datetime_utils import utc_now_naive
 
 ALLOWED_RESOURCE_TYPES = {"experiment_notes", "experiment_chart"}
 
@@ -44,7 +44,7 @@ async def revoke_active_link(
             PublicShareLink.resource_id == str(resource_id),
             PublicShareLink.revoked_at.is_(None),
         )
-        .values(revoked_at=datetime.utcnow())
+        .values(revoked_at=utc_now_naive())
     )
     await session.execute(stmt)
     await session.commit()
