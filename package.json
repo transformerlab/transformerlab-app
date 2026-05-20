@@ -95,7 +95,7 @@
     "@emotion/styled": "^11.14.1",
     "@mdxeditor/editor": "^4.0.0",
     "@monaco-editor/react": "^4.7.0",
-    "@mui/joy": "^5.0.0-beta.48",
+    "@mui/joy": "^5.0.0-beta.52",
     "@nivo/bar": "^0.88.0",
     "@nivo/core": "^0.88.0",
     "@nivo/line": "^0.88.0",
