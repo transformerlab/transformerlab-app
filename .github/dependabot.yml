@@ -119,13 +119,15 @@ updates:
       # fails immediately on import. Revisit after refactoring the import path. See PR #2083.
       - dependency-name: "azure-mgmt-resource"
         versions: [">=25"]
-      # boto3 1.41+ requires botocore >=1.41, which in turn requires newer aiobotocore /
-      # s3fs / fsspec. But `datasets` is pinned to 3.x (above), which caps
-      # fsspec at <=2025.3.0 — and the s3fs releases compatible with that fsspec cap
-      # only support botocore <1.41. Result: boto3 >=1.41 is uninstallable until the
-      # datasets pin is lifted. Hold boto3 at 1.40.x. See PR #2159.
+      # boto3 patches beyond 1.40.70 are uninstallable. Each boto3 patch pins a
+      # matching botocore patch, and aiobotocore's compatible window in the 1.40
+      # line is botocore>=1.40.37,<1.40.71 — so boto3 1.40.71+ (and all of 1.41.x)
+      # fall in a dead zone aiobotocore won't accept. aiobotocore is pulled in
+      # transitively via s3fs, which is capped by fsspec, which is capped by the
+      # `datasets` 3.x pin above. Hold boto3 at 1.40.70 until datasets is unpinned
+      # or a newer aiobotocore covers the gap. See PR #2159, PR #2169.
       - dependency-name: "boto3"
-        versions: [">=1.41"]
+        versions: [">1.40.70"]
 
   # CLI (Typer, managed with uv)
   - package-ecosystem: "uv"
