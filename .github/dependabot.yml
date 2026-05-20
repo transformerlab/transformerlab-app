@@ -69,6 +69,22 @@ updates:
       # package). Lift this in lockstep when Node itself moves.
       - dependency-name: "@types/node"
         versions: [">=23"]
+      # Webpack loader / CLI family. These churn constantly and each major typically
+      # requires coordinated changes across .erb/configs/* (webpack 5 config shape,
+      # asset modules, postcss override compatibility — see the `overrides` note in
+      # package.json). We're not chasing the bleeding edge on the build toolchain;
+      # security fixes still land via minor/patch. Bump these deliberately as a
+      # single toolchain-upgrade PR when it's worth a focused day.
+      - dependency-name: "webpack-cli"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "css-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sass-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "style-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "postcss-loader"
+        update-types: ["version-update:semver-major"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
   # Build runs on Node 22 via transformerlab-docs/netlify.toml. Major bumps are ignored across
