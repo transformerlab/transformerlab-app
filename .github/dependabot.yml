@@ -24,6 +24,14 @@ updates:
         versions: [">0.88.0"]
       - dependency-name: "@nivo/radar"
         versions: [">0.88.0"]
+      # lucide-react is imported in ~78 renderer components. The 1.0 line is an ESM-only
+      # rewrite (`.mjs` bundles, RSC/dynamic-import reshuffles) and lucide ships icon
+      # renames as plain minors on the 0.x line, so neither `semver-major` gating nor
+      # the grouped minor/patch flow is safe here. Hold at 0.477.0 and bump deliberately
+      # with a build + smoke test of icon-heavy pages (ModelZoo, Settings, Welcome,
+      # Team). See PR #2174.
+      - dependency-name: "lucide-react"
+        versions: [">0.477.0"]
       # @typescript-eslint/* v6+ requires bumping plugin AND parser in lockstep, plus
       # ESLint 8.57+/9 and updates to eslint-config-erb. Hold the whole family at 5.x
       # until we do a coordinated upgrade. Security patches on 5.x still flow through.
