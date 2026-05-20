@@ -62,6 +62,13 @@ updates:
       # See PR #2130.
       - dependency-name: "jest-environment-jsdom"
         versions: [">=30"]
+      # @types/node majors track Node runtime majors. We're pinned to Node 22 (see
+      # CLAUDE.md; conda env, scripts/dev.py, CI), and the renderer doesn't import
+      # Node builtins directly — only build tooling under .erb/ and scripts/ does.
+      # Holding at 22.x avoids a recurring PR with zero security exposure (types-only
+      # package). Lift this in lockstep when Node itself moves.
+      - dependency-name: "@types/node"
+        versions: [">=23"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
   # Build runs on Node 22 via transformerlab-docs/netlify.toml. Major bumps are ignored across
