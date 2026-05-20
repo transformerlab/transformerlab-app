@@ -13,16 +13,6 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # chalk v5 is pure ESM. `check-build-exists.ts` is in Jest's setupFiles and ts-jest
-      # compiles `import chalk from 'chalk'` to `require('chalk')`, which throws
-      # ERR_REQUIRE_ESM against chalk 5. Stay on v4 until the Jest setup is refactored to
-      # dynamic import or chalk is dropped from setup. See PR #2092.
-      - dependency-name: "chalk"
-        versions: [">=5"]
-      # sass 1.99.0 introduces a sass-loader deprecation warning on `npm start`.
-      # Hold at 1.77.8 until sass-loader catches up. See PR #2091 (reverted by dadmobile).
-      - dependency-name: "sass"
-        versions: [">1.77.8"]
       # @nivo/* is pre-1.0 and each minor can ship breaking changes. 0.99.0 broke `<Bar>`
       # elements. Hold the nivo packages at 0.88.0 until they're upgraded deliberately.
       # See PR #2091 (reverted by dadmobile).
@@ -34,41 +24,6 @@ updates:
         versions: [">0.88.0"]
       - dependency-name: "@nivo/radar"
         versions: [">0.88.0"]
-      # @testing-library/jest-dom 6.x crashes our Jest setup with
-      # `ReferenceError: TextEncoder is not defined` when react-router-dom 7's modules
-      # load (jsdom env doesn't expose TextEncoder). Stay on 5.x until we add a
-      # TextEncoder polyfill in jest.setup. See PR #2113.
-      - dependency-name: "@testing-library/jest-dom"
-        versions: [">=6"]
-      # @typescript-eslint/* v6+ requires bumping plugin AND parser in lockstep, plus
-      # ESLint 8.57+/9 and updates to eslint-config-erb. Hold the whole family at 5.x
-      # until we do a coordinated upgrade. Security patches on 5.x still flow through.
-      # See PR #2114.
-      - dependency-name: "@typescript-eslint/*"
-        versions: [">=6"]
-      # react-markdown v9 went pure ESM and reworked the `components` API (notably the
-      # inline-code renderer signature). Three callsites need updates before we can move.
-      # Hold at 8.x until that refactor happens. See PR #2117.
-      - dependency-name: "react-markdown"
-        versions: [">=9"]
-      # eslint-plugin-compat is pulled in transitively via eslint-config-erb
-      # (`extends: "plugin:compat/recommended"`). ERB's package.json wants ^4.2.0, so
-      # we can't move to 5+ ahead of ERB. Hold at 4.x until ERB itself bumps.
-      # See PR #2115.
-      - dependency-name: "eslint-plugin-compat"
-        versions: [">=5"]
-      # sass-loader 14+ uses sass's "modern compiler API" by default, which surfaces
-      # deprecation warnings for legacy `@import`, `/` division, and color functions
-      # used throughout our .scss files. Build still succeeds but dev console gets
-      # noisy. Hold at 13.x until the .scss files are migrated to `@use`/`@forward`.
-      # See PR #2116.
-      - dependency-name: "sass-loader"
-        versions: [">=14"]
-      # eslint-plugin-promise v7 requires ESLint >=8.56; our `eslint` is pinned at
-      # ^8.42.0. Hold until we bump ESLint (which is itself blocked by the
-      # @typescript-eslint/* family upgrade — see ignore above). See PR #2122.
-      - dependency-name: "eslint-plugin-promise"
-        versions: [">=7"]
       # React 19 is a major API change (ref-as-prop, removed legacy APIs, new JSX
       # transform). `react`, `react-dom`, and their @types must move together, and
       # @testing-library/react must move in lockstep (see below). Hold the whole
@@ -90,11 +45,62 @@ updates:
       # See PR #2130.
       - dependency-name: "jest-environment-jsdom"
         versions: [">=30"]
+      # @types/node majors track Node runtime majors. We're pinned to Node 22 (see
+      # CLAUDE.md; conda env, scripts/dev.py, CI), and the renderer doesn't import
+      # Node builtins directly — only build tooling under .erb/ and scripts/ does.
+      # Holding at 22.x avoids a recurring PR with zero security exposure (types-only
+      # package). Lift this in lockstep when Node itself moves.
+      - dependency-name: "@types/node"
+        versions: [">=23"]
+      # Webpack loader / CLI family. These churn constantly and each major typically
+      # requires coordinated changes across .erb/configs/* (webpack 5 config shape,
+      # asset modules, postcss override compatibility — see the `overrides` note in
+      # package.json). We're not chasing the bleeding edge on the build toolchain;
+      # security fixes still land via minor/patch. Bump these deliberately as a
+      # single toolchain-upgrade PR when it's worth a focused day.
+      - dependency-name: "webpack-cli"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "webpack-dev-server"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "webpack-merge"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "webpack-bundle-analyzer"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "css-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sass-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "style-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "postcss-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "esbuild-loader"
+        update-types: ["version-update:semver-major"]
+      # file-loader and url-loader are abandoned upstream (replaced by webpack 5's
+      # built-in asset modules). No future major will be worth taking — only here
+      # for legacy compatibility.
+      - dependency-name: "file-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "url-loader"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "mini-css-extract-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "css-minimizer-webpack-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "html-webpack-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tsconfig-paths-webpack-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@svgr/webpack"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@pmmmwh/react-refresh-webpack-plugin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@teamsupercell/typings-for-css-modules-loader"
+        update-types: ["version-update:semver-major"]
 
   # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
-  # Build is pinned to Node 18 via transformerlab-docs/netlify.toml. Major bumps are ignored across
-  # the board (manual coordination needed); packages that drop Node 18 support in a minor or patch
-  # bump are listed individually under `ignore` below. Revisit when the build moves to Node 20+.
+  # Build runs on Node 22 via transformerlab-docs/netlify.toml. Major bumps are ignored across
+  # the board (manual coordination needed); minor/patch updates flow through for security.
   - package-ecosystem: "npm"
     directory: "/transformerlab-docs"
     schedule:
@@ -121,19 +127,6 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # mermaid >= 11.12 requires Node 20+; we're pinned to Node 18 in Netlify.
-      - dependency-name: "mermaid"
-        versions: [">=11.12"]
-      # @docusaurus/* >= 3.9 requires Node >=20 (engines field), Netlify build is Node 18.
-      # Hold the docusaurus packages at 3.8.x until the docs build moves to Node 20+.
-      # See PRs #2111 (3.10.1) and #2120 (3.9.2) — both failed with EBADENGINE.
-      - dependency-name: "@docusaurus/*"
-        versions: [">=3.9"]
-      # Keep typescript pinned alongside the docusaurus 3.8.x line (which ships with
-      # TS 5.6.x in its templates). Avoids surprise breaks from TS bumps before the
-      # docs build moves off Node 18.
-      - dependency-name: "typescript"
-        versions: [">=5.7"]
       # Major bumps on docs deps need manual coordination; minor/patch is enough for security.
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
@@ -161,19 +154,31 @@ updates:
       # fails immediately on import. Revisit after refactoring the import path. See PR #2083.
       - dependency-name: "azure-mgmt-resource"
         versions: [">=25"]
+      # boto3 patches beyond 1.40.70 are uninstallable. Each boto3 patch pins a
+      # matching botocore patch, and aiobotocore's compatible window in the 1.40
+      # line is botocore>=1.40.37,<1.40.71 — so boto3 1.40.71+ (and all of 1.41.x)
+      # fall in a dead zone aiobotocore won't accept. aiobotocore is pulled in
+      # transitively via s3fs, which is capped by fsspec, which is capped by the
+      # `datasets` 3.x pin above. Hold boto3 at 1.40.70 until datasets is unpinned
+      # or a newer aiobotocore covers the gap. See PR #2159, PR #2169.
+      - dependency-name: "boto3"
+        versions: [">1.40.70"]
 
   # CLI (Typer, managed with uv)
+  # Security-only mode: the CLI is published to PyPI as `transformerlab-cli` and
+  # runs on end-user machines via `uv tool install`. It doesn't open a listening
+  # port and isn't part of our hosted attack surface (frontend / API). End users
+  # also receive whatever version we last published, so eager dep bumps don't
+  # reach them faster — they're gated by CLI releases. Setting the PR limit to 0
+  # disables routine version-update PRs while still allowing Dependabot security
+  # advisory PRs to fire (security updates bypass the limit). Revisit if the CLI
+  # ever grows a network listener or starts parsing untrusted input.
   - package-ecosystem: "uv"
     directory: "/cli"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
-    groups:
-      minor-and-patch:
-        update-types:
-          - "minor"
-          - "patch"
+    open-pull-requests-limit: 0
 
   # Lab SDK (published to PyPI as `transformerlab`)
   - package-ecosystem: "uv"

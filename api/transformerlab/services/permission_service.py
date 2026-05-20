@@ -13,7 +13,7 @@ Lookup priority (most specific wins):
 """
 
 from fastapi import Depends, HTTPException, Request
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from transformerlab.shared.models.models import ResourcePermission, TeamRole, UserTeam
@@ -67,22 +67,24 @@ async def check_permission(
     if user_team.role == TeamRole.OWNER.value:
         return True  # Owners always have full access
 
-    # Steps 2-4: ACL lookup in specificity order
+    # Steps 2-4: fetch any matching ACL row in one query, then pick the
+    # most-specific match in Python (exact > type wildcard > global wildcard).
     candidates = [
         (resource_type, resource_id),  # exact match
         (resource_type, "*"),  # type wildcard
         ("*", "*"),  # global wildcard
     ]
 
-    for rt, rid in candidates:
-        stmt = select(ResourcePermission).where(
-            ResourcePermission.user_id == user_id,
-            ResourcePermission.team_id == team_id,
-            ResourcePermission.resource_type == rt,
-            ResourcePermission.resource_id == rid,
-        )
-        result = await session.execute(stmt)
-        record = result.scalar_one_or_none()
+    stmt = select(ResourcePermission).where(
+        ResourcePermission.user_id == user_id,
+        ResourcePermission.team_id == team_id,
+        tuple_(ResourcePermission.resource_type, ResourcePermission.resource_id).in_(candidates),
+    )
+    result = await session.execute(stmt)
+    rows_by_key = {(row.resource_type, row.resource_id): row for row in result.scalars().all()}
+
+    for key in candidates:
+        record = rows_by_key.get(key)
         if record is not None:
             return action in record.actions
 

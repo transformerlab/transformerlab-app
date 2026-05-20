@@ -122,7 +122,7 @@ function HowItWorksModal({
             <Box>
               <Typography level="title-sm">Experiments</Typography>
               <Typography level="body-sm" color="neutral">
-                The container for a research thread — one hypothesis, one set of
+                The container for a research thread: one hypothesis, one set of
                 tasks and jobs. Each experiment carries its own notes (markdown
                 log of hypotheses, decisions, and findings) so you can pick up
                 where you left off.
@@ -133,14 +133,14 @@ function HowItWorksModal({
               <Typography level="body-sm" color="neutral">
                 A reusable unit of work defined by a <code>task.yaml</code>{' '}
                 (resources, parameters, sweep config, run command) plus any
-                scripts it needs. Training, evaluation, inference, generation —
+                scripts it needs. Training, evaluation, inference, generation:
                 anything you'd want to run more than once with different inputs.
               </Typography>
             </Box>
             <Box>
               <Typography level="title-sm">Jobs</Typography>
               <Typography level="body-sm" color="neutral">
-                Each time you queue a task, a job is created — that&apos;s the
+                Each time you queue a task, a job is created: that&apos;s the
                 actual run. Jobs have status, progress, artifacts, and a score
                 dict (e.g. <code>{`{accuracy: 0.78}`}</code>) used to compare
                 runs and drive sweeps or autoresearch loops.
@@ -149,7 +149,7 @@ function HowItWorksModal({
             <Box>
               <Typography level="title-sm">Compute providers</Typography>
               <Typography level="body-sm" color="neutral">
-                The backends that execute jobs — Local, SkyPilot, Slurm, RunPod,
+                The backends that execute jobs: Local, SkyPilot, Slurm, RunPod,
                 dstack, or your own cloud account (AWS/GCP/Azure). A task can
                 target a specific provider; otherwise it lands on your default.
               </Typography>
