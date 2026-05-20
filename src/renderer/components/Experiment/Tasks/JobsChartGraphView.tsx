@@ -17,8 +17,9 @@ interface HoveredPointData {
 
 interface JobsChartGraphViewProps {
   model: GraphModel;
-  onClose: () => void;
+  onClose?: () => void;
   experimentId?: string | null;
+  presentation?: 'default' | 'public';
 }
 
 const BEST_COLOR = '#22c55e';
@@ -26,6 +27,30 @@ const BEST_BORDER = '#15803d';
 const POINT_COLOR = '#3b82f6';
 const DISCARD_POINT_FILL = '#94a3b8';
 const DISCARD_POINT_STROKE = '#64748b';
+
+const PUBLIC_SHARE_NIVO_THEME = {
+  axis: {
+    ticks: {
+      text: { fill: '#475569', fontSize: 11 },
+      line: { stroke: '#cbd5e1' },
+    },
+    legend: {
+      text: { fill: '#475569', fontSize: 12 },
+    },
+  },
+  grid: {
+    line: {
+      stroke: '#e2e8f0',
+      strokeWidth: 1,
+    },
+  },
+  crosshair: {
+    line: {
+      stroke: '#94a3b8',
+      strokeOpacity: 0.75,
+    },
+  },
+};
 
 function BestStepLine({
   bestForStepLine,
@@ -149,7 +174,16 @@ export default function JobsChartGraphView({
   model,
   onClose,
   experimentId,
+  presentation = 'default',
 }: JobsChartGraphViewProps) {
+  const isPublic = presentation === 'public';
+  const panelBg = isPublic ? 'common.white' : 'background.surface';
+  const chartPanelSx = isPublic
+    ? {
+        bgcolor: 'common.white',
+        borderColor: 'neutral.300',
+      }
+    : {};
   const [hoveredPointData, setHoveredPointData] =
     useState<HoveredPointData | null>(null);
   const chartData = useMemo(
@@ -180,10 +214,12 @@ export default function JobsChartGraphView({
           border: '1px solid',
           borderColor: 'neutral.outlinedBorder',
           borderRadius: 'sm',
+          ...chartPanelSx,
         }}
       >
         <ResponsiveLine
           data={chartData}
+          theme={isPublic ? PUBLIC_SHARE_NIVO_THEME : undefined}
           margin={{ top: 24, right: 32, bottom: 64, left: 64 }}
           xScale={{ type: 'time', precision: 'minute' }}
           xFormat="time:%Y-%m-%d %H:%M"
@@ -241,13 +277,14 @@ export default function JobsChartGraphView({
           borderRadius: 'sm',
           p: 2,
           overflow: 'auto',
-          bgcolor: 'background.surface',
+          bgcolor: panelBg,
+          ...(isPublic ? { borderColor: 'neutral.300' } : {}),
         }}
       >
         {hoveredPointData ? (
           renderPointDetails(
             hoveredPointData,
-            hoveredPointData.jobId && experimentId
+            hoveredPointData.jobId && experimentId && onClose
               ? {
                   to: `/experiment/${experimentId}/jobs/${hoveredPointData.jobId}`,
                   onClick: onClose,

@@ -15,7 +15,7 @@ export default function PublicShareChart({ jobs }: Props) {
         minHeight: 0,
       }}
     >
-      <JobsChartView jobs={jobs} />
+      <JobsChartView jobs={jobs} presentation="public" />
     </Box>
   );
 }

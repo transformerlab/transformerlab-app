@@ -15,7 +15,13 @@ export default function PublicShareNotes({ markdown, apiUrl }: Props) {
   };
 
   return (
-    <Box sx={{ '& img': { maxWidth: '100%', height: 'auto' } }}>
+    <Box
+      sx={{
+        color: 'text.primary',
+        '& img': { maxWidth: '100%', height: 'auto' },
+        '& a': { color: 'primary.600' },
+      }}
+    >
       <Markdown
         remarkPlugins={[remarkGfm]}
         transformImageUri={transformUri}

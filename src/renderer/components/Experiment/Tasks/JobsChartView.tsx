@@ -24,6 +24,8 @@ export interface JobsChartViewProps {
   experimentId?: string | number;
   onClose?: () => void;
   headerActions?: React.ReactNode;
+  /** Light, high-contrast layout for unauthenticated public share pages. */
+  presentation?: 'default' | 'public';
 }
 
 export default function JobsChartView({
@@ -31,6 +33,7 @@ export default function JobsChartView({
   experimentId,
   onClose,
   headerActions,
+  presentation = 'default',
 }: JobsChartViewProps) {
   const [viewMode, setViewMode] = useState<'graph' | 'table'>('graph');
   const [selectedMetric, setSelectedMetric] = useState<string>('');
@@ -111,6 +114,7 @@ export default function JobsChartView({
         model={graphModel}
         onClose={onClose}
         experimentId={experimentId}
+        presentation={presentation}
       />
     ) : (
       <Box

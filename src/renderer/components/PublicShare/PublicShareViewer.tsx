@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, CircularProgress, Link, Sheet, Typography } from '@mui/joy';
+import { Box, CircularProgress, Link, Typography } from '@mui/joy';
 import { API_URL } from 'renderer/lib/api-client/urls';
 import PublicShareNotes from './PublicShareNotes';
 import PublicShareChart from './PublicShareChart';
@@ -63,7 +63,6 @@ export default function PublicShareViewer() {
   }, [token, apiUrl]);
 
   const marketingUrl = 'https://lab.cloud';
-  const isNotes = data?.resource_type === 'experiment_notes';
 
   const bodyContent = (
     <>
@@ -88,9 +87,10 @@ export default function PublicShareViewer() {
   return (
     <Box
       sx={{
+        colorScheme: 'light',
         height: '100vh',
         overflow: 'auto',
-        backgroundColor: isNotes ? 'background.surface' : 'background.body',
+        bgcolor: 'common.white',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -119,21 +119,7 @@ export default function PublicShareViewer() {
           py: 4,
         }}
       >
-        {isNotes ? (
-          bodyContent
-        ) : (
-          <Sheet
-            variant="outlined"
-            sx={{
-              bgcolor: 'background.surface',
-              borderRadius: 'md',
-              boxShadow: 'sm',
-              p: { xs: 2, md: 4 },
-            }}
-          >
-            {bodyContent}
-          </Sheet>
-        )}
+        {bodyContent}
       </Box>
       <Box
         component="footer"
