@@ -32,23 +32,6 @@ updates:
       # Team). See PR #2174.
       - dependency-name: "lucide-react"
         versions: [">0.477.0"]
-      # @typescript-eslint/* v6+ requires bumping plugin AND parser in lockstep, plus
-      # ESLint 8.57+/9 and updates to eslint-config-erb. Hold the whole family at 5.x
-      # until we do a coordinated upgrade. Security patches on 5.x still flow through.
-      # See PR #2114.
-      - dependency-name: "@typescript-eslint/*"
-        versions: [">=6"]
-      # eslint-plugin-compat is pulled in transitively via eslint-config-erb
-      # (`extends: "plugin:compat/recommended"`). ERB's package.json wants ^4.2.0, so
-      # we can't move to 5+ ahead of ERB. Hold at 4.x until ERB itself bumps.
-      # See PR #2115.
-      - dependency-name: "eslint-plugin-compat"
-        versions: [">=5"]
-      # eslint-plugin-promise v7 requires ESLint >=8.56; our `eslint` is pinned at
-      # ^8.42.0. Hold until we bump ESLint (which is itself blocked by the
-      # @typescript-eslint/* family upgrade — see ignore above). See PR #2122.
-      - dependency-name: "eslint-plugin-promise"
-        versions: [">=7"]
       # React 19 is a major API change (ref-as-prop, removed legacy APIs, new JSX
       # transform). `react`, `react-dom`, and their @types must move together, and
       # @testing-library/react must move in lockstep (see below). Hold the whole
@@ -190,17 +173,20 @@ updates:
         versions: [">1.40.70"]
 
   # CLI (Typer, managed with uv)
+  # Security-only mode: the CLI is published to PyPI as `transformerlab-cli` and
+  # runs on end-user machines via `uv tool install`. It doesn't open a listening
+  # port and isn't part of our hosted attack surface (frontend / API). End users
+  # also receive whatever version we last published, so eager dep bumps don't
+  # reach them faster — they're gated by CLI releases. Setting the PR limit to 0
+  # disables routine version-update PRs while still allowing Dependabot security
+  # advisory PRs to fire (security updates bypass the limit). Revisit if the CLI
+  # ever grows a network listener or starts parsing untrusted input.
   - package-ecosystem: "uv"
     directory: "/cli"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
-    groups:
-      minor-and-patch:
-        update-types:
-          - "minor"
-          - "patch"
+    open-pull-requests-limit: 0
 
   # Lab SDK (published to PyPI as `transformerlab`)
   - package-ecosystem: "uv"

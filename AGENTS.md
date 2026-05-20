@@ -13,7 +13,7 @@
 ## Build/Lint/Test Commands
 
 - **Frontend dev**: `npm start` (Node v22, not v23+)
-- **Frontend test**: `npm test` (Jest); single test: `npm test -- --testPathPattern="<pattern>"`
+- **Frontend test**: No unit test framework. End-to-end coverage lives in `test/playwright/` (see Testing section below).
 - **Frontend lint**: `npm run format` (auto-fix) or `npm run format:check` (dry-run). **Always run `npm run format` on changed frontend files before committing.**
 - **Python env (run once per shell)**: `source ~/.transformerlab/envs/general-uv/bin/activate`
 - **API install**: `cd api && ./install.sh` or `npm run api:install`
@@ -94,10 +94,7 @@ Agent skills and browser automation references live in `.agents/skills/`.
 
 ## Testing
 
-- **Frontend**:
-  - **Unit Tests**: Write tests for all utility functions and complex hooks.
-  - **Component Tests**: Test components in isolation where possible.
-  - **Command**: Use `npm test` to verify changes.
+- **Frontend**: No unit test framework is configured. Cover frontend behavior with Playwright E2E tests (see below).
 - **Backend**:
   - **Unit Tests**: Write `pytest` tests in `api/test/`.
   - **Mocking**: Mock external interactions (S3, GPU providers, filesystem operations) using `unittest.mock` or `pytest-mock`. Tests should be fast and deterministic.
