@@ -56,7 +56,6 @@ export default function JobsPanel({
   renderList,
 }: JobsPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const searchableFieldsGetter = getSearchableFields || defaultSearchableFields;
 
   useEffect(() => {
     setSearchQuery('');
@@ -66,13 +65,13 @@ export default function JobsPanel({
     if (!searchQuery.trim()) return jobs;
     const query = searchQuery.trim().toLowerCase();
     return jobs.filter((job) =>
-      searchableFieldsGetter(job).some((value) =>
+      getSearchableFields(job).some((value) =>
         String(value ?? '')
           .toLowerCase()
           .includes(query),
       ),
     );
-  }, [jobs, searchQuery, searchableFieldsGetter]);
+  }, [jobs, searchQuery, getSearchableFields]);
 
   return (
     <>

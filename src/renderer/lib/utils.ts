@@ -29,8 +29,6 @@ export function formatBytes(bytes: number, decimals = 2): string {
   return `${parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`;
 }
 
-export const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
-
 function capFirst(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }

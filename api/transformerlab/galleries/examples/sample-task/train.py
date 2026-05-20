@@ -47,8 +47,12 @@ def train():
         sleep(0.1)
         lab.log("Loaded dataset")
 
-        # Report initial progress
-        lab.update_progress(10)
+        # Report initial progress with starting metrics
+        lab.update_progress(
+            10,
+            metrics={"loss": 0.5, "accuracy": 0.6, "learning_rate": 2e-5},
+            step=0,
+        )
 
         # Train the model
         lab.log("Starting training...")
@@ -56,7 +60,17 @@ def train():
         for i in range(8):
             sleep(1)
             lab.log(f"Iteration {i + 1}/8")
-            lab.update_progress(10 + (i + 1) * 10)
+            fake_loss = 0.5 - (i + 1) * 0.05
+            fake_accuracy = 0.6 + (i + 1) * 0.04
+            lab.update_progress(
+                10 + (i + 1) * 10,
+                metrics={
+                    "loss": round(fake_loss, 4),
+                    "accuracy": round(fake_accuracy, 4),
+                    "learning_rate": 2e-5,
+                },
+                step=i + 1,
+            )
             print(f"Iteration {i + 1}/8")
 
             # Save fake checkpoint every 2 iterations

@@ -246,6 +246,9 @@ Endpoints.Experiment = {
     `${API_URL()}experiment/${id}/update_config` +
     `?key=${key}&value=${encodeURIComponent(value)}`,
   UpdateConfigs: (id: string) => `${API_URL()}experiment/${id}/update_configs`,
+  TagsAdd: (id: string) => `${API_URL()}experiment/${id}/tags/add`,
+  TagsRemove: (id: string) => `${API_URL()}experiment/${id}/tags/remove`,
+  TagsAll: () => `${API_URL()}experiment/tags`,
   Create: (name: string) => `${API_URL()}experiment/create?name=${name}`,
   Get: (id: string) => `${API_URL()}experiment/${id}`,
   Delete: (id: string) => `${API_URL()}experiment/${id}/delete`,
@@ -381,6 +384,9 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
   UpdateJobData: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/job_data`,
+  Metrics: (experimentId: string, jobId: string, since?: number) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/metrics` +
+    (since && since > 0 ? `?since=${since}` : ''),
 };
 
 Endpoints.Quota = {

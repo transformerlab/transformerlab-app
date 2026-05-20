@@ -238,16 +238,9 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   // If Unauthorized (401)
   if (response.status === 401) {
-    console.log(
-      '[FETCH_WITH_AUTH] Got 401, attempting to refresh token for URL:',
-      fullUrl,
-    );
     try {
       // Attempt to refresh token via cookie-based refresh
       await handleRefresh();
-      console.log(
-        '[FETCH_WITH_AUTH] Refresh successful, retrying original request',
-      );
 
       // Retry the original request (cookies are refreshed automatically)
       return fetch(fullUrl, {
@@ -384,7 +377,6 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   // Login handler
   const handleLogin = useCallback(
     async (username: string, password: string) => {
-      console.log('Attempting login...');
       try {
         const form = new URLSearchParams({
           username: username,
@@ -477,6 +469,11 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     } catch {
       /* ignore errors */
     }
+    // Reset hash to root and clear any stored redirect so the next user
+    // doesn't land on the previous user's deep route. Session-expiry logout
+    // doesn't go through this handler, so its "return-to-route" UX is preserved.
+    localStorage.removeItem('redirectAfterLogin');
+    window.location.hash = '/';
     logoutUser();
     resetUser();
     setIsAuthenticated(false);
