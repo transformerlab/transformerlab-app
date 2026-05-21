@@ -22,13 +22,21 @@ uv tool install transformerlab-cli
 │ --help                Show this message and exit.                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ version   Display the CLI version.                                           │
-│ config    View or set configuration values.                                  │
-│ status    Check the status of the server.                                    │
-│ login     Log in to Transformer Lab.                                         │
-│ logout    Log out from Transformer Lab.                                      │
-│ task      Task management commands                                           │
-│ job       Job management commands                                            │
+│ version              Display the CLI version.                                │
+│ config               View or set configuration values.                       │
+│ status               Check the status of the server.                         │
+│ login                Log in to Transformer Lab.                              │
+│ logout               Log out from Transformer Lab.                           │
+│ whoami               Show the current logged-in user and team.               │
+│ task                 Task management commands.                               │
+│ job                  Job management commands.                                │
+│ notes                Experiment notes commands.                              │
+│ provider             Compute provider management commands.                   │
+│ server               Server installation and configuration commands.         │
+│ dataset              Dataset management commands.                            │
+│ model                Model management commands.                              │
+│ experiment           Experiment management commands.                         │
+│ install-agent-skill  Install the AI agent skill for `lab`.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
