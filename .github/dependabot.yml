@@ -147,11 +147,67 @@ updates:
       day: "monday"
     open-pull-requests-limit: 10
     groups:
+      # Core web/auth stack. These packages are either pre-1.0 (meaning
+      # semver doesn't protect us, and "minor" bumps can and do ship breaking
+      # changes) or tightly coupled to fastapi-users (which owns auth and
+      # moves with fastapi). A regression in any of them breaks every
+      # request through the API.
+      #
+      # Policy: take patches automatically (CVEs and bugfixes land on the
+      # patch line); hold minor bumps for a deliberate, human-driven PR.
+      # This mirrors how we treat lucide-react, the React family, and the
+      # webpack toolchain — packages where minor bumps have repeatedly
+      # caused incidents and where chasing the bleeding edge isn't worth
+      # the review burden. The auth Playwright suite
+      # (test/playwright/auth.spec.ts) is the safety net when a minor bump
+      # is eventually taken.
+      #
+      # Dependabot evaluates groups in order, so this one must come before
+      # `minor-and-patch`.
+      core-web-stack:
+        patterns:
+          - "fastapi"
+          - "fastapi-users"
+          - "httpx-oauth"
+          - "uvicorn"
+          - "aiosqlite"
+          - "asyncpg"
+          - "python-multipart"
+        update-types:
+          - "patch"
       minor-and-patch:
         update-types:
           - "minor"
           - "patch"
     ignore:
+      # Core web/auth stack: block all minor and major bumps so they don't
+      # leak into the `minor-and-patch` catch-all. Patches still flow through
+      # the `core-web-stack` group above. Minors and majors require a
+      # deliberate, human-driven PR — see the comment on `core-web-stack`
+      # for the rationale (auth Playwright suite as safety net, pre-1.0
+      # semver isn't reliable, etc.).
+      - dependency-name: "fastapi"
+        update-types:
+          ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "fastapi-users"
+        update-types:
+          ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "httpx-oauth"
+        update-types:
+          ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "uvicorn"
+        update-types:
+          ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "aiosqlite"
+        update-types:
+          ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "asyncpg"
+        update-types:
+          ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "python-multipart"
+        update-types:
+          ["version-update:semver-minor", "version-update:semver-major"]
+
       # datasets 4.x removes loading-script support (`trust_remote_code` workflows) that
       # several gallery training scripts rely on. Deliberately pinned to 3.x; a datasets
       # upgrade needs its own dedicated PR with full validation. See PR #2090.
