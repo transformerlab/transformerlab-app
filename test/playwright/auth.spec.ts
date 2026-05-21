@@ -10,9 +10,7 @@ import { test, expect, APIRequestContext } from '@playwright/test';
  *     endpoint, not as a confusing selector miss deep in another spec.
  *   - FastAPI and fastapi-users are pre-1.0. Their minor bumps can change
  *     response shapes or routing behavior without major-version warning.
- *     These tests pin down the contracts we depend on so a Dependabot
- *     bump (e.g. PR #2176 bumping fastapi 0.125 -> 0.136) surfaces breakage
- *     before it reaches users.
+ *     These tests pin down the contracts we depend on.
  *
  * Coverage:
  *   - fastapi-users auth router: POST /auth/jwt/login (success + bad creds)
