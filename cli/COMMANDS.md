@@ -168,6 +168,25 @@ lab task add --from-git https://github.com/user/repo
 | `--from-git` | Git URL to fetch the task from           |
 | `--dry-run`  | Preview the task without creating it     |
 
+#### `task upload`
+
+Upload additional files into an existing task (e.g. add a new dataset or helper script alongside `task.yaml`).
+
+```bash
+lab task upload <task_id> ./extra-file.py
+lab task upload <task_id> ./assets/        # directory
+lab task upload <task_id> ./extra-file.py --no-interactive
+```
+
+| Argument | Description                              |
+|----------|------------------------------------------|
+| `task_id`| Task ID to upload files to.              |
+| `path`   | Path to a file or directory to upload.   |
+
+| Option             | Description                |
+|--------------------|----------------------------|
+| `--no-interactive` | Skip confirmation prompts. |
+
 #### `task validate`
 
 Validate a `task.yaml` file against the server-side schema.
@@ -194,14 +213,6 @@ Get detailed information for a specific task.
 
 ```bash
 lab task info <task_id>
-```
-
-#### `task delete`
-
-Delete a task by ID.
-
-```bash
-lab task delete <task_id>
 ```
 
 #### `task queue`
@@ -235,6 +246,19 @@ lab task queue <task_id> --enable-profiling --enable-profiling-torch
 | `--description`, `-m TEXT` | Markdown note for this run. Pass `-` to read from stdin.                                          |
 | `--enable-profiling`       | Enable system profiling (CPU/GPU/memory sampling).                                                |
 | `--enable-profiling-torch` | Enable torch profiler trace export (requires `--enable-profiling`).                               |
+
+#### `task interactive`
+
+Launch an interactive task (Jupyter, vLLM, Ollama, etc.) and wait for the service to become reachable.
+
+```bash
+lab task interactive
+lab task interactive --timeout 600          # wait up to 10 minutes for readiness
+```
+
+| Option              | Description                                            |
+|---------------------|--------------------------------------------------------|
+| `--timeout`, `-t`   | Timeout in seconds waiting for service readiness (default: 300). |
 
 #### `task gallery`
 
@@ -282,37 +306,13 @@ lab task edit <task_id> --from-dir ./my-task --dry-run
 | `--no-interactive` | Skip confirmation prompts.                                                 |
 | `--timeout`        | Request timeout in seconds for fetch/validate/save.                        |
 
-#### `task upload`
+#### `task delete`
 
-Upload additional files into an existing task (e.g. add a new dataset or helper script alongside `task.yaml`).
-
-```bash
-lab task upload <task_id> ./extra-file.py
-lab task upload <task_id> ./assets/        # directory
-lab task upload <task_id> ./extra-file.py --no-interactive
-```
-
-| Argument | Description                              |
-|----------|------------------------------------------|
-| `task_id`| Task ID to upload files to.              |
-| `path`   | Path to a file or directory to upload.   |
-
-| Option             | Description                |
-|--------------------|----------------------------|
-| `--no-interactive` | Skip confirmation prompts. |
-
-#### `task interactive`
-
-Launch an interactive task (Jupyter, vLLM, Ollama, etc.) and wait for the service to become reachable.
+Delete a task by ID.
 
 ```bash
-lab task interactive
-lab task interactive --timeout 600          # wait up to 10 minutes for readiness
+lab task delete <task_id>
 ```
-
-| Option              | Description                                            |
-|---------------------|--------------------------------------------------------|
-| `--timeout`, `-t`   | Timeout in seconds waiting for service readiness (default: 300). |
 
 ---
 
