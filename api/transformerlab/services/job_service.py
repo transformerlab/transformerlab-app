@@ -103,8 +103,10 @@ async def job_create(type, status, experiment_id, job_data="{}"):
     # Create job through experiment — type is passed so the index is correct immediately
     job = await exp.create_job(type=type)
     await job.set_type(type)
-    await job.update_status(status)
+    # set_job_data overwrites job_data, so it must run BEFORE update_status —
+    # update_status appends to job_data.status_history and would be wiped otherwise.
     await job.set_job_data(job_data)
+    await job.update_status(status)
 
     return job.id
 
@@ -254,7 +256,7 @@ async def _job_for_list(
             job_id,
         )
         return None
-    return _add_short_id(job_data)
+    return _add_short_id(_backfill_status_history(job_data))
 
 
 def _job_cache_key(job_id: str) -> str:
@@ -269,6 +271,63 @@ def _job_cache_key(job_id: str) -> str:
     return f"jobs:{job_id}"
 
 
+def _parse_gmt_to_ms(ts: Any) -> Optional[int]:
+    """Parse a '%Y-%m-%d %H:%M:%S' GMT string into epoch ms."""
+    if not isinstance(ts, str) or not ts.strip():
+        return None
+    try:
+        dt = datetime.datetime.strptime(ts.strip(), "%Y-%m-%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+        return int(dt.timestamp() * 1000)
+    except ValueError:
+        return None
+
+
+def _backfill_status_history(json_data: Dict[str, Any]) -> Dict[str, Any]:
+    """For terminal jobs whose remote machine bypassed our SDK's update_status
+    patch, synthesize the missing trailing entries from job_data.end_time and
+    launch_progress.steps so the per-job perf chart isn't blank.
+
+    Returns json_data unchanged if no backfill is needed.
+    """
+    if not isinstance(json_data, dict):
+        return json_data
+    status = json_data.get("status")
+    if status not in (JobStatus.COMPLETE, JobStatus.FAILED, JobStatus.STOPPED):
+        return json_data
+    job_data = json_data.get("job_data")
+    if not isinstance(job_data, dict):
+        return json_data
+    history = job_data.get("status_history")
+    if not isinstance(history, list) or not history:
+        return json_data
+    last = history[-1]
+    if isinstance(last, dict) and last.get("status") == status:
+        return json_data  # already complete
+
+    end_ms = _parse_gmt_to_ms(job_data.get("end_time"))
+    if end_ms is None:
+        return json_data
+    last_ms = last.get("timestamp_ms") if isinstance(last, dict) else None
+
+    new_history = list(history)
+    launch_progress = job_data.get("launch_progress") or {}
+    steps = launch_progress.get("steps") if isinstance(launch_progress, dict) else None
+    if isinstance(steps, list) and steps:
+        running_start = _parse_gmt_to_ms(steps[-1].get("timestamp") if isinstance(steps[-1], dict) else None)
+        if running_start and (last_ms is None or running_start > last_ms) and running_start < end_ms:
+            new_history.append({"status": JobStatus.RUNNING.value, "timestamp_ms": running_start})
+            last_ms = running_start
+
+    if last_ms is None or end_ms > last_ms:
+        new_history.append({"status": status, "timestamp_ms": end_ms})
+
+    new_job_data = dict(job_data)
+    new_job_data["status_history"] = new_history
+    new_json = dict(json_data)
+    new_json["job_data"] = new_job_data
+    return new_json
+
+
 async def _job_get_live(
     job_id: str, experiment_id: Optional[str], resolve_full_id: bool = True
 ) -> Optional[Dict[str, Any]]:
@@ -281,7 +340,7 @@ async def _job_get_live(
         if not resolved_job_id:
             return None
         job = await Job.get(resolved_job_id, experiment_id)
-        return _add_short_id(await job.get_json_data(uncached=True))
+        return _add_short_id(_backfill_status_history(await job.get_json_data(uncached=True)))
     except Exception as e:
         print("Error getting job data", e)
         return None

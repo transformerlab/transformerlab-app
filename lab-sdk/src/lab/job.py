@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime, timezone
 import posixpath
 
@@ -9,6 +10,19 @@ from .job_status import JobStatus
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _append_status_to_history(history, new_status: str) -> list:
+    """Return status_history with new_status appended.
+
+    Dedupes adjacent entries with the same status so callers that re-assert
+    the current state (e.g. WAITING→WAITING) don't pollute the timeline.
+    """
+    h = list(history) if isinstance(history, list) else []
+    if h and isinstance(h[-1], dict) and h[-1].get("status") == new_status:
+        return h
+    h.append({"status": new_status, "timestamp_ms": int(time.time() * 1000)})
+    return h
 
 
 async def _iter_all_experiment_jobs() -> list[tuple[str, str]]:
@@ -167,7 +181,17 @@ class Job(BaseLabResource):
             logger.debug("Failed to append metrics.jsonl row", exc_info=True)
 
     async def update_status(self, status: str):
-        await self._update_json_data_field("status", status)
+        # Atomic read-modify-write: keep status and status_history in lockstep
+        # so every transition (including ones from the SDK's lab_facade and
+        # remote_trap) gets captured for the per-job performance chart.
+        json_data = await self.get_json_data(uncached=True)
+        job_data = json_data.get("job_data")
+        if not isinstance(job_data, dict):
+            job_data = {}
+        job_data["status_history"] = _append_status_to_history(job_data.get("status_history"), status)
+        json_data["status"] = status
+        json_data["job_data"] = job_data
+        await self._set_json_data(json_data)
 
     async def get_status(self):
         """
