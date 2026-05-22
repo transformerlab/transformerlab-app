@@ -67,7 +67,7 @@ run: "python demo-generate-task/fake_generate.py"
       .click();
     await page
       .getByRole('dialog', { name: 'Add New Task' })
-      .getByRole('button', { name: 'Submit' })
+      .getByRole('button', { name: 'Create task' })
       .click();
 
     // Edit generated task.yaml to use the dataset generator template.
@@ -92,11 +92,13 @@ run: "python demo-generate-task/fake_generate.py"
     await expect(
       queueDialog.getByRole('combobox', { name: 'Compute Provider' }),
     ).toHaveText('Local', { timeout: 5000 });
-    await queueDialog.getByRole('button', { name: 'Submit' }).click();
-    const jobNamePrefix = `${taskName}-`;
+    await queueDialog.getByRole('button', { name: 'Queue task' }).click();
+    // The Jobs list renders the task as a cluster_name (underscores converted to
+    // hyphens and the short job id appended), so match by the unique suffix which
+    // is preserved verbatim in both the task name and the rendered cluster name.
     const queuedJobRow = page.locator('tr', {
       has: page.getByRole('button', { name: 'Output' }),
-      hasText: jobNamePrefix,
+      hasText: uniqueSuffix,
     });
 
     // Wait for this specific job to reach COMPLETE - 100%, and fail fast on bad terminal states.

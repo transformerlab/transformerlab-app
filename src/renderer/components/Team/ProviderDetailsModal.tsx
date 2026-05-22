@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
+  Card,
   CircularProgress,
   Input,
   Modal,
@@ -27,11 +28,15 @@ import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import ProviderTypePicker, {
   ProviderTypeOption,
 } from './providerForms/ProviderTypePicker';
+import ProviderTypeLogo from './providerForms/ProviderTypeLogo';
 import SlurmProviderFields from './providerForms/SlurmProviderFields';
 import SkypilotProviderFields from './providerForms/SkypilotProviderFields';
 import DstackProviderFields from './providerForms/DstackProviderFields';
 import RunpodProviderFields from './providerForms/RunpodProviderFields';
+import VastAiProviderFields from './providerForms/VastAiProviderFields';
 import AwsProviderFields from './providerForms/AwsProviderFields';
+import GcpProviderFields from './providerForms/GcpProviderFields';
+import AzureProviderFields from './providerForms/AzureProviderFields';
 import LocalProviderFields from './providerForms/LocalProviderFields';
 
 interface ProviderDetailsModalProps {
@@ -70,8 +75,15 @@ const DEFAULT_CONFIGS = {
   "dstack_project": "<Your dstack project name e.g. main>"
 }`,
   local: `{}`,
+  azure: `{
+  "azure_location": "eastus"
+}`,
   aws: `{
   "region": "us-east-1"
+}`,
+  vastai: `{}`,
+  gcp: `{
+  "region": "us-central1"
 }`,
 } as const;
 
@@ -81,7 +93,10 @@ const DEFAULT_SUPPORTED_ACCELERATORS: Record<string, string[]> = {
   runpod: ['NVIDIA'],
   dstack: ['NVIDIA'],
   local: ['AppleSilicon', 'cpu'],
+  azure: ['NVIDIA'],
   aws: ['NVIDIA'],
+  vastai: ['NVIDIA'],
+  gcp: ['NVIDIA'],
 };
 
 export default function ProviderDetailsModal({
@@ -137,10 +152,27 @@ export default function ProviderDetailsModal({
   const [runpodApiKeyChanged, setRunpodApiKeyChanged] = useState(false);
   const [runpodApiBaseUrl, setRunpodApiBaseUrl] = useState('');
 
+  // Azure-specific form fields
+  const [azureSubscriptionId, setAzureSubscriptionId] = useState('');
+  const [azureTenantId, setAzureTenantId] = useState('');
+  const [azureClientId, setAzureClientId] = useState('');
+  const [azureClientSecret, setAzureClientSecret] = useState('');
+  const [azureClientSecretChanged, setAzureClientSecretChanged] =
+    useState(false);
+  const [azureLocation, setAzureLocation] = useState('eastus');
+
   // AWS-specific form fields
   const [awsRegion, setAwsRegion] = useState('us-east-1');
   const [awsAccessKeyId, setAwsAccessKeyId] = useState('');
   const [awsSecretAccessKey, setAwsSecretAccessKey] = useState('');
+
+  // Vast.ai-specific form fields
+  const [vastAiApiKey, setVastAiApiKey] = useState('');
+  const [vastAiApiKeyChanged, setVastAiApiKeyChanged] = useState(false);
+  // GCP-specific form fields
+  const [gcpRegion, setGcpRegion] = useState('us-central1');
+  const [gcpZone, setGcpZone] = useState('');
+  const [gcpServiceAccountJson, setGcpServiceAccountJson] = useState('');
 
   const { fetchWithAuth } = useAuth();
   const { data: providerData, isLoading: providerDataLoading } = useAPI(
@@ -181,6 +213,21 @@ export default function ProviderDetailsModal({
         label: 'AWS (beta)',
         description: 'Launch and manage compute on AWS.',
       },
+      {
+        value: 'vastai',
+        label: 'Vast.ai (beta)',
+        description: 'Rent GPU instances from the Vast.ai marketplace.',
+      },
+      {
+        value: 'gcp',
+        label: 'GCP (beta)',
+        description: 'Launch and manage compute on Google Cloud.',
+      },
+      {
+        value: 'azure',
+        label: 'Azure (beta)',
+        description: 'Launch and manage compute on Azure.',
+      },
     ];
 
     if (!hasLocalProvider || providerId) {
@@ -194,20 +241,28 @@ export default function ProviderDetailsModal({
     return baseOptions;
   }, [hasLocalProvider, providerId]);
 
-  const awsProfile = useMemo(() => {
-    if (!providerId) return undefined;
-    const configObj =
-      typeof providerData?.config === 'string'
-        ? (() => {
-            try {
-              return JSON.parse(providerData.config);
-            } catch {
-              return {};
-            }
-          })()
-        : providerData?.config || {};
-    return configObj?.aws_profile;
+  const providerConfigObject = useMemo(() => {
+    if (!providerId) return {};
+    return typeof providerData?.config === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(providerData.config);
+          } catch {
+            return {};
+          }
+        })()
+      : providerData?.config || {};
   }, [providerData?.config, providerId]);
+
+  const awsProfile = useMemo(
+    () => providerConfigObject?.aws_profile,
+    [providerConfigObject],
+  );
+
+  const gcpServiceAccountEmail = useMemo(
+    () => providerConfigObject?.service_account_email,
+    [providerConfigObject],
+  );
 
   // Helper to parse config and extract SkyPilot fields
   const parseSkypilotConfig = (configObj: any) => {
@@ -374,6 +429,24 @@ export default function ProviderDetailsModal({
     }
   };
 
+  const parseAzureConfig = (configObj: any) => {
+    if (configObj && typeof configObj === 'object') {
+      setAzureSubscriptionId(configObj.azure_subscription_id || '');
+      setAzureTenantId(configObj.azure_tenant_id || '');
+      setAzureClientId(configObj.azure_client_id || '');
+      setAzureClientSecret(
+        configObj.azure_client_secret === '***'
+          ? ''
+          : configObj.azure_client_secret || '',
+      );
+      setAzureClientSecretChanged(false);
+      setAzureLocation(configObj.azure_location || 'eastus');
+      if (configObj.supported_accelerators) {
+        setSupportedAccelerators(configObj.supported_accelerators);
+      }
+    }
+  };
+
   const buildRunpodConfig = useCallback(() => {
     const configObj: any = {
       api_base_url: runpodApiBaseUrl || 'https://rest.runpod.io/v1',
@@ -389,6 +462,32 @@ export default function ProviderDetailsModal({
     runpodApiKey,
     runpodApiKeyChanged,
     runpodApiBaseUrl,
+    supportedAccelerators,
+    providerId,
+  ]);
+
+  const buildAzureConfig = useCallback(() => {
+    const configObj: any = {
+      azure_subscription_id: azureSubscriptionId,
+      azure_tenant_id: azureTenantId,
+      azure_client_id: azureClientId,
+      azure_location: azureLocation,
+    };
+    if (!providerId || azureClientSecretChanged) {
+      configObj.azure_client_secret = azureClientSecret;
+    }
+
+    if (supportedAccelerators.length > 0) {
+      configObj.supported_accelerators = supportedAccelerators;
+    }
+    return configObj;
+  }, [
+    azureSubscriptionId,
+    azureTenantId,
+    azureClientId,
+    azureClientSecret,
+    azureClientSecretChanged,
+    azureLocation,
     supportedAccelerators,
     providerId,
   ]);
@@ -409,6 +508,57 @@ export default function ProviderDetailsModal({
     }
     return configObj;
   }, [awsRegion, supportedAccelerators]);
+
+  const parseVastAiConfig = (configObj: any) => {
+    if (configObj && typeof configObj === 'object') {
+      setVastAiApiKey(
+        configObj.api_key === '***' ? '' : configObj.api_key || '',
+      );
+      setVastAiApiKeyChanged(false);
+      if (configObj.supported_accelerators) {
+        setSupportedAccelerators(configObj.supported_accelerators);
+      }
+    }
+  };
+
+  const parseGcpConfig = (configObj: any) => {
+    if (configObj && typeof configObj === 'object') {
+      const inferredRegion =
+        configObj.region ||
+        (typeof configObj.zone === 'string' && configObj.zone.includes('-')
+          ? configObj.zone.split('-').slice(0, 2).join('-')
+          : '');
+      setGcpRegion(inferredRegion || 'us-central1');
+      setGcpZone(configObj.zone || '');
+      if (configObj.supported_accelerators) {
+        setSupportedAccelerators(configObj.supported_accelerators);
+      }
+    }
+  };
+
+  const buildVastAiConfig = useCallback(() => {
+    const configObj: any = {};
+    if (!providerId || vastAiApiKeyChanged) {
+      configObj.api_key = vastAiApiKey;
+    }
+    if (supportedAccelerators.length > 0) {
+      configObj.supported_accelerators = supportedAccelerators;
+    }
+    return configObj;
+  }, [vastAiApiKey, vastAiApiKeyChanged, supportedAccelerators, providerId]);
+
+  const buildGcpConfig = useCallback(() => {
+    const configObj: any = {
+      region: gcpRegion.trim(),
+    };
+    if (gcpZone.trim()) {
+      configObj.zone = gcpZone.trim();
+    }
+    if (supportedAccelerators.length > 0) {
+      configObj.supported_accelerators = supportedAccelerators;
+    }
+    return configObj;
+  }, [gcpRegion, gcpZone, supportedAccelerators]);
 
   // if a providerId is passed then we are editing an existing provider
   // Otherwise we are creating a new provider
@@ -459,8 +609,17 @@ export default function ProviderDetailsModal({
       if (providerData.type === 'runpod') {
         parseRunpodConfig(rawConfigObj);
       }
+      if (providerData.type === 'azure') {
+        parseAzureConfig(rawConfigObj);
+      }
       if (providerData.type === 'aws') {
         parseAwsConfig(rawConfigObj);
+      }
+      if (providerData.type === 'vastai') {
+        parseVastAiConfig(rawConfigObj);
+      }
+      if (providerData.type === 'gcp') {
+        parseGcpConfig(rawConfigObj);
       }
       setConfig(JSON.stringify(rawConfigObj, null, 2));
     } else if (!providerId) {
@@ -496,9 +655,20 @@ export default function ProviderDetailsModal({
       setRunpodApiKey('');
       setRunpodApiKeyChanged(false);
       setRunpodApiBaseUrl('');
+      setAzureSubscriptionId('');
+      setAzureTenantId('');
+      setAzureClientId('');
+      setAzureClientSecret('');
+      setAzureClientSecretChanged(false);
+      setAzureLocation('eastus');
       setAwsRegion('us-east-1');
       setAwsAccessKeyId('');
       setAwsSecretAccessKey('');
+      setVastAiApiKey('');
+      setVastAiApiKeyChanged(false);
+      setGcpRegion('us-central1');
+      setGcpZone('');
+      setGcpServiceAccountJson('');
     }
   }, [providerId, providerData]);
 
@@ -539,9 +709,20 @@ export default function ProviderDetailsModal({
       setRunpodApiKey('');
       setRunpodApiKeyChanged(false);
       setRunpodApiBaseUrl('');
+      setAzureSubscriptionId('');
+      setAzureTenantId('');
+      setAzureClientId('');
+      setAzureClientSecret('');
+      setAzureClientSecretChanged(false);
+      setAzureLocation('eastus');
       setAwsRegion('us-east-1');
       setAwsAccessKeyId('');
       setAwsSecretAccessKey('');
+      setVastAiApiKey('');
+      setVastAiApiKeyChanged(false);
+      setGcpRegion('us-central1');
+      setGcpZone('');
+      setGcpServiceAccountJson('');
     }
   }, [open]);
 
@@ -625,10 +806,35 @@ export default function ProviderDetailsModal({
           // Ignore parse errors
         }
       }
+      if (type === 'azure') {
+        try {
+          const configObj = JSON.parse(defaultConfig);
+          parseAzureConfig(configObj);
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+
       if (type === 'aws') {
         try {
           const configObj = JSON.parse(DEFAULT_CONFIGS.aws);
           parseAwsConfig(configObj);
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+      if (type === 'vastai') {
+        try {
+          const configObj = JSON.parse(defaultConfig);
+          parseVastAiConfig(configObj);
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+      if (type === 'gcp') {
+        try {
+          const configObj = JSON.parse(DEFAULT_CONFIGS.gcp);
+          parseGcpConfig(configObj);
         } catch (e) {
           // Ignore parse errors
         }
@@ -657,8 +863,21 @@ export default function ProviderDetailsModal({
         const configObj = buildRunpodConfig();
         setConfig(JSON.stringify(configObj, null, 2));
       }
+      if (type === 'azure') {
+        const configObj = buildAzureConfig();
+        setConfig(JSON.stringify(configObj, null, 2));
+      }
+
       if (type === 'aws') {
         const configObj = buildAwsConfig();
+        setConfig(JSON.stringify(configObj, null, 2));
+      }
+      if (type === 'vastai') {
+        const configObj = buildVastAiConfig();
+        setConfig(JSON.stringify(configObj, null, 2));
+      }
+      if (type === 'gcp') {
+        const configObj = buildGcpConfig();
         setConfig(JSON.stringify(configObj, null, 2));
       }
     }
@@ -667,7 +886,10 @@ export default function ProviderDetailsModal({
     buildSkypilotConfig,
     buildDstackConfig,
     buildRunpodConfig,
+    buildAzureConfig,
     buildAwsConfig,
+    buildVastAiConfig,
+    buildGcpConfig,
     type,
     providerId,
   ]);
@@ -799,6 +1021,24 @@ export default function ProviderDetailsModal({
     );
   }
 
+  function saveGcpCredentials(
+    providerIdToSave: string,
+    serviceAccountJson: string,
+  ) {
+    return fetchWithAuth(
+      Endpoints.ComputeProvider.GcpCredentials(providerIdToSave),
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          service_account_json: serviceAccountJson,
+        }),
+      },
+    );
+  }
+
   const saveProvider = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -819,8 +1059,14 @@ export default function ProviderDetailsModal({
         parsedConfig = buildDstackConfig();
       } else if (type === 'runpod') {
         parsedConfig = buildRunpodConfig();
+      } else if (type === 'azure') {
+        parsedConfig = buildAzureConfig();
       } else if (type === 'aws') {
         parsedConfig = buildAwsConfig();
+      } else if (type === 'vastai') {
+        parsedConfig = buildVastAiConfig();
+      } else if (type === 'gcp') {
+        parsedConfig = buildGcpConfig();
       } else if (type === 'local') {
         // Local providers are configured via supported accelerators only
         parsedConfig = {};
@@ -854,6 +1100,24 @@ export default function ProviderDetailsModal({
           type: 'danger',
           message:
             'Enter both AWS Access Key ID and Secret Access Key, or leave both blank.',
+        });
+        return;
+      }
+
+      const trimmedGcpServiceAccountJson = gcpServiceAccountJson.trim();
+      const trimmedGcpRegion = gcpRegion.trim();
+      if (type === 'gcp' && !trimmedGcpRegion) {
+        addNotification({
+          type: 'danger',
+          message: 'GCP region is required.',
+        });
+        return;
+      }
+      if (type === 'gcp' && !providerId && !trimmedGcpServiceAccountJson) {
+        addNotification({
+          type: 'danger',
+          message:
+            'Paste a GCP service account JSON key to create a GCP provider.',
         });
         return;
       }
@@ -920,6 +1184,31 @@ export default function ProviderDetailsModal({
           }
         }
 
+        if (type === 'gcp' && trimmedGcpServiceAccountJson) {
+          if (!savedProviderId) {
+            addNotification({
+              type: 'danger',
+              message:
+                'Provider was saved, but could not determine provider ID to save GCP credentials.',
+            });
+            return;
+          }
+          const gcpCredsResponse = await saveGcpCredentials(
+            savedProviderId,
+            trimmedGcpServiceAccountJson,
+          );
+          if (!gcpCredsResponse.ok) {
+            const errorData = await gcpCredsResponse.json().catch(() => ({}));
+            addNotification({
+              type: 'danger',
+              message:
+                errorData?.detail ||
+                'Provider was saved, but saving GCP credentials failed. Open the provider and try again.',
+            });
+            return;
+          }
+        }
+
         // For newly created LOCAL providers, keep the modal open and show setup progress.
         if (!providerId && type === 'local') {
           const newId = String(data?.id || '');
@@ -977,9 +1266,11 @@ export default function ProviderDetailsModal({
     }
   };
 
+  const selectedProviderTypeMeta = providerTypeOptions.find(
+    (option) => option.value === type,
+  );
   const selectedProviderLabel =
-    providerTypeOptions.find((option) => option.value === type)?.label ||
-    'Compute Provider';
+    selectedProviderTypeMeta?.label || 'Compute Provider';
   let dialogTitle = 'Add Compute Provider';
   if (providerId) {
     dialogTitle = 'Edit Compute Provider';
@@ -1015,13 +1306,30 @@ export default function ProviderDetailsModal({
                 <>
                   <FormControl sx={{ mt: 2 }}>
                     <FormLabel>Compute Provider Type</FormLabel>
-                    <Select value={type} disabled sx={{ width: '100%' }}>
-                      {providerTypeOptions.map((option) => (
-                        <Option key={option.value} value={option.value}>
-                          {option.label}
-                        </Option>
-                      ))}
-                    </Select>
+                    <Card variant="soft" sx={{ mt: 1, p: 1.5 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          gap: 1.25,
+                          alignItems: 'flex-start',
+                        }}
+                      >
+                        <ProviderTypeLogo providerType={type} size={48} />
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography level="title-sm">
+                            {selectedProviderTypeMeta?.label ?? type}
+                          </Typography>
+                          {selectedProviderTypeMeta?.description ? (
+                            <Typography
+                              level="body-sm"
+                              sx={{ mt: 0.5, color: 'text.tertiary' }}
+                            >
+                              {selectedProviderTypeMeta.description}
+                            </Typography>
+                          ) : null}
+                        </Box>
+                      </Box>
+                    </Card>
                     {providerId ? (
                       <Typography
                         level="body-sm"
@@ -1183,6 +1491,15 @@ export default function ProviderDetailsModal({
                     />
                   )}
 
+                  {type === 'vastai' && (
+                    <VastAiProviderFields
+                      vastAiApiKey={vastAiApiKey}
+                      setVastAiApiKey={setVastAiApiKey}
+                      providerId={providerId}
+                      setVastAiApiKeyChanged={setVastAiApiKeyChanged}
+                    />
+                  )}
+
                   {type === 'aws' && (
                     <AwsProviderFields
                       awsRegion={awsRegion}
@@ -1195,13 +1512,44 @@ export default function ProviderDetailsModal({
                     />
                   )}
 
+                  {type === 'gcp' && (
+                    <GcpProviderFields
+                      gcpRegion={gcpRegion}
+                      setGcpRegion={setGcpRegion}
+                      gcpZone={gcpZone}
+                      setGcpZone={setGcpZone}
+                      gcpServiceAccountJson={gcpServiceAccountJson}
+                      setGcpServiceAccountJson={setGcpServiceAccountJson}
+                      serviceAccountEmail={gcpServiceAccountEmail}
+                    />
+                  )}
+                  {type === 'azure' && (
+                    <AzureProviderFields
+                      azureSubscriptionId={azureSubscriptionId}
+                      setAzureSubscriptionId={setAzureSubscriptionId}
+                      azureTenantId={azureTenantId}
+                      setAzureTenantId={setAzureTenantId}
+                      azureClientId={azureClientId}
+                      setAzureClientId={setAzureClientId}
+                      azureClientSecret={azureClientSecret}
+                      setAzureClientSecret={setAzureClientSecret}
+                      azureLocation={azureLocation}
+                      setAzureLocation={setAzureLocation}
+                      providerId={providerId}
+                      setAzureClientSecretChanged={setAzureClientSecretChanged}
+                    />
+                  )}
+
                   {/* Generic JSON config for non-structured providers or advanced editing */}
                   {type !== 'slurm' &&
                     type !== 'skypilot' &&
                     type !== 'dstack' &&
                     type !== 'runpod' &&
                     type !== 'local' &&
-                    type !== 'aws' && (
+                    type !== 'aws' &&
+                    type !== 'vastai' &&
+                    type !== 'gcp' &&
+                    type !== 'azure' && (
                       <FormControl sx={{ mt: 1 }}>
                         <FormLabel>Configuration</FormLabel>
                         <Textarea

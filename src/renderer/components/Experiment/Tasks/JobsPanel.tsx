@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Chip, Input, Sheet, Stack, Typography } from '@mui/joy';
 
 type JobsPanelProps = {
@@ -10,6 +10,7 @@ type JobsPanelProps = {
   maxHeight?: string | number;
   headerActions?: React.ReactNode;
   getSearchableFields?: (job: any) => Array<unknown>;
+  resetSearchKey?: string | number;
   renderList: (jobs: any[], loading: boolean) => React.ReactNode;
 };
 
@@ -46,27 +47,31 @@ export default function JobsPanel({
   title,
   jobs,
   loading,
-  searchPlaceholder,
-  searchWidth,
+  searchPlaceholder = 'Search jobs…',
+  searchWidth = 240,
   maxHeight,
   headerActions,
-  getSearchableFields,
+  getSearchableFields = defaultSearchableFields,
+  resetSearchKey,
   renderList,
 }: JobsPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const searchableFieldsGetter = getSearchableFields || defaultSearchableFields;
+
+  useEffect(() => {
+    setSearchQuery('');
+  }, [resetSearchKey]);
 
   const filteredJobs = useMemo(() => {
     if (!searchQuery.trim()) return jobs;
     const query = searchQuery.trim().toLowerCase();
     return jobs.filter((job) =>
-      searchableFieldsGetter(job).some((value) =>
+      getSearchableFields(job).some((value) =>
         String(value ?? '')
           .toLowerCase()
           .includes(query),
       ),
     );
-  }, [jobs, searchQuery, searchableFieldsGetter]);
+  }, [jobs, searchQuery, getSearchableFields]);
 
   return (
     <>
@@ -107,11 +112,3 @@ export default function JobsPanel({
     </>
   );
 }
-
-JobsPanel.defaultProps = {
-  maxHeight: undefined,
-  headerActions: undefined,
-  searchPlaceholder: 'Search jobs…',
-  searchWidth: 240,
-  getSearchableFields: defaultSearchableFields,
-};

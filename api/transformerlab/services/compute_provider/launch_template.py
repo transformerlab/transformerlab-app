@@ -286,12 +286,15 @@ async def launch_template_on_provider(
         # Install torch as well if torch profiler is enabled
         if request.enable_profiling_torch:
             setup_commands.append("pip install -q torch")
-    if request.file_mounts is True and request.task_id:
+    # Local provider always uses lab.copy_file_mounts() to land task files at $HOME (= cwd).
+    # Other providers only inject it when file_mounts is explicitly enabled.
+    if request.task_id and (request.file_mounts is True or provider.type == ProviderType.LOCAL.value):
         setup_commands.append(COPY_FILE_MOUNTS_SETUP)
-    # For RunPod providers, tell uv to use system Python and also install uv.
-    if provider.type == ProviderType.RUNPOD.value:
+    # For providers that rely on base container images without uv preinstalled,
+    # tell uv to use system Python and bootstrap uv before user setup/run steps.
+    if provider.type in (ProviderType.RUNPOD.value, ProviderType.VASTAI.value):
         env_vars["UV_SYSTEM_PYTHON"] = "1"
-        setup_commands.append("curl -LsSf https://astral.sh/uv/install.sh | sh")
+        setup_commands.append("curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=$HOME/.local/bin:$PATH")
 
     # If GitHub repo fields are missing, fall back to the stored task's fields.
     # This handles GitHub-sourced interactive tasks where the CLI/TUI doesn't
@@ -598,13 +601,6 @@ async def launch_template_on_provider(
         if await storage.isdir(task_src):
             workspace_job_dir = await get_job_dir(job_id, request.experiment_id)
             await copy_task_files_to_dir(task_src, workspace_job_dir)
-            # The local provider runs the user command with cwd=local_provider_job_dir,
-            # which is a separate directory from workspace_job_dir. Copy task files
-            # there too so commands like `python main.py` resolve relative to cwd.
-            if provider.type == ProviderType.LOCAL.value:
-                local_job_dir = provider_config_dict.get("workspace_dir")
-                if local_job_dir:
-                    await copy_task_files_to_dir(task_src, local_job_dir)
 
     job_data = {
         "task_name": request.task_name,

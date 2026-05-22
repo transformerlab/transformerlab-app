@@ -2,8 +2,9 @@
 
 import base64
 import configparser
+import json
 import os
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 # lab.init() not required; copy_file_mounts uses _TFL_JOB_ID, _TFL_EXPERIMENT_ID / TFL_EXPERIMENT_ID, and job_data
 COPY_FILE_MOUNTS_SETUP = 'python -c "from lab import lab; lab.copy_file_mounts()"'
@@ -118,6 +119,27 @@ def generate_azure_credentials_setup(
 
 def _aws_credentials_path() -> str:
     return os.path.join(os.path.expanduser("~"), ".aws", "credentials")
+
+
+def _gcp_credentials_dir() -> str:
+    return os.path.join(os.path.expanduser("~"), ".config", "transformerlab", "gcp")
+
+
+def parse_gcp_service_account_json(service_account_json: str) -> dict[str, Any]:
+    """Parse and validate GCP service account JSON."""
+    try:
+        parsed = json.loads(service_account_json)
+    except json.JSONDecodeError as exc:
+        raise ValueError("GCP service account credentials must be valid JSON") from exc
+
+    if not isinstance(parsed, dict):
+        raise ValueError("GCP service account credentials must be a JSON object")
+    required_fields = ["project_id", "client_email", "private_key"]
+    missing_fields = [field for field in required_fields if not parsed.get(field)]
+    if missing_fields:
+        raise ValueError(f"GCP service account JSON is missing required field(s): {', '.join(missing_fields)}")
+
+    return parsed
 
 
 def write_aws_credentials_to_profile(

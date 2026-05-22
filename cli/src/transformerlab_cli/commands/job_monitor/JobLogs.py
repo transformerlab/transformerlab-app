@@ -9,7 +9,7 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, Label, RichLog
 
 from transformerlab_cli.util import api
-from transformerlab_cli.util.config import get_current_experiment
+from transformerlab_cli.commands.job_monitor.util import get_effective_experiment
 
 
 class JobLogs(Vertical):
@@ -46,7 +46,7 @@ class JobLogs(Vertical):
     @work(thread=True)
     def _poll_logs(self) -> None:
         seen_lines = 0
-        experiment_id = get_current_experiment() or "alpha"
+        experiment_id = get_effective_experiment()
 
         while self._polling and self.current_job_id:
             try:

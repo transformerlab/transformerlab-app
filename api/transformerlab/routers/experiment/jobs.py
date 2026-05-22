@@ -97,15 +97,55 @@ def _job_logs_not_ready_payload(
     return payload
 
 
+# Heavy job_data keys that polling list-views never need. When ?slim=true is set
+# on /jobs/list, these are stripped from each job's job_data to keep the response
+# small. Per-job detail endpoints still return the full payload. New heavy keys
+# should be added here rather than allowlisting fields, so that adding metadata
+# elsewhere doesn't silently shrink list responses.
+_SLIM_JOB_DATA_DROPPED_KEYS: frozenset[str] = frozenset(
+    {
+        "accelerators",
+        "cluster_config",
+        "command",
+        "config",
+        "cpus",
+        "disk_space",
+        "env_vars",
+        "file_mounts",
+        "memory",
+        "num_nodes",
+        "parameters",
+        "provider_empty_jobs_polls",
+        "provider_jobs_seen_once",
+        "run",
+        "setup",
+    }
+)
+
+
+def _slim_job(job: dict) -> dict:
+    """Return a shallow copy of ``job`` with heavy keys removed from job_data."""
+    job_data = job.get("job_data")
+    if not isinstance(job_data, dict):
+        return job
+    trimmed = {k: v for k, v in job_data.items() if k not in _SLIM_JOB_DATA_DROPPED_KEYS}
+    return {**job, "job_data": trimmed}
+
+
 @router.get("/list")
 async def jobs_get_all(
     experimentId: str,
     type: str = "",
     status: str = "",
     subtype: str = "",
+    slim: bool = False,
 ):
     """
     Return the list of jobs for an experiment, optionally filtered by type/status/subtype.
+
+    When ``slim=true``, heavy provisioning/config fields are stripped from each
+    job's ``job_data`` to keep polling payloads small. The set of stripped keys
+    is defined by ``_SLIM_JOB_DATA_DROPPED_KEYS``.
     """
     jobs = await job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
 
@@ -121,7 +161,10 @@ async def jobs_get_all(
                     job_data = {}
             if job_data.get("subtype") == subtype:
                 filtered.append(job)
-        return filtered
+        jobs = filtered
+
+    if slim:
+        jobs = [_slim_job(job) for job in jobs]
 
     return jobs
 
@@ -235,6 +278,43 @@ async def get_training_job(job_id: str, experimentId: str):
     if job is None:
         return Response("Job not found", status_code=404)
     return job
+
+
+@router.get("/{job_id}/metrics")
+async def get_job_metrics(job_id: str, experimentId: str, since: int = 0):
+    """
+    Return the contents of <job_dir>/metrics.jsonl as JSON.
+
+    `since` is a zero-based row index — useful for polling: pass the count
+    you already have to receive only newer rows. Returns
+    {"count": N, "rows": [...]} where N is the number of rows after the
+    `since` filter.
+    """
+    from lab.dirs import get_job_dir
+
+    job_dir = await get_job_dir(job_id, experimentId)
+    metrics_path = storage.join(job_dir, "metrics.jsonl")
+
+    if not await storage.exists(metrics_path):
+        return {"count": 0, "rows": []}
+
+    rows: list[dict] = []
+    line_idx = 0
+    async with await storage.open(metrics_path, "r", encoding="utf-8") as f:
+        while True:
+            line = await f.readline()
+            if not line:
+                break
+            if line_idx >= since:
+                stripped = line.strip()
+                if stripped:
+                    try:
+                        rows.append(json.loads(stripped))
+                    except json.JSONDecodeError:
+                        pass
+            line_idx += 1
+
+    return {"count": len(rows), "rows": rows}
 
 
 @router.get("/{job_id}/tasks_output")

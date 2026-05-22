@@ -1,0 +1,264 @@
+version: 2
+updates:
+  # Root Electron + React app
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
+    ignore:
+      # @nivo/* is pre-1.0 and each minor can ship breaking changes. 0.99.0 broke `<Bar>`
+      # elements. Hold the nivo packages at 0.88.0 until they're upgraded deliberately.
+      # See PR #2091 (reverted by dadmobile).
+      - dependency-name: '@nivo/bar'
+        versions: ['>0.88.0']
+      - dependency-name: '@nivo/core'
+        versions: ['>0.88.0']
+      - dependency-name: '@nivo/line'
+        versions: ['>0.88.0']
+      - dependency-name: '@nivo/radar'
+        versions: ['>0.88.0']
+      # lucide-react is imported in ~78 renderer components. The 1.0 line is an ESM-only
+      # rewrite (`.mjs` bundles, RSC/dynamic-import reshuffles) and lucide ships icon
+      # renames as plain minors on the 0.x line, so neither `semver-major` gating nor
+      # the grouped minor/patch flow is safe here. Hold at 0.477.0 and bump deliberately
+      # with a build + smoke test of icon-heavy pages (ModelZoo, Settings, Welcome,
+      # Team). See PR #2174.
+      - dependency-name: 'lucide-react'
+        versions: ['>0.477.0']
+      # React 19 is a major API change (ref-as-prop, removed legacy APIs, new JSX
+      # transform). `react`, `react-dom`, and their @types must move together, and
+      # @testing-library/react must move in lockstep (see below). Hold the whole
+      # React family at 18.x until a coordinated migration. See PR #2126.
+      - dependency-name: 'react'
+        versions: ['>=19']
+      - dependency-name: 'react-dom'
+        versions: ['>=19']
+      - dependency-name: '@types/react'
+        versions: ['>=19']
+      - dependency-name: '@types/react-dom'
+        versions: ['>=19']
+      # @testing-library/react v15 dropped React 17 and v16 requires React 19. Bundle
+      # this with the React 19 migration. See PR #2127.
+      - dependency-name: '@testing-library/react'
+        versions: ['>=15']
+      # jest-environment-jsdom v30 requires jest@30; we're on jest@29. Hold until a
+      # coordinated jest 30 upgrade (which also affects ts-jest, @types/jest, etc.).
+      # See PR #2130.
+      - dependency-name: 'jest-environment-jsdom'
+        versions: ['>=30']
+      # @types/node majors track Node runtime majors. We're pinned to Node 22 (see
+      # CLAUDE.md; conda env, scripts/dev.py, CI), and the renderer doesn't import
+      # Node builtins directly — only build tooling under .erb/ and scripts/ does.
+      # Holding at 22.x avoids a recurring PR with zero security exposure (types-only
+      # package). Lift this in lockstep when Node itself moves.
+      - dependency-name: '@types/node'
+        versions: ['>=23']
+      # Webpack loader / CLI family. These churn constantly and each major typically
+      # requires coordinated changes across .erb/configs/* (webpack 5 config shape,
+      # asset modules, postcss override compatibility — see the `overrides` note in
+      # package.json). We're not chasing the bleeding edge on the build toolchain;
+      # security fixes still land via minor/patch. Bump these deliberately as a
+      # single toolchain-upgrade PR when it's worth a focused day.
+      - dependency-name: 'webpack-cli'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'webpack-dev-server'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'webpack-merge'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'webpack-bundle-analyzer'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'css-loader'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'sass-loader'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'style-loader'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'postcss-loader'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'esbuild-loader'
+        update-types: ['version-update:semver-major']
+      # file-loader and url-loader are abandoned upstream (replaced by webpack 5's
+      # built-in asset modules). No future major will be worth taking — only here
+      # for legacy compatibility.
+      - dependency-name: 'file-loader'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'url-loader'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'mini-css-extract-plugin'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'css-minimizer-webpack-plugin'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'html-webpack-plugin'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'tsconfig-paths-webpack-plugin'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@svgr/webpack'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@pmmmwh/react-refresh-webpack-plugin'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@teamsupercell/typings-for-css-modules-loader'
+        update-types: ['version-update:semver-major']
+
+  # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
+  # Build runs on Node 22 via transformerlab-docs/netlify.toml. Major bumps are ignored across
+  # the board (manual coordination needed); minor/patch updates flow through for security.
+  - package-ecosystem: 'npm'
+    directory: '/transformerlab-docs'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'docs-deps'
+      include: 'scope'
+    labels:
+      - 'dependencies'
+      - 'docs'
+    groups:
+      docusaurus:
+        patterns:
+          - '@docusaurus/*'
+          - '@mdx-js/*'
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+      minor-and-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
+    ignore:
+      # Major bumps on docs deps need manual coordination; minor/patch is enough for security.
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+
+  # API (FastAPI, managed with uv)
+  - package-ecosystem: 'uv'
+    directory: '/api'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 10
+    groups:
+      # Core web/auth stack. These packages are mostly pre-1.0 (where
+      # "minor" bumps ship breaking changes) or tightly coupled to
+      # fastapi+fastapi-users. A regression in any of them can break
+      # every request through the API.
+      #
+      # Plan:
+      # - take patches automatically for security coverage
+      # - hold minor bumps for a deliberate, manual PR
+      #
+      # Dependabot evaluates groups in order, so this one must come before
+      # `minor-and-patch`.
+      core-web-stack:
+        patterns:
+          - 'fastapi'
+          - 'fastapi-users'
+          - 'httpx-oauth'
+          - 'uvicorn'
+          - 'aiosqlite'
+          - 'asyncpg'
+          - 'python-multipart'
+        update-types:
+          - 'patch'
+      minor-and-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
+    ignore:
+      # Core web/auth stack: block all minor and major bumps so they don't
+      # leak into the `minor-and-patch` catch-all. Patches still flow through
+      # the `core-web-stack` group above. Minors and majors require a
+      # deliberate, human-driven PR — see the comment on `core-web-stack`
+      # for the rationale.
+      - dependency-name: 'fastapi'
+        update-types:
+          ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'fastapi-users'
+        update-types:
+          ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'httpx-oauth'
+        update-types:
+          ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'uvicorn'
+        update-types:
+          ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'aiosqlite'
+        update-types:
+          ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'asyncpg'
+        update-types:
+          ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'python-multipart'
+        update-types:
+          ['version-update:semver-minor', 'version-update:semver-major']
+
+      # datasets 4.x removes loading-script support (`trust_remote_code` workflows) that
+      # several gallery training scripts rely on. Deliberately pinned to 3.x; a datasets
+      # upgrade needs its own dedicated PR with full validation. See PR #2090.
+      - dependency-name: 'datasets'
+        versions: ['>=4']
+      # azure-mgmt-resource 25.0.0 removed/relocated `SubscriptionClient`, which our
+      # Azure compute provider imports from `azure.mgmt.resource`. Provider health check
+      # fails immediately on import. Revisit after refactoring the import path. See PR #2083.
+      - dependency-name: 'azure-mgmt-resource'
+        versions: ['>=25']
+      # boto3 patches beyond 1.40.70 are uninstallable. Each boto3 patch pins a
+      # matching botocore patch, and aiobotocore's compatible window in the 1.40
+      # line is botocore>=1.40.37,<1.40.71 — so boto3 1.40.71+ (and all of 1.41.x)
+      # fall in a dead zone aiobotocore won't accept. aiobotocore is pulled in
+      # transitively via s3fs, which is capped by fsspec, which is capped by the
+      # `datasets` 3.x pin above. Hold boto3 at 1.40.70 until datasets is unpinned
+      # or a newer aiobotocore covers the gap. See PR #2159, PR #2169.
+      - dependency-name: 'boto3'
+        versions: ['>1.40.70']
+
+  # CLI (Typer, managed with uv)
+  # Security-only mode: the CLI is published to PyPI as `transformerlab-cli` and
+  # runs on end-user machines via `uv tool install`. It doesn't open a listening
+  # port and isn't part of our hosted attack surface (frontend / API). End users
+  # also receive whatever version we last published, so eager dep bumps don't
+  # reach them faster — they're gated by CLI releases. Setting the PR limit to 0
+  # disables routine version-update PRs while still allowing Dependabot security
+  # advisory PRs to fire (security updates bypass the limit). Revisit if the CLI
+  # ever grows a network listener or starts parsing untrusted input.
+  - package-ecosystem: 'uv'
+    directory: '/cli'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 0
+
+  # Lab SDK (published to PyPI as `transformerlab`)
+  - package-ecosystem: 'uv'
+    directory: '/lab-sdk'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - 'minor'
+          - 'patch'
+
+  # GitHub Actions workflows
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - 'minor'
+          - 'patch'

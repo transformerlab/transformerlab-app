@@ -81,6 +81,42 @@ def test_task_list_json_no_spinner(_mock_exp, _mock_api):
     json.loads(result.output.strip())  # must not raise
 
 
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASKS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_list_no_subtype_hits_list_by_type(_mock_exp, mock_api_get):
+    """Without --subtype, list calls list_by_type_in_experiment."""
+    result = runner.invoke(app, ["--format", "json", "task", "list"])
+    assert result.exit_code == 0
+    called_url = mock_api_get.call_args.args[0]
+    assert "list_by_type_in_experiment" in called_url
+    assert "type=REMOTE" in called_url
+    assert "subtype=" not in called_url
+
+
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASKS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_list_with_subtype_hits_list_by_subtype(_mock_exp, mock_api_get):
+    """--subtype interactive routes to list_by_subtype_in_experiment with the right query params."""
+    result = runner.invoke(app, ["--format", "json", "task", "list", "--subtype", "interactive"])
+    assert result.exit_code == 0
+    called_url = mock_api_get.call_args.args[0]
+    assert "list_by_subtype_in_experiment" in called_url
+    assert "subtype=interactive" in called_url
+    assert "type=REMOTE" in called_url
+
+
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASKS))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_list_rejects_unknown_subtype(_mock_exp, mock_api_get):
+    """--subtype <unknown> exits non-zero with an Allowed: ... error and does not hit the server."""
+    result = runner.invoke(app, ["task", "list", "--subtype", "cuckoo"])
+    assert result.exit_code != 0
+    out = _cli_output(result)
+    assert "Invalid value for '--subtype'" in out
+    assert "Allowed: interactive" in out
+    mock_api_get.assert_not_called()
+
+
 def test_build_launch_payload_includes_description():
     """build_launch_payload forwards the description to the launch API body."""
     task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
@@ -93,6 +129,14 @@ def test_build_launch_payload_omits_description_by_default():
     task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
     payload = build_launch_payload(task, "Local")
     assert payload["description"] is None
+
+
+def test_build_launch_payload_includes_profiling_flags():
+    """build_launch_payload forwards profiling flags to the launch API body."""
+    task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
+    payload = build_launch_payload(task, "Local", enable_profiling=True, enable_profiling_torch=True)
+    assert payload["enable_profiling"] is True
+    assert payload["enable_profiling_torch"] is True
 
 
 SAMPLE_TASK = {
@@ -116,6 +160,25 @@ def test_task_queue_sends_description(_mock_exp, _mock_get, _mock_providers, moc
     assert result.exit_code == 0, result.output
     _path, body = mock_post.call_args.args
     assert body["description"] == "hypothesis: larger batch"
+
+
+SAMPLE_PROVIDERS_MULTI = [
+    {"id": "p_other", "name": "Runpod", "is_default": False},
+    {"id": "p_default", "name": "Local", "is_default": True},
+]
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS_MULTI)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_no_interactive_picks_is_default_provider(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """When the task has no provider_id pinned, --no-interactive must pick the
+    provider marked is_default=True, not just providers[0]."""
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "-m", "x"])
+    assert result.exit_code == 0, result.output
+    path, _body = mock_post.call_args.args
+    assert "p_default" in path, f"expected launch on default provider, got path: {path}"
 
 
 SAMPLE_TASK_WITH_PARAMS = {
@@ -262,6 +325,57 @@ def test_task_queue_param_when_task_has_no_parameters_errors(_mock_exp, _mock_ge
     assert result.exit_code != 0
     assert "no parameters" in strip_ansi(result.output).lower()
     mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_enable_profiling_flags(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """Queue command forwards profiling flags into launch payload."""
+    result = runner.invoke(
+        app,
+        [
+            "task",
+            "queue",
+            "t1",
+            "--no-interactive",
+            "--enable-profiling",
+            "--enable-profiling-torch",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    _path, body = mock_post.call_args.args
+    assert body["enable_profiling"] is True
+    assert body["enable_profiling_torch"] is True
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+def test_task_queue_enable_torch_profiling_requires_profiling(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """Torch profiling flag without base profiling fails with a clear error."""
+    result = runner.invoke(
+        app,
+        ["task", "queue", "t1", "--no-interactive", "--enable-profiling-torch"],
+    )
+    assert result.exit_code != 0
+    assert "requires --enable-profiling" in strip_ansi(result.output).lower()
+    mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="missing-exp")
+@patch("transformerlab_cli.commands.task.api.get")
+def test_task_queue_fails_when_current_experiment_missing_on_server(mock_get, _mock_exp):
+    """Queue should fail early when resolved current experiment does not exist on the server."""
+    mock_get.side_effect = [_mock_resp([{"id": "exp1", "name": "Experiment 1"}])]
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive"])
+    assert result.exit_code == 1
+    out = strip_ansi(result.output).lower()
+    assert "does not exist on the server" in out
+    assert "missing-exp" in out
+    mock_get.assert_called_once_with("/experiment/")
 
 
 @patch(

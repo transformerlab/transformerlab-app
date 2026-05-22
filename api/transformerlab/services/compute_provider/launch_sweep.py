@@ -12,6 +12,7 @@ from transformerlab.compute_providers.models import ClusterConfig
 from transformerlab.schemas.compute_providers import ProviderTemplateLaunchRequest
 from transformerlab.services import job_service
 from transformerlab.services.compute_provider.cluster_naming import sanitize_cluster_basename
+from transformerlab.services.compute_provider.launch_task_files import copy_task_files_to_dir
 from transformerlab.services.compute_provider.launch_credentials import (
     COPY_FILE_MOUNTS_SETUP,
     RUNPOD_AWS_CREDENTIALS_DIR,
@@ -36,7 +37,15 @@ from transformerlab.shared.models.models import ProviderType
 from transformerlab.shared.github_utils import read_github_pat_from_workspace, generate_github_clone_setup
 from transformerlab.shared.secret_utils import load_team_secrets, replace_secrets_in_dict, replace_secret_placeholders
 from lab import storage
-from lab.dirs import get_workspace_dir, set_organization_id
+from lab.dirs import (
+    get_experiment_task_dir,
+    get_job_dir,
+    get_local_provider_job_dir,
+    get_task_dir,
+    get_workspace_dir,
+    set_organization_id,
+)
+from werkzeug.utils import secure_filename
 from lab.job_status import JobStatus
 from lab.storage import STORAGE_PROVIDER
 
@@ -230,7 +239,7 @@ async def launch_sweep_jobs(
                 if tfl_storage_uri:
                     env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
 
-                if provider.type == ProviderType.RUNPOD.value:
+                if provider.type in (ProviderType.RUNPOD.value, ProviderType.VASTAI.value):
                     env_vars["UV_SYSTEM_PYTHON"] = "1"
 
                 if provider.type == ProviderType.LOCAL.value and team_id:
@@ -297,8 +306,10 @@ async def launch_sweep_jobs(
                     setup_commands.extend(juicefs_cred_cmds)
                     env_vars.update(juicefs_cred_env)
 
-                if provider.type == ProviderType.RUNPOD.value:
-                    setup_commands.append("curl -LsSf https://astral.sh/uv/install.sh | sh")
+                if provider.type in (ProviderType.RUNPOD.value, ProviderType.VASTAI.value):
+                    setup_commands.append(
+                        "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=$HOME/.local/bin:$PATH"
+                    )
 
                 if provider.type != ProviderType.LOCAL.value:
                     setup_commands.append("pip install -q transformerlab")
@@ -306,7 +317,8 @@ async def launch_sweep_jobs(
                     if request.enable_profiling_torch:
                         setup_commands.append("pip install -q torch")
 
-                if request.file_mounts is True and request.task_id:
+                # Local provider always uses lab.copy_file_mounts() to land task files at $HOME (= cwd).
+                if request.task_id and (request.file_mounts is True or provider.type == ProviderType.LOCAL.value):
                     setup_commands.append(COPY_FILE_MOUNTS_SETUP)
 
                 if request.github_repo_url:
@@ -388,6 +400,27 @@ async def launch_sweep_jobs(
 
                 file_mounts_for_provider = request.file_mounts if isinstance(request.file_mounts, dict) else {}
 
+                provider_config_dict: Dict[str, Any] = {"requested_disk_space": request.disk_space}
+                if provider.type == ProviderType.LOCAL.value:
+                    child_job_dir = await asyncio.to_thread(get_local_provider_job_dir, child_job_id, org_id=team_id)
+                    provider_config_dict["workspace_dir"] = child_job_dir
+                    provider_config_dict["org_id"] = team_id
+                    provider_config_dict["experiment_id"] = request.experiment_id
+                    provider_config_dict["job_id"] = str(child_job_id)
+                    child_job_updates_workspace = {"workspace_dir": child_job_dir}
+                    await job_service.job_update_job_data_insert_key_values(
+                        child_job_id, child_job_updates_workspace, request.experiment_id
+                    )
+
+                if request.task_id:
+                    task_src = await get_experiment_task_dir(request.experiment_id, request.task_id)
+                    if not await storage.isdir(task_src):
+                        task_dir_root = await get_task_dir()
+                        task_src = storage.join(task_dir_root, secure_filename(str(request.task_id)))
+                    if await storage.isdir(task_src):
+                        workspace_job_dir = await get_job_dir(child_job_id, request.experiment_id)
+                        await copy_task_files_to_dir(task_src, workspace_job_dir)
+
                 sweep_image_id: str | None = None
                 sweep_region: str | None = None
                 sweep_zone: str | None = None
@@ -419,7 +452,7 @@ async def launch_sweep_jobs(
                     num_nodes=request.num_nodes,
                     disk_size=disk_size,
                     file_mounts=file_mounts_for_provider,
-                    provider_config={"requested_disk_space": request.disk_space},
+                    provider_config=provider_config_dict,
                     image_id=sweep_image_id,
                     region=sweep_region,
                     zone=sweep_zone,

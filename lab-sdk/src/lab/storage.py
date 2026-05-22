@@ -363,7 +363,7 @@ async def root_join(*parts: str) -> str:
 
 
 async def exists(path: str) -> bool:
-    fs = await filesystem()
+    fs, _ = _get_fs_for_path(path)
     try:
         return await asyncio.to_thread(fs.exists, path)
     finally:
@@ -374,7 +374,8 @@ async def exists(path: str) -> bool:
 async def isdir(path: str, fs=None) -> bool:
     filesys = fs
     try:
-        filesys = fs if fs is not None else await filesystem()
+        if fs is None:
+            filesys, _ = _get_fs_for_path(path)
         return await asyncio.to_thread(filesys.isdir, path)
     except Exception:
         return False
@@ -387,7 +388,7 @@ async def isdir(path: str, fs=None) -> bool:
 async def isfile(path: str) -> bool:
     fs = None
     try:
-        fs = await filesystem()
+        fs, _ = _get_fs_for_path(path)
         return await asyncio.to_thread(fs.isfile, path)
     except Exception:
         return False
@@ -397,7 +398,7 @@ async def isfile(path: str) -> bool:
 
 
 async def makedirs(path: str, exist_ok: bool = True) -> None:
-    fs = await filesystem()
+    fs, _ = _get_fs_for_path(path)
     try:
         await asyncio.to_thread(fs.makedirs, path, exist_ok=exist_ok)
     except TypeError:
@@ -410,8 +411,12 @@ async def makedirs(path: str, exist_ok: bool = True) -> None:
 
 
 async def ls(path: str, detail: bool = False, fs=None):
-    # Use provided filesystem or get default
-    filesys = fs if fs is not None else await filesystem()
+    # Use provided filesystem or pick one based on the path's scheme so that
+    # local paths don't get routed through a configured remote filesystem.
+    if fs is not None:
+        filesys = fs
+    else:
+        filesys, _ = _get_fs_for_path(path)
     try:
         paths = await asyncio.to_thread(filesys.ls, path, detail=detail)
         is_remote = path.startswith(_REMOTE_PATH_PREFIXES)

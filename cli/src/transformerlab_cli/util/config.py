@@ -186,6 +186,8 @@ def set_config(key: str, value: str, output_format: str = "pretty") -> bool:
         value = normalized_url
 
     config = load_config()
+    if key == "server" and config.get("server") != value:
+        config.pop("current_experiment", None)
     config[key] = value
 
     if _save_config(config):
@@ -284,3 +286,11 @@ def require_current_experiment() -> str:
         )
         raise typer.Exit(1)
     return str(current_experiment)
+
+
+def resolve_experiment_id(experiment_id: str | None = None) -> str:
+    """Resolve experiment from CLI override or configured default."""
+    if experiment_id is not None and str(experiment_id).strip():
+        check_configs(output_format="json")
+        return str(experiment_id).strip()
+    return require_current_experiment()

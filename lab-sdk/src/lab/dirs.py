@@ -205,6 +205,29 @@ async def get_experiment_task_dir(experiment_id: str, task_id: str | int) -> str
     return storage.join(tasks_dir, task_id_safe)
 
 
+async def get_experiment_tasks_dir_nocreate(experiment_id: str) -> str:
+    """
+    Compute the tasks directory path for an experiment without creating it.
+
+    Use when you only need to read or check existence; this avoids the
+    side effect of creating {workspace}/experiments/<experiment_id>/tasks/
+    for callers passing arbitrary or unvalidated experiment_id values.
+    """
+    experiments_dir = await get_experiments_dir()
+    experiment_id_safe = secure_filename(str(experiment_id))
+    return storage.join(experiments_dir, experiment_id_safe, "tasks")
+
+
+async def get_experiment_task_dir_nocreate(experiment_id: str, task_id: str | int) -> str:
+    """
+    Compute the per-task directory path without creating any parent dirs.
+    No-create sibling of get_experiment_task_dir.
+    """
+    task_id_safe = secure_filename(str(task_id))
+    tasks_dir = await get_experiment_tasks_dir_nocreate(experiment_id)
+    return storage.join(tasks_dir, task_id_safe)
+
+
 async def get_global_log_path() -> str:
     workspace = await get_workspace_dir()
     return storage.join(workspace, "transformerlab.log")

@@ -13,7 +13,7 @@
 ## Build/Lint/Test Commands
 
 - **Frontend dev**: `npm start` (Node v22, not v23+)
-- **Frontend test**: `npm test` (Jest); single test: `npm test -- --testPathPattern="<pattern>"`
+- **Frontend test**: No unit test framework. End-to-end coverage lives in `test/playwright/` (see Testing section below).
 - **Frontend lint**: `npm run format` (auto-fix) or `npm run format:check` (dry-run). **Always run `npm run format` on changed frontend files before committing.**
 - **Python env (run once per shell)**: `source ~/.transformerlab/envs/general-uv/bin/activate`
 - **API install**: `cd api && ./install.sh` or `npm run api:install`
@@ -32,6 +32,7 @@
 - **Node v22** (v23+ is not supported)
 - **Python**: Managed via conda (`~/.transformerlab/envs/transformerlab`). Install with `cd api && ./install.sh`.
 - **npm deps**: `npm install` (includes `dotenv-cli`, `cross-env`, `concurrently` used by scripts)
+- **pre-commit hooks**: Run `pip install pre-commit && pre-commit install` once after cloning. This wires up `.pre-commit-config.yaml` so `ruff check --fix`, `ruff format`, and `npm run format` run automatically on every commit.
 
 ## Architecture
 
@@ -79,10 +80,11 @@ Agent skills and browser automation references live in `.agents/skills/`.
   - **Functional Components**: Use React functional components with Hooks. Avoid class components.
   - **State Management**: The app uses `easy-peasy` (Redux wrapper). Use actions for state mutations; avoid prop drilling deep hierarchies.
 - **Python**:
-  - **Linting**: Ruff (Black-compatible), 120 char line length, 4-space indent
-  - **Type Hints**: Mandatory for all function arguments and return types.
-  - **Pydantic**: Use Pydantic models (in `schemas/`) for distinct data validation and serialization layers.
-  - **Service Pattern**: Business logic goes in `api/transformerlab/services/`, NOT in routers. Routers (`api/transformerlab/routers/`) should only handle HTTP request/response validation and calling services.
+ - **Linting**: Ruff (Black-compatible), 120 char line length, 4-space indent
+ - **Type Hints**: Mandatory for all function arguments and return types.
+ - **Pydantic**: Use Pydantic models (in `schemas/`) for distinct data validation and serialization layers.
+ - **Service Pattern**: Business logic goes in `api/transformerlab/services/`, NOT in routers. Routers (`api/transformerlab/routers/`) should only handle HTTP request/response validation and calling services.
+ - **UTC timestamps**: Our SQLAlchemy `DateTime` columns are declared without `timezone=True` (i.e. naive datetimes that represent UTC). Whenever you assign to or compare against one of these columns, use `utc_now_naive()` from `transformerlab.utils.datetime_utils`. Do **not** use `datetime.now()` (that's local time), `datetime.utcnow()` (deprecated in Python 3.12+), or hand-roll `datetime.now(timezone.utc).replace(tzinfo=None)` at the call site.
 
 
 ## Storing Data
@@ -92,10 +94,7 @@ Agent skills and browser automation references live in `.agents/skills/`.
 
 ## Testing
 
-- **Frontend**:
-  - **Unit Tests**: Write tests for all utility functions and complex hooks.
-  - **Component Tests**: Test components in isolation where possible.
-  - **Command**: Use `npm test` to verify changes.
+- **Frontend**: No unit test framework is configured. Cover frontend behavior with Playwright E2E tests (see below).
 - **Backend**:
   - **Unit Tests**: Write `pytest` tests in `api/test/`.
   - **Mocking**: Mock external interactions (S3, GPU providers, filesystem operations) using `unittest.mock` or `pytest-mock`. Tests should be fast and deterministic.

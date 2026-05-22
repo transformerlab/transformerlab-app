@@ -3,7 +3,7 @@ github_repo_url: https://github.com/transformerlab/transformerlab-app
 github_repo_dir: api/transformerlab/galleries/examples/autotrain-sft
 resources:
   accelerators: "RTX3090:1"
-setup: "uv pip install autotrain-advanced bitsandbytes transformerlab wandb"
+setup: "uv pip install autotrain-advanced bitsandbytes wandb"
 run: "python autotrain-sft/train.py"
 envs:
   WANDB_PROJECT: "autotrain-sft-training"

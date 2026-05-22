@@ -18,13 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 async def list_installed_models() -> list:
-    """
-    TODO: Clean this up to remove legacy code.
-
-    Legacy function for getting a list of models from all sources.
-
-    Check both the filesystem and workspace for models.
-    """
+    """Get a list of installed models with filesystem metadata attached."""
 
     # Use SDK to get all models from the filesystem
     models = await ModelService.list_all()
@@ -37,7 +31,6 @@ async def list_installed_models() -> list:
         # model_filename can be:
         # - A filename (e.g., "model.gguf") for file-based models
         # - "." for directory-based models (indicates the directory itself)
-        # - Empty string for legacy models (should be treated as directory-based)
         model_filename = model.get("json_data", {}).get("model_filename", "")
         is_huggingface = model.get("json_data", {}).get("source", "") == "huggingface"
         has_model_filename = model_filename != ""
@@ -51,27 +44,12 @@ async def list_installed_models() -> list:
             # Remove the Starting TransformerLab/ prefix to handle the save_transformerlab_model function
             potential_path = storage.join(models_dir, secure_filename("/".join(model_id.split("/")[1:])))
 
-        # Check if model should be considered local:
-        # 1. If it has a model_filename set (and is not a HuggingFace model, OR is a HuggingFace model stored locally), OR
-        # 2. If the directory exists and has files other than index.json
+        # A model is considered local if model_filename is set (non-HF) or if the
+        # HF model has model_filename and the file/directory exists locally.
         is_local_model = False
         if not is_huggingface:
-            # For non-HuggingFace models, check if it has model_filename or files in directory
             if has_model_filename:
                 is_local_model = True
-            elif await storage.exists(potential_path) and await storage.isdir(potential_path):
-                # Check if directory has files other than index.json
-                try:
-                    files = await storage.ls(potential_path, detail=False)
-                    # Extract basenames from full paths returned by storage.ls()
-                    file_basenames = [posixpath.basename(f.rstrip("/")) for f in files]
-                    # Filter out index.json and other metadata files
-                    model_files = [f for f in file_basenames if f not in ["index.json", "_tlab_provenance.json"]]
-                    if model_files:
-                        is_local_model = True
-                except (OSError, PermissionError):
-                    # If we can't read the directory, skip it
-                    pass
         elif is_huggingface and has_model_filename:
             # For HuggingFace models, if they have a model_filename and the file/directory exists locally,
             # treat them as stored locally (e.g., downloaded GGUF files)
@@ -128,9 +106,6 @@ async def list_installed_models() -> list:
             elif model_filename:
                 # Other file-based models - append the filename
                 model["local_path"] = storage.join(model["local_path"], model_filename)
-            else:
-                # Legacy model without model_filename but with files - use directory path
-                model["local_path"] = model["local_path"]
 
     return models
 

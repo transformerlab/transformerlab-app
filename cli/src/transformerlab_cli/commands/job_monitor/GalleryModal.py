@@ -9,7 +9,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, DataTable, Label, LoadingIndicator
 
 from transformerlab_cli.util import api
-from transformerlab_cli.util.config import get_current_experiment
+from transformerlab_cli.commands.job_monitor.util import get_effective_experiment
 
 
 class GalleryModal(ModalScreen[Optional[str]]):
@@ -60,7 +60,7 @@ class GalleryModal(ModalScreen[Optional[str]]):
 
     @work(thread=True)
     def _fetch_gallery(self) -> None:
-        experiment_id = get_current_experiment() or "alpha"
+        experiment_id = get_effective_experiment()
         try:
             response = api.get(f"/experiment/{experiment_id}/task/gallery")
             if response.status_code == 200:
@@ -101,7 +101,7 @@ class GalleryModal(ModalScreen[Optional[str]]):
 
     @work(thread=True)
     def _do_import(self) -> None:
-        experiment_id = get_current_experiment() or "alpha"
+        experiment_id = get_effective_experiment()
         payload = {
             "gallery_id": self.selected_id,
             "experiment_id": experiment_id,

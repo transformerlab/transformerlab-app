@@ -326,6 +326,36 @@ def test_job_info_json_not_found(_mock_require, _mock_api):
     assert "999" in data["error"]
 
 
+_CURRENT_METRICS_JOBS = [
+    {
+        "id": "abc123",
+        "experiment_id": "exp1",
+        "status": "RUNNING",
+        "progress": 47,
+        "job_data": {
+            "task_name": "train",
+            "completion_status": "N/A",
+            "current_metrics": {"loss": 0.42, "lr": 3e-5},
+        },
+    },
+]
+
+
+@patch(
+    "transformerlab_cli.commands.job.api.get",
+    side_effect=_info_api_get(_CURRENT_METRICS_JOBS, []),
+)
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_job_info_shows_current_metrics(_mock_require, _mock_api):
+    """job info pretty output should show live current_metrics snapshot."""
+    result = runner.invoke(app, ["job", "info", "abc123"])
+    assert result.exit_code == 0
+    out = strip_ansi(result.output)
+    assert "current metrics" in out.lower()
+    assert "loss" in out
+    assert "0.42" in out
+
+
 @patch(
     "transformerlab_cli.commands.job.api.get",
     side_effect=_info_api_get(SAMPLE_JOBS, []),
@@ -892,3 +922,76 @@ def test_job_delete_all_zero_jobs(_mock_check, _mock_require, _mock_delete, _moc
     assert result.exit_code == 0
     data = json.loads(result.output.strip())
     assert data == {"deleted": 0}
+
+
+@patch(
+    "transformerlab_cli.commands.job.api.get",
+    return_value=_mock_api_response(
+        {
+            "count": 2,
+            "rows": [
+                {"t": "2026-05-11T10:00:00Z", "step": 1, "progress": 50, "metrics": {"loss": 0.9, "lr": 0.001}},
+                {"t": "2026-05-11T10:00:05Z", "step": 2, "progress": 75, "metrics": {"loss": 0.7, "lr": 0.001}},
+            ],
+        }
+    ),
+)
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_job_metrics_pretty_table(_mock_require, _mock_api):
+    """`job metrics` renders a Rich table with metric columns."""
+    result = runner.invoke(app, ["job", "metrics", "42"])
+    assert result.exit_code == 0
+    out = strip_ansi(result.output)
+    assert "loss" in out
+    assert "0.9" in out
+    assert "0.7" in out
+    assert "step" in out
+
+
+@patch(
+    "transformerlab_cli.commands.job.api.get",
+    return_value=_mock_api_response(
+        {
+            "count": 1,
+            "rows": [
+                {"t": "2026-05-11T10:00:00Z", "step": 1, "progress": 50, "metrics": {"loss": 0.9}},
+            ],
+        }
+    ),
+)
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_job_metrics_json_output(_mock_require, _mock_api):
+    """`job metrics --json` emits JSONL lines."""
+    result = runner.invoke(app, ["job", "metrics", "42", "--json"])
+    assert result.exit_code == 0
+    lines = [ln for ln in result.output.strip().splitlines() if ln.strip()]
+    assert len(lines) == 1
+    row = json.loads(lines[0])
+    assert row["metrics"] == {"loss": 0.9}
+
+
+@patch(
+    "transformerlab_cli.commands.job.api.get",
+    return_value=_mock_api_response(
+        {
+            "count": 1,
+            "rows": [
+                {
+                    "t": "2026-05-11T10:00:00Z",
+                    "step": 1,
+                    "progress": 50,
+                    "metrics": {"loss": 0.9, "lr": 0.001, "acc": 0.88},
+                },
+            ],
+        }
+    ),
+)
+@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+def test_job_metrics_keys_filter(_mock_require, _mock_api):
+    """`job metrics --keys loss,acc` only shows requested metric columns."""
+    result = runner.invoke(app, ["job", "metrics", "42", "--keys", "loss,acc"])
+    assert result.exit_code == 0
+    out = strip_ansi(result.output)
+    assert "loss" in out
+    assert "acc" in out
+    assert "lr" not in out

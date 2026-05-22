@@ -2,15 +2,49 @@ import asyncio
 import logging
 import json
 import os
+import re
 
+from sqlalchemy import delete
 from lab import Experiment
 from lab import dirs as lab_dirs
 from lab import storage
 
+from transformerlab.db.session import async_session
 from transformerlab.services.cache_service import cache, cached
+from transformerlab.shared.models.models import UserExperimentAccess
 
 logger = logging.getLogger(__name__)
 EXPERIMENT_LIST_CONCURRENCY = max(1, int(os.getenv("TLAB_EXPERIMENT_LIST_CONCURRENCY", "24")))
+
+_TAG_PATTERN = re.compile(r"^[a-z0-9._-]{1,32}$")
+TAG_MAX_LEN = 32
+TAGS_MAX_PER_EXPERIMENT = 20
+
+
+def normalize_tags(raw):
+    """Lowercase, trim, validate charset (a-z0-9._-, max 32 chars), and dedupe.
+
+    Raises ValueError on the first invalid tag.
+    """
+    seen = set()
+    result = []
+    for item in raw or []:
+        if not isinstance(item, str):
+            raise ValueError(f"Tag must be a string, got {type(item).__name__}: {item!r}")
+        normalized = item.strip().lower()
+        if not normalized:
+            raise ValueError("Tag is empty after trimming whitespace")
+        if len(normalized) > TAG_MAX_LEN:
+            raise ValueError(f"Tag {normalized!r} exceeds max length {TAG_MAX_LEN}")
+        if not _TAG_PATTERN.match(normalized):
+            raise ValueError(
+                f"Tag {normalized!r} contains invalid characters (allowed: lowercase a-z, 0-9, '.', '-', '_')"
+            )
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        result.append(normalized)
+    return result
 
 
 @cached(key="experiments:list", ttl="2m", tags=["experiments"])
@@ -100,7 +134,9 @@ async def experiment_get_all():
     return experiments
 
 
-async def experiment_create(name: str, config: dict) -> str:
+async def experiment_create(name: str, config: dict, created_by: str | None = None) -> str:
+    if created_by:
+        config = {**config, "created_by": created_by}
     await Experiment.create_with_config(name, config)
     # Ensure the experiment dropdown refreshes immediately after creation.
     await cache.invalidate("experiments")
@@ -131,6 +167,9 @@ async def experiment_delete(id):
     try:
         exp = await Experiment.get(id)
         await exp.delete()
+        async with async_session() as session:
+            await session.execute(delete(UserExperimentAccess).where(UserExperimentAccess.experiment_id == str(id)))
+            await session.commit()
         await cache.invalidate("experiments")
     except FileNotFoundError:
         print(f"Experiment with id '{id}' not found")
@@ -180,3 +219,62 @@ async def experiment_update_configs(id, updates: dict):
         print(f"Experiment with id '{id}' not found")
     except Exception as e:
         print(f"Error updating experiment config: {e}")
+
+
+async def _read_current_tags(experiment_id):
+    exp = await Experiment.get(experiment_id)
+    data = await exp.get_json_data()
+    config = data.get("config", {})
+    if isinstance(config, str):
+        try:
+            config = json.loads(config)
+        except json.JSONDecodeError:
+            config = {}
+    raw = config.get("tags", []) or []
+    if not isinstance(raw, list):
+        return exp, []
+    return exp, [t for t in raw if isinstance(t, str)]
+
+
+async def experiment_add_tags(experiment_id, tags):
+    """Union-merge ``tags`` into the experiment's existing tags. Returns the full list."""
+    new_tags = normalize_tags(tags)
+    exp, current = await _read_current_tags(experiment_id)
+    merged = list(current)
+    for t in new_tags:
+        if t not in merged:
+            merged.append(t)
+    if len(merged) > TAGS_MAX_PER_EXPERIMENT:
+        raise ValueError(f"Cannot exceed {TAGS_MAX_PER_EXPERIMENT} tags per experiment (would be {len(merged)})")
+    await exp.update_config_field("tags", merged)
+    await cache.invalidate("experiments")
+    return merged
+
+
+async def experiment_remove_tags(experiment_id, tags):
+    """Set-difference ``tags`` from the experiment's existing tags. Returns the full list."""
+    to_remove = set(normalize_tags(tags))
+    exp, current = await _read_current_tags(experiment_id)
+    kept = [t for t in current if t not in to_remove]
+    await exp.update_config_field("tags", kept)
+    await cache.invalidate("experiments")
+    return kept
+
+
+def aggregate_tags(experiments):
+    """Return a sorted, deduped list of all tags across ``experiments``."""
+    bag = set()
+    for exp in experiments or []:
+        config = exp.get("config", {}) if isinstance(exp, dict) else {}
+        if isinstance(config, str):
+            try:
+                config = json.loads(config)
+            except json.JSONDecodeError:
+                config = {}
+        tags = config.get("tags", []) if isinstance(config, dict) else []
+        if not isinstance(tags, list):
+            continue
+        for t in tags:
+            if isinstance(t, str) and t:
+                bag.add(t)
+    return sorted(bag)

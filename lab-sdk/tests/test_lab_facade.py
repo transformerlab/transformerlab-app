@@ -183,6 +183,34 @@ def test_lab_update_progress(tmp_path, monkeypatch):
     assert asyncio.run(lab._job.get_progress()) == 100
 
 
+def test_lab_update_progress_with_metrics(tmp_path, monkeypatch):
+    _fresh(monkeypatch)
+    home = tmp_path / ".tfl_home"
+    ws = tmp_path / ".tfl_ws"
+    home.mkdir()
+    ws.mkdir()
+    monkeypatch.setenv("TFL_HOME_DIR", str(home))
+    monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+
+    from lab.lab_facade import Lab
+
+    lab = Lab()
+    lab.init(experiment_id="test_exp")
+
+    lab.update_progress(40, metrics={"loss": 0.5}, step=10)
+
+    job_data = lab.get_job_data()
+    assert job_data["current_metrics"] == {"loss": 0.5}
+
+    job_dir = asyncio.run(lab._job.get_dir())
+    metrics_path = os.path.join(job_dir, "metrics.jsonl")
+    with open(metrics_path, "r") as f:
+        rows = [json.loads(line) for line in f if line.strip()]
+    assert rows[-1]["progress"] == 40
+    assert rows[-1]["step"] == 10
+    assert rows[-1]["metrics"] == {"loss": 0.5}
+
+
 def test_lab_finish(tmp_path, monkeypatch):
     _fresh(monkeypatch)
     home = tmp_path / ".tfl_home"
@@ -448,6 +476,7 @@ def test_lab_capture_trackio_metadata_directory(tmp_path, monkeypatch):
     ws.mkdir()
     monkeypatch.setenv("TFL_HOME_DIR", str(home))
     monkeypatch.setenv("TFL_WORKSPACE_DIR", str(ws))
+    monkeypatch.setenv("TLAB_TRACKIO_PROJECT_NAME", "my-project")
 
     from lab.lab_facade import Lab
 
@@ -459,16 +488,14 @@ def test_lab_capture_trackio_metadata_directory(tmp_path, monkeypatch):
     trackio_src.mkdir()
     (trackio_src / "metrics.sqlite").write_text("db")
 
-    dest_path = lab.capture_trackio_metadata(str(trackio_src), project="my-project")
+    dest_path = lab.capture_trackio_metadata(str(trackio_src))
 
     assert os.path.exists(dest_path)
     assert os.path.isdir(dest_path)
-    # The copied DB file should exist under the destination
+    # The copied DB file should exist under the shared project destination
     assert os.path.exists(os.path.join(dest_path, "metrics.sqlite"))
-
-    job_data = lab.get_job_data()
-    assert job_data.get("trackio_db_artifact_path") == dest_path
-    assert job_data.get("trackio_project") == "my-project"
+    assert "trackio_runs" in dest_path
+    assert "my-project" in dest_path
 
 
 def test_lab_save_dataset(tmp_path, monkeypatch):

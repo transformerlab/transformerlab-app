@@ -378,7 +378,7 @@ def train_with_trl():
                         saved_samples_path = lab.save_artifact(
                             df_samples,
                             name=f"eval_samples_{eval_task}.csv",
-                            type="eval",
+                            type="evals",
                             config={
                                 "evals": {
                                     "input": "input",
@@ -445,7 +445,7 @@ def train_with_trl():
                             saved_metrics_path = lab.save_artifact(
                                 df_metrics,
                                 name=f"eval_metrics_{eval_task}.csv",
-                                type="eval",
+                                type="evals",
                                 config={
                                     "evals": {
                                         "input": "input",

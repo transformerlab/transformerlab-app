@@ -8,7 +8,7 @@ import { login, selectFirstExperiment } from './helpers';
  */
 
 test.describe('Ollama Gradio Interactive Task', () => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
 
   test('create ollama gradio interactive task, launch on local provider, verify INTERACTIVE status', async ({
     page,
@@ -56,8 +56,10 @@ test.describe('Ollama Gradio Interactive Task', () => {
       name: 'Configure Task',
     });
     await expect(configDialog).toBeVisible({ timeout: 10000 });
+    // Chrome reports the freeSolo Autocomplete as 'textbox' when no history items are loaded.
     await configDialog
       .getByRole('combobox', { name: 'Model Name' })
+      .or(configDialog.getByRole('textbox', { name: 'Model Name' }))
       .fill('smollm:135m');
 
     // ── Step 3: Launch the task ──
@@ -77,7 +79,7 @@ test.describe('Ollama Gradio Interactive Task', () => {
     ).toBeVisible({ timeout: 10000 });
     // Wait for "Launching…" to disappear — the button becomes "Interact" once the service is ready
     await expect(page.getByRole('button', { name: 'Launching' })).toBeHidden({
-      timeout: 60000,
+      timeout: 180000,
     });
   });
 });

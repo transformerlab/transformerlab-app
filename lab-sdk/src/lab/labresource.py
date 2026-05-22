@@ -1,5 +1,7 @@
+import asyncio
 from abc import ABC, abstractmethod
 import json
+from typing import Iterable, Union
 from . import storage
 import logging
 
@@ -108,7 +110,9 @@ class BaseLabResource(ABC):
                 # File doesn't exist, return empty dict
                 return {}
             except json.JSONDecodeError:
-                # Invalid JSON, return empty dict
+                # Corrupt JSON: log so the corruption is diagnosable in the wild,
+                # but degrade to {} so callers don't 500 on a single bad index.json.
+                logger.warning("Corrupt JSON in %s; treating as empty.", json_file)
                 return {}
             except Exception as e:
                 # Check if this is the Etag mismatch error
@@ -172,11 +176,56 @@ class BaseLabResource(ABC):
         json_data.update(updates)
         await self._set_json_data(json_data)
 
-    async def delete(self):
+    def _sibling(self, new_id):
+        """Build a same-class instance with `new_id`, inheriting context attrs (e.g. experiment_id)."""
+        sibling = self.__class__.__new__(self.__class__)
+        sibling.__dict__.update(self.__dict__)
+        sibling.id = new_id
+        return sibling
+
+    async def delete(self, id: Union[str, Iterable, None] = None):
         """
-        Delete this resource by deleting the containing directory.
+        Delete this resource by deleting its directory.
+
+        - `id` None (default): delete self.
+        - `id` a string: delete the sibling resource with that id.
+        - `id` an iterable: delete each id in parallel via asyncio.gather and return
+          {"succeeded": [id, ...], "failed": [{"id": id, "error": str}, ...]}.
+
         TODO: We should change to soft delete
         """
-        resource_dir = await self.get_dir()
-        if await storage.exists(resource_dir):
-            await storage.rm_tree(resource_dir)
+        if id is None:
+            resource_dir = await self.get_dir()
+            if await storage.exists(resource_dir):
+                await storage.rm_tree(resource_dir)
+            return None
+
+        if isinstance(id, str):
+            await self._sibling(id).delete()
+            return None
+
+        seen: set[str] = set()
+        unique_ids: list[str] = []
+        for raw in id:
+            rid = str(raw)
+            if rid in seen:
+                continue
+            seen.add(rid)
+            unique_ids.append(rid)
+
+        async def _delete_one(rid: str):
+            sibling = self._sibling(rid)
+            try:
+                resource_dir = await sibling.get_dir()
+                if not await storage.exists(resource_dir):
+                    return rid, False, "not found"
+                await storage.rm_tree(resource_dir)
+                return rid, True, None
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("delete: failed to delete %s", rid)
+                return rid, False, str(exc)
+
+        results = await asyncio.gather(*[_delete_one(rid) for rid in unique_ids])
+        succeeded = [rid for rid, ok, _ in results if ok]
+        failed = [{"id": rid, "error": err} for rid, ok, err in results if not ok]
+        return {"succeeded": succeeded, "failed": failed}

@@ -2,10 +2,11 @@ import os
 
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import transformerlab.services.experiment_service as experiment_service
+import transformerlab.services.experiment_access_service as access_service
 from lab import Experiment, storage
 from transformerlab.shared import shared
 from transformerlab.routers.experiment import (
@@ -16,7 +17,8 @@ from transformerlab.routers.experiment import (
 )
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.services.permission_service import check_permission, get_user_team, require_permission
-from transformerlab.shared.models.models import TeamRole
+from sqlalchemy import select
+from transformerlab.shared.models.models import TeamRole, UserExperimentAccess
 from transformerlab.shared.models.user_model import get_async_session
 
 from werkzeug.utils import secure_filename
@@ -54,7 +56,7 @@ async def experiments_get_all(
     session: AsyncSession = Depends(get_async_session),
     user_and_team: dict = Depends(get_user_and_team),
 ):
-    """Get a list of all experiments"""
+    """Get a list of all experiments, filtered by role, with per-user last_opened_at."""
     experiments = await experiment_service.experiment_get_all()
     user = user_and_team["user"]
     team_id = user_and_team["team_id"]
@@ -63,35 +65,109 @@ async def experiments_get_all(
     user_team = await get_user_team(session, user_id, team_id)
     if user_team is None:
         return []
-    if user_team.role == TeamRole.OWNER.value:
-        return experiments
 
-    filtered_experiments = []
-    for experiment in experiments:
-        experiment_id = str(experiment.get("id"))
-        if not experiment_id:
-            continue
-        allowed = await check_permission(
-            session=session,
-            user_id=user_id,
-            team_id=team_id,
-            resource_type="experiment",
-            resource_id=experiment_id,
-            action="read",
-            user_team=user_team,
+    # Role-based filtering (existing logic)
+    if user_team.role == TeamRole.OWNER.value:
+        filtered = experiments
+    else:
+        filtered = []
+        for experiment in experiments:
+            experiment_id = str(experiment.get("id"))
+            if not experiment_id:
+                continue
+            allowed = await check_permission(
+                session=session,
+                user_id=user_id,
+                team_id=team_id,
+                resource_type="experiment",
+                resource_id=experiment_id,
+                action="read",
+                user_team=user_team,
+            )
+            if allowed:
+                filtered.append(experiment)
+
+    # Attach per-user last_opened_at
+    access_records = await session.execute(
+        select(UserExperimentAccess).where(
+            UserExperimentAccess.user_id == user_id,
+            UserExperimentAccess.team_id == team_id,
         )
-        if allowed:
-            filtered_experiments.append(experiment)
-    return filtered_experiments
+    )
+    access_map = {row.experiment_id: row.last_opened_at.isoformat() for row in access_records.scalars().all()}
+
+    for exp in filtered:
+        exp_id = str(exp.get("id", ""))
+        exp["last_opened_at"] = access_map.get(exp_id)
+
+    return filtered
+
+
+@router.post("/{id}/touch", summary="Record experiment opened", tags=["experiment"])
+async def experiment_touch(
+    id: str,
+    session: AsyncSession = Depends(get_async_session),
+    user_and_team: dict = Depends(get_user_and_team),
+    _: None = Depends(require_permission("experiment", "read")),
+):
+    user_id = str(user_and_team["user"].id)
+    team_id = str(user_and_team["team_id"])
+    await access_service.touch_experiment(session, user_id, team_id, id)
+    return {"status": "ok"}
+
+
+@router.get("/recent", summary="Get recently opened experiments", tags=["experiment"])
+async def experiments_get_recent(
+    session: AsyncSession = Depends(get_async_session),
+    user_and_team: dict = Depends(get_user_and_team),
+):
+    """Return last 3 experiments opened by the current user that the user still has access to.
+    Falls back to 3 permitted experiments if no access records exist."""
+    user = user_and_team["user"]
+    team_id = str(user_and_team["team_id"])
+    user_id = str(user.id)
+
+    user_team = await get_user_team(session, user_id, team_id)
+    if user_team is None:
+        return []
+
+    recent_ids = await access_service.get_recent_experiment_ids(session, user_id, team_id, limit=3)
+    permitted_experiments = await experiments_get_all(session=session, user_and_team=user_and_team)
+    if not recent_ids:
+        return permitted_experiments[:3]
+
+    permitted_by_id = {
+        str(exp.get("id")): exp for exp in permitted_experiments if isinstance(exp, dict) and exp.get("id")
+    }
+    ordered_recent = [permitted_by_id[exp_id] for exp_id in recent_ids if exp_id in permitted_by_id]
+    return ordered_recent[:3]
 
 
 @router.get("/create", summary="Create Experiment", tags=["experiment"])
-async def experiments_create(name: str):
+async def experiments_create(
+    name: str,
+    user_and_team: dict = Depends(get_user_and_team),
+):
     # Apply secure filename validation to the experiment name
     secure_name = secure_filename(name)
+    if not secure_name:
+        raise HTTPException(status_code=422, detail="Invalid experiment name")
+    user_id = str(user_and_team["user"].id)
 
-    newid = await experiment_service.experiment_create(secure_name, {})
+    try:
+        newid = await experiment_service.experiment_create(secure_name, {}, created_by=user_id)
+    except FileExistsError as e:
+        raise HTTPException(status_code=409, detail=f"Experiment '{secure_name}' already exists") from e
     return newid
+
+
+@router.get("/tags", summary="List all distinct tags across permitted experiments", tags=["experiment"])
+async def experiments_list_all_tags(
+    session: AsyncSession = Depends(get_async_session),
+    user_and_team: dict = Depends(get_user_and_team),
+):
+    permitted = await experiments_get_all(session=session, user_and_team=user_and_team)
+    return {"tags": experiment_service.aggregate_tags(permitted)}
 
 
 @router.get("/{id}", summary="Get Experiment by ID", tags=["experiment"])
@@ -230,3 +306,39 @@ async def experiment_get_file_contents(
         return ""
 
     return file_contents
+
+
+@router.post("/{id}/tags/add", summary="Add tags to an experiment", tags=["experiment"])
+async def experiments_tags_add(
+    id: str,
+    body: Annotated[dict, Body()],
+    _: None = Depends(require_permission("experiment", "write")),
+):
+    tags_input = body.get("tags") or []
+    if not isinstance(tags_input, list):
+        raise HTTPException(status_code=422, detail="'tags' must be a list of strings")
+    try:
+        merged = await experiment_service.experiment_add_tags(id, tags_input)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"Experiment {id} not found") from e
+    return {"tags": merged}
+
+
+@router.post("/{id}/tags/remove", summary="Remove tags from an experiment", tags=["experiment"])
+async def experiments_tags_remove(
+    id: str,
+    body: Annotated[dict, Body()],
+    _: None = Depends(require_permission("experiment", "write")),
+):
+    tags_input = body.get("tags") or []
+    if not isinstance(tags_input, list):
+        raise HTTPException(status_code=422, detail="'tags' must be a list of strings")
+    try:
+        kept = await experiment_service.experiment_remove_tags(id, tags_input)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"Experiment {id} not found") from e
+    return {"tags": kept}

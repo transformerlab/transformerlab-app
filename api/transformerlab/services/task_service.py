@@ -7,42 +7,20 @@ import uuid
 import os
 import tempfile
 import zipfile
-from datetime import datetime
 from typing import List, Dict, Any, Optional
 from lab.task_template import TaskTemplate as TaskTemplateService
+from lab.dirs import get_experiment_task_dir_nocreate
 from lab import storage
 from fastapi import HTTPException
 from werkzeug.utils import secure_filename
+
+from transformerlab.utils.datetime_utils import utc_now_naive
 
 # Keys that are never removed when syncing from task.yaml (system-owned).
 # Any other key in stored metadata that is not in the parsed task_data is
 # removed, so we don't need to maintain a list of YAML field names.
 _PROTECTED_METADATA_KEYS = frozenset({"id", "experiment_id", "type", "plugin", "created_at"})
 DEFAULT_TASK_YAML = 'name: my-task\nresources:\n  cpus: 2\n  memory: 4\nrun: "echo hello"'
-
-
-def _normalize_legacy_command(task: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """
-    Backward compatibility helper: some legacy tasks may still store their
-    entrypoint under the key "command" instead of "run". To avoid breaking
-    those when launching or exporting, expose "run" on read if it is missing
-    or empty but "command" is present. New code should only write "run".
-    """
-    if not task:
-        return task
-
-    # If run is already set and truthy, do nothing.
-    if task.get("run"):
-        return task
-
-    legacy_command = task.get("command")
-    if not legacy_command:
-        return task
-
-    # Return a shallow copy with run populated so callers always see run.
-    normalized = dict(task)
-    normalized["run"] = legacy_command
-    return normalized
 
 
 class TaskService:
@@ -53,35 +31,29 @@ class TaskService:
 
     async def task_get_all(self) -> List[Dict[str, Any]]:
         """Get all tasks from filesystem"""
-        tasks = await self.task_service.list_all()
-        return [_normalize_legacy_command(t) or t for t in tasks]
+        return await self.task_service.list_all()
 
     async def task_get_by_id(self, task_id: str, experiment_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get a specific task by ID"""
-        task = await self.task_service.get_by_id(task_id, experiment_id=experiment_id)
-        return _normalize_legacy_command(task)
+        return await self.task_service.get_by_id(task_id, experiment_id=experiment_id)
 
     async def task_get_by_type(self, task_type: str) -> List[Dict[str, Any]]:
         """Get all tasks of a specific type"""
-        tasks = await self.task_service.list_by_type(task_type)
-        return [_normalize_legacy_command(t) or t for t in tasks]
+        return await self.task_service.list_by_type(task_type)
 
     async def task_get_by_experiment(self, experiment_id: str) -> List[Dict[str, Any]]:
         """Get all tasks for a specific experiment"""
-        tasks = await self.task_service.list_by_experiment(experiment_id)
-        return [_normalize_legacy_command(t) or t for t in tasks]
+        return await self.task_service.list_by_experiment(experiment_id)
 
     async def task_get_by_type_in_experiment(self, task_type: str, experiment_id: str) -> List[Dict[str, Any]]:
         """Get all tasks of a specific type in a specific experiment"""
-        tasks = await self.task_service.list_by_type_in_experiment(task_type, experiment_id)
-        return [_normalize_legacy_command(t) or t for t in tasks]
+        return await self.task_service.list_by_type_in_experiment(task_type, experiment_id)
 
     async def task_get_by_subtype_in_experiment(
         self, experiment_id: str, subtype: str, task_type: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get all tasks for a specific experiment filtered by subtype and optionally by type"""
-        tasks = await self.task_service.list_by_subtype_in_experiment(experiment_id, subtype, task_type)
-        return [_normalize_legacy_command(t) or t for t in tasks]
+        return await self.task_service.list_by_subtype_in_experiment(experiment_id, subtype, task_type)
 
     async def add_task(self, task_data: Dict[str, Any]) -> str:
         """Create a new task - all fields stored directly in JSON"""
@@ -184,7 +156,7 @@ class TaskService:
                 if existing_mounts is True or (isinstance(existing_mounts, dict) and len(existing_mounts) > 0):
                     out["file_mounts"] = existing_mounts
 
-            out["updated_at"] = datetime.utcnow().isoformat()
+            out["updated_at"] = utc_now_naive().isoformat()
             await task._set_json_data(out)
             return True
         except FileNotFoundError:
@@ -198,7 +170,7 @@ class TaskService:
                         existing_mounts = data.get("file_mounts")
                         if existing_mounts is True or (isinstance(existing_mounts, dict) and len(existing_mounts) > 0):
                             out["file_mounts"] = existing_mounts
-                    out["updated_at"] = datetime.utcnow().isoformat()
+                    out["updated_at"] = utc_now_naive().isoformat()
                     await task._set_json_data(out)
                     return True
                 except FileNotFoundError:
@@ -247,12 +219,25 @@ class TaskService:
             await f.write(content)
 
     async def read_task_yaml(self, task_id: str, experiment_id: Optional[str] = None) -> str:
-        task_dir = await self.get_task_dir(task_id, experiment_id=experiment_id)
+        # Resolve the task dir without side effects (avoids the makedirs in
+        # get_experiment_task_dir). Fast path handles tasks scoped by experiment;
+        # the slow fallback handles tasks still stored under a numeric (pre-migration)
+        # experiment_id, where the fast path would 404 even though the task exists.
+        if experiment_id is not None:
+            task_dir = await get_experiment_task_dir_nocreate(str(experiment_id), str(task_id))
+            if not await storage.isdir(task_dir):
+                try:
+                    task_dir = await self.get_task_dir(task_id, experiment_id=experiment_id)
+                except FileNotFoundError:
+                    raise HTTPException(status_code=404, detail="Task not found")
+        else:
+            task_dir = await self.get_task_dir(task_id)
         yaml_path = storage.join(task_dir, "task.yaml")
-        if not await storage.exists(yaml_path):
+        try:
+            async with await storage.open(yaml_path, "r", encoding="utf-8") as f:
+                return await f.read()
+        except FileNotFoundError:
             raise HTTPException(status_code=404, detail="task.yaml not found for this task")
-        async with await storage.open(yaml_path, "r", encoding="utf-8") as f:
-            return await f.read()
 
     async def create_task_from_blank(
         self,
@@ -352,7 +337,7 @@ class TaskService:
             task_dir = await self.get_task_dir(task_id, experiment_id=experiment_id)
             await storage.makedirs(task_dir, exist_ok=True)
             await storage.copy_dir(task_root, task_dir)
-            await self.update_task(task_id, {"file_mounts": True})
+            await self.update_task(task_id, {"file_mounts": True}, experiment_id=experiment_id)
             return task_id
 
     async def create_task_from_zip_path(
@@ -393,7 +378,7 @@ class TaskService:
             task_dir = await self.get_task_dir(task_id, experiment_id=experiment_id)
             await storage.makedirs(task_dir, exist_ok=True)
             await storage.copy_dir(task_root, task_dir)
-            await self.update_task(task_id, {"file_mounts": True})
+            await self.update_task(task_id, {"file_mounts": True}, experiment_id=experiment_id)
             return task_id
 
     async def update_task_from_zip_path(

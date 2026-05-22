@@ -5,7 +5,7 @@ import DialogContent from '@mui/joy/DialogContent';
 import DialogActions from '@mui/joy/DialogActions';
 import Button from '@mui/joy/Button';
 import { ModalClose, ModalDialog, Divider } from '@mui/joy';
-import { Editor } from '@monaco-editor/react';
+import Editor from 'renderer/components/Shared/LazyMonacoEditor';
 import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
 import { Endpoints } from 'renderer/lib/transformerlab-api-sdk';
 import { fetchWithAuth } from 'renderer/lib/authContext';
@@ -80,7 +80,7 @@ export default function TeamTaskYamlPreviewModal({
         <Divider />
         <DialogContent sx={{ flex: 1, minHeight: 0, p: 0 }}>
           {loading ? (
-            <div style={{ padding: 16 }}>Loading...</div>
+            <div style={{ padding: 16 }}>Loading…</div>
           ) : error ? (
             <div style={{ padding: 16 }}>
               <div style={{ fontWeight: 600, marginBottom: 8 }}>

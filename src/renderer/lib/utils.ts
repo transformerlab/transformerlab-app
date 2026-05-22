@@ -1,7 +1,5 @@
 /* eslint-disable import/prefer-default-export */
 
-import { useEffect, useRef } from 'react';
-
 /**
  * Give this function a number of bytes and it will return a human readable string
  * @param bytes number of Bytes
@@ -30,44 +28,6 @@ export function formatBytes(bytes: number, decimals = 2): string {
 
   return `${parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`;
 }
-
-export const modelTypes = [
-  'All',
-  'MLX',
-  'GGUF',
-  'LlamaForCausalLM',
-  'MistralForCausalLM',
-  'T5ForConditionalGeneration',
-  'PhiForCausalLM',
-  'GPTBigCodeForCausalLM',
-];
-
-export const licenseTypes = [
-  'All',
-  'MIT',
-  'CC BY-SA-4.0',
-  'Apache 2.0',
-  'Meta Custom',
-  'GPL',
-];
-
-export function filterByFilters(data, searchText = '', filters = {}) {
-  return data.filter((row) => {
-    if (row.name.toLowerCase().includes(searchText.toLowerCase())) {
-      for (const filterKey in filters) {
-        if (filters[filterKey] !== 'All') {
-          if (row[filterKey] !== filters[filterKey]) {
-            return false;
-          }
-        }
-      }
-      return true;
-    }
-    return false;
-  });
-}
-
-export const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 
 function capFirst(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -186,22 +146,6 @@ export function generateFriendlyName() {
   return name;
 }
 
-export function useTraceUpdate(props) {
-  const prev = useRef(props);
-  useEffect(() => {
-    const changedProps = Object.entries(props).reduce((ps, [k, v]) => {
-      if (prev.current[k] !== v) {
-        ps[k] = [prev.current[k], v];
-      }
-      return ps;
-    }, {});
-    if (Object.keys(changedProps).length > 0) {
-      console.log('Changed props:', changedProps);
-    }
-    prev.current = props;
-  });
-}
-
 export function jobChipColor(status: string): string {
   if (status === 'COMPLETE') return 'var(--joy-palette-success-200)';
   if (status === 'QUEUED') return 'var(--joy-palette-warning-200)';
@@ -249,20 +193,6 @@ export function isJobStopPending(
   stopRequested?: boolean,
 ): boolean {
   return status === 'STOPPING' || Boolean(stopRequested);
-}
-
-export const colorArray = [
-  '#e8c1a0',
-  '#C7DFF7',
-  '#f1e15b',
-  '#e8a838',
-  '#61c0bf',
-  '#97e3d5',
-  '#d6b3e2',
-];
-
-export function mixColorWithBackground(color: string, percent = '50'): string {
-  return `color-mix(in srgb, ${color}, var(--joy-palette-background-surface) ${percent}%)`;
 }
 
 export const TEXT_FILE_EXTENSIONS = new Set([

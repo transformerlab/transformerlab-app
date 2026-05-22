@@ -236,7 +236,7 @@ def main(argv: List[str] | None = None) -> int:
         cmd_parts = args
 
     if not cmd_parts:
-        print("Error: No command provided to run. The task may be missing a 'run' or 'command' field.", file=sys.stderr)
+        print("Error: No command provided to run. The task may be missing a 'run' field.", file=sys.stderr)
         _set_live_status("Remote command crashed")
         return 1
 

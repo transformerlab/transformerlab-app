@@ -1,12 +1,22 @@
 ---
 name: transformerlab-cli
-description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "add provider", "configure provider", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset".
-allowed-tools: Bash(lab *), Bash(curl *beta.lab.cloud*), Bash(curl *localhost:8338*)
+description: Transformer Lab CLI for managing ML training tasks, jobs, compute providers, models, and datasets. Use when the user needs to check job status, stream logs, download artifacts, queue training tasks, upload or edit tasks, manage compute providers, list or create models, upload or download datasets, publish job outputs, run autonomous experiment loops (autoresearch), or interact with Transformer Lab programmatically. Triggers include "check job status", "download results", "queue a task", "upload a task", "edit a task", "list providers", "add provider", "configure provider", "stream logs", "what's running", "monitor training", "add a task", "check provider health", "list models", "create model", "upload dataset", "download dataset", "publish model", "publish dataset", "run autoresearch", "optimize X in a loop", "set up autoresearch", "/lab-autoresearch".
+allowed-tools: Bash(lab *), Bash(curl *lab.cloud*), Bash(curl *localhost:8338*), WebFetch(domain:lab.cloud)
 ---
 
 # Transformer Lab CLI
 
 Use the `lab` CLI to interact with Transformer Lab programmatically — managing tasks, jobs, compute providers, models, datasets, and server configuration from the terminal.
+
+## Official Documentation
+
+The canonical Transformer Lab documentation is published at **https://lab.cloud**. When in doubt about a feature, schema, or SDK call, fetch the relevant page rather than guessing.
+
+- **Documentation index (LLM-friendly):** https://lab.cloud/llms.txt — start here to discover all available pages.
+- **`task.yaml` structure:** https://lab.cloud/for-teams/running-a-task/task-yaml-structure.md — full schema reference for every field in `task.yaml` (resources, sweeps, parameters, envs, etc.).
+- **Lab SDK (Python):** https://lab.cloud/for-teams/lab-sdk.md — how to use the optional `transformerlab` SDK inside a task's `main.py` (or any Python script) — `lab.init()`, `lab.log()`, `lab.update_progress()`, `lab.get_config()`, `lab.save_artifact()`, `lab.finish()`, `lab.error()`.
+
+Use `WebFetch` to load these directly when working on related code — the `task.yaml` and Lab SDK pages are the source of truth and may contain newer fields than this skill captures.
 
 ## Installation
 
@@ -123,7 +133,7 @@ lab task init --interactive   # prompts for name, CPUs, memory, setup, and run c
 
 ### task.yaml Structure
 
-Full docs: https://lab.cloud/for-teams/running-a-task/task-yaml-structure
+**Full schema reference:** https://lab.cloud/for-teams/running-a-task/task-yaml-structure.md — fetch this page when adding any field not shown below or when validating an unfamiliar `task.yaml`.
 
 ```yaml
 name: my-task                          # Required — task identifier
@@ -135,8 +145,7 @@ resources:                             # Optional but recommended
   num_nodes: 2                         # For distributed training
   compute_provider: my-provider        # Target provider name
 setup: |                               # Optional — runs before main task
-  pip install transformerlab
-  pip install -r requirements.txt
+  pip install -r requirements.txt      # The `transformerlab` SDK is preinstalled — do NOT add `pip install transformerlab`
 run: python main.py                    # Required — main entry point
 envs:                                  # Optional environment variables
   HF_TOKEN: "${HF_TOKEN}"
@@ -199,6 +208,8 @@ lab task upload TASK_ID ./prompts --no-interactive
 
 ### Lab SDK Quick Reference
 
+**Full SDK docs:** https://lab.cloud/for-teams/lab-sdk.md — fetch this page when using the SDK from a Python script (inside or outside a task), or when you need a method not covered below.
+
 Tasks use the Lab SDK (`transformerlab` PyPI package). Import pattern:
 
 ```python
@@ -208,6 +219,8 @@ lab.init()                                    # Required — connects to the job
 lab.log("message")                            # Write to job output log
 lab.update_progress(50)                       # Set progress 0-100
 config = lab.get_config()                     # Read parameters from task.yaml
+lab.save_artifact("metrics.json")             # Save a generic artifact
+lab.save_artifact("eval_results.csv", name="eval_results.csv", type="evals")  # Save eval results
 
 lab.finish(message="Done!")                              # success, no score
 lab.finish(message="Done!", score={"accuracy": 0.78})    # success with metric(s)
@@ -218,6 +231,7 @@ lab.error(message="Something went wrong")                # Mark job as FAILED
 **Common mistakes:**
 - `lab.finish()` has NO `status` parameter — just `message`. For failures, use `lab.error()`.
 - `score=` takes a **dict** of named metrics, not a scalar. Use `score={"accuracy": 0.78}`, never `score=0.78`. The dict populates `job_data.score`, visible in `lab job list` (Score column) and `lab job info`, and is read by sweep / autoresearch flows.
+- Use `lab.save_artifact(..., type="evals")` for file-based eval outputs so they appear in eval results metadata, not as generic artifacts.
 - Always call `lab.init()` before any other SDK call.
 - Always call `lab.finish()` or `lab.error()` at the end — otherwise the job stays in RUNNING state.
 
@@ -226,8 +240,7 @@ lab.error(message="Something went wrong")                # Mark job as FAILED
 **task.yaml:**
 ```yaml
 name: hello-world
-setup: pip install transformerlab
-run: python main.py
+run: python main.py                    # No `setup:` needed — the `transformerlab` SDK is preinstalled in the task environment
 resources:
   cpus: 2
   memory: 4
@@ -302,6 +315,41 @@ lab --format json experiment list | jq -r '.experiments[] | select(.name=="my-ex
   ]
 }
 ```
+
+## Experiment Notes
+
+Each experiment has a single shared markdown document — the "experiment notes" — that persists on the server. It's separate from per-job `-m/--description` notes: those describe one run, the experiment notes describe the experiment as a whole (hypothesis, running findings, decisions, links to key job IDs).
+
+```bash
+# Render the notes (markdown, with formatting)
+lab notes show
+lab notes show --raw           # plain markdown, no rendering — better for piping/grepping
+
+# Edit interactively in $EDITOR (defaults to nano if unset)
+lab notes edit
+
+# Append a single line, non-interactive — best for agents
+lab notes append "2026-05-05: switched provider from local to skypilot; queue depth was >12"
+```
+
+All three commands operate on the **current experiment** (`require_current_experiment` — set it first via `lab experiment set-default`). There is no `--format json` output; `show` returns the raw string and `append`/`edit` write it back.
+
+### When agents should use it
+
+Experiment notes are the right place for context that future conversations (or teammates) will need but that doesn't belong on a single job:
+
+- **Running hypothesis log** — append after each batch of runs: "Tried lr ∈ {1e-5, 3e-5, 5e-5}; 3e-5 wins on eval/loss. Next: try larger batch."
+- **Decisions and their rationale** — "Dropped baseline-v1 from comparison; tokenizer mismatch made eval scores incomparable."
+- **Pointers** — "Best run so far: job 7f21abcd, score 0.83. Worst: 9c12, diverged at step 500."
+- **Open questions / next steps** — so the next session picks up where this one stopped.
+
+**Default flow for agents working in an experiment:**
+
+1. At the start of a session, run `lab notes show --raw` to load prior context.
+2. After each meaningful action (queueing a sweep, finding a winning config, hitting a blocker), `lab notes append "..."` with a dated one-liner. Always lead with today's date (e.g. `2026-05-05:`) so the log stays chronological.
+3. Use `lab notes edit` only when the user asks to reorganize or rewrite — appending is safer because it never destroys prior content.
+
+Don't duplicate per-run details (those go in `lab task queue -m`). Don't use experiment notes as a TODO list for the conversation — that's what plans/tasks are for. Keep entries terse and specific.
 
 ## Managing Models
 
@@ -491,6 +539,7 @@ lab provider disable PROVIDER_ID
 # Update fields (config is MERGED with existing — pass only the keys you change)
 lab provider update PROVIDER_ID --name "new-name"
 lab provider update PROVIDER_ID --config '{"api_token": "new-token"}'
+lab provider update PROVIDER_ID --credentials-file ./rotated-secrets.json   # merge secrets from file, keep them out of argv
 lab provider update PROVIDER_ID --enabled        # or --disabled
 lab provider update PROVIDER_ID --default        # mark as the team default (or --no-default to clear)
 
@@ -502,7 +551,7 @@ lab provider delete PROVIDER_ID --no-interactive
 
 **Default to listing first.** Before adding anything, run `lab provider list` to see what already exists. Most servers ship with a `local` provider already configured. Only add a new provider when:
 
-1. The user **explicitly asks** to add/configure a specific backend (Slurm, SkyPilot, RunPod).
+1. The user **explicitly asks** to add/configure a specific backend (Slurm, SkyPilot, RunPod, dstack, AWS, GCP, Azure).
 2. `lab provider list` shows none of the existing providers match the resources the user needs (e.g. they want H100s and only `local` is registered).
 3. A `task queue` attempt failed with "No compute providers available".
 
@@ -518,6 +567,20 @@ lab provider delete PROVIDER_ID --no-interactive
 | `skypilot` | `server_url`, `api_token` |
 | `slurm` | `mode` (`ssh` or `rest`), then either `ssh_host` + `ssh_user` + `ssh_key_path` + `ssh_port`, or `rest_url` + `api_token` |
 | `runpod` | `api_key`, plus optional `api_base_url`, `default_gpu_type`, `default_region`, `default_template_id`, `default_network_volume_id` |
+| `dstack` | `server_url`, `api_token`, `dstack_project` |
+| `aws` | `region`. Provide AWS access keys via `--credentials-file PATH` pointing at a JSON file with `aws_access_key_id` + `aws_secret_access_key` (uploaded to the API host's `~/.aws/credentials`) |
+| `gcp` | `region`, optional `zone`. Must also pass `--credentials-file PATH` pointing at your service account JSON key file |
+| `azure` | `azure_subscription_id`, `azure_tenant_id`, `azure_client_id`, `azure_client_secret`, `azure_location` |
+
+### `--credentials-file` for secrets (preferred)
+
+`provider add` and `provider update` both accept `--credentials-file PATH` to keep secrets out of `argv` (and therefore out of shell history and `ps` listings on shared hosts). The file shape depends on `--type`:
+
+- **`aws`**: JSON object with `aws_access_key_id` + `aws_secret_access_key`. Uploaded via the dedicated AWS credentials endpoint; remaining keys (if any) merge into `--config`.
+- **`gcp`**: the raw service account JSON key file itself (the file you'd otherwise pass to `gcloud auth activate-service-account --key-file=...`). Uploaded via the dedicated GCP credentials endpoint.
+- **everything else** (`skypilot`, `runpod`, `dstack`, `azure`, `slurm` REST, `vastai`): a flat JSON object whose fields merge on top of `--config`. File values win on conflict.
+
+`chmod 600` the file, source it from a secret manager / CI vault, and delete it after the `lab provider add` call. **Prefer this over embedding `api_token` / `azure_client_secret` / etc. inside `--config`** whenever you're scripting.
 
 ```bash
 # Local (rare — usually pre-installed)
@@ -538,6 +601,32 @@ lab provider add --no-interactive --name my-slurm --type slurm \
 # RunPod
 lab provider add --no-interactive --name my-runpod --type runpod \
   --config '{"api_key": "RUNPOD_KEY", "default_gpu_type": "NVIDIA H100"}'
+
+# dstack
+lab provider add --no-interactive --name my-dstack --type dstack \
+  --config '{"server_url": "http://0.0.0.0:3000", "api_token": "TOKEN", "dstack_project": "main"}'
+
+# AWS — credentials live in a JSON file: {"aws_access_key_id": "...", "aws_secret_access_key": "..."}
+lab provider add --no-interactive --name my-aws --type aws \
+  --config '{"region": "us-east-1"}' \
+  --credentials-file ./aws-creds.json
+
+# GCP — point --credentials-file at your raw service account JSON key file
+lab provider add --no-interactive --name my-gcp --type gcp \
+  --config '{"region": "us-central1"}' \
+  --credentials-file ~/.config/gcloud/sa-key.json
+
+# Azure — secrets can live in --credentials-file (preferred) instead of --config
+# azure-secrets.json: {"azure_client_secret": "REDACTED"}
+lab provider add --no-interactive --name my-azure --type azure \
+  --config '{"azure_subscription_id": "sub", "azure_tenant_id": "tenant", "azure_client_id": "client", "azure_location": "eastus"}' \
+  --credentials-file ./azure-secrets.json
+
+# SkyPilot / RunPod / dstack — same pattern: put api_token / api_key in --credentials-file
+# skypilot-secrets.json: {"api_token": "TOKEN"}
+lab provider add --no-interactive --name my-skypilot-prod --type skypilot \
+  --config '{"server_url": "https://sky.example.com"}' \
+  --credentials-file ./skypilot-secrets.json
 ```
 
 `provider add` automatically runs a health check after creation, so a successful `add` already confirms connectivity. **Re-run `lab provider check PROVIDER_ID` before queuing if you're using an existing provider** (credentials may have rotated, the backend may be down) or after a `provider update` that changed config. If a check fails, fix the config with `lab provider update` rather than deleting and re-adding.
@@ -545,6 +634,8 @@ lab provider add --no-interactive --name my-runpod --type runpod \
 ### Don't ask the user for credentials in chat
 
 Provider configs (`api_token`, `api_key`, `ssh_key_path`) contain secrets. If the user has not provided them already, ask them to either run `lab provider add` interactively themselves (the CLI prompts for each field privately) or to paste the values from a secure source. Don't request the user paste raw keys into a multi-message conversation.
+
+Also note that secrets passed inside `--config` (e.g. `api_token`, `azure_client_secret`) appear in shell history and `ps` listings. For scripted / CI flows, prefer `--credentials-file PATH` (see above) — it keeps secrets out of `argv` entirely. For ad-hoc runs, the interactive flow is fine, or have the user prefix the command with a space under `HISTCONTROL=ignorespace`.
 
 ## Agent-Specific Rules
 
@@ -554,13 +645,14 @@ Provider configs (`api_token`, `api_key`, `ssh_key_path`) contain secrets. If th
 4. **`--no-interactive` on `task queue` silently uses the DEFAULT provider (Local).** There is no `--provider` flag. To target a specific provider, you must drive the interactive prompts (see "Selecting a provider" below).
 5. **`task add` has no `--yes` flag** — pipe `echo "y"` to confirm: `echo "y" | lab task add ./my-task`
 6. **Skip confirmation on destructive commands:** use `--no-interactive` for `provider delete`, `job delete`, and `job delete-all`; use `--yes` / `-y` for `model delete` / `dataset delete` (the flag names differ — verify with `--help`)
-7. **Never use `job monitor`** — it launches a TUI that blocks; use `job list` + `job task-logs` instead
+7. **Never run `lab job monitor` when operating as an AI agent.** It launches an interactive Textual TUI that blocks automation and can hang unattended runs; use `lab job list`, `lab job info`, and `lab job task-logs` (`--follow` only when explicitly requested) instead.
 8. **Never use `task interactive`** unless the user specifically requests an interactive session
 9. **`job task-logs --follow`** streams continuously and blocks until the job finishes — use when the user wants real-time monitoring
 10. **Never use the deprecated `lab job logs`** — see the "Job logs: three real commands" section below.
-11. **After queuing a task, ASK the user if they'd like you to watch the logs.** Don't start streaming or polling automatically — jobs can take minutes to hours, and `--follow` blocks. Report the Job ID and ask: "Want me to watch the logs and report back?"
-12. **Never create API keys programmatically** — if auth fails, ask the user to provide an API key from the web UI
-13. **Always pass `--description/-m` when queuing a task. Generate it yourself — never ask the user.** See "Always write a run description" below.
+11. **Before queuing a task, CONFIRM the experiment with the user.** Run `lab config` to read the current default and `lab --format json experiment list` to verify it exists, then ask: "I'm about to queue this under experiment `<name>` (your current default). OK, or pick another?" Show 2–3 alternatives from `experiment list` if the current one looks stale or missing. Skip the confirmation only when the user has already named the experiment in this turn.
+12. **After queuing a task, ASK the user if they'd like you to watch the logs.** Don't start streaming or polling automatically — jobs can take minutes to hours, and `--follow` blocks. Report the Job ID and ask: "Want me to watch the logs and report back?"
+13. **Never create API keys programmatically** — if auth fails, ask the user to provide an API key from the web UI
+14. **Always pass `--description/-m` when queuing a task. Generate it yourself — never ask the user.** See "Always write a run description" below.
 
 ### Always write a run description
 
@@ -693,6 +785,9 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab experiment create <name>` | Create a new experiment (`--set-default` to also switch to it) | No |
 | `lab experiment delete <id>` | Delete an experiment (`--no-interactive` to skip prompt) | No |
 | `lab experiment set-default <id>` | Set the default experiment (validates server-side, then writes `current_experiment` to `~/.lab/config.json`) | No |
+| `lab notes show` | Render the current experiment's shared markdown notes (`--raw` for plain markdown) | Yes |
+| `lab notes edit` | Open the current experiment's notes in `$EDITOR` (defaults to nano) | Yes |
+| `lab notes append <text>` | Append a line to the current experiment's notes non-interactively — preferred for agents | Yes |
 | `lab task list` | List tasks in current experiment | Yes |
 | `lab task info <id>` | Get task details | Yes |
 | `lab task init` | Scaffold `task.yaml` + `main.py` in the current directory (`--interactive` to prompt) | No |
@@ -779,11 +874,22 @@ With non-zero exit code.
 
 **If a CLI command appears missing, broken, or returns unexpected output:** investigate (run `--help`, re-read this skill, read the relevant router/service under `api/transformerlab/`), then tell the user what you found. **Don't** silently fall back to `curl` against the REST API or `/openapi.json` — that's the workaround pattern this skill explicitly forbids.
 
+## `/lab-autoresearch` — autonomous experiment loop
+
+When the user says **"run autoresearch"**, **"optimize X in a loop"**, **"set up autoresearch for …"**, or types **`/lab-autoresearch …`**, enter the autoresearch workflow. It's an agent-driven optimization loop layered on top of the `lab` CLI: pick an idea → queue it as a job → score via `lab.finish(score=…)` → keep or `lab job discard` → repeat, up to a parallelism budget. For hyperparameter fan-out, prefer the task's `sweeps:` block over manually queuing N jobs.
+
+State lives entirely on Transformer Lab — one **experiment** per session, one **job** per iteration (its `-m/--description` is the iteration note, its `score` dict is the result, `lab job discard` is the keep/discard flag). The session plan (objective, files in scope, constraints, backlog, what's been tried) is written to **experiment notes** via `lab notes` — there is no local `autoresearch.md` file.
+
+Subcommands worth naming: `init <goal>`, `run`, `finalize`. Everything else mid-session (status, keep/discard, sweeps, ideas, stopping running jobs, exiting the loop) is just the agent running the right `lab` call from this skill in response to natural-language requests — no dedicated subcommand needed.
+
+**Read `references/autoresearch.md` before doing any of this.** It has the three subcommand workflows, the during-session natural-language → `lab` mapping, the experiment-notes template, and loop rules (parallelism, fire-and-advance, stale-job sweep, keep/discard policy, run-description discipline).
+
 ## Deep-Dive References
 
 - `references/commands.md` — Full command reference with all options
 - `references/workflows.md` — End-to-end workflow patterns
 - `references/troubleshooting.md` — Error patterns and recovery
+- `references/autoresearch.md` — `/lab-autoresearch` autonomous experiment loop spec
 
 ## Ready-to-Use Templates
 

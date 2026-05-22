@@ -32,7 +32,7 @@ def list(format: str = typer.Option(None)):
 
 ### Textual TUI (interactive, long-running)
 
-Use Textual for interactive screens where the user monitors, navigates, or takes actions in real time. Currently used for the **job monitor** (`lab job monitor`) which shows a live-updating job list with log streaming.
+Use Textual for interactive screens where the user monitors, navigates, or takes actions in real time. Currently used for the **job monitor** (`lab job monitor`) which shows a live-updating job list with log streaming. This command is for human terminal use only and is not suitable for non-interactive automation or AI agents.
 
 The TUI lives in `commands/job_monitor/` and is a full Textual `App` with:
 - Custom widgets (JobDetails, JobLogs, modals)
@@ -46,27 +46,53 @@ The TUI lives in `commands/job_monitor/` and is a full Textual `App` with:
 
 ```
 cli/src/transformerlab_cli/
-├── main.py              # Typer app, command registration, global callback
-├── state.py             # CLIState singleton (output_format)
-├── commands/            # One module per command group
-│   ├── login.py         # lab login
-│   ├── logout.py        # lab logout
-│   ├── job.py           # lab job {list,info,machine-logs,task-logs,request-logs,download,monitor,...}
-│   ├── task.py          # lab task {list,add,delete,...}
-│   ├── status.py        # lab status
-│   ├── provider.py      # lab provider {list,...}
-│   ├── server.py        # lab server {info,...}
-│   └── job_monitor/     # Textual TUI app
+├── main.py                     # Typer app, command registration, global callback
+├── state.py                    # CLIState singleton (output_format)
+├── commands/                   # One module per command group
+│   ├── login.py                # lab login
+│   ├── logout.py               # lab logout
+│   ├── whoami.py               # lab whoami
+│   ├── status.py               # lab status
+│   ├── version.py              # lab version
+│   ├── config.py               # lab config
+│   ├── install_agent_skill.py  # lab install-agent-skill
+│   ├── job.py                  # lab job {list,info,machine-logs,task-logs,request-logs,download,metrics,artifacts,discard,stop,delete,delete-all,monitor,publish ...}
+│   ├── task.py                 # lab task {list,init,add,validate,edit,upload,delete,info,queue,gallery,interactive}
+│   ├── interactive.py          # implementation for `lab task interactive`
+│   ├── provider.py             # lab provider {list,add,info,update,delete,check,enable,disable,set-default,clear-default}
+│   ├── server.py               # lab server {install,version,start,stop,restart,update}
+│   ├── experiment.py           # lab experiment {list,create,delete,set-default,tag,tags}
+│   ├── notes.py                # lab notes {show,edit,append}
+│   ├── dataset.py              # lab dataset {list,info,delete,edit,upload,download}
+│   ├── model.py                # lab model {list,info,create,edit,upload,download,delete}
+│   └── job_monitor/            # Textual TUI app (flat layout — widgets and modals sit alongside the app entry point)
+│       ├── job_monitor.py      # entry point (`run_monitor`)
 │       ├── JobMonitorApp.py
-│       ├── components/  # Custom Textual widgets
-│       ├── modals/      # Modal dialogs
-│       └── styles.tcss  # Textual CSS
+│       ├── JobDetails.py
+│       ├── JobLogs.py
+│       ├── TaskAddModal.py
+│       ├── TaskListModal.py
+│       ├── ExperimentSelectModal.py
+│       ├── GalleryModal.py
+│       ├── InteractiveTaskModal.py
+│       ├── util.py
+│       └── styles.tcss         # Textual CSS
+├── templates/
+│   └── task_init/              # files written by `lab task init`
 └── util/
-    ├── api.py           # HTTP client wrapper (httpx)
-    ├── auth.py          # API key validation, user/team fetching
-    ├── config.py        # ~/.lab/config.json management
-    ├── shared.py        # Constants (BASE_URL, credential paths)
-    └── ui.py            # Rich console, themes, render_table()
+    ├── api.py                  # HTTP client wrapper (httpx)
+    ├── auth.py                 # API key validation, user/team fetching
+    ├── browser_login.py        # loopback browser login flow used by `lab login`
+    ├── config.py               # ~/.lab/config.json management
+    ├── shared.py               # Constants (BASE_URL, credential paths)
+    ├── ui.py                   # Rich console, themes, render_table()
+    ├── logo.py                 # ASCII logo printed by the root help
+    ├── version_check.py        # update-available check shown above every command
+    ├── pypi.py                 # PyPI version helpers
+    ├── telemetry.py            # Segment analytics wrapper
+    ├── asset_paths.py          # path/glob walking for `dataset/model upload`
+    ├── chunked_upload.py       # resumable upload client
+    └── chunked_download.py     # resumable download client
 ```
 
 ## API Communication
@@ -108,6 +134,24 @@ from transformerlab_cli.util.config import get_config, set_config, check_configs
 server = get_config("server")
 set_config("team_id", "abc-123", output_format)
 check_configs(output_format)  # Validates required keys are present
+```
+
+### Per-command experiment override
+
+Experiment-scoped commands use `current_experiment` from config by default, but can be overridden for a single invocation with
+`--experiment` / `-e`.
+
+Examples:
+
+```bash
+# Uses current_experiment from ~/.lab/config.json
+lab job list
+
+# One-off override (does not change config)
+lab job list --experiment exp-b
+lab task add ./my-task -e exp-c
+lab notes show -e exp-d
+lab job monitor -e exp-z
 ```
 
 ## Adding a New Command
