@@ -456,6 +456,15 @@ export default function UserLoginTest(): JSX.Element {
 
     const newRole = currentRole === 'owner' ? 'member' : 'owner';
 
+    // Warn when demoting yourself — you can't undo this without another owner.
+    if (userId === authContext.user?.id && newRole === 'member') {
+      // eslint-disable-next-line no-alert
+      const confirmed = window.confirm(
+        'Are you sure you want to change your own role from owner to member? You will lose the ability to manage this team and you will not be able to undo this change yourself.',
+      );
+      if (!confirmed) return;
+    }
+
     // Clear errors when we start a change
     handleSetRoleError(undefined);
 
