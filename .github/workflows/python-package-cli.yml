@@ -101,14 +101,14 @@ jobs:
             const title = `CLI publish to PyPI failed for release ${releaseTag}`;
             const body = [
               `The \`Build and Upload CLI Python Package\` workflow failed for release **${releaseTag}**.`,
-              ``,
+              '',
               `A common cause is that \`cli/pyproject.toml\` was not bumped before publishing, so the version already exists on PyPI.`,
-              ``,
+              '',
               `- Workflow run: ${runUrl}`,
-              releaseUrl ? `- Release: ${releaseUrl}` : ``,
-              ``,
+              ...(releaseUrl ? [`- Release: ${releaseUrl}`] : []),
+              '',
               `Bump \`cli/pyproject.toml\`, merge, and re-publish the release (or cut a new one) to retry.`,
-            ].filter(Boolean).join('\n');
+            ].join('\n');
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
