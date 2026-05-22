@@ -1,4 +1,4 @@
-import { Box, Button, Stack, Table, Typography } from '@mui/joy';
+import { Box, Button, Stack, Table, Tooltip, Typography } from '@mui/joy';
 import { PlusIcon, User2Icon } from 'lucide-react';
 
 type Member = {
@@ -57,29 +57,42 @@ export default function MembersSection({
               </td>
               <td>{m?.role}</td>
               <td>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={() => onUpdateRole(m.user_id ?? '', m.role ?? '')}
+                {iAmOwner ? (
+                  <Box
+                    sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
                   >
-                    {m?.role === 'owner'
-                      ? 'Change role to member'
-                      : 'Change role to owner'}
-                  </Button>
-                </Box>
+                    <Button
+                      variant="outlined"
+                      onClick={() =>
+                        onUpdateRole(m.user_id ?? '', m.role ?? '')
+                      }
+                    >
+                      {m?.role === 'owner'
+                        ? 'Change role to member'
+                        : 'Change role to owner'}
+                    </Button>
+                  </Box>
+                ) : null}
               </td>
             </tr>
           ))}
         </tbody>
       </Table>
-      <Button
-        startDecorator={<PlusIcon />}
-        onClick={onInvite}
-        variant="soft"
-        disabled={!iAmOwner}
+      <Tooltip
+        title={!iAmOwner ? 'Only owners can invite members' : ''}
+        disableHoverListener={iAmOwner}
       >
-        Invite Member {!iAmOwner ? '(Only owners can invite members)' : ''}
-      </Button>
+        <span>
+          <Button
+            startDecorator={<PlusIcon />}
+            onClick={onInvite}
+            variant="soft"
+            disabled={!iAmOwner}
+          >
+            Invite Member
+          </Button>
+        </span>
+      </Tooltip>
     </Box>
   );
 }
