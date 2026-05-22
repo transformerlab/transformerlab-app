@@ -1,7 +1,7 @@
 import os
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from transformerlab.routers.auth import get_user_and_team
@@ -17,21 +17,22 @@ KIND_TO_RESOURCE = {
 }
 
 
-def _build_public_url(token: str) -> str:
-    base = os.getenv("FRONTEND_URL", "http://localhost:1212").rstrip("/")
-    return f"{base}/#/public/share/{token}"
+def _build_public_url(token: str, request: Request) -> str:
+    base = os.getenv("FRONTEND_URL") or str(request.base_url)
+    return f"{base.rstrip('/')}/#/public/share/{token}"
 
 
-def _serialize(link) -> dict:
+def _serialize(link, request: Request) -> dict:
     return {
         "token": link.token,
-        "url": _build_public_url(link.token),
+        "url": _build_public_url(link.token, request),
         "created_at": link.created_at.isoformat() if link.created_at else None,
     }
 
 
 @router.get("/{kind}")
 async def get_share(
+    request: Request,
     experimentId: str,
     kind: Literal["notes", "chart"] = Path(...),
     session: AsyncSession = Depends(get_async_session),
@@ -39,11 +40,12 @@ async def get_share(
 ):
     resource_type = KIND_TO_RESOURCE[kind]
     link = await share_link_service.get_active_link(session, resource_type, experimentId)
-    return _serialize(link) if link else None
+    return _serialize(link, request) if link else None
 
 
 @router.post("/{kind}")
 async def create_share(
+    request: Request,
     experimentId: str,
     kind: Literal["notes", "chart"] = Path(...),
     session: AsyncSession = Depends(get_async_session),
@@ -60,7 +62,7 @@ async def create_share(
         team_id=team_id,
         user_id=user_id,
     )
-    return _serialize(link)
+    return _serialize(link, request)
 
 
 @router.delete("/{kind}")
