@@ -367,3 +367,27 @@ class UserExperimentAccess(Base):
         UniqueConstraint("user_id", "team_id", "experiment_id", name="uq_user_experiment_access"),
         Index("idx_user_experiment_access_user_team", "user_id", "team_id"),
     )
+
+
+class PublicShareLink(Base):
+    """A revocable, unauthenticated link granting view-only access to one experiment artifact."""
+
+    __tablename__ = "public_share_link"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    token: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    resource_type: Mapped[str] = mapped_column(String, nullable=False)
+    resource_id: Mapped[str] = mapped_column(String, nullable=False)
+    team_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    created_by: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    revoked_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index(
+            "ix_public_share_link_resource_active",
+            "resource_type",
+            "resource_id",
+            "revoked_at",
+        ),
+    )
