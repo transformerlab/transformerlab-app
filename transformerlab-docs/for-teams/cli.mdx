@@ -852,17 +852,17 @@ lab provider add --type gcp --credentials-file ./service-account.json
 
 **Provider config fields**, by `--type` (these are what `provider add` prompts for interactively, and what to put in the `--config` JSON object for `--no-interactive`):
 
-| Type       | Fields                                                                                                                                 |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `skypilot` | `server_url`, `api_token`                                                                                                              |
+| Type       | Fields                                                                                                                                  |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `skypilot` | `server_url`, `api_token`                                                                                                               |
 | `slurm`    | `mode` (`ssh` or `rest`), `rest_url` (if `mode=rest`), `ssh_host`, `ssh_user`, `ssh_key_path`, `ssh_port`, `api_token` (if `mode=rest`) |
-| `runpod`   | `api_key`, `api_base_url`, `default_gpu_type`, `default_region`, `default_template_id`, `default_network_volume_id`                    |
-| `dstack`   | `server_url`, `api_token`, `dstack_project`                                                                                            |
-| `aws`      | `region` (credentials supplied via `--credentials-file` JSON `{ "aws_access_key_id": "...", "aws_secret_access_key": "..." }`)         |
-| `gcp`      | `region`, `zone` (service account JSON supplied via `--credentials-file <path-to-service-account.json>`)                               |
-| `azure`    | `azure_subscription_id`, `azure_tenant_id`, `azure_client_id`, `azure_client_secret`, `azure_location`                                 |
-| `vastai`   | `api_key`                                                                                                                              |
-| `local`    | (no fields)                                                                                                                            |
+| `runpod`   | `api_key`, `api_base_url`, `default_gpu_type`, `default_region`, `default_template_id`, `default_network_volume_id`                     |
+| `dstack`   | `server_url`, `api_token`, `dstack_project`                                                                                             |
+| `aws`      | `region` (credentials supplied via `--credentials-file` JSON `{ "aws_access_key_id": "...", "aws_secret_access_key": "..." }`)          |
+| `gcp`      | `region`, `zone` (service account JSON supplied via `--credentials-file <path-to-service-account.json>`)                                |
+| `azure`    | `azure_subscription_id`, `azure_tenant_id`, `azure_client_id`, `azure_client_secret`, `azure_location`                                  |
+| `vastai`   | `api_key`                                                                                                                               |
+| `local`    | (no fields)                                                                                                                             |
 
 For `--type aws`, both `aws_access_key_id` and `aws_secret_access_key` must be supplied together (either via `--credentials-file` or the interactive prompt). For `--type gcp`, a service-account JSON file is required at create time — the provider will fail its health check without it.
 
@@ -971,10 +971,10 @@ Edit a dataset group's display name or description.
 lab dataset edit GROUP --name "New Name" --description "Updated description"
 ```
 
-| Option          | Description                              |
-| --------------- | ---------------------------------------- |
-| `--name`        | New display name for the dataset group.  |
-| `--description` | New description for the dataset group.   |
+| Option          | Description                             |
+| --------------- | --------------------------------------- |
+| `--name`        | New display name for the dataset group. |
+| `--description` | New description for the dataset group.  |
 
 #### `dataset upload`
 
