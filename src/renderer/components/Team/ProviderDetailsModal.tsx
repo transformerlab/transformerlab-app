@@ -1443,6 +1443,13 @@ export default function ProviderDetailsModal({
                 (errorData && (errorData.detail || errorData.message)) ||
                 'Provider was saved, but saving Nebius credentials failed. Open the provider and try again.',
             });
+            // The provider record was created server-side but credentials
+            // weren't written. Close the modal so the parent refreshes and the
+            // user can re-open the partial provider in edit mode instead of
+            // getting a name-collision on a second submit.
+            setName('');
+            setConfig('');
+            onClose();
             return;
           }
         }

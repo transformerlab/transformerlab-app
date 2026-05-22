@@ -5,6 +5,8 @@ import {
   FormControl,
   FormLabel,
   Input,
+  List,
+  ListItem,
   Textarea,
   Typography,
 } from '@mui/joy';
@@ -60,23 +62,39 @@ export default function NebiusProviderFields({
     <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
         Nebius CLI auth uses a <strong>service account key pair</strong> (not an
-        uploaded public key file in this form): create a private key, upload the
-        matching <strong>public</strong> <code>.pem</code> to the Nebius console
-        for that service account, then copy the <strong>Public key ID</strong>{' '}
-        the console shows. Paste the <strong>private key</strong> below—the
-        public key stays only on Nebius. The <strong>Service account ID</strong>{' '}
-        is your Nebius service account resource id. If your console only offers
-        short &quot;access key&quot; style secrets, use the key-pair flow
-        documented for the Nebius CLI <code>profile create</code> command
-        instead.
+        uploaded public key file in this form):
       </Typography>
+      <List
+        marker="decimal"
+        size="sm"
+        sx={{ '--ListItem-paddingY': '2px', color: 'text.tertiary', pl: 2 }}
+      >
+        <ListItem>Create a private key locally.</ListItem>
+        <ListItem>
+          Upload the matching <strong>public</strong> <code>.pem</code> to the
+          Nebius console for that service account.
+        </ListItem>
+        <ListItem>
+          Copy the <strong>Public key ID</strong> the console shows after
+          registering the public key.
+        </ListItem>
+        <ListItem>
+          Paste the <strong>private key</strong> below — the public key stays
+          only on Nebius.
+        </ListItem>
+        <ListItem>
+          Use your Nebius service account resource id as the{' '}
+          <strong>Service account ID</strong>.
+        </ListItem>
+      </List>
       <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
-        Credentials are written to a provider-scoped CLI config on the API
-        server so multiple Nebius providers in one org do not share profiles.
+        If your console only offers short &quot;access key&quot; style secrets,
+        use the key-pair flow documented for the Nebius CLI{' '}
+        <code>profile create</code> command instead.
       </Typography>
 
-      <FormControl>
-        <FormLabel>Service Account ID{providerId ? '' : ' *'}</FormLabel>
+      <FormControl required={!providerId}>
+        <FormLabel>Service Account ID</FormLabel>
         <Input
           value={nebiusServiceAccountId}
           onChange={(event) =>
@@ -86,8 +104,8 @@ export default function NebiusProviderFields({
           fullWidth
         />
       </FormControl>
-      <FormControl>
-        <FormLabel>Public Key ID{providerId ? '' : ' *'}</FormLabel>
+      <FormControl required={!providerId}>
+        <FormLabel>Public Key ID</FormLabel>
         <Input
           value={nebiusPublicKeyId}
           onChange={(event) => setNebiusPublicKeyId(event.currentTarget.value)}
@@ -95,8 +113,8 @@ export default function NebiusProviderFields({
           fullWidth
         />
       </FormControl>
-      <FormControl>
-        <FormLabel>Private Key{providerId ? '' : ' *'}</FormLabel>
+      <FormControl required={!providerId}>
+        <FormLabel>Private Key</FormLabel>
         <Textarea
           value={nebiusPrivateKey}
           onChange={(event) => setNebiusPrivateKey(event.currentTarget.value)}
@@ -120,10 +138,8 @@ export default function NebiusProviderFields({
         the API creates a default VPC network and subnet on first launch when
         needed. Or paste a <strong>Subnet ID</strong> to use your own subnet.
       </Typography>
-      <FormControl required>
-        <FormLabel>
-          Project (parent) ID{nebiusSubnetId.trim() ? '' : ' *'}
-        </FormLabel>
+      <FormControl required={!nebiusSubnetId.trim()}>
+        <FormLabel>Project (parent) ID</FormLabel>
         <Input
           value={nebiusParentId}
           onChange={(event) => setNebiusParentId(event.currentTarget.value)}
