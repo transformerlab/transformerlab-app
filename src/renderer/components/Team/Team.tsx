@@ -938,6 +938,7 @@ export default function UserLoginTest(): JSX.Element {
           members={members?.members}
           roleError={roleError}
           iAmOwner={iAmOwner}
+          currentUserId={authContext.user?.id}
           onUpdateRole={handleUpdateRole}
           onInvite={() => setOpenInviteModal(true)}
         />
