@@ -50,6 +50,9 @@ export default function MembersSection({
         <tbody>
           {members?.map((m, idx) => {
             const isSelf = !!currentUserId && m.user_id === currentUserId;
+            // Hide the demote button when clicking it would leave the team
+            // with zero owners (the backend rejects this, but hiding the
+            // button avoids a dead-end click + error message).
             const wouldStrandTeam =
               isSelf && m.role === 'owner' && ownerCount <= 1;
             const showRoleButton = iAmOwner && !wouldStrandTeam;
