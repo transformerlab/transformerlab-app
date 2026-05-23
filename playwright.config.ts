@@ -31,13 +31,13 @@ export default defineConfig({
   projects: [
     {
       name: 'smoke',
-      testMatch: ['homepage.spec.ts', 'smoke-screens.spec.ts'],
+      testMatch: ['homepage.spec.ts', 'smoke-screens.spec.ts', 'auth.spec.ts'],
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'e2e',
       testMatch: ['**/*.spec.ts'],
-      testIgnore: ['homepage.spec.ts', 'smoke-screens.spec.ts'],
+      testIgnore: ['homepage.spec.ts', 'smoke-screens.spec.ts', 'auth.spec.ts'],
       dependencies: ['smoke'],
       use: { ...devices['Desktop Chrome'] },
     },
