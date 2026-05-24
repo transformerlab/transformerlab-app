@@ -279,7 +279,20 @@ export default function ExperimentsManagerModal({
                           )}
                         </td>
                         <td>
-                          <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              gap: 0.5,
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() => handleOpen(exp)}
+                            >
+                              Open
+                            </Button>
                             <TagEditor
                               experimentId={exp.id}
                               experimentName={exp.name}
@@ -290,13 +303,6 @@ export default function ExperimentsManagerModal({
                               }
                               onChanged={() => mutate()}
                             />
-                            <Button
-                              size="sm"
-                              variant="plain"
-                              onClick={() => handleOpen(exp)}
-                            >
-                              Open
-                            </Button>
                             {canManage(exp) && (
                               <>
                                 <Tooltip title="Share">
