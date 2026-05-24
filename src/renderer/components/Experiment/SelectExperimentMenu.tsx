@@ -254,6 +254,7 @@ export default function SelectExperimentMenu({ models }) {
                 marginBottom: '4px',
                 minHeight: '22px',
                 height: '22px',
+                width: '100%',
                 overflow: 'hidden',
                 justifyContent: 'flex-start',
               }}
