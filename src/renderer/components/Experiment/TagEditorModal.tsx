@@ -9,6 +9,7 @@ import {
   ModalClose,
   ModalDialog,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/joy';
 import { TagIcon } from 'lucide-react';
@@ -100,14 +101,11 @@ export default function TagEditor({
 
   return (
     <>
-      <IconButton
-        size="sm"
-        variant="plain"
-        title="Edit tags"
-        onClick={() => setOpen(true)}
-      >
-        <TagIcon size={14} />
-      </IconButton>
+      <Tooltip title="Edit tags">
+        <IconButton size="sm" variant="plain" onClick={() => setOpen(true)}>
+          <TagIcon size={14} />
+        </IconButton>
+      </Tooltip>
       <Modal open={open} onClose={() => setOpen(false)}>
         <ModalDialog sx={{ minWidth: 360 }}>
           <ModalClose />
