@@ -256,31 +256,29 @@ export default function SelectExperimentMenu({ models }) {
                 height: '22px',
                 overflow: 'hidden',
                 justifyContent: 'flex-start',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
               }}
             >
-              {experimentInfo?.name || 'Select'}
               <span
                 style={{
-                  flexGrow: 0,
-                  justifyContent: 'right',
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  textOverflow: 'ellipsis',
+                }}
+                title={experimentInfo?.name || undefined}
+              >
+                {experimentInfo?.name || 'Select'}
+              </span>
+              <span
+                style={{
+                  flexShrink: 0,
                   display: 'inline-flex',
                   color: 'var(--joy-palette-neutral-plainColor)',
                   marginLeft: '8px',
                 }}
               >
                 <ChevronDownIcon size="18px" />
-              </span>
-              <span
-                style={{
-                  flexGrow: 1,
-                  justifyContent: 'right',
-                  display: 'inline-flex',
-                  color: 'var(--joy-palette-neutral-plainColor)',
-                }}
-              >
-                &nbsp;
               </span>
             </MenuButton>
           )}
