@@ -348,7 +348,7 @@ export default function SelectExperimentMenu({ models }) {
               <ListItemDecorator>
                 <LayoutGridIcon strokeWidth={1} />
               </ListItemDecorator>
-              See all experiments
+              Manage experiments
             </MenuItem>
             <Divider />
             <MenuItem onClick={() => setModalOpen(true)} disabled={isLoading}>
