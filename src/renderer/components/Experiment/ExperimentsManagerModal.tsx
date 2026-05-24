@@ -14,7 +14,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/joy';
-import { ShareIcon, Trash2Icon } from 'lucide-react';
+import { Trash2Icon, UserRoundPlusIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   useSWRWithAuth as useSWR,
@@ -311,7 +311,7 @@ export default function ExperimentsManagerModal({
                                     variant="plain"
                                     onClick={() => setShareTarget(exp)}
                                   >
-                                    <ShareIcon size={14} />
+                                    <UserRoundPlusIcon size={14} />
                                   </IconButton>
                                 </Tooltip>
                                 <Tooltip title="Delete">
