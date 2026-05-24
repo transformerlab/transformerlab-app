@@ -11,7 +11,7 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
-import { PencilIcon } from 'lucide-react';
+import { TagIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
@@ -106,7 +106,7 @@ export default function TagEditor({
         title="Edit tags"
         onClick={() => setOpen(true)}
       >
-        <PencilIcon size={14} />
+        <TagIcon size={14} />
       </IconButton>
       <Modal open={open} onClose={() => setOpen(false)}>
         <ModalDialog sx={{ minWidth: 360 }}>
