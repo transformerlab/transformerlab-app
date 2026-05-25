@@ -438,7 +438,14 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         import base64
 
-        from transformerlab.services.ssh_key_service import get_org_ssh_public_key
+        from transformerlab.services.ssh_key_service import (
+            get_or_create_org_ssh_key_pair,
+            get_org_ssh_public_key,
+        )
+
+        async def _ensure_and_get_public_key() -> str:
+            await get_or_create_org_ssh_key_pair(self.team_id)
+            return await get_org_ssh_public_key(self.team_id)
 
         compute_client = self._get_compute_client()
         network_client = self._get_network_client()
@@ -446,7 +453,7 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
 
         vm_size = self._resolve_vm_size(config)
         subnet_id, nsg_id = self._ensure_networking(network_client, resource_client)
-        public_key_str = asyncio.run(get_org_ssh_public_key(self.team_id))
+        public_key_str = asyncio.run(_ensure_and_get_public_key())
 
         pip_name = f"transformerlab-pip-{cluster_name}"
         nic_name = f"transformerlab-nic-{cluster_name}"
