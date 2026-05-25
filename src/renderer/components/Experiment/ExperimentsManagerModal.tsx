@@ -147,30 +147,34 @@ export default function ExperimentsManagerModal({
           }}
         >
           <ModalClose />
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 2,
-              minHeight: 32,
-              mb: 2,
-              // Reserve space so + New Experiment doesn't overlap ModalClose X.
-              pr: 4,
-            }}
-          >
-            <Typography level="h3" component="h2">
-              Experiments
-            </Typography>
-            <Button
-              size="sm"
-              onClick={() => {
-                onClose();
-                onNewExperiment();
+          <Box sx={{ mb: 2 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 2,
+                minHeight: 32,
+                // Reserve space so + New Experiment doesn't overlap ModalClose X.
+                pr: 4,
               }}
             >
-              + New Experiment
-            </Button>
+              <Typography level="h3" component="h2">
+                Experiments
+              </Typography>
+              <Button
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onNewExperiment();
+                }}
+              >
+                + New Experiment
+              </Button>
+            </Box>
+            <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
+              Click an experiment name to open it.
+            </Typography>
           </Box>
           <Input
             placeholder="Search experiments…"
