@@ -1,8 +1,15 @@
+import py_compile
+import subprocess
+import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from transformerlab.compute_providers.lambda_labs import LambdaProvider, LAMBDA_RUN_LOG_PATH
+from transformerlab.compute_providers.lambda_labs import (
+    LambdaProvider,
+    LAMBDA_RUN_LOG_PATH,
+    _PUSH_LOGS_PY,
+)
 from transformerlab.compute_providers.models import ClusterConfig
 
 
@@ -182,3 +189,39 @@ class TestGetJobLogs:
         with patch.object(provider, "_find_instance_by_name", return_value={"ip": None}):
             result = provider.get_job_logs("my-cluster", "job-1")
         assert "no IP" in result
+
+
+class TestUserData:
+    def _build(self, provider):
+        config = ClusterConfig(accelerators="A10:1", region="us-east-1")
+        config.setup = "uv pip install foo"
+        config.run = "tfl-remote-trap -- python train.py"
+        config.env_vars = {"_TFL_JOB_ID": "42", "_TFL_EXPERIMENT_ID": "7", "FOO": "bar baz"}
+        return provider._build_user_data("mycluster", config)
+
+    def test_embedded_uploader_compiles(self):
+        src = _PUSH_LOGS_PY.format(log_path=LAMBDA_RUN_LOG_PATH)
+        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
+            f.write(src)
+            path = f.name
+        py_compile.compile(path, doraise=True)
+
+    def test_generated_script_is_valid_bash(self, provider):
+        ud = self._build(provider)
+        with tempfile.NamedTemporaryFile("w", suffix=".sh", delete=False) as f:
+            f.write(ud)
+            path = f.name
+        result = subprocess.run(["bash", "-n", path], capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+
+    def test_script_bootstraps_runtime_and_grace(self, provider):
+        ud = self._build(provider)
+        # Runtime bootstrap (the bug fix): venv + uv installed before user setup.
+        assert "python3 -m venv /opt/transformerlab-venv" in ud
+        assert "astral.sh/uv/install.sh" in ud
+        # Full output captured from the start, and failure handling present.
+        assert f"tee {LAMBDA_RUN_LOG_PATH}" in ud
+        assert "TFL_LAMBDA_FAILURE_GRACE_SECONDS" in ud
+        assert "_tfl_push_logs.py" in ud
+        # Bootstrap precedes user setup.
+        assert ud.index("transformerlab-venv") < ud.index("uv pip install foo")

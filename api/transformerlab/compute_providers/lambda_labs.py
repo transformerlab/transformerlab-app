@@ -39,6 +39,42 @@ LAMBDA_RUN_LOG_PATH = "/var/log/transformerlab-run.log"
 # Lambda's default Ubuntu image logs in as this user.
 LAMBDA_SSH_USER = "ubuntu"
 
+# Seconds to keep a *failed* instance alive before self-terminating, so the run
+# can be inspected over SSH / the log poller can read it. Overridable per-launch
+# via the TFL_LAMBDA_FAILURE_GRACE_SECONDS env var. Successful runs terminate
+# immediately. Default 10 minutes.
+LAMBDA_FAILURE_GRACE_SECONDS = 600
+
+# Python uploader embedded in user_data. On a failed run it copies the full
+# captured output (setup + run) to provider_logs.txt in the job's shared-storage
+# directory, so setup-phase crashes are visible even after the box is gone.
+# Uses the same SDK storage abstraction / env vars as tfl-remote-trap. Kept brace
+# free so it can be embedded in an f-string heredoc without escaping. {log_path}
+# is filled in by str.format.
+_PUSH_LOGS_PY = """import os, asyncio
+from lab import storage
+from lab.dirs import get_job_dir
+
+
+async def _main():
+    jid = os.environ.get("_TFL_JOB_ID")
+    eid = os.environ.get("_TFL_EXPERIMENT_ID") or os.environ.get("TFL_EXPERIMENT_ID")
+    if not jid or not eid:
+        return
+    job_dir = await get_job_dir(jid, eid)
+    dst = storage.join(job_dir, "provider_logs.txt")
+    try:
+        with open("{log_path}", "r", errors="replace") as fh:
+            data = fh.read()
+    except Exception:
+        data = ""
+    async with await storage.open(dst, "w", encoding="utf-8") as out:
+        await out.write(data)
+
+
+asyncio.run(_main())
+"""
+
 
 def _ssh_read_file(host: str, key_bytes: bytes, remote_path: str, tail_lines: int = 500) -> str:
     """SSH to host and tail a file. Returns string content or an error message.
@@ -256,17 +292,36 @@ class LambdaProvider(ComputeProvider):
                 lines.append(f"export {key}={shlex.quote(str(value))}")
             env_exports = "\n".join(lines)
 
+        push_logs_py = _PUSH_LOGS_PY.format(log_path=LAMBDA_RUN_LOG_PATH)
+        grace = LAMBDA_FAILURE_GRACE_SECONDS
+
         return f"""#!/bin/bash
-set -eo pipefail
+set -o pipefail
+
+# Capture EVERYTHING (bootstrap + setup + run) to a local log from the very
+# start, so setup-phase crashes are recorded even though tfl-remote-trap (which
+# writes the durable provider_logs.txt) only runs in the run phase.
+exec > >(tee {LAMBDA_RUN_LOG_PATH}) 2>&1
 
 # Credentials are embedded so the EXIT trap can self-terminate via Lambda's API.
-# Do not echo them.
+# Do not echo them (we never enable `set -x`).
 set +x
 _TFL_LAMBDA_API_BASE={api_base}
 _TFL_LAMBDA_API_KEY={api_key_q}
 _TFL_LAMBDA_NAME={name_q}
+_TFL_FAILURE_GRACE_SECONDS="${{TFL_LAMBDA_FAILURE_GRACE_SECONDS:-{grace}}}"
+export _TFL_LAMBDA_NAME
 
-_tfl_self_terminate() {{
+# Export job/storage/user env early so the EXIT trap's log uploader can resolve
+# the job directory and storage credentials even if user setup fails.
+{env_exports}
+
+# Uploader: on failure, push the full captured log to shared storage.
+cat > /tmp/_tfl_push_logs.py <<'PYEOF'
+{push_logs_py}
+PYEOF
+
+_tfl_terminate() {{
   # Resolve our own instance id by name, then terminate. Best-effort.
   local _iid
   _iid=$(curl -sf -u "$_TFL_LAMBDA_API_KEY:" "$_TFL_LAMBDA_API_BASE/instances" 2>/dev/null \
@@ -285,18 +340,43 @@ except Exception:
   fi
   sync || true
   shutdown -h now || poweroff || true
+}}
+
+_tfl_on_exit() {{
+  _ec=$?
+  if [ "$_ec" -ne 0 ]; then
+    # Persist the full log so the failure is visible after the box is gone,
+    # then keep the instance alive briefly for live inspection over SSH.
+    python3 /tmp/_tfl_push_logs.py || true
+    echo "[transformerlab] Run failed (exit $_ec). Keeping instance up for $_TFL_FAILURE_GRACE_SECONDS s for inspection."
+    sleep "$_TFL_FAILURE_GRACE_SECONDS" || true
+  fi
+  _tfl_terminate
   return 0
 }}
-export _TFL_LAMBDA_NAME
-trap _tfl_self_terminate EXIT
+trap _tfl_on_exit EXIT
 
-{env_exports}
-{setup_block}
-set +e
-({run_cmd}) 2>&1 | tee {LAMBDA_RUN_LOG_PATH}
-_exit_code=${{PIPESTATUS[0]}}
+# --- Runtime bootstrap (mirrors the AWS provider) -----------------------------
+# A bare Lambda box may not have pip/uv wired up the way task setups expect, so
+# provision an isolated Python + uv before running user setup. Without this the
+# first setup command (e.g. `pip install transformerlab` or `uv pip ...`) fails
+# instantly and the instance self-terminates with no logs.
 set -e
-exit $_exit_code
+apt-get update -qq || true
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3 python3-venv python3-pip >/dev/null 2>&1 || true
+python3 -m venv /opt/transformerlab-venv || true
+export PATH="/opt/transformerlab-venv/bin:$PATH"
+curl -LsSf https://astral.sh/uv/install.sh | sh || true
+export PATH="$HOME/.local/bin:/root/.local/bin:/home/ubuntu/.local/bin:$PATH"
+if [ -x /root/.local/bin/uv ]; then cp /root/.local/bin/uv /usr/local/bin/uv && chmod +x /usr/local/bin/uv; fi
+if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx && chmod +x /usr/local/bin/uvx; fi
+# Install the SDK up front so the log uploader works even if *user* setup fails.
+pip install -q transformerlab || true
+
+# --- User setup + run ---------------------------------------------------------
+{setup_block}
+{run_cmd}
+exit $?
 """
 
     # ------------------------------------------------------- ComputeProvider
