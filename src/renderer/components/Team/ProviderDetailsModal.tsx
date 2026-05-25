@@ -177,8 +177,6 @@ export default function ProviderDetailsModal({
   const [lambdaApiKey, setLambdaApiKey] = useState('');
   const [lambdaApiKeyChanged, setLambdaApiKeyChanged] = useState(false);
   const [lambdaRegion, setLambdaRegion] = useState('us-east-1');
-  const [lambdaInstanceType, setLambdaInstanceType] = useState('');
-  const [lambdaSshKeyNames, setLambdaSshKeyNames] = useState('');
   const [lambdaFileSystemNames, setLambdaFileSystemNames] = useState('');
 
   // Azure-specific form fields
@@ -509,12 +507,6 @@ export default function ProviderDetailsModal({
       setLambdaRegion(
         configObj.default_region || configObj.region || 'us-east-1',
       );
-      setLambdaInstanceType(configObj.lambda_instance_type || '');
-      setLambdaSshKeyNames(
-        Array.isArray(configObj.lambda_ssh_key_names)
-          ? configObj.lambda_ssh_key_names.join(',')
-          : '',
-      );
       setLambdaFileSystemNames(
         Array.isArray(configObj.lambda_file_system_names)
           ? configObj.lambda_file_system_names.join(',')
@@ -539,13 +531,6 @@ export default function ProviderDetailsModal({
     if (!providerId || lambdaApiKeyChanged) {
       configObj.api_key = lambdaApiKey;
     }
-    if (lambdaInstanceType.trim()) {
-      configObj.lambda_instance_type = lambdaInstanceType.trim();
-    }
-    const sshKeys = splitList(lambdaSshKeyNames);
-    if (sshKeys.length > 0) {
-      configObj.lambda_ssh_key_names = sshKeys;
-    }
     const fsNames = splitList(lambdaFileSystemNames);
     if (fsNames.length > 0) {
       configObj.lambda_file_system_names = fsNames;
@@ -558,8 +543,6 @@ export default function ProviderDetailsModal({
     lambdaApiKey,
     lambdaApiKeyChanged,
     lambdaRegion,
-    lambdaInstanceType,
-    lambdaSshKeyNames,
     lambdaFileSystemNames,
     supportedAccelerators,
     providerId,
@@ -869,8 +852,6 @@ export default function ProviderDetailsModal({
       setLambdaApiKey('');
       setLambdaApiKeyChanged(false);
       setLambdaRegion('us-east-1');
-      setLambdaInstanceType('');
-      setLambdaSshKeyNames('');
       setLambdaFileSystemNames('');
       setAzureSubscriptionId('');
       setAzureTenantId('');
@@ -939,8 +920,6 @@ export default function ProviderDetailsModal({
       setLambdaApiKey('');
       setLambdaApiKeyChanged(false);
       setLambdaRegion('us-east-1');
-      setLambdaInstanceType('');
-      setLambdaSshKeyNames('');
       setLambdaFileSystemNames('');
       setAzureSubscriptionId('');
       setAzureTenantId('');
@@ -1869,10 +1848,6 @@ export default function ProviderDetailsModal({
                       setLambdaApiKey={setLambdaApiKey}
                       lambdaRegion={lambdaRegion}
                       setLambdaRegion={setLambdaRegion}
-                      lambdaInstanceType={lambdaInstanceType}
-                      setLambdaInstanceType={setLambdaInstanceType}
-                      lambdaSshKeyNames={lambdaSshKeyNames}
-                      setLambdaSshKeyNames={setLambdaSshKeyNames}
                       lambdaFileSystemNames={lambdaFileSystemNames}
                       setLambdaFileSystemNames={setLambdaFileSystemNames}
                       providerId={providerId}

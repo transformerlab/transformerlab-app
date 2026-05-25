@@ -57,8 +57,6 @@ class ComputeProviderConfig(BaseModel):
     service_account_email: Optional[str] = None
 
     # Lambda Labs-specific config
-    lambda_instance_type: Optional[str] = None  # e.g. "gpu_1x_a10"
-    lambda_ssh_key_names: Optional[list[str]] = None  # SSH key names registered with Lambda
     lambda_file_system_names: Optional[list[str]] = None  # Persistent filesystems to attach
 
     # Nebius-specific config
@@ -312,9 +310,9 @@ def create_compute_provider(config: ComputeProviderConfig) -> "ComputeProvider":
             api_key=config.api_key,
             api_base_url=config.api_base_url,
             default_region=config.default_region or config.region,
-            default_instance_type=config.lambda_instance_type or config.default_gpu_type,
-            default_ssh_key_names=config.lambda_ssh_key_names,
+            default_instance_type=config.default_gpu_type,
             default_file_system_names=config.lambda_file_system_names,
+            team_id=config.team_id,
             extra_config=config.extra_config,
         )
     elif config.type == "vastai":

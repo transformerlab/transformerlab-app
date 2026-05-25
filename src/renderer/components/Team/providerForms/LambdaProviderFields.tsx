@@ -6,10 +6,6 @@ interface LambdaProviderFieldsProps {
   setLambdaApiKey: (value: string) => void;
   lambdaRegion: string;
   setLambdaRegion: (value: string) => void;
-  lambdaInstanceType: string;
-  setLambdaInstanceType: (value: string) => void;
-  lambdaSshKeyNames: string;
-  setLambdaSshKeyNames: (value: string) => void;
   lambdaFileSystemNames: string;
   setLambdaFileSystemNames: (value: string) => void;
   providerId?: string;
@@ -21,10 +17,6 @@ export default function LambdaProviderFields({
   setLambdaApiKey,
   lambdaRegion,
   setLambdaRegion,
-  lambdaInstanceType,
-  setLambdaInstanceType,
-  lambdaSshKeyNames,
-  setLambdaSshKeyNames,
   lambdaFileSystemNames,
   setLambdaFileSystemNames,
   providerId,
@@ -72,34 +64,6 @@ export default function LambdaProviderFields({
         <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
           Lambda region name (e.g. "us-east-1", "us-west-1",
           "europe-central-1").
-        </Typography>
-      </FormControl>
-
-      <FormControl sx={{ mt: 1 }}>
-        <FormLabel>Default Instance Type</FormLabel>
-        <Input
-          value={lambdaInstanceType}
-          onChange={(event) => setLambdaInstanceType(event.currentTarget.value)}
-          placeholder="gpu_1x_a10"
-          fullWidth
-        />
-        <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
-          Lambda instance type name (e.g. "gpu_1x_a10", "gpu_1x_a100",
-          "gpu_8x_h100_sxm5"). Overridden by accelerators specified at launch.
-        </Typography>
-      </FormControl>
-
-      <FormControl sx={{ mt: 1 }}>
-        <FormLabel>SSH Key Names *</FormLabel>
-        <Input
-          value={lambdaSshKeyNames}
-          onChange={(event) => setLambdaSshKeyNames(event.currentTarget.value)}
-          placeholder="my-key,team-shared-key"
-          fullWidth
-        />
-        <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
-          Comma-separated names of SSH keys registered with your Lambda account.
-          At least one is required to launch instances.
         </Typography>
       </FormControl>
 

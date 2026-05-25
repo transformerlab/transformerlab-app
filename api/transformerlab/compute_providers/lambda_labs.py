@@ -9,11 +9,15 @@ the job-level methods (submit/list/cancel) are not implemented (mirrors RunPod).
 
 from __future__ import annotations
 
+import asyncio
+import io
 import logging
 import shlex
 from typing import Any, Dict, List, Optional, Union
 
 import requests
+
+from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
 from .base import ComputeProvider
 from .models import (
@@ -27,6 +31,46 @@ from .models import (
 
 
 logger = logging.getLogger(__name__)
+
+
+# Path on the instance where the user_data script tees combined setup/run output.
+LAMBDA_RUN_LOG_PATH = "/var/log/transformerlab-run.log"
+
+# Lambda's default Ubuntu image logs in as this user.
+LAMBDA_SSH_USER = "ubuntu"
+
+
+def _ssh_read_file(host: str, key_bytes: bytes, remote_path: str, tail_lines: int = 500) -> str:
+    """SSH to host and tail a file. Returns string content or an error message.
+
+    Mirrors aws._ssh_read_file: tries Ed25519 then RSA so it works with whatever
+    key format the org keypair uses.
+    """
+    import paramiko
+
+    pkey = None
+    key_file = io.StringIO(key_bytes.decode("utf-8"))
+    for key_class in (paramiko.Ed25519Key, paramiko.RSAKey):
+        try:
+            pkey = key_class.from_private_key(key_file)
+            break
+        except Exception:
+            key_file.seek(0)
+
+    if pkey is None:
+        return "Failed to load SSH key."
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(get_add_if_verified_policy())
+    try:
+        ssh.connect(hostname=host, port=22, username=LAMBDA_SSH_USER, pkey=pkey, timeout=15, banner_timeout=15)
+        cmd = f"tail -n {tail_lines} {remote_path} 2>/dev/null || echo 'No log file yet.'"
+        _, stdout, _ = ssh.exec_command(cmd, timeout=10)
+        return stdout.read().decode("utf-8", errors="replace").strip() or "No output yet."
+    except Exception as e:
+        return f"SSH failed: {e}"
+    finally:
+        ssh.close()
 
 
 # Lambda Labs instance state -> ClusterState
@@ -71,8 +115,8 @@ class LambdaProvider(ComputeProvider):
         api_base_url: Optional[str] = None,
         default_region: Optional[str] = None,
         default_instance_type: Optional[str] = None,
-        default_ssh_key_names: Optional[List[str]] = None,
         default_file_system_names: Optional[List[str]] = None,
+        team_id: Optional[str] = None,
         extra_config: Optional[Dict[str, Any]] = None,
     ):
         """
@@ -83,11 +127,11 @@ class LambdaProvider(ComputeProvider):
             default_region: Default region (e.g. "us-east-1") used when a launch
                 request doesn't specify one.
             default_instance_type: Default Lambda instance type name
-                (e.g. "gpu_1x_a10").
-            default_ssh_key_names: Names of SSH keys (already registered with
-                Lambda) to inject into launched instances.
+                (e.g. "gpu_1x_a10"), used when a launch doesn't pass accelerators.
             default_file_system_names: Persistent storage filesystem names to
                 attach by default.
+            team_id: Team whose org SSH key is registered with Lambda and used
+                to read run logs. Required for log retrieval.
             extra_config: Free-form passthrough.
         """
         if not api_key:
@@ -97,8 +141,8 @@ class LambdaProvider(ComputeProvider):
         self.api_base_url = (api_base_url or "https://cloud.lambda.ai/api/v1").rstrip("/")
         self.default_region = default_region
         self.default_instance_type = default_instance_type
-        self.default_ssh_key_names = list(default_ssh_key_names or [])
         self.default_file_system_names = list(default_file_system_names or [])
+        self.team_id = team_id
         self.extra_config = extra_config or {}
 
         # Cache cluster_name -> instance_id so we can avoid scanning every call.
@@ -249,13 +293,49 @@ trap _tfl_self_terminate EXIT
 {env_exports}
 {setup_block}
 set +e
-({run_cmd}) 2>&1 | tee /var/log/transformerlab-run.log
+({run_cmd}) 2>&1 | tee {LAMBDA_RUN_LOG_PATH}
 _exit_code=${{PIPESTATUS[0]}}
 set -e
 exit $_exit_code
 """
 
     # ------------------------------------------------------- ComputeProvider
+
+    def _org_key_name(self) -> str:
+        """Deterministic name for this team's org key as registered with Lambda."""
+        return f"transformerlab-{self.team_id}"
+
+    def _ensure_org_ssh_key(self) -> str:
+        """Ensure the team's org public key is registered with Lambda, creating it if missing.
+
+        Returns the Lambda SSH key name to inject at launch. The matching private
+        key (held by the API server) is later used to read run logs over SSH.
+        Mirrors aws._ensure_key_pair, but against Lambda's /ssh-keys endpoint.
+        """
+        from transformerlab.services.ssh_key_service import (
+            get_or_create_org_ssh_key_pair,
+            get_org_ssh_public_key,
+        )
+
+        async def _ensure_and_get_public_key() -> str:
+            await get_or_create_org_ssh_key_pair(self.team_id)
+            return await get_org_ssh_public_key(self.team_id)
+
+        public_key = asyncio.run(_ensure_and_get_public_key()).strip()
+        key_name = self._org_key_name()
+
+        # If a key with this name already exists, reuse it. Lambda rejects
+        # duplicate names, so we never re-create.
+        existing = self._unwrap(self._make_request("GET", "/ssh-keys").json()) or []
+        if any(k.get("name") == key_name for k in existing):
+            return key_name
+
+        self._make_request(
+            "POST",
+            "/ssh-keys",
+            json_data={"name": key_name, "public_key": public_key},
+        )
+        return key_name
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         instance_type = config.provider_config.get("instance_type_name") or self._resolve_instance_type(
@@ -268,11 +348,17 @@ exit $_exit_code
                 "Lambda provider requires a region. Set default_region or pass config.region when launching."
             )
 
-        ssh_key_names = config.provider_config.get("ssh_key_names") or self.default_ssh_key_names
+        # Start from any per-launch keys (for the user's own access), then always
+        # add the org key so the API server can read run logs over SSH.
+        ssh_key_names = list(config.provider_config.get("ssh_key_names") or [])
+        if self.team_id:
+            org_key_name = self._ensure_org_ssh_key()
+            if org_key_name not in ssh_key_names:
+                ssh_key_names.append(org_key_name)
         if not ssh_key_names:
             raise ValueError(
-                "Lambda Labs requires at least one ssh_key_name. Add an SSH key to "
-                "your Lambda account and configure default_ssh_key_names."
+                "Lambda Labs requires at least one ssh_key_name. Provide team_id so the "
+                "org key can be used, or configure default_ssh_key_names."
             )
 
         file_system_names = config.provider_config.get("file_system_names") or self.default_file_system_names
@@ -481,7 +567,24 @@ exit $_exit_code
         tail_lines: Optional[int] = None,
         follow: bool = False,
     ) -> Union[str, Any]:
-        return "Logs not available via Lambda Labs API. SSH into the instance to view logs."
+        # Lambda has no log API, so we SSH in (org key) and tail the run log,
+        # the same approach AWS/Nebius use. Logs are only available while the
+        # instance is alive — it self-terminates when the job exits.
+        if not self.team_id:
+            return "Logs not available: provider has no team_id for SSH access."
+
+        instance = self._find_instance_by_name(cluster_name)
+        if not instance:
+            return f"Instance '{cluster_name}' not found or not running."
+
+        public_ip = instance.get("ip")
+        if not public_ip:
+            return "Instance has no IP yet (still starting)."
+
+        from transformerlab.services.ssh_key_service import get_org_ssh_private_key
+
+        key_bytes = asyncio.run(get_org_ssh_private_key(self.team_id))
+        return _ssh_read_file(public_ip, key_bytes, LAMBDA_RUN_LOG_PATH, tail_lines or 500)
 
     def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
         raise NotImplementedError("Lambda Labs has no job cancellation API")

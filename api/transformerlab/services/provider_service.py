@@ -295,8 +295,6 @@ def db_record_to_provider_config(
         credentials_path=config_dict.get("credentials_path"),
         service_account_json=config_dict.get("service_account_json"),
         service_account_email=config_dict.get("service_account_email"),
-        lambda_instance_type=config_dict.get("lambda_instance_type"),
-        lambda_ssh_key_names=config_dict.get("lambda_ssh_key_names"),
         lambda_file_system_names=config_dict.get("lambda_file_system_names"),
         nebius_profile=config_dict.get("nebius_profile"),
         nebius_config_path=config_dict.get("nebius_config_path"),
@@ -314,7 +312,7 @@ def db_record_to_provider_config(
         azure_client_secret=config_dict.get("azure_client_secret"),
         azure_location=config_dict.get("azure_location"),
         azure_resource_group=config_dict.get("azure_resource_group"),
-        # team_id: config value (or record fallback) for AWS/GCP/Azure/Nebius; None otherwise.
+        # team_id: config value (or record fallback) for AWS/GCP/Azure/Nebius/Lambda; None otherwise.
         team_id=(
             config_dict.get("team_id") or record.team_id
             if record.type
@@ -323,6 +321,7 @@ def db_record_to_provider_config(
                 ProviderType.GCP.value,
                 ProviderType.AZURE.value,
                 ProviderType.NEBIUS.value,
+                ProviderType.LAMBDA.value,
             }
             else None
         ),
