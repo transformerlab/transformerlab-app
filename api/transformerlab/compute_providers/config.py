@@ -291,7 +291,6 @@ def create_compute_provider(config: ComputeProviderConfig) -> "ComputeProvider":
             subnet_id=config.subnet_id,
             profile=config.nebius_profile,
             config_path=config.nebius_config_path,
-            region=config.region,
             default_platform=config.default_platform,
             default_preset=config.default_preset,
             boot_image_family=config.boot_image_family,

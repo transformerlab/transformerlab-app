@@ -36,8 +36,8 @@ class ProviderConfigBase(BaseModel):
     ssh_key_path: Optional[str] = None
     ssh_port: int = 22
 
-    # AWS/GCP/Nebius region config
-    region: Optional[str] = None  # e.g. AWS "us-east-1", GCP "us-central1", or Nebius region
+    # AWS/GCP region config
+    region: Optional[str] = None  # e.g. AWS "us-east-1", GCP "us-central1"
 
     # Nebius-specific config
     nebius_profile: Optional[str] = None  # Nebius CLI profile name

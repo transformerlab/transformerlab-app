@@ -189,7 +189,6 @@ export default function ProviderDetailsModal({
   const [nebiusPrivateKey, setNebiusPrivateKey] = useState('');
   const [nebiusParentId, setNebiusParentId] = useState('');
   const [nebiusSubnetId, setNebiusSubnetId] = useState('');
-  const [nebiusRegion, setNebiusRegion] = useState('');
   const [nebiusDefaultPlatform, setNebiusDefaultPlatform] = useState('');
   const [nebiusDefaultPreset, setNebiusDefaultPreset] = useState('');
   const [nebiusBootImageFamily, setNebiusBootImageFamily] = useState('');
@@ -556,7 +555,6 @@ export default function ProviderDetailsModal({
     setNebiusSubnetId(
       configObj.subnet_id != null ? String(configObj.subnet_id) : '',
     );
-    setNebiusRegion(configObj.region != null ? String(configObj.region) : '');
     setNebiusDefaultPlatform(
       configObj.default_platform != null
         ? String(configObj.default_platform)
@@ -586,11 +584,6 @@ export default function ProviderDetailsModal({
       configObj.subnet_id = nebiusSubnetId.trim();
     } else {
       delete configObj.subnet_id;
-    }
-    if (nebiusRegion.trim()) {
-      configObj.region = nebiusRegion.trim();
-    } else {
-      delete configObj.region;
     }
     if (nebiusDefaultPlatform.trim()) {
       configObj.default_platform = nebiusDefaultPlatform.trim();
@@ -625,7 +618,6 @@ export default function ProviderDetailsModal({
     nebiusPassthrough,
     nebiusParentId,
     nebiusSubnetId,
-    nebiusRegion,
     nebiusDefaultPlatform,
     nebiusDefaultPreset,
     nebiusBootImageFamily,
@@ -803,7 +795,6 @@ export default function ProviderDetailsModal({
       setNebiusPrivateKey('');
       setNebiusParentId('');
       setNebiusSubnetId('');
-      setNebiusRegion('');
       setNebiusDefaultPlatform('');
       setNebiusDefaultPreset('');
       setNebiusBootImageFamily('');
@@ -868,7 +859,6 @@ export default function ProviderDetailsModal({
       setNebiusPrivateKey('');
       setNebiusParentId('');
       setNebiusSubnetId('');
-      setNebiusRegion('');
       setNebiusDefaultPlatform('');
       setNebiusDefaultPreset('');
       setNebiusBootImageFamily('');
@@ -1794,8 +1784,6 @@ export default function ProviderDetailsModal({
                       setNebiusParentId={setNebiusParentId}
                       nebiusSubnetId={nebiusSubnetId}
                       setNebiusSubnetId={setNebiusSubnetId}
-                      nebiusRegion={nebiusRegion}
-                      setNebiusRegion={setNebiusRegion}
                       nebiusDefaultPlatform={nebiusDefaultPlatform}
                       setNebiusDefaultPlatform={setNebiusDefaultPlatform}
                       nebiusDefaultPreset={nebiusDefaultPreset}

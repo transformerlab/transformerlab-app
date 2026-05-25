@@ -198,7 +198,6 @@ class NebiusProvider(ComputeProvider):
         subnet_id: Optional[str] = None,
         profile: Optional[str] = None,
         config_path: Optional[str] = None,
-        region: Optional[str] = None,
         default_platform: Optional[str] = None,
         default_preset: Optional[str] = None,
         boot_image_family: Optional[str] = None,
@@ -211,7 +210,6 @@ class NebiusProvider(ComputeProvider):
         self.subnet_id = subnet_id
         self.profile = profile
         self.config_path = config_path
-        self.region = region
         self.default_platform = default_platform
         self.default_preset = default_preset
         self.boot_image_family = boot_image_family

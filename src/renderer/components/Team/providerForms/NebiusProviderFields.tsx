@@ -22,8 +22,6 @@ interface NebiusProviderFieldsProps {
   setNebiusParentId: (value: string) => void;
   nebiusSubnetId: string;
   setNebiusSubnetId: (value: string) => void;
-  nebiusRegion: string;
-  setNebiusRegion: (value: string) => void;
   nebiusDefaultPlatform: string;
   setNebiusDefaultPlatform: (value: string) => void;
   nebiusDefaultPreset: string;
@@ -46,8 +44,6 @@ export default function NebiusProviderFields({
   setNebiusParentId,
   nebiusSubnetId,
   setNebiusSubnetId,
-  nebiusRegion,
-  setNebiusRegion,
   nebiusDefaultPlatform,
   setNebiusDefaultPlatform,
   nebiusDefaultPreset,
@@ -153,15 +149,6 @@ export default function NebiusProviderFields({
           value={nebiusSubnetId}
           onChange={(event) => setNebiusSubnetId(event.currentTarget.value)}
           placeholder="Blank = automatic default subnet under the project"
-          fullWidth
-        />
-      </FormControl>
-      <FormControl>
-        <FormLabel>Region</FormLabel>
-        <Input
-          value={nebiusRegion}
-          onChange={(event) => setNebiusRegion(event.currentTarget.value)}
-          placeholder="Optional"
           fullWidth
         />
       </FormControl>
