@@ -203,7 +203,7 @@ export default function ExperimentsManagerModal({
                     <th style={{ width: 160 }}>Owner</th>
                     <th style={{ width: 120 }}>Last Opened</th>
                     <th style={{ width: 100 }}>Sharing</th>
-                    <th style={{ width: 160 }}>Actions</th>
+                    <th style={{ width: 160, textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -284,6 +284,7 @@ export default function ExperimentsManagerModal({
                               display: 'flex',
                               gap: 0.5,
                               alignItems: 'center',
+                              justifyContent: 'flex-end',
                             }}
                           >
                             <Button
