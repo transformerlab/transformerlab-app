@@ -103,6 +103,55 @@ class TestLaunchInjectsOrgKey:
         assert payload["ssh_key_names"] == ["transformerlab-team-123"]
 
 
+class TestRegionCapacity:
+    def _launch_with_capacity(self, provider, instance_types_payload, requested_region):
+        config = ClusterConfig(accelerators="A10:1", region=requested_region)
+        config.provider_config = {}
+
+        def fake_request(method, endpoint, **kwargs):
+            if endpoint == "/instance-types":
+                return _json_response({"data": instance_types_payload})
+            return _json_response({"data": {"instance_ids": ["i-1"]}})
+
+        with (
+            patch.object(provider, "_ensure_org_ssh_key", return_value="org-key"),
+            patch.object(provider, "_make_request", side_effect=fake_request) as mock_req,
+        ):
+            provider.launch_cluster("my-cluster", config)
+
+        launch_call = [c for c in mock_req.call_args_list if c.args[1] == "/instance-operations/launch"][0]
+        return launch_call.kwargs["json_data"]
+
+    def test_uses_requested_region_when_it_has_capacity(self, provider):
+        payload = {"gpu_1x_a10": {"regions_with_capacity_available": [{"name": "us-east-1"}, {"name": "us-west-1"}]}}
+        launch_payload = self._launch_with_capacity(provider, payload, "us-east-1")
+        assert launch_payload["region_name"] == "us-east-1"
+
+    def test_falls_back_to_region_with_capacity(self, provider):
+        # Requested us-east-1 has no capacity; us-west-3 does.
+        payload = {"gpu_1x_a10": {"regions_with_capacity_available": [{"name": "us-west-3"}]}}
+        launch_payload = self._launch_with_capacity(provider, payload, "us-east-1")
+        assert launch_payload["region_name"] == "us-west-3"
+
+    def test_raises_when_no_capacity_anywhere_and_no_requested_region(self):
+        # No default_region, and the type has capacity nowhere -> clear error.
+        provider = LambdaProvider(api_key="k", team_id="team-123")
+        config = ClusterConfig(accelerators="A10:1")
+        config.provider_config = {}
+
+        def fake_request(method, endpoint, **kwargs):
+            if endpoint == "/instance-types":
+                return _json_response({"data": {"gpu_1x_a10": {"regions_with_capacity_available": []}}})
+            return _json_response({"data": {"instance_ids": ["i-1"]}})
+
+        with (
+            patch.object(provider, "_ensure_org_ssh_key", return_value="org-key"),
+            patch.object(provider, "_make_request", side_effect=fake_request),
+            pytest.raises(ValueError, match="no available capacity"),
+        ):
+            provider.launch_cluster("my-cluster", config)
+
+
 class TestGetJobLogs:
     def test_ssh_reads_run_log(self, provider):
         with (

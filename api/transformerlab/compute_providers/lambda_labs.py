@@ -337,15 +337,55 @@ exit $_exit_code
         )
         return key_name
 
+    def _regions_with_capacity(self, instance_type: str) -> List[str]:
+        """Return region names that currently have capacity for an instance type.
+
+        Lambda's /instance-types response is keyed by instance type name and
+        carries a `regions_with_capacity_available` list per type. Returns [] if
+        the type is unknown or the call fails (caller decides how to handle).
+        """
+        try:
+            types = self._unwrap(self._make_request("GET", "/instance-types").json()) or {}
+        except Exception as exc:  # pragma: no cover - network failures
+            logger.warning("Failed to query Lambda instance-types for capacity: %s", exc)
+            return []
+        entry = types.get(instance_type) if isinstance(types, dict) else None
+        if not entry:
+            return []
+        regions = entry.get("regions_with_capacity_available") or []
+        return [r.get("name") for r in regions if r.get("name")]
+
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         instance_type = config.provider_config.get("instance_type_name") or self._resolve_instance_type(
             config.accelerators
         )
 
-        region = config.region or self.default_region
-        if not region:
+        # Capacity on Lambda is per-region: an instance type can have capacity in
+        # one region and none in another. Pick a region that actually has capacity
+        # rather than blindly using the configured default (which yields a 400
+        # "insufficient-capacity" even when the type is available elsewhere).
+        requested_region = config.region or self.default_region
+        available_regions = self._regions_with_capacity(instance_type)
+        if available_regions:
+            if requested_region in available_regions:
+                region = requested_region
+            else:
+                region = available_regions[0]
+                if requested_region:
+                    logger.info(
+                        "Lambda instance type %s has no capacity in %s; using %s instead.",
+                        instance_type,
+                        requested_region,
+                        region,
+                    )
+        elif requested_region:
+            # Couldn't determine capacity (e.g. instance-types call failed); fall
+            # back to the requested region and let the launch surface any error.
+            region = requested_region
+        else:
             raise ValueError(
-                "Lambda provider requires a region. Set default_region or pass config.region when launching."
+                f"Lambda has no available capacity for instance type '{instance_type}' in any region. "
+                "Try a different accelerator/instance type or try again later."
             )
 
         # Start from any per-launch keys (for the user's own access), then always
