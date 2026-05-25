@@ -593,6 +593,18 @@ multiuser_setup() {
   echo "Installing SkyPilot with Kubernetes support..."
   uv pip install --python "${GENERAL_UV_ENV_DIR}/bin/python" "skypilot[kubernetes]==0.12.1"
 
+  # Nebius AI Cloud CLI (used by the Nebius compute provider; default install path ~/.nebius/bin/nebius).
+  if command -v curl &> /dev/null; then
+    if [[ -x "${HOME}/.nebius/bin/nebius" ]]; then
+      ohai "Nebius CLI already installed at ${HOME}/.nebius/bin/nebius"
+    else
+      ohai "Installing Nebius CLI..."
+      curl -sSL https://storage.eu-north1.nebius.cloud/cli/install.sh | bash
+    fi
+  else
+    warn "curl is not available; skipping Nebius CLI install. Install manually if you use Nebius providers."
+  fi
+
   echo "Multiuser setup complete."
 
 }

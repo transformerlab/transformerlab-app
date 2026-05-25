@@ -15,6 +15,10 @@ from transformerlab.services.compute_provider.local_setup_service import (
     get_provider_setup_status_path,
     run_local_provider_setup_background,
 )
+from transformerlab.services.nebius_credentials_service import (
+    build_nebius_profile_name,
+    get_nebius_cli_config_path,
+)
 from transformerlab.services.provider_service import (
     _local_providers_disabled,
     build_aws_profile_name,
@@ -86,6 +90,7 @@ async def create_provider_for_team(
         ProviderType.DSTACK,
         ProviderType.AZURE,
         ProviderType.AWS,
+        ProviderType.NEBIUS,
         ProviderType.VASTAI,
         ProviderType.GCP,
     ]
@@ -112,7 +117,7 @@ async def create_provider_for_team(
         config_dict.setdefault("azure_resource_group", f"transformerlab-{team_id}")
 
     # Auto-inject team_id for cloud providers that require team scoping.
-    if provider_data.type in (ProviderType.AWS, ProviderType.AZURE, ProviderType.GCP):
+    if provider_data.type in (ProviderType.AWS, ProviderType.AZURE, ProviderType.GCP, ProviderType.NEBIUS):
         config_dict["team_id"] = team_id
 
     provider = await create_team_provider(
@@ -131,6 +136,28 @@ async def create_provider_for_team(
         if not provider_config.get("aws_profile"):
             provider_config["aws_profile"] = build_aws_profile_name(team_id, str(provider.id))
             provider_config["team_id"] = team_id
+            provider = await update_team_provider(
+                session=session,
+                provider=provider,
+                name=None,
+                config=provider_config,
+                disabled=None,
+                is_default=None,
+            )
+
+    if provider.type == ProviderType.NEBIUS.value:
+        provider_config = dict(provider.config or {})
+        changed = False
+        if not provider_config.get("nebius_profile"):
+            provider_config["nebius_profile"] = build_nebius_profile_name(team_id, str(provider.id))
+            changed = True
+        if not provider_config.get("nebius_config_path"):
+            provider_config["nebius_config_path"] = get_nebius_cli_config_path(team_id, str(provider.id))
+            changed = True
+        if provider_config.get("team_id") != team_id:
+            provider_config["team_id"] = team_id
+            changed = True
+        if changed:
             provider = await update_team_provider(
                 session=session,
                 provider=provider,
@@ -218,7 +245,12 @@ async def update_provider_for_team(
         if new_config.get("api_key") == "***":
             new_config.pop("api_key", None)
         update_config = {**existing_config, **new_config}
-        if provider.type in (ProviderType.AWS.value, ProviderType.GCP.value):
+        if provider.type in (
+            ProviderType.AWS.value,
+            ProviderType.AZURE.value,
+            ProviderType.GCP.value,
+            ProviderType.NEBIUS.value,
+        ):
             update_config["team_id"] = team_id
 
     update_disabled = provider_data.disabled if provider_data.disabled is not None else None

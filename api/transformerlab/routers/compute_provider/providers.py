@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services.compute_provider import team_provider_endpoints
+from transformerlab.services.nebius_credentials_service import write_nebius_service_account_credentials
 from transformerlab.services.compute_provider.launch_credentials import (
     parse_gcp_service_account_json,
     write_aws_credentials_to_profile,
@@ -115,6 +116,12 @@ class AwsCredentialsRequest(BaseModel):
     secret_access_key: str
 
 
+class NebiusCredentialsRequest(BaseModel):
+    service_account_id: str
+    public_key_id: str
+    private_key: str
+
+
 class GcpCredentialsRequest(BaseModel):
     service_account_json: str
 
@@ -141,6 +148,58 @@ async def set_aws_credentials(
     write_aws_credentials_to_profile(profile, body.access_key_id, body.secret_access_key)
     await cache.invalidate("providers")
     return {"status": "ok", "profile": profile}
+
+
+@router.post("/{provider_id}/nebius/credentials")
+async def set_nebius_credentials(
+    provider_id: str,
+    body: NebiusCredentialsRequest,
+    owner_info=Depends(require_team_owner),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Write service-account credentials for a Nebius provider to a provider-scoped CLI config."""
+    provider = await get_team_provider(session, owner_info["team_id"], provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if provider.type != "nebius":
+        raise HTTPException(status_code=400, detail="Provider is not of type 'nebius'")
+
+    config = json.loads(provider.config) if isinstance(provider.config, str) else (provider.config or {})
+    profile = config.get("nebius_profile")
+    config_path = config.get("nebius_config_path")
+    parent_id = config.get("parent_id")
+    if not profile:
+        from transformerlab.services.nebius_credentials_service import build_nebius_profile_name
+
+        profile = build_nebius_profile_name(owner_info["team_id"], provider_id)
+        config["nebius_profile"] = profile
+    if not config_path:
+        from transformerlab.services.nebius_credentials_service import get_nebius_cli_config_path
+
+        config_path = get_nebius_cli_config_path(owner_info["team_id"], provider_id)
+        config["nebius_config_path"] = config_path
+
+    actual_config_path = write_nebius_service_account_credentials(
+        team_id=owner_info["team_id"],
+        provider_id=provider_id,
+        profile_name=profile,
+        parent_id=parent_id,
+        service_account_id=body.service_account_id,
+        public_key_id=body.public_key_id,
+        private_key=body.private_key,
+    )
+    config["nebius_config_path"] = actual_config_path
+    config["team_id"] = owner_info["team_id"]
+    await update_team_provider(
+        session=session,
+        provider=provider,
+        name=None,
+        config=config,
+        disabled=None,
+        is_default=None,
+    )
+    await cache.invalidate("providers")
+    return {"status": "ok", "profile": profile, "config_path": actual_config_path}
 
 
 @router.post("/{provider_id}/gcp/credentials")
