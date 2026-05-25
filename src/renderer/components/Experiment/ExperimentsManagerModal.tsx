@@ -3,7 +3,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Divider,
   IconButton,
   Input,
   Modal,
@@ -182,7 +181,6 @@ export default function ExperimentsManagerModal({
             onChange={(e) => setSearch(e.target.value)}
             sx={{ mb: 2 }}
           />
-          <Divider />
 
           {isLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
