@@ -209,7 +209,7 @@ export default function ExperimentsManagerModal({
                     <th style={{ width: 100 }}>Sharing</th>
                     <th
                       style={{
-                        width: 160,
+                        width: 120,
                         textAlign: 'right',
                         paddingRight: 14,
                       }}
@@ -299,13 +299,6 @@ export default function ExperimentsManagerModal({
                               justifyContent: 'flex-end',
                             }}
                           >
-                            <Button
-                              size="sm"
-                              variant="plain"
-                              onClick={() => handleOpen(exp)}
-                            >
-                              Open
-                            </Button>
                             <TagEditor
                               experimentId={exp.id}
                               experimentName={exp.name}
