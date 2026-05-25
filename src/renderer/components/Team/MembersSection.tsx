@@ -1,6 +1,8 @@
 import { Box, Button, Stack, Table, Tooltip, Typography } from '@mui/joy';
 import { PlusIcon, User2Icon } from 'lucide-react';
 
+const inviteMemberStartDecorator = <PlusIcon />;
+
 type Member = {
   user_id?: string;
   email?: string;
@@ -96,7 +98,7 @@ export default function MembersSection({
       >
         <span>
           <Button
-            startDecorator={<PlusIcon />}
+            startDecorator={inviteMemberStartDecorator}
             onClick={onInvite}
             variant="soft"
             disabled={!iAmOwner}
