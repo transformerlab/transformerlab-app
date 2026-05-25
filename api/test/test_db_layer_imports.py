@@ -17,3 +17,10 @@ def test_api_package_imports():
 def test_db_user_and_team_import():
     importlib.import_module("transformerlab.db.user")
     importlib.import_module("transformerlab.db.team")
+
+
+def test_user_model_module_is_gone():
+    import pytest
+
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("transformerlab.shared.models.user_model")

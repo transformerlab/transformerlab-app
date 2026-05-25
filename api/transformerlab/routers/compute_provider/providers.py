@@ -4,7 +4,7 @@ import json
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db.session import get_async_session
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services.compute_provider import team_provider_endpoints
 from transformerlab.services.nebius_credentials_service import write_nebius_service_account_credentials

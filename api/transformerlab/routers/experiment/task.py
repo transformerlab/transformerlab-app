@@ -37,7 +37,7 @@ from transformerlab.shared.github_utils import (
     fetch_github_file_bytes,
 )
 from transformerlab.routers.auth import get_user_and_team
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db.session import get_async_session
 from transformerlab.schemas.task import (
     ExportTaskToTeamGalleryRequest,
     ImportTaskFromGalleryRequest,

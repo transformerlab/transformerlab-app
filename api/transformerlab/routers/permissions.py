@@ -12,8 +12,9 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from transformerlab.shared.models.models import ResourcePermission, UserTeam
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.shared.models.models import ResourcePermission
+from transformerlab.db import team as db_team
+from transformerlab.db.session import get_async_session
 from transformerlab.routers.auth import require_team_owner
 from transformerlab.services.permission_service import VALID_ACTIONS
 
@@ -85,12 +86,8 @@ async def upsert_permission_rule(
     Create or update a permission rule. Upserts on (user_id, team_id, resource_type, resource_id).
     Owner only.
     """
-    stmt = select(UserTeam).where(
-        UserTeam.user_id == body.user_id,
-        UserTeam.team_id == team_id,
-    )
-    result = await session.execute(stmt)
-    if result.scalar_one_or_none() is None:
+    membership = await db_team.get_user_team_membership(session, body.user_id, team_id)
+    if membership is None:
         raise HTTPException(status_code=404, detail="User is not a member of this team")
 
     stmt = select(ResourcePermission).where(
