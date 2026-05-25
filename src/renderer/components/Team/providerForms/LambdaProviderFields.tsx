@@ -25,7 +25,7 @@ export default function LambdaProviderFields({
   return (
     <>
       <FormControl sx={{ mt: 2 }}>
-        <FormLabel>Lambda Labs API Key *</FormLabel>
+        <FormLabel>Lambda Cloud API Key *</FormLabel>
         <Input
           value={lambdaApiKey}
           onChange={(event) => {
@@ -35,7 +35,7 @@ export default function LambdaProviderFields({
           placeholder={
             providerId
               ? 'Leave blank to keep existing key'
-              : 'Your Lambda Labs API key'
+              : 'Your Lambda Cloud API key'
           }
           type="password"
           fullWidth
@@ -43,11 +43,11 @@ export default function LambdaProviderFields({
         <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
           Generate an API key at{' '}
           <a
-            href="https://cloud.lambdalabs.com/api-keys"
+            href="https://cloud.lambda.ai/api-keys"
             target="_blank"
             rel="noopener noreferrer"
           >
-            cloud.lambdalabs.com/api-keys
+            cloud.lambda.ai/api-keys
           </a>
           .
         </Typography>

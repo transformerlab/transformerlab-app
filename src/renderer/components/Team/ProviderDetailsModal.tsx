@@ -173,7 +173,7 @@ export default function ProviderDetailsModal({
   const [runpodApiKey, setRunpodApiKey] = useState('');
   const [runpodApiKeyChanged, setRunpodApiKeyChanged] = useState(false);
   const [runpodApiBaseUrl, setRunpodApiBaseUrl] = useState('');
-  // Lambda Labs-specific form fields
+  // Lambda Cloud-specific form fields
   const [lambdaApiKey, setLambdaApiKey] = useState('');
   const [lambdaApiKeyChanged, setLambdaApiKeyChanged] = useState(false);
   const [lambdaRegion, setLambdaRegion] = useState('us-east-1');
@@ -271,7 +271,7 @@ export default function ProviderDetailsModal({
       },
       {
         value: 'lambda',
-        label: 'Lambda Labs (beta)',
+        label: 'Lambda Cloud (beta)',
         description: 'Launch on-demand GPU instances on Lambda Cloud.',
       },
       {

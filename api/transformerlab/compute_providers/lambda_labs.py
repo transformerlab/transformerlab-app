@@ -1,6 +1,6 @@
-"""Lambda Labs (Lambda Cloud) provider implementation.
+"""Lambda Cloud provider implementation.
 
-Lambda Labs exposes a REST API at https://cloud.lambdalabs.com/api/v1/ that lets
+Lambda Cloud exposes a REST API at https://cloud.lambdalabs.com/api/v1/ that lets
 us launch, list, and terminate on-demand GPU instances. Authentication uses an
 API key sent via HTTP Basic Auth (api_key as username, blank password). There is
 no native job-queue concept, so cluster operations correspond to instances, and
@@ -109,7 +109,7 @@ def _ssh_read_file(host: str, key_bytes: bytes, remote_path: str, tail_lines: in
         ssh.close()
 
 
-# Lambda Labs instance state -> ClusterState
+# Lambda Cloud instance state -> ClusterState
 _LAMBDA_STATE_TO_CLUSTER_STATE = {
     "active": ClusterState.UP,
     "booting": ClusterState.INIT,
@@ -143,7 +143,7 @@ _GPU_INSTANCE_TYPE_MAP: Dict[tuple, str] = {
 
 
 class LambdaProvider(ComputeProvider):
-    """Provider implementation for Lambda Labs Cloud."""
+    """Provider implementation for Lambda Cloud Cloud."""
 
     def __init__(
         self,
@@ -157,7 +157,7 @@ class LambdaProvider(ComputeProvider):
     ):
         """
         Args:
-            api_key: Lambda Labs API key (required).
+            api_key: Lambda Cloud API key (required).
             api_base_url: Override the API base URL (defaults to
                 https://cloud.lambdalabs.com/api/v1).
             default_region: Default region (e.g. "us-east-1") used when a launch
@@ -171,7 +171,7 @@ class LambdaProvider(ComputeProvider):
             extra_config: Free-form passthrough.
         """
         if not api_key:
-            raise ValueError("Lambda Labs provider requires an api_key")
+            raise ValueError("Lambda Cloud provider requires an api_key")
 
         self.api_key = api_key
         self.api_base_url = (api_base_url or "https://cloud.lambda.ai/api/v1").rstrip("/")
@@ -193,7 +193,7 @@ class LambdaProvider(ComputeProvider):
         json_data: Optional[Dict[str, Any]] = None,
         timeout: int = 30,
     ) -> requests.Response:
-        """Make an authenticated request against the Lambda Labs API."""
+        """Make an authenticated request against the Lambda Cloud API."""
         url = f"{self.api_base_url}{endpoint}"
         response = requests.request(
             method=method,
@@ -477,7 +477,7 @@ exit $?
                 ssh_key_names.append(org_key_name)
         if not ssh_key_names:
             raise ValueError(
-                "Lambda Labs requires at least one ssh_key_name. Provide team_id so the "
+                "Lambda Cloud requires at least one ssh_key_name. Provide team_id so the "
                 "org key can be used, or configure default_ssh_key_names."
             )
 
@@ -673,12 +673,12 @@ exit $?
             )
         return detailed
 
-    # Lambda Labs has no queue / native job API — mirror RunPod's behavior.
+    # Lambda Cloud has no queue / native job API — mirror RunPod's behavior.
     def submit_job(self, cluster_name: str, job_config: JobConfig) -> Dict[str, Any]:
-        raise NotImplementedError("Lambda Labs has no job submission API")
+        raise NotImplementedError("Lambda Cloud has no job submission API")
 
     def list_jobs(self, cluster_name: str) -> List[JobInfo]:
-        raise NotImplementedError("Lambda Labs has no job queue")
+        raise NotImplementedError("Lambda Cloud has no job queue")
 
     def get_job_logs(
         self,
@@ -707,7 +707,7 @@ exit $?
         return _ssh_read_file(public_ip, key_bytes, LAMBDA_RUN_LOG_PATH, tail_lines or 500)
 
     def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
-        raise NotImplementedError("Lambda Labs has no job cancellation API")
+        raise NotImplementedError("Lambda Cloud has no job cancellation API")
 
     def check(self) -> tuple[bool, str | None]:
         try:
@@ -715,6 +715,6 @@ exit $?
             self._make_request("GET", "/instance-types", timeout=10)
             return True, None
         except Exception as exc:
-            reason = f"Lambda Labs provider check failed: {exc}"
+            reason = f"Lambda Cloud provider check failed: {exc}"
             logger.warning(reason)
             return False, reason

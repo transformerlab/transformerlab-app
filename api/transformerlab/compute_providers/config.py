@@ -56,7 +56,7 @@ class ComputeProviderConfig(BaseModel):
     service_account_json: Optional[Dict[str, Any]] = None
     service_account_email: Optional[str] = None
 
-    # Lambda Labs-specific config
+    # Lambda Cloud-specific config
     lambda_file_system_names: Optional[list[str]] = None  # Persistent filesystems to attach
 
     # Nebius-specific config
@@ -305,7 +305,7 @@ def create_compute_provider(config: ComputeProviderConfig) -> "ComputeProvider":
         from .lambda_labs import LambdaProvider
 
         if not config.api_key:
-            raise ValueError("Lambda Labs provider requires api_key in config")
+            raise ValueError("Lambda Cloud provider requires api_key in config")
         return LambdaProvider(
             api_key=config.api_key,
             api_base_url=config.api_base_url,
