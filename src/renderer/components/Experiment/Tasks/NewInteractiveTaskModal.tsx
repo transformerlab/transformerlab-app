@@ -39,10 +39,11 @@ import {
   getPreferredProviderId,
   isProviderCompatibleWithAccelerators,
 } from './providerCompatibility';
-import ModelNameInput, {
+import ModelNameInput from 'renderer/components/Shared/ModelNameInput';
+import {
   getModelHistoryKey,
   saveModelToHistory,
-} from 'renderer/components/Shared/ModelNameInput';
+} from 'renderer/components/Shared/modelHistory';
 
 type ProviderOption = {
   id: string;
