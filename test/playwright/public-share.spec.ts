@@ -15,7 +15,10 @@ test('public notes share link works for an unauthenticated user', async ({
   await page.getByRole('button', { name: /public share link/i }).click();
 
   const toggle = page.getByRole('switch').first();
-  await toggle.check();
+  if (!(await toggle.isChecked())) {
+    await toggle.click();
+    await expect(toggle).toBeChecked({ timeout: 10_000 });
+  }
 
   const urlInput = page.locator('input[readonly]').first();
   await expect(urlInput).toBeVisible({ timeout: 10_000 });
@@ -31,7 +34,8 @@ test('public notes share link works for an unauthenticated user', async ({
     timeout: 10_000,
   });
 
-  await toggle.uncheck();
+  await toggle.click();
+  await expect(toggle).not.toBeChecked({ timeout: 10_000 });
 
   await anonPage.reload();
   await expect(anonPage.getByText(/no longer active/i)).toBeVisible({
