@@ -34,10 +34,10 @@ Tasks are defined with a `task.yaml` file. Here's a minimal example:
 name: fine-tune-llama
 resources:
   compute_provider: my-slurm-cluster
-  accelerators: "NVIDIA"
+  accelerators: 'NVIDIA'
   num_nodes: 1
 envs:
-  LEARNING_RATE: "0.001"
+  LEARNING_RATE: '0.001'
 setup: |
   pip install -r requirements.txt
 run: |
@@ -79,14 +79,14 @@ Each job produces logs and may produce artifacts like trained model weights, eva
 
 A compute provider is the backend that actually runs your jobs. Transformer Lab is provider-agnostic — you can configure one or more of the following:
 
-| Provider | Use Case |
-|----------|----------|
-| **Local** | Run on the machine hosting Transformer Lab |
-| **Slurm** | Submit to an on-premise HPC cluster |
-| **SkyPilot** | Orchestrate across AWS, GCP, or Azure |
-| **RunPod** | Serverless GPU cloud |
-| **dStack** | Open-source distributed compute |
-| **AWS / GCP / Azure** | Direct cloud VM provisioning |
+| Provider              | Use Case                                   |
+| --------------------- | ------------------------------------------ |
+| **Local**             | Run on the machine hosting Transformer Lab |
+| **Slurm**             | Submit to an on-premise HPC cluster        |
+| **SkyPilot**          | Orchestrate across AWS, GCP, or Azure      |
+| **RunPod**            | Serverless GPU cloud                       |
+| **dStack**            | Open-source distributed compute            |
+| **AWS / GCP / Azure** | Direct cloud VM provisioning               |
 
 When you launch a task, Transformer Lab translates your resource requirements into the provider's native format (e.g., an `sbatch` command for Slurm, a VM launch for cloud providers) and handles monitoring and log retrieval.
 
