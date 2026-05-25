@@ -203,7 +203,15 @@ export default function ExperimentsManagerModal({
                     <th style={{ width: 160 }}>Owner</th>
                     <th style={{ width: 120 }}>Last Opened</th>
                     <th style={{ width: 100 }}>Sharing</th>
-                    <th style={{ width: 160, textAlign: 'right' }}>Actions</th>
+                    <th
+                      style={{
+                        width: 160,
+                        textAlign: 'right',
+                        paddingRight: 14,
+                      }}
+                    >
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
