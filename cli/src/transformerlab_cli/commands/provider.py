@@ -1,4 +1,5 @@
 import json
+import time
 
 import typer
 
@@ -568,6 +569,97 @@ def command_provider_check(
         raise typer.Exit(1)
     else:
         console.print(f"[error]Error:[/error] Health check failed. {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+
+
+@app.command("verify-lifecycle")
+def command_provider_verify_lifecycle(
+    provider_id: str = typer.Argument(..., help="Provider ID to verify"),
+    no_wait: bool = typer.Option(
+        False,
+        "--no-wait",
+        help="Launch the probe job and print its job ID without waiting for the result.",
+    ),
+    poll_interval: float = typer.Option(
+        20.0,
+        "--poll-interval",
+        help="Seconds to wait between checks for the sentinel file.",
+    ),
+    max_polls: int = typer.Option(
+        10,
+        "--max-polls",
+        help="Maximum number of times to check for the sentinel file before giving up.",
+    ),
+):
+    """Verify a compute provider's lifecycle by running a storage probe.
+
+    Launches a minimal probe job on the provider that writes a sentinel file to
+    shared storage, then polls until the file appears (pass) or it times out (fail).
+    This confirms the provider can launch a job and reach shared storage end-to-end.
+    """
+    check_configs(output_format=cli_state.output_format)
+
+    base = f"/compute_provider/providers/{provider_id}/debug/storage-probe"
+
+    with console.status(
+        f"[bold success]Launching storage probe on provider {provider_id}...[/bold success]", spinner="dots"
+    ):
+        launch_res = api.post_json(base, timeout=60.0)
+
+    if launch_res.status_code == 404:
+        console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
+        raise typer.Exit(1)
+    if launch_res.status_code != 200:
+        console.print(f"[error]Error:[/error] Failed to launch storage probe. {_extract_error_detail(launch_res)}")
+        raise typer.Exit(1)
+
+    job_id = launch_res.json().get("job_id")
+    if job_id is None:
+        console.print("[error]Error:[/error] Launch did not return a job ID.")
+        raise typer.Exit(1)
+
+    if no_wait:
+        if cli_state.output_format == "json":
+            print(json.dumps({"job_id": job_id, "status": "launched"}))
+        else:
+            console.print(f"[success]✓[/success] Storage probe launched as job [bold]{job_id}[/bold].")
+            console.print(f"  Check with: lab provider verify-lifecycle {provider_id} (or inspect job {job_id}).")
+        return
+
+    check_url = f"{base}/{job_id}"
+    found = False
+    last_path = None
+    for attempt in range(1, max_polls + 1):
+        check_res = api.get(check_url, timeout=60.0)
+        if check_res.status_code != 200:
+            console.print(f"[error]Error:[/error] Could not check probe status. {_extract_error_detail(check_res)}")
+            raise typer.Exit(1)
+
+        check_data = check_res.json()
+        last_path = check_data.get("path")
+        if check_data.get("found"):
+            found = True
+            break
+
+        if attempt < max_polls:
+            with console.status(
+                f"[bold]Waiting for sentinel file (attempt {attempt}/{max_polls})...[/bold]", spinner="dots"
+            ):
+                time.sleep(poll_interval)
+
+    if cli_state.output_format == "json":
+        print(json.dumps({"job_id": job_id, "found": found, "path": last_path}))
+        if not found:
+            raise typer.Exit(1)
+        return
+
+    if found:
+        console.print(f"[success]✓[/success] Lifecycle verified — sentinel found in shared storage ({last_path}).")
+    else:
+        console.print(
+            f"[error]✗[/error] Lifecycle verification failed — sentinel file not found in shared storage "
+            f"after {max_polls} checks (job {job_id})."
+        )
         raise typer.Exit(1)
 
 
