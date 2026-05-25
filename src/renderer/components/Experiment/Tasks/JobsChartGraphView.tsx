@@ -17,8 +17,9 @@ interface HoveredPointData {
 
 interface JobsChartGraphViewProps {
   model: GraphModel;
-  onClose: () => void;
+  onClose?: () => void;
   experimentId?: string | null;
+  presentation?: 'default' | 'public';
 }
 
 const BEST_COLOR = '#22c55e';
@@ -26,6 +27,101 @@ const BEST_BORDER = '#15803d';
 const POINT_COLOR = '#3b82f6';
 const DISCARD_POINT_FILL = '#94a3b8';
 const DISCARD_POINT_STROKE = '#64748b';
+
+const PUBLIC_SHARE_NIVO_THEME = {
+  axis: {
+    ticks: {
+      text: { fill: '#475569', fontSize: 11 },
+      line: { stroke: '#cbd5e1' },
+    },
+    legend: {
+      text: { fill: '#475569', fontSize: 12 },
+    },
+  },
+  grid: {
+    line: {
+      stroke: '#e2e8f0',
+      strokeWidth: 1,
+    },
+  },
+  crosshair: {
+    line: {
+      stroke: '#94a3b8',
+      strokeOpacity: 0.75,
+    },
+  },
+};
+
+function BestStepLine({
+  bestForStepLine,
+  xScale,
+  yScale,
+}: {
+  bestForStepLine: ChartPoint[];
+  xScale: (v: Date) => number;
+  yScale: (v: number) => number;
+}) {
+  if (bestForStepLine.length < 2) return null;
+  const pts = bestForStepLine.map((p) => ({
+    x: xScale(p.x),
+    y: yScale(p.y),
+  }));
+  const path = pts
+    .slice(1)
+    .reduce(
+      (acc, point, index) =>
+        `${acc} L ${point.x},${pts[index].y} L ${point.x},${point.y}`,
+      `M ${pts[0].x},${pts[0].y}`,
+    );
+  return <path d={path} stroke={BEST_COLOR} strokeWidth={2} fill="none" />;
+}
+
+function CustomPoints({
+  series,
+  xScale,
+  yScale,
+}: {
+  series: { data?: { data: Record<string, unknown> }[] }[];
+  xScale: (v: Date) => number;
+  yScale: (v: number) => number;
+}) {
+  return (
+    <g>
+      {series[0]?.data?.map((d: { data: Record<string, unknown> }) => {
+        const row = d.data;
+        const kind = row.kind as ChartPointKind;
+        const isBest = kind === 'scored' && !!row.isBest;
+        const cx = xScale(row.x as Date);
+        const cy = yScale(row.y as number);
+        const key = `pt-${String(row.jobId)}-${String(row.x)}`;
+        if (kind === 'discarded') {
+          return (
+            <circle
+              key={key}
+              cx={cx}
+              cy={cy}
+              r={5}
+              fill={DISCARD_POINT_FILL}
+              stroke={DISCARD_POINT_STROKE}
+              strokeWidth={1.5}
+            />
+          );
+        }
+        return (
+          <circle
+            key={key}
+            cx={cx}
+            cy={cy}
+            r={isBest ? 5 : 4}
+            fill={isBest ? BEST_COLOR : POINT_COLOR}
+            stroke={isBest ? BEST_BORDER : 'none'}
+            strokeWidth={0}
+          />
+        );
+      })}
+    </g>
+  );
+}
 
 function renderPointDetails(
   data: HoveredPointData,
@@ -78,7 +174,16 @@ export default function JobsChartGraphView({
   model,
   onClose,
   experimentId,
+  presentation = 'default',
 }: JobsChartGraphViewProps) {
+  const isPublic = presentation === 'public';
+  const panelBg = isPublic ? 'common.white' : 'background.surface';
+  const chartPanelSx = isPublic
+    ? {
+        bgcolor: 'common.white',
+        borderColor: 'neutral.300',
+      }
+    : {};
   const [hoveredPointData, setHoveredPointData] =
     useState<HoveredPointData | null>(null);
   const chartData = useMemo(
@@ -100,59 +205,6 @@ export default function JobsChartGraphView({
     [model.points],
   );
 
-  const BestStepLine = ({ xScale, yScale }: any) => {
-    if (model.bestForStepLine.length < 2) return null;
-    const pts = model.bestForStepLine.map((p) => ({
-      x: xScale(p.x),
-      y: yScale(p.y),
-    }));
-    const path = pts
-      .slice(1)
-      .reduce(
-        (acc, point, index) =>
-          `${acc} L ${point.x},${pts[index].y} L ${point.x},${point.y}`,
-        `M ${pts[0].x},${pts[0].y}`,
-      );
-    return <path d={path} stroke={BEST_COLOR} strokeWidth={2} fill="none" />;
-  };
-
-  const CustomPoints = ({ series, xScale, yScale }: any) => (
-    <g>
-      {series[0]?.data?.map((d: { data: Record<string, unknown> }) => {
-        const row = d.data;
-        const kind = row.kind as ChartPointKind;
-        const isBest = kind === 'scored' && !!row.isBest;
-        const cx = xScale(row.x as Date);
-        const cy = yScale(row.y as number);
-        const key = `pt-${String(row.jobId)}-${String(row.x)}`;
-        if (kind === 'discarded') {
-          return (
-            <circle
-              key={key}
-              cx={cx}
-              cy={cy}
-              r={5}
-              fill={DISCARD_POINT_FILL}
-              stroke={DISCARD_POINT_STROKE}
-              strokeWidth={1.5}
-            />
-          );
-        }
-        return (
-          <circle
-            key={key}
-            cx={cx}
-            cy={cy}
-            r={isBest ? 5 : 4}
-            fill={isBest ? BEST_COLOR : POINT_COLOR}
-            stroke={isBest ? BEST_BORDER : 'none'}
-            strokeWidth={0}
-          />
-        );
-      })}
-    </g>
-  );
-
   return (
     <Box sx={{ flex: 1, minHeight: 0, display: 'flex', gap: 2 }}>
       <Box
@@ -162,10 +214,12 @@ export default function JobsChartGraphView({
           border: '1px solid',
           borderColor: 'neutral.outlinedBorder',
           borderRadius: 'sm',
+          ...chartPanelSx,
         }}
       >
         <ResponsiveLine
           data={chartData}
+          theme={isPublic ? PUBLIC_SHARE_NIVO_THEME : undefined}
           margin={{ top: 24, right: 32, bottom: 64, left: 64 }}
           xScale={{ type: 'time', precision: 'minute' }}
           xFormat="time:%Y-%m-%d %H:%M"
@@ -190,8 +244,20 @@ export default function JobsChartGraphView({
           layers={[
             'grid',
             'axes',
-            BestStepLine,
-            CustomPoints,
+            (layerProps: any) => (
+              <BestStepLine
+                bestForStepLine={model.bestForStepLine}
+                xScale={layerProps.xScale}
+                yScale={layerProps.yScale}
+              />
+            ),
+            (layerProps: any) => (
+              <CustomPoints
+                series={layerProps.series}
+                xScale={layerProps.xScale}
+                yScale={layerProps.yScale}
+              />
+            ),
             'mesh',
             'crosshair',
           ]}
@@ -211,13 +277,14 @@ export default function JobsChartGraphView({
           borderRadius: 'sm',
           p: 2,
           overflow: 'auto',
-          bgcolor: 'background.surface',
+          bgcolor: panelBg,
+          ...(isPublic ? { borderColor: 'neutral.300' } : {}),
         }}
       >
         {hoveredPointData ? (
           renderPointDetails(
             hoveredPointData,
-            hoveredPointData.jobId && experimentId
+            hoveredPointData.jobId && experimentId && onClose
               ? {
                   to: `/experiment/${experimentId}/jobs/${hoveredPointData.jobId}`,
                   onClick: onClose,

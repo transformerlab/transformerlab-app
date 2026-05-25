@@ -9,6 +9,7 @@ import MainAppPanel from './components/MainAppPanel';
 
 import customTheme from './lib/theme';
 import secretPurpleTheme from './lib/secretPurpleTheme';
+import { deriveApiBaseUrl } from './lib/api-client/urls';
 
 import './styles.css';
 
@@ -25,6 +26,7 @@ import { AnalyticsProvider } from './components/Shared/analytics/AnalyticsContex
 import FullPageLoader from './components/Shared/FullPageLoader';
 import ConnectionLostModal from './components/Shared/ConnectionLostModal';
 import InvitationLanding from './components/Team/InvitationLanding';
+import PublicShareViewer from './components/PublicShare/PublicShareViewer';
 
 type AppContentProps = {
   connection: string;
@@ -44,6 +46,7 @@ function AppContent({
   const { isError: connectionHealthError, isLoading: connectionHealthLoading } =
     chatAPI.useConnectionHealth(connection);
   const isInvitePage = location.pathname === '/invite';
+  const isPublicSharePage = location.pathname.startsWith('/public/share/');
 
   const showConnectionLostModal =
     connection !== '' && !connectionHealthLoading && !!connectionHealthError;
@@ -72,6 +75,10 @@ function AppContent({
       }
     }
   }, [isInvitePage, authContext.isAuthenticated]);
+
+  if (isPublicSharePage) {
+    return <PublicShareViewer />;
+  }
 
   if (isInvitePage) {
     return (
@@ -168,45 +175,7 @@ function AppContent({
 }
 
 export default function App() {
-  // Normalize TL_API_URL - ensure it's either a valid URL or default sensibly based on environment
-  const initialApiUrl = (() => {
-    const envUrl = process.env?.TL_API_URL;
-    // If undefined, null, or the string "default", choose a fallback:
-    // - For localhost or frontend port 1212, assume API is on port 8338 (Electron dev)
-    // - For non-localhost, assume API is served from the same origin as the frontend
-    if (!envUrl || envUrl === 'default' || envUrl.trim() === '') {
-      const { protocol, hostname, port } = window.location;
-
-      // Local dev: API runs on 8338 even if frontend uses another port
-      if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        return `${protocol}//${hostname}:8338/`;
-      }
-
-      // Local dev: frontend often on 1212, API on 8338
-      if (port === '1212') {
-        return `${protocol}//${hostname}:8338/`;
-      }
-
-      // Cloud/hosted: assume API is available on the same origin as the frontend
-      const isDefaultHttpPort = port === '' || port === '80';
-      const isDefaultHttpsPort = port === '' || port === '443';
-      const isDefaultPort =
-        (protocol === 'http:' && isDefaultHttpPort) ||
-        (protocol === 'https:' && isDefaultHttpsPort);
-
-      if (isDefaultPort) {
-        return `${protocol}//${hostname}/`;
-      }
-
-      return `${protocol}//${hostname}:${port}/`;
-    }
-    // Ensure the URL has a trailing slash
-    let url = envUrl.trim();
-    if (!url.endsWith('/')) {
-      url += '/';
-    }
-    return url;
-  })();
+  const initialApiUrl = deriveApiBaseUrl();
 
   const [connection, setConnection] = useState(initialApiUrl);
   const [, setLogsDrawerOpen] = useState(false);

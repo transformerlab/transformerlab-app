@@ -13,6 +13,7 @@ from transformerlab.routers.experiment import (
     documents,
     jobs,
     notes,
+    share,
     task as task_router,
 )
 from transformerlab.routers.auth import get_user_and_team
@@ -48,6 +49,11 @@ router.include_router(
     prefix="/{experimentId}",
     tags=["notes"],
     dependencies=[Depends(require_permission("experiment", "read", id_param="experimentId"))],
+)
+router.include_router(
+    router=share.router,
+    prefix="/{experimentId}",
+    tags=["share"],
 )
 
 
@@ -159,6 +165,15 @@ async def experiments_create(
     except FileExistsError as e:
         raise HTTPException(status_code=409, detail=f"Experiment '{secure_name}' already exists") from e
     return newid
+
+
+@router.get("/tags", summary="List all distinct tags across permitted experiments", tags=["experiment"])
+async def experiments_list_all_tags(
+    session: AsyncSession = Depends(get_async_session),
+    user_and_team: dict = Depends(get_user_and_team),
+):
+    permitted = await experiments_get_all(session=session, user_and_team=user_and_team)
+    return {"tags": experiment_service.aggregate_tags(permitted)}
 
 
 @router.get("/{id}", summary="Get Experiment by ID", tags=["experiment"])
@@ -297,3 +312,39 @@ async def experiment_get_file_contents(
         return ""
 
     return file_contents
+
+
+@router.post("/{id}/tags/add", summary="Add tags to an experiment", tags=["experiment"])
+async def experiments_tags_add(
+    id: str,
+    body: Annotated[dict, Body()],
+    _: None = Depends(require_permission("experiment", "write")),
+):
+    tags_input = body.get("tags") or []
+    if not isinstance(tags_input, list):
+        raise HTTPException(status_code=422, detail="'tags' must be a list of strings")
+    try:
+        merged = await experiment_service.experiment_add_tags(id, tags_input)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"Experiment {id} not found") from e
+    return {"tags": merged}
+
+
+@router.post("/{id}/tags/remove", summary="Remove tags from an experiment", tags=["experiment"])
+async def experiments_tags_remove(
+    id: str,
+    body: Annotated[dict, Body()],
+    _: None = Depends(require_permission("experiment", "write")),
+):
+    tags_input = body.get("tags") or []
+    if not isinstance(tags_input, list):
+        raise HTTPException(status_code=422, detail="'tags' must be a list of strings")
+    try:
+        kept = await experiment_service.experiment_remove_tags(id, tags_input)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"Experiment {id} not found") from e
+    return {"tags": kept}

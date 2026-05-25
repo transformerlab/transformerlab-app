@@ -48,7 +48,6 @@ type TaskTemplateListProps = {
   onQueueTask: (task: TaskRow) => void;
   onEditTask: (task: TaskRow) => void;
   onExportTask?: (taskId: string) => void;
-  onViewFilesTask?: (task: TaskRow) => void;
   loading: boolean;
   interactTasks?: boolean;
   allJobs?: any[];
@@ -57,6 +56,8 @@ type TaskTemplateListProps = {
   onToggleTaskSelected?: (taskId: string) => void;
   onToggleSelectAll?: (taskIds: string[]) => void;
 };
+
+const EMPTY_ALL_JOBS: any[] = [];
 
 function relativeTime(ts: string | undefined): string {
   if (!ts) return '—';
@@ -89,10 +90,9 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   onQueueTask,
   onEditTask,
   onExportTask,
-  onViewFilesTask,
   loading,
   interactTasks = false,
-  allJobs = [],
+  allJobs = EMPTY_ALL_JOBS,
   allJobsLoading = false,
   selectedIds,
   onToggleTaskSelected,
@@ -139,7 +139,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   }, [allJobs]);
 
   const sortedTasks = useMemo(() => {
-    return [...tasksList].sort((a, b) => {
+    return tasksList.toSorted((a, b) => {
       const tsA = lastRunByTaskId[String(a.id)] ?? '';
       const tsB = lastRunByTaskId[String(b.id)] ?? '';
       if (!tsA && !tsB) return 0;
@@ -462,7 +462,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                   >
                     <Trash2Icon style={{ cursor: 'pointer' }} />
                   </IconButton>
-                  {(onExportTask || onViewFilesTask) && (
+                  {onExportTask && (
                     <Dropdown>
                       <MenuButton
                         slots={{ root: IconButton }}
@@ -474,16 +474,9 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                         <MoreVerticalIcon size={16} />
                       </MenuButton>
                       <Menu>
-                        {onViewFilesTask && (
-                          <MenuItem onClick={() => onViewFilesTask?.(row)}>
-                            View Files
-                          </MenuItem>
-                        )}
-                        {onExportTask && (
-                          <MenuItem onClick={() => onExportTask?.(row.id)}>
-                            Export to Team Gallery
-                          </MenuItem>
-                        )}
+                        <MenuItem onClick={() => onExportTask?.(row.id)}>
+                          Export to Team Gallery
+                        </MenuItem>
                       </Menu>
                     </Dropdown>
                   )}

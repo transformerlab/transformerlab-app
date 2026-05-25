@@ -8,8 +8,8 @@ setup: |
   if ! command -v uv >/dev/null 2>&1; then curl -LsSf https://astral.sh/uv/install.sh | sh; fi
   export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
   uv pip install open-webui
+  if [ "$(uname)" != "Darwin" ]; then $SUDO apt-get update && $SUDO apt-get install -y pciutils lshw zstd; fi
   if ! command -v ollama >/dev/null 2>&1; then curl -fsSL https://ollama.com/install.sh | sh; fi
-  if [ "$(uname)" != "Darwin" ]; then $SUDO apt-get update && $SUDO apt-get install -y pciutils lshw; fi
 run: |
   python interactive-ollama-openwebui/run.py
 envs:

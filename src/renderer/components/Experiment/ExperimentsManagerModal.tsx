@@ -3,7 +3,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Divider,
   IconButton,
   Input,
   Modal,
@@ -14,7 +13,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/joy';
-import { ShareIcon, Trash2Icon } from 'lucide-react';
+import { Trash2Icon, UserRoundPlusIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   useSWRWithAuth as useSWR,
@@ -24,12 +23,13 @@ import {
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import ShareExperimentModal from './ShareExperimentModal';
+import TagEditor from './TagEditorModal';
 
 interface Experiment {
   id: string;
   name: string;
   last_opened_at: string | null;
-  config?: { created_by?: string };
+  config?: { created_by?: string; tags?: string[] };
 }
 
 interface TeamMember {
@@ -146,20 +146,21 @@ export default function ExperimentsManagerModal({
           }}
         >
           <ModalClose />
-          <Stack spacing={2} sx={{ mb: 2 }}>
+          <Box sx={{ mb: 2 }}>
             <Box
               sx={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 2,
                 minHeight: 32,
-                pr: 0.5,
+                // Reserve space so + New Experiment doesn't overlap ModalClose X.
+                pr: 4,
               }}
             >
               <Typography level="h3" component="h2">
                 Experiments
               </Typography>
-            </Box>
-            <Box>
               <Button
                 size="sm"
                 onClick={() => {
@@ -170,14 +171,16 @@ export default function ExperimentsManagerModal({
                 + New Experiment
               </Button>
             </Box>
-          </Stack>
+            <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
+              Click an experiment name to open it.
+            </Typography>
+          </Box>
           <Input
             placeholder="Search experiments…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             sx={{ mb: 2 }}
           />
-          <Divider />
 
           {isLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -202,7 +205,15 @@ export default function ExperimentsManagerModal({
                     <th style={{ width: 160 }}>Owner</th>
                     <th style={{ width: 120 }}>Last Opened</th>
                     <th style={{ width: 100 }}>Sharing</th>
-                    <th style={{ width: 160 }}>Actions</th>
+                    <th
+                      style={{
+                        width: 120,
+                        textAlign: 'right',
+                        paddingRight: 14,
+                      }}
+                    >
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -217,17 +228,40 @@ export default function ExperimentsManagerModal({
                     return (
                       <tr key={exp.id}>
                         <td>
-                          <Typography
-                            level="body-sm"
-                            fontWeight="md"
-                            sx={{
-                              cursor: 'pointer',
-                              '&:hover': { textDecoration: 'underline' },
-                            }}
-                            onClick={() => handleOpen(exp)}
-                          >
-                            {exp.name}
-                          </Typography>
+                          <Stack spacing={0.5}>
+                            <Typography
+                              level="body-sm"
+                              fontWeight="md"
+                              sx={{
+                                cursor: 'pointer',
+                                '&:hover': { textDecoration: 'underline' },
+                              }}
+                              onClick={() => handleOpen(exp)}
+                            >
+                              {exp.name}
+                            </Typography>
+                            {Array.isArray(exp.config?.tags) &&
+                              exp.config.tags.length > 0 && (
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    gap: 0.5,
+                                    flexWrap: 'wrap',
+                                  }}
+                                >
+                                  {exp.config.tags.map((t) => (
+                                    <Chip
+                                      key={t}
+                                      size="sm"
+                                      variant="soft"
+                                      color="neutral"
+                                    >
+                                      {t}
+                                    </Chip>
+                                  ))}
+                                </Box>
+                              )}
+                          </Stack>
                         </td>
                         <td>
                           <Typography level="body-xs" color="neutral">
@@ -255,14 +289,24 @@ export default function ExperimentsManagerModal({
                           )}
                         </td>
                         <td>
-                          <Box sx={{ display: 'flex', gap: 0.5 }}>
-                            <Button
-                              size="sm"
-                              variant="plain"
-                              onClick={() => handleOpen(exp)}
-                            >
-                              Open
-                            </Button>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              gap: 0.5,
+                              alignItems: 'center',
+                              justifyContent: 'flex-end',
+                            }}
+                          >
+                            <TagEditor
+                              experimentId={exp.id}
+                              experimentName={exp.name}
+                              tags={
+                                Array.isArray(exp.config?.tags)
+                                  ? exp.config!.tags!
+                                  : []
+                              }
+                              onChanged={() => mutate()}
+                            />
                             {canManage(exp) && (
                               <>
                                 <Tooltip title="Share">
@@ -271,7 +315,7 @@ export default function ExperimentsManagerModal({
                                     variant="plain"
                                     onClick={() => setShareTarget(exp)}
                                   >
-                                    <ShareIcon size={14} />
+                                    <UserRoundPlusIcon size={14} />
                                   </IconButton>
                                 </Tooltip>
                                 <Tooltip title="Delete">

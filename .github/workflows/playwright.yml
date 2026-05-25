@@ -30,15 +30,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
 
       - name: Install dependencies
         run: npm ci
 
+<<<<<<< HEAD
+=======
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-browsers-${{ hashFiles('package-lock.json') }}
+
+>>>>>>> 4f6c7d5ffe9a547a7b142b48594f6ded11a79428
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
@@ -57,7 +66,7 @@ jobs:
 
       - name: Upload HTML report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-smoke-report
           path: playwright-report/
@@ -73,15 +82,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
 
       - name: Install dependencies
         run: npm ci
 
+<<<<<<< HEAD
+=======
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-browsers-${{ hashFiles('package-lock.json') }}
+
+>>>>>>> 4f6c7d5ffe9a547a7b142b48594f6ded11a79428
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
@@ -100,7 +118,7 @@ jobs:
 
       - name: Upload HTML report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-e2e-report
           path: playwright-report/
@@ -108,7 +126,7 @@ jobs:
 
       - name: Upload test traces
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-traces
           path: test-results/

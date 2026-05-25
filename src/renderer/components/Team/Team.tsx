@@ -2,12 +2,6 @@ import {
   Box,
   Button,
   Typography,
-  Input,
-  Option,
-  Select,
-  Modal,
-  ModalDialog,
-  ModalClose,
   Stack,
   Table,
   Sheet,
@@ -15,8 +9,6 @@ import {
   Alert,
   Chip,
   IconButton,
-  FormControl,
-  FormLabel,
   Tabs,
   TabList,
   Tab,
@@ -28,11 +20,7 @@ import {
   NetworkIcon,
   PlusIcon,
   ServerIcon,
-  User2Icon,
   ActivityIcon,
-  BarChart3Icon,
-  GithubIcon,
-  Trash2Icon,
   StarIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -49,6 +37,11 @@ import QuotaSettingsSection from './QuotaSettingsSection';
 import TeamSecretsSection from './TeamSecretsSection';
 import SshKeySection from './SshKeySection';
 import PermissionsSection from './PermissionsSection';
+import MembersSection from './MembersSection';
+import InvitationsSection from './InvitationsSection';
+import NewTeamModal from './NewTeamModal';
+import SetTeamLogoModal from './SetTeamLogoModal';
+import TeamHeader from './TeamHeader';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 /*
@@ -64,11 +57,6 @@ export default function UserLoginTest(): JSX.Element {
   const authContext = useAuth();
   const { addNotification } = useNotification();
   const [loading, setLoading] = useState<boolean>(false);
-  const [newTeamName, setNewTeamName] = useState<string>('');
-  const [newTeamLogo, setNewTeamLogo] = useState<File | null>(null);
-  const [newTeamLogoPreview, setNewTeamLogoPreview] = useState<string | null>(
-    null,
-  );
   const [openNewTeamModal, setOpenNewTeamModal] = useState<boolean>(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [openInviteModal, setOpenInviteModal] = useState<boolean>(false);
@@ -97,16 +85,8 @@ export default function UserLoginTest(): JSX.Element {
   const [probeMessageMap, setProbeMessageMap] = useState<
     Record<string, string>
   >({});
-  const [githubPAT, setGithubPAT] = useState<string>('');
-  const [githubPATMasked, setGithubPATMasked] = useState<string>('');
-  const [githubPATExists, setGithubPATExists] = useState<boolean>(false);
-  const [savingPAT, setSavingPAT] = useState<boolean>(false);
-  const [loadingPAT, setLoadingPAT] = useState<boolean>(true);
   const [teamLogo, setTeamLogo] = useState<string | null>(null);
-  const [teamLogoFile, setTeamLogoFile] = useState<File | null>(null);
-  const [teamLogoPreview, setTeamLogoPreview] = useState<string | null>(null);
   const [openSetLogoModal, setOpenSetLogoModal] = useState<boolean>(false);
-  const [uploadingLogo, setUploadingLogo] = useState<boolean>(false);
   const [teamLogos, setTeamLogos] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<number>(0);
   const [localSetupModalOpen, setLocalSetupModalOpen] = useState(false);
@@ -298,36 +278,6 @@ export default function UserLoginTest(): JSX.Element {
     providersMutate();
   }, [authContext?.team?.id]);
 
-  // Fetch GitHub PAT when team changes
-  useEffect(() => {
-    const fetchGitHubPAT = async () => {
-      if (!authContext?.team?.id) {
-        setLoadingPAT(false);
-        return;
-      }
-      setLoadingPAT(true);
-      try {
-        const res = await authContext.fetchWithAuth(
-          `teams/${authContext.team.id}/github_pat`,
-          { method: 'GET' },
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setGithubPATExists(data.pat_exists || false);
-          setGithubPATMasked(data.masked_pat || '');
-          if (!data.pat_exists) {
-            setGithubPAT('');
-          }
-        }
-      } catch (e: any) {
-        console.error('Error fetching GitHub PAT:', e);
-      } finally {
-        setLoadingPAT(false);
-      }
-    };
-    fetchGitHubPAT();
-  }, [authContext?.team?.id]);
-
   // Fetch team logo when team changes
   useEffect(() => {
     const fetchTeamLogo = async () => {
@@ -393,44 +343,6 @@ export default function UserLoginTest(): JSX.Element {
     };
   }, [teamLogos]);
 
-  const handleSaveGitHubPAT = async () => {
-    if (!authContext?.team?.id || !iAmOwner) return;
-    setSavingPAT(true);
-    try {
-      const res = await authContext.fetchWithAuth(
-        `teams/${authContext.team.id}/github_pat`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ pat: githubPAT || '' }),
-        },
-      );
-      if (res.ok) {
-        const data = await res.json();
-        // Refresh PAT display
-        const fetchRes = await authContext.fetchWithAuth(
-          `teams/${authContext.team.id}/github_pat`,
-          { method: 'GET' },
-        );
-        if (fetchRes.ok) {
-          const fetchData = await fetchRes.json();
-          setGithubPATExists(fetchData.pat_exists || false);
-          setGithubPATMasked(fetchData.masked_pat || '');
-          if (!fetchData.pat_exists) {
-            setGithubPAT('');
-          }
-        }
-      }
-    } catch (e: any) {
-      console.error('Error saving GitHub PAT:', e);
-      alert(`Failed to save GitHub PAT: ${e?.message || String(e)}`);
-    } finally {
-      setSavingPAT(false);
-    }
-  };
-
   // Clear all role errors or add an error text
   function handleSetRoleError(message?: string) {
     if (!message) {
@@ -440,13 +352,13 @@ export default function UserLoginTest(): JSX.Element {
     }
   }
 
-  async function handleNewTeam() {
+  async function handleNewTeam(name: string, logoFile: File | null) {
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('name', newTeamName);
-      if (newTeamLogo) {
-        formData.append('logo', newTeamLogo);
+      formData.append('name', name);
+      if (logoFile) {
+        formData.append('logo', logoFile);
       }
 
       const res = await authContext.fetchWithAuth('teams', {
@@ -455,26 +367,13 @@ export default function UserLoginTest(): JSX.Element {
       });
 
       if (!res.ok) {
-        // Try to read JSON or text error body
-        let bodyText: string;
-        try {
-          const json = await res.json();
-          bodyText = JSON.stringify(json);
-        } catch {
-          bodyText = await res.text();
-        }
         return;
       }
 
       const data = await res.json();
-      setNewTeamName('');
-      setNewTeamLogo(null);
-      setNewTeamLogoPreview(null);
-
       teamsMutate();
 
-      // If logo was uploaded, fetch it for the new team
-      if (newTeamLogo && data.id) {
+      if (logoFile && data.id) {
         try {
           const logoRes = await authContext.fetchWithAuth(
             `teams/${data.id}/logo`,
@@ -496,6 +395,57 @@ export default function UserLoginTest(): JSX.Element {
       console.error('Error creating team:', e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleUploadTeamLogo(file: File) {
+    const teamId = authContext?.team?.id;
+    if (!teamId || !iAmOwner) return;
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+
+      const res = await authContext.fetchWithAuth(`teams/${teamId}/logo`, {
+        method: 'PUT',
+        body: formData,
+      });
+
+      if (!res.ok) return;
+
+      const logoRes = await authContext.fetchWithAuth(`teams/${teamId}/logo`, {
+        method: 'GET',
+      });
+      if (logoRes.ok) {
+        const blob = await logoRes.blob();
+        const url = URL.createObjectURL(blob);
+        setTeamLogo(url);
+        setTeamLogos((prev) => ({
+          ...prev,
+          [teamId]: url,
+        }));
+      }
+    } catch (e: any) {
+      console.error('Error uploading logo:', e);
+    }
+  }
+
+  async function handleRemoveTeamLogo() {
+    const teamId = authContext?.team?.id;
+    if (!teamId || !iAmOwner) return;
+    try {
+      const res = await authContext.fetchWithAuth(`teams/${teamId}/logo`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setTeamLogo(null);
+        setTeamLogos((prev) => {
+          const updated = { ...prev };
+          delete updated[teamId];
+          return updated;
+        });
+      }
+    } catch (e: any) {
+      console.error('Error deleting logo:', e);
     }
   }
 
@@ -544,6 +494,21 @@ export default function UserLoginTest(): JSX.Element {
       handleSetRoleError(undefined);
     } catch (e: any) {
       handleSetRoleError(e?.message ?? String(e));
+    }
+  }
+
+  async function handleCancelInvitation(invitationId: string) {
+    if (!authContext?.team?.id) return;
+    try {
+      const res = await authContext.fetchWithAuth(
+        `teams/${authContext.team.id}/invitations/${invitationId}`,
+        { method: 'DELETE' },
+      );
+      if (res.ok && invitationsMutate) {
+        invitationsMutate();
+      }
+    } catch (e: any) {
+      console.error('Error cancelling invitation:', e);
     }
   }
 
@@ -926,513 +891,57 @@ export default function UserLoginTest(): JSX.Element {
         Team Settings
       </Typography>
       <Box>
-        <Typography level="title-lg" mb={1}>
-          Current Team:
-        </Typography>
-        <Stack direction="row" spacing={2} alignItems="center" maxWidth={500}>
-          <Select
-            value={authContext.team?.id ?? ''}
-            onChange={(_, value) => {
-              const selectedId = value as string;
-              const selectedTeam = teams?.teams.find(
-                (t: any) => t.id === selectedId,
-              );
-              if (selectedTeam) {
-                authContext.setTeam({
-                  id: selectedTeam.id,
-                  name: selectedTeam.name,
-                });
-              }
-            }}
-            disabled={loading}
-            aria-label="Select team"
-            sx={{ minWidth: 300 }}
-          >
-            {teams?.teams.map((team: any) => {
-              const teamLogoUrl = teamLogos[team.id];
-              return (
-                <Option key={team.id} value={team.id}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    {teamLogoUrl ? (
-                      <Box
-                        component="img"
-                        src={teamLogoUrl}
-                        alt={`${team.name} logo`}
-                        sx={{
-                          width: 20,
-                          height: 20,
-                          objectFit: 'contain',
-                          borderRadius: 'sm',
-                        }}
-                      />
-                    ) : (
-                      <Box
-                        sx={{
-                          width: 20,
-                          height: 20,
-                          borderRadius: 'sm',
-                          bgcolor: 'neutral.200',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <User2Icon size={12} />
-                      </Box>
-                    )}
-                    <Typography>{team.name}</Typography>
-                  </Stack>
-                </Option>
-              );
-            })}
-          </Select>
+        <TeamHeader
+          teams={teams?.teams}
+          teamLogos={teamLogos}
+          currentTeamId={authContext.team?.id}
+          onSelectTeam={(selectedId) => {
+            const selectedTeam = teams?.teams.find(
+              (t: any) => t.id === selectedId,
+            );
+            if (selectedTeam) {
+              authContext.setTeam({
+                id: selectedTeam.id,
+                name: selectedTeam.name,
+              });
+            }
+          }}
+          loading={loading}
+          teamLogo={teamLogo}
+          iAmOwner={Boolean(iAmOwner)}
+          isPersonalTeam={isPersonalTeam}
+          hasCurrentTeam={Boolean(currentTeam?.id)}
+          onNewTeam={() => setOpenNewTeamModal(true)}
+          onRename={() => setRenameModalOpen(true)}
+          onDelete={handleDeleteTeam}
+          onLeave={handleLeaveTeam}
+          onViewUsageReport={() => navigate('/team/usage-report')}
+          onSetLogo={() => setOpenSetLogoModal(true)}
+          onRemoveLogo={handleRemoveTeamLogo}
+        />
+        <NewTeamModal
+          open={openNewTeamModal}
+          onClose={() => setOpenNewTeamModal(false)}
+          onCreate={handleNewTeam}
+        />
 
-          <Box sx={{ mt: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
-            <Button
-              onClick={() => setOpenNewTeamModal(true)}
-              disabled={loading}
-              variant="soft"
-              startDecorator={<PlusIcon />}
-            >
-              New Team
-            </Button>
-
-            <Modal
-              open={openNewTeamModal}
-              onClose={() => {
-                setOpenNewTeamModal(false);
-                setNewTeamLogo(null);
-                setNewTeamLogoPreview(null);
-              }}
-            >
-              <ModalDialog
-                aria-labelledby="new-team-title"
-                sx={{ minWidth: 320 }}
-              >
-                <ModalClose />
-                <Typography id="new-team-title" level="h4">
-                  New Team
-                </Typography>
-
-                <Box sx={{ mt: 2 }}>
-                  <FormControl>
-                    <FormLabel>Team Name</FormLabel>
-                    <Input
-                      placeholder="Team name"
-                      value={newTeamName}
-                      onChange={(e: any) => setNewTeamName(e.target.value)}
-                      disabled={loading}
-                      aria-label="New team name"
-                      size="sm"
-                      autoFocus
-                    />
-                  </FormControl>
-                </Box>
-
-                <Box sx={{ mt: 2 }}>
-                  <FormControl>
-                    <FormLabel>Team Logo (optional)</FormLabel>
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                      {newTeamLogoPreview && (
-                        <Box
-                          component="img"
-                          src={newTeamLogoPreview}
-                          alt="Logo preview"
-                          sx={{
-                            width: 64,
-                            height: 64,
-                            objectFit: 'contain',
-                            borderRadius: 'sm',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                          }}
-                        />
-                      )}
-                      <Button
-                        component="label"
-                        variant="outlined"
-                        size="sm"
-                        disabled={loading}
-                      >
-                        {newTeamLogo ? 'Change Logo' : 'Upload Logo'}
-                        <input
-                          type="file"
-                          hidden
-                          accept="image/*"
-                          onChange={(e: any) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setNewTeamLogo(file);
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                setNewTeamLogoPreview(reader.result as string);
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                      </Button>
-                      {newTeamLogo && (
-                        <Button
-                          variant="plain"
-                          size="sm"
-                          onClick={() => {
-                            setNewTeamLogo(null);
-                            setNewTeamLogoPreview(null);
-                          }}
-                          disabled={loading}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </Box>
-                  </FormControl>
-                </Box>
-
-                <Box
-                  sx={{
-                    display: 'flex',
-                    gap: 1,
-                    justifyContent: 'flex-end',
-                    mt: 2,
-                  }}
-                >
-                  <Button
-                    variant="plain"
-                    onClick={() => {
-                      setOpenNewTeamModal(false);
-                      setNewTeamLogo(null);
-                      setNewTeamLogoPreview(null);
-                    }}
-                    disabled={loading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      // call existing handler and close the dialog
-                      handleNewTeam();
-                      setOpenNewTeamModal(false);
-                    }}
-                    disabled={loading || !newTeamName.trim()}
-                  >
-                    {loading ? 'Creating...' : 'Create'}
-                  </Button>
-                </Box>
-              </ModalDialog>
-            </Modal>
-          </Box>
-        </Stack>
-
-        <Stack mt={3} gap={1} maxWidth={500}>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            {teamLogo && (
-              <Box
-                component="img"
-                src={teamLogo}
-                alt="Team logo"
-                sx={{
-                  width: 64,
-                  height: 64,
-                  objectFit: 'contain',
-                  borderRadius: 'sm',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                }}
-              />
-            )}
-            {!teamLogo && (
-              <Box
-                sx={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 'sm',
-                  bgcolor: 'neutral.200',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <User2Icon size={32} />
-              </Box>
-            )}
-            <Stack gap={1}>
-              <Button
-                variant="outlined"
-                onClick={() => {
-                  setRenameModalOpen(true);
-                }}
-                disabled={!iAmOwner}
-              >
-                Rename Team
-              </Button>
-              <Button
-                variant="outlined"
-                color="danger"
-                startDecorator={<Trash2Icon size={16} />}
-                onClick={handleDeleteTeam}
-                disabled={!iAmOwner || isPersonalTeam}
-              >
-                Delete Team
-              </Button>
-              <Button
-                variant="soft"
-                color="neutral"
-                onClick={handleLeaveTeam}
-                disabled={isPersonalTeam || !currentTeam?.id}
-              >
-                Leave Team
-              </Button>
-              <Button
-                variant="outlined"
-                startDecorator={<BarChart3Icon />}
-                onClick={() => navigate('/team/usage-report')}
-                disabled={!iAmOwner}
-              >
-                Usage Report {!iAmOwner ? '(Only owners can view)' : ''}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => setOpenSetLogoModal(true)}
-                disabled={!iAmOwner}
-              >
-                {teamLogo ? 'Change Logo' : 'Set Logo'}
-              </Button>
-              {teamLogo && (
-                <Button
-                  variant="outlined"
-                  color="danger"
-                  onClick={async () => {
-                    if (!authContext?.team?.id || !iAmOwner) return;
-                    try {
-                      const res = await authContext.fetchWithAuth(
-                        `teams/${authContext.team.id}/logo`,
-                        { method: 'DELETE' },
-                      );
-                      if (res.ok) {
-                        setTeamLogo(null);
-                        // Remove logo from teamLogos map
-                        const teamId = authContext.team?.id;
-                        if (teamId) {
-                          setTeamLogos((prev) => {
-                            const updated = { ...prev };
-                            delete updated[teamId];
-                            return updated;
-                          });
-                        }
-                      }
-                    } catch (e: any) {
-                      console.error('Error deleting logo:', e);
-                    }
-                  }}
-                  disabled={!iAmOwner}
-                >
-                  Remove Logo
-                </Button>
-              )}
-            </Stack>
-          </Box>
-        </Stack>
-
-        <Box sx={{ mt: 3 }}>
-          <Typography level="title-lg" mb={1}>
-            Members: ({members?.members?.length ?? 0})
-          </Typography>
-
-          {roleError ? (
-            <Box sx={{ mb: 0 }}>
-              <Typography level="body-sm" sx={{ color: 'red' }}>
-                {roleError}
-              </Typography>
-            </Box>
-          ) : null}
-
-          <Table variant="soft" sx={{ mb: 2 }}>
-            <thead>
-              <tr>
-                <th>Member</th>
-                <th>Role</th>
-                <th>&nbsp;</th>
-              </tr>
-            </thead>
-            <tbody>
-              {members?.members?.map((m: any, idx: number) => (
-                <tr key={m.user_id ?? m.email ?? idx}>
-                  <td>
-                    <Stack direction="row" alignItems="center" gap={1}>
-                      <User2Icon />
-                      <Box>
-                        <Typography fontWeight="md">
-                          {m?.email ?? '—'}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </td>
-                  <td>{m?.role}</td>
-                  <td>
-                    <Box
-                      sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
-                    >
-                      <Button
-                        variant="outlined"
-                        onClick={() => handleUpdateRole(m.user_id, m.role)}
-                      >
-                        {m?.role === 'owner'
-                          ? 'Change role to member'
-                          : 'Change role to owner'}
-                      </Button>
-
-                      {/* Per-member error display removed — all errors shown under the Members title */}
-                    </Box>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-          <Button
-            startDecorator={<PlusIcon />}
-            onClick={() => setOpenInviteModal(true)}
-            variant="soft"
-            disabled={!iAmOwner}
-          >
-            Invite Member {!iAmOwner ? '(Only owners can invite members)' : ''}
-          </Button>
-        </Box>
-        {iAmOwner && (
-          <Box sx={{ mt: 3 }}>
-            <Box
-              sx={{
-                mb: 1,
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 1,
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <Typography level="title-lg">Invitations</Typography>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography level="body-sm">Show expired</Typography>
-                <Switch
-                  size="sm"
-                  checked={showExpiredInvitations}
-                  onChange={(event) =>
-                    setShowExpiredInvitations(event.target.checked)
-                  }
-                />
-                <Button
-                  size="sm"
-                  variant="outlined"
-                  onClick={() => setOpenAcceptedInvitationsModal(true)}
-                >
-                  View Accepted ({acceptedInvitations.length})
-                </Button>
-              </Stack>
-            </Box>
-            {allInvitations.length === 0 && (
-              <Typography level="body-sm" color="neutral">
-                No invitations have been sent for this team yet.
-              </Typography>
-            )}
-            {allInvitations.length > 0 && visibleInvitations.length === 0 && (
-              <Typography level="body-sm" color="neutral" sx={{ mb: 2 }}>
-                No pending invitations.
-              </Typography>
-            )}
-            {visibleInvitations.length > 0 && (
-              <Table variant="soft" sx={{ mb: 2 }}>
-                <thead>
-                  <tr>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Invited By</th>
-                    <th>Expires</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleInvitations.map((invitation: any) => (
-                    <tr key={invitation.id}>
-                      <td>
-                        <Typography level="body-sm">
-                          {invitation.email}
-                        </Typography>
-                      </td>
-                      <td>
-                        <Chip size="sm" variant="soft">
-                          {invitation.role}
-                        </Chip>
-                      </td>
-                      <td>
-                        <Chip
-                          size="sm"
-                          variant="soft"
-                          color={
-                            invitation.status === 'pending'
-                              ? 'primary'
-                              : invitation.status === 'accepted'
-                                ? 'success'
-                                : invitation.status === 'rejected' ||
-                                    invitation.status === 'cancelled'
-                                  ? 'danger'
-                                  : 'neutral'
-                          }
-                        >
-                          {invitation.status}
-                        </Chip>
-                      </td>
-                      <td>
-                        <Typography level="body-sm">
-                          {invitation.invited_by_email}
-                        </Typography>
-                      </td>
-                      <td>
-                        <Typography level="body-xs">
-                          {invitation.expires_at
-                            ? new Date(
-                                invitation.expires_at,
-                              ).toLocaleDateString()
-                            : '—'}
-                        </Typography>
-                      </td>
-                      <td>
-                        {invitation.status === 'pending' && (
-                          <Button
-                            size="sm"
-                            variant="outlined"
-                            color="neutral"
-                            onClick={async () => {
-                              if (!authContext?.team?.id) return;
-                              try {
-                                const res = await authContext.fetchWithAuth(
-                                  `teams/${authContext.team.id}/invitations/${invitation.id}`,
-                                  {
-                                    method: 'DELETE',
-                                  },
-                                );
-                                if (res.ok && invitationsMutate) {
-                                  invitationsMutate();
-                                }
-                              } catch (e: any) {
-                                console.error(
-                                  'Error cancelling invitation:',
-                                  e,
-                                );
-                              }
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
-          </Box>
-        )}
+        <MembersSection
+          members={members?.members}
+          roleError={roleError}
+          iAmOwner={iAmOwner}
+          onUpdateRole={handleUpdateRole}
+          onInvite={() => setOpenInviteModal(true)}
+        />
+        <InvitationsSection
+          iAmOwner={iAmOwner}
+          allInvitations={allInvitations}
+          visibleInvitations={visibleInvitations}
+          acceptedInvitations={acceptedInvitations}
+          showExpiredInvitations={showExpiredInvitations}
+          onToggleShowExpired={setShowExpiredInvitations}
+          onViewAccepted={() => setOpenAcceptedInvitationsModal(true)}
+          onCancelInvitation={handleCancelInvitation}
+        />
         <Box sx={{ mt: 4 }}>
           <Typography level="title-lg" mb={1} startDecorator={<ServerIcon />}>
             Compute Providers: ({providers?.length ?? 0})
@@ -1907,152 +1416,11 @@ export default function UserLoginTest(): JSX.Element {
         onClose={() => setOpenAcceptedInvitationsModal(false)}
         invitations={acceptedInvitations}
       />
-      <Modal
+      <SetTeamLogoModal
         open={openSetLogoModal}
-        onClose={() => {
-          setOpenSetLogoModal(false);
-          setTeamLogoFile(null);
-          setTeamLogoPreview(null);
-        }}
-      >
-        <ModalDialog aria-labelledby="set-logo-title" sx={{ minWidth: 320 }}>
-          <ModalClose />
-          <Typography id="set-logo-title" level="h4">
-            Set Team Logo
-          </Typography>
-
-          <Box sx={{ mt: 2 }}>
-            <FormControl>
-              <FormLabel>Team Logo</FormLabel>
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                {teamLogoPreview && (
-                  <Box
-                    component="img"
-                    src={teamLogoPreview}
-                    alt="Logo preview"
-                    sx={{
-                      width: 64,
-                      height: 64,
-                      objectFit: 'contain',
-                      borderRadius: 'sm',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                    }}
-                  />
-                )}
-                <Button
-                  component="label"
-                  variant="outlined"
-                  size="sm"
-                  disabled={uploadingLogo}
-                >
-                  {teamLogoPreview ? 'Change Logo' : 'Upload Logo'}
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*"
-                    onChange={(e: any) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setTeamLogoFile(file);
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setTeamLogoPreview(reader.result as string);
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                </Button>
-                {teamLogoPreview && (
-                  <Button
-                    variant="plain"
-                    size="sm"
-                    onClick={() => {
-                      setTeamLogoFile(null);
-                      setTeamLogoPreview(null);
-                    }}
-                    disabled={uploadingLogo}
-                  >
-                    Remove
-                  </Button>
-                )}
-              </Box>
-            </FormControl>
-          </Box>
-
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 1,
-              justifyContent: 'flex-end',
-              mt: 2,
-            }}
-          >
-            <Button
-              variant="plain"
-              onClick={() => {
-                setOpenSetLogoModal(false);
-                setTeamLogoFile(null);
-                setTeamLogoPreview(null);
-              }}
-              disabled={uploadingLogo}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!authContext?.team?.id || !teamLogoFile || !iAmOwner)
-                  return;
-                setUploadingLogo(true);
-                try {
-                  const formData = new FormData();
-                  formData.append('logo', teamLogoFile);
-
-                  const res = await authContext.fetchWithAuth(
-                    `teams/${authContext.team.id}/logo`,
-                    {
-                      method: 'PUT',
-                      body: formData,
-                    },
-                  );
-
-                  if (res.ok) {
-                    // Refresh logo display
-                    const logoRes = await authContext.fetchWithAuth(
-                      `teams/${authContext.team.id}/logo`,
-                      { method: 'GET' },
-                    );
-                    if (logoRes.ok) {
-                      const blob = await logoRes.blob();
-                      const url = URL.createObjectURL(blob);
-                      setTeamLogo(url);
-                      // Update the logo in the teamLogos map for dropdown
-                      const teamId = authContext.team?.id;
-                      if (teamId) {
-                        setTeamLogos((prev) => ({
-                          ...prev,
-                          [teamId]: url,
-                        }));
-                      }
-                    }
-                    setOpenSetLogoModal(false);
-                    setTeamLogoFile(null);
-                    setTeamLogoPreview(null);
-                  }
-                } catch (e: any) {
-                  console.error('Error uploading logo:', e);
-                } finally {
-                  setUploadingLogo(false);
-                }
-              }}
-              disabled={uploadingLogo || !teamLogoFile}
-            >
-              {uploadingLogo ? 'Uploading...' : 'Save'}
-            </Button>
-          </Box>
-        </ModalDialog>
-      </Modal>
+        onClose={() => setOpenSetLogoModal(false)}
+        onSave={handleUploadTeamLogo}
+      />
     </Sheet>
   );
 }

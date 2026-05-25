@@ -20,8 +20,10 @@ const normalizeAccelerators = (
 
   return String(accelerators)
     .split(',')
-    .map((acc) => acc.trim().toLowerCase())
-    .filter(Boolean);
+    .flatMap((acc) => {
+      const trimmed = acc.trim().toLowerCase();
+      return trimmed ? [trimmed] : [];
+    });
 };
 
 const canonicalizeAccelerator = (raw: string): string => {
