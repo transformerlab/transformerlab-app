@@ -149,7 +149,7 @@ export default function SaveToRegistryDialog({
   const nextVersionLabel =
     mode === 'new'
       ? 'v1'
-      : getNextVersionLabel(selectedGroup, selectedGroupVersions);
+      : getNextVersionLabel(selectedGroup ?? null, selectedGroupVersions);
 
   // Reset state when opening
   useEffect(() => {

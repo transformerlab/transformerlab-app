@@ -1,7 +1,6 @@
 import { useColorScheme } from '@mui/joy/styles';
 import IconButton from '@mui/joy/IconButton';
 import { MoonIcon, SunIcon } from 'lucide-react';
-import { windowsStore } from 'process';
 import { useState } from 'react';
 
 export default function ColorSchemeToggle({ themeSetter }) {
