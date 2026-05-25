@@ -39,15 +39,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-<<<<<<< HEAD
-=======
       - name: Cache Playwright browsers
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: pw-browsers-${{ hashFiles('package-lock.json') }}
-
->>>>>>> 4f6c7d5ffe9a547a7b142b48594f6ded11a79428
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
@@ -91,15 +87,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-<<<<<<< HEAD
-=======
       - name: Cache Playwright browsers
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: pw-browsers-${{ hashFiles('package-lock.json') }}
 
->>>>>>> 4f6c7d5ffe9a547a7b142b48594f6ded11a79428
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
