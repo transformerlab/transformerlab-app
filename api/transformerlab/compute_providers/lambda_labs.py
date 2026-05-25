@@ -1,0 +1,497 @@
+"""Lambda Labs (Lambda Cloud) provider implementation.
+
+Lambda Labs exposes a REST API at https://cloud.lambdalabs.com/api/v1/ that lets
+us launch, list, and terminate on-demand GPU instances. Authentication uses an
+API key sent via HTTP Basic Auth (api_key as username, blank password). There is
+no native job-queue concept, so cluster operations correspond to instances, and
+the job-level methods (submit/list/cancel) are not implemented (mirrors RunPod).
+"""
+
+from __future__ import annotations
+
+import logging
+import shlex
+from typing import Any, Dict, List, Optional, Union
+
+import requests
+
+from .base import ComputeProvider
+from .models import (
+    ClusterConfig,
+    ClusterState,
+    ClusterStatus,
+    JobConfig,
+    JobInfo,
+    ResourceInfo,
+)
+
+
+logger = logging.getLogger(__name__)
+
+
+# Lambda Labs instance state -> ClusterState
+_LAMBDA_STATE_TO_CLUSTER_STATE = {
+    "active": ClusterState.UP,
+    "booting": ClusterState.INIT,
+    "unhealthy": ClusterState.FAILED,
+    "terminating": ClusterState.STOPPED,
+    "terminated": ClusterState.DOWN,
+}
+
+
+# (GPU_TYPE, COUNT) -> Lambda instance_type_name. Mirrors aws._GPU_INSTANCE_MAP.
+# Keep keys upper-cased so callers can pass e.g. "A100:8" or "H100:8".
+_GPU_INSTANCE_TYPE_MAP: Dict[tuple, str] = {
+    ("A10", 1): "gpu_1x_a10",
+    ("A100", 1): "gpu_1x_a100",
+    ("A100", 8): "gpu_8x_a100",
+    ("A100-SXM4", 1): "gpu_1x_a100_sxm4",
+    ("A100-80GB", 8): "gpu_8x_a100_80gb_sxm4",
+    ("A6000", 1): "gpu_1x_a6000",
+    ("A6000", 2): "gpu_2x_a6000",
+    ("A6000", 4): "gpu_4x_a6000",
+    ("H100", 1): "gpu_1x_h100_pcie",
+    ("H100-SXM5", 1): "gpu_1x_h100_sxm5",
+    ("H100", 8): "gpu_8x_h100_sxm5",
+    ("H100-SXM5", 8): "gpu_8x_h100_sxm5",
+    ("H200", 8): "gpu_8x_h200",
+    ("B200", 8): "gpu_8x_b200",
+    ("V100", 8): "gpu_8x_v100",
+    ("RTX6000", 1): "gpu_1x_rtx6000",
+    ("GH200", 1): "gpu_1x_gh200",
+}
+
+
+class LambdaProvider(ComputeProvider):
+    """Provider implementation for Lambda Labs Cloud."""
+
+    def __init__(
+        self,
+        api_key: str,
+        api_base_url: Optional[str] = None,
+        default_region: Optional[str] = None,
+        default_instance_type: Optional[str] = None,
+        default_ssh_key_names: Optional[List[str]] = None,
+        default_file_system_names: Optional[List[str]] = None,
+        extra_config: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Args:
+            api_key: Lambda Labs API key (required).
+            api_base_url: Override the API base URL (defaults to
+                https://cloud.lambdalabs.com/api/v1).
+            default_region: Default region (e.g. "us-east-1") used when a launch
+                request doesn't specify one.
+            default_instance_type: Default Lambda instance type name
+                (e.g. "gpu_1x_a10").
+            default_ssh_key_names: Names of SSH keys (already registered with
+                Lambda) to inject into launched instances.
+            default_file_system_names: Persistent storage filesystem names to
+                attach by default.
+            extra_config: Free-form passthrough.
+        """
+        if not api_key:
+            raise ValueError("Lambda Labs provider requires an api_key")
+
+        self.api_key = api_key
+        self.api_base_url = (api_base_url or "https://cloud.lambda.ai/api/v1").rstrip("/")
+        self.default_region = default_region
+        self.default_instance_type = default_instance_type
+        self.default_ssh_key_names = list(default_ssh_key_names or [])
+        self.default_file_system_names = list(default_file_system_names or [])
+        self.extra_config = extra_config or {}
+
+        # Cache cluster_name -> instance_id so we can avoid scanning every call.
+        self._cluster_name_to_instance_id: Dict[str, str] = {}
+
+    # ---------------------------------------------------------------- helpers
+
+    def _make_request(
+        self,
+        method: str,
+        endpoint: str,
+        json_data: Optional[Dict[str, Any]] = None,
+        timeout: int = 30,
+    ) -> requests.Response:
+        """Make an authenticated request against the Lambda Labs API."""
+        url = f"{self.api_base_url}{endpoint}"
+        response = requests.request(
+            method=method,
+            url=url,
+            json=json_data,
+            auth=(self.api_key, ""),  # Lambda uses HTTP Basic with API key as user
+            headers={"Content-Type": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        return response
+
+    @staticmethod
+    def _unwrap(payload: Any) -> Any:
+        """Lambda API wraps successful responses in a `data` key; unwrap it."""
+        if isinstance(payload, dict) and "data" in payload:
+            return payload["data"]
+        return payload
+
+    def _find_instance_by_name(self, cluster_name: str) -> Optional[Dict[str, Any]]:
+        """Locate a Lambda instance by its `name` field."""
+        cached_id = self._cluster_name_to_instance_id.get(cluster_name)
+        if cached_id:
+            try:
+                response = self._make_request("GET", f"/instances/{cached_id}")
+                return self._unwrap(response.json())
+            except requests.exceptions.HTTPError:
+                self._cluster_name_to_instance_id.pop(cluster_name, None)
+
+        try:
+            response = self._make_request("GET", "/instances")
+            instances = self._unwrap(response.json()) or []
+            if isinstance(instances, list):
+                for inst in instances:
+                    if inst.get("name") == cluster_name:
+                        inst_id = inst.get("id")
+                        if inst_id:
+                            self._cluster_name_to_instance_id[cluster_name] = inst_id
+                        return inst
+        except Exception as exc:  # pragma: no cover - network failures
+            logger.warning("Failed to list Lambda instances: %s", exc)
+        return None
+
+    @staticmethod
+    def _map_state(lambda_status: str) -> ClusterState:
+        return _LAMBDA_STATE_TO_CLUSTER_STATE.get((lambda_status or "").lower(), ClusterState.UNKNOWN)
+
+    def _resolve_instance_type(self, accelerators: Optional[str]) -> str:
+        """Translate an accelerator spec like 'A100:8' into a Lambda instance type.
+
+        Raises ValueError for unrecognized GPU types or counts.
+        """
+        if not accelerators:
+            if not self.default_instance_type:
+                raise ValueError(
+                    "Lambda provider requires an instance type. Specify accelerators "
+                    "(e.g. 'A100:1') or configure default_instance_type."
+                )
+            return self.default_instance_type
+
+        parts = accelerators.strip().split(":")
+        accel_type = parts[0].strip().upper()
+        try:
+            count = int(parts[1].strip()) if len(parts) > 1 else 1
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Invalid accelerator count in '{accelerators}'") from exc
+
+        key = (accel_type, count)
+        if key not in _GPU_INSTANCE_TYPE_MAP:
+            valid = sorted(f"{t}:{c}" for t, c in _GPU_INSTANCE_TYPE_MAP)
+            raise ValueError(f"Unsupported accelerator spec '{accelerators}'. Valid options: {', '.join(valid)}")
+        return _GPU_INSTANCE_TYPE_MAP[key]
+
+    def _build_user_data(self, cluster_name: str, config: ClusterConfig) -> str:
+        """Build a cloud-init bash script that runs setup/run and self-terminates on EXIT.
+
+        Lambda has no per-instance metadata service, so the EXIT trap uses the
+        account API key to resolve its own instance id by name and POST to
+        /instance-operations/terminate. The key is embedded in user_data; treat
+        this the same way Nebius treats its provisioned service-account creds.
+        """
+        if not (config.setup or config.run):
+            return ""
+
+        setup_block = config.setup or ""
+        run_cmd = config.run or "true"
+        api_base = shlex.quote(self.api_base_url)
+        api_key_q = shlex.quote(self.api_key)
+        name_q = shlex.quote(cluster_name)
+        env_exports = ""
+        if config.env_vars:
+            lines = []
+            for key, value in config.env_vars.items():
+                if not key.replace("_", "").isalnum() or key[:1].isdigit():
+                    raise ValueError(f"Invalid environment variable name: {key!r}")
+                lines.append(f"export {key}={shlex.quote(str(value))}")
+            env_exports = "\n".join(lines)
+
+        return f"""#!/bin/bash
+set -eo pipefail
+
+# Credentials are embedded so the EXIT trap can self-terminate via Lambda's API.
+# Do not echo them.
+set +x
+_TFL_LAMBDA_API_BASE={api_base}
+_TFL_LAMBDA_API_KEY={api_key_q}
+_TFL_LAMBDA_NAME={name_q}
+
+_tfl_self_terminate() {{
+  # Resolve our own instance id by name, then terminate. Best-effort.
+  local _iid
+  _iid=$(curl -sf -u "$_TFL_LAMBDA_API_KEY:" "$_TFL_LAMBDA_API_BASE/instances" 2>/dev/null \
+    | python3 -c 'import json,sys,os
+try:
+  d=json.load(sys.stdin).get("data",[])
+  n=os.environ.get("_TFL_LAMBDA_NAME","")
+  print(next((i["id"] for i in d if i.get("name")==n), ""))
+except Exception:
+  pass' 2>/dev/null || true)
+  if [ -n "$_iid" ]; then
+    curl -sf -u "$_TFL_LAMBDA_API_KEY:" -X POST \
+      -H "Content-Type: application/json" \
+      -d "{{\\"instance_ids\\":[\\"$_iid\\"]}}" \
+      "$_TFL_LAMBDA_API_BASE/instance-operations/terminate" >/dev/null 2>&1 || true
+  fi
+  sync || true
+  shutdown -h now || poweroff || true
+  return 0
+}}
+export _TFL_LAMBDA_NAME
+trap _tfl_self_terminate EXIT
+
+{env_exports}
+{setup_block}
+set +e
+({run_cmd}) 2>&1 | tee /var/log/transformerlab-run.log
+_exit_code=${{PIPESTATUS[0]}}
+set -e
+exit $_exit_code
+"""
+
+    # ------------------------------------------------------- ComputeProvider
+
+    def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
+        instance_type = config.provider_config.get("instance_type_name") or self._resolve_instance_type(
+            config.accelerators
+        )
+
+        region = config.region or self.default_region
+        if not region:
+            raise ValueError(
+                "Lambda provider requires a region. Set default_region or pass config.region when launching."
+            )
+
+        ssh_key_names = config.provider_config.get("ssh_key_names") or self.default_ssh_key_names
+        if not ssh_key_names:
+            raise ValueError(
+                "Lambda Labs requires at least one ssh_key_name. Add an SSH key to "
+                "your Lambda account and configure default_ssh_key_names."
+            )
+
+        file_system_names = config.provider_config.get("file_system_names") or self.default_file_system_names
+
+        payload: Dict[str, Any] = {
+            "region_name": region,
+            "instance_type_name": instance_type,
+            "ssh_key_names": ssh_key_names,
+            "name": cluster_name,
+        }
+        if file_system_names:
+            payload["file_system_names"] = file_system_names
+
+        # Lambda supports a `user_data` cloud-init script — pass setup+run through
+        # it so the instance executes our entrypoint on boot, then self-terminate
+        # via the Lambda API on EXIT (success or crash). Lambda has no per-instance
+        # metadata service or scoped credential, so the trap uses the account API
+        # key to look up its own id by name and call /instance-operations/terminate.
+        # Same tradeoff Nebius makes (embeds creds in user_data to self-delete).
+        user_data = self._build_user_data(cluster_name, config)
+        if user_data:
+            payload["user_data"] = user_data
+
+        try:
+            response = self._make_request("POST", "/instance-operations/launch", json_data=payload)
+            result = self._unwrap(response.json())
+            instance_ids = (result or {}).get("instance_ids") or []
+            instance_id = instance_ids[0] if instance_ids else None
+            if instance_id:
+                self._cluster_name_to_instance_id[cluster_name] = instance_id
+            return {"instance_id": instance_id, "request_id": instance_id}
+        except requests.exceptions.HTTPError as exc:
+            detail = ""
+            if exc.response is not None:
+                try:
+                    detail = exc.response.text
+                except Exception:  # pragma: no cover - defensive
+                    detail = ""
+            raise RuntimeError(f"Failed to launch Lambda instance: {exc} - {detail}") from exc
+
+    def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
+        instance = self._find_instance_by_name(cluster_name)
+        if not instance:
+            return {
+                "status": "error",
+                "message": f"Lambda instance '{cluster_name}' not found",
+                "cluster_name": cluster_name,
+            }
+        instance_id = instance.get("id")
+        try:
+            self._make_request(
+                "POST",
+                "/instance-operations/terminate",
+                json_data={"instance_ids": [instance_id]},
+            )
+            self._cluster_name_to_instance_id.pop(cluster_name, None)
+            return {
+                "status": "success",
+                "message": f"Lambda instance '{cluster_name}' terminated",
+                "cluster_name": cluster_name,
+                "instance_id": instance_id,
+            }
+        except requests.exceptions.HTTPError as exc:
+            detail = exc.response.text if exc.response is not None else ""
+            return {
+                "status": "error",
+                "message": f"Failed to terminate Lambda instance: {exc} - {detail}",
+                "cluster_name": cluster_name,
+                "instance_id": instance_id,
+            }
+
+    def get_cluster_status(self, cluster_name: str) -> ClusterStatus:
+        instance = self._find_instance_by_name(cluster_name)
+        if not instance:
+            return ClusterStatus(
+                cluster_name=cluster_name,
+                state=ClusterState.UNKNOWN,
+                status_message="Instance not found",
+            )
+        state = self._map_state(instance.get("status", ""))
+        instance_type = (instance.get("instance_type") or {}).get("name") or ""
+        return ClusterStatus(
+            cluster_name=cluster_name,
+            state=state,
+            status_message=instance.get("status"),
+            launched_at=instance.get("created_at") and str(instance["created_at"]),
+            num_nodes=1,
+            resources_str=instance_type,
+            provider_data=instance,
+        )
+
+    def list_clusters(self) -> List[ClusterStatus]:
+        try:
+            response = self._make_request("GET", "/instances")
+            instances = self._unwrap(response.json()) or []
+        except Exception as exc:
+            logger.warning("Lambda list_clusters failed: %s", exc)
+            return []
+
+        result: List[ClusterStatus] = []
+        for inst in instances:
+            name = inst.get("name") or f"lambda-{inst.get('id', 'unknown')}"
+            inst_id = inst.get("id")
+            if inst_id:
+                self._cluster_name_to_instance_id[name] = inst_id
+            instance_type = (inst.get("instance_type") or {}).get("name") or ""
+            result.append(
+                ClusterStatus(
+                    cluster_name=name,
+                    state=self._map_state(inst.get("status", "")),
+                    status_message=inst.get("status"),
+                    launched_at=inst.get("created_at") and str(inst["created_at"]),
+                    num_nodes=1,
+                    resources_str=instance_type,
+                    provider_data=inst,
+                )
+            )
+        return result
+
+    def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
+        instance = self._find_instance_by_name(cluster_name)
+        if not instance:
+            return ResourceInfo(
+                cluster_name=cluster_name,
+                gpus=[],
+                cpus=None,
+                memory_gb=None,
+                disk_gb=None,
+                num_nodes=1,
+            )
+
+        instance_type = instance.get("instance_type") or {}
+        specs = instance_type.get("specs") or {}
+        gpus: List[Dict[str, Any]] = []
+        gpu_desc = instance_type.get("gpu_description") or instance_type.get("description")
+        gpu_count = specs.get("gpus") or 1
+        if gpu_desc:
+            gpus.append({"gpu": gpu_desc, "count": gpu_count})
+
+        memory_gib = specs.get("memory_gib")
+        return ResourceInfo(
+            cluster_name=cluster_name,
+            gpus=gpus,
+            cpus=specs.get("vcpus"),
+            memory_gb=memory_gib,
+            disk_gb=specs.get("storage_gib"),
+            num_nodes=1,
+            provider_data=instance,
+        )
+
+    def get_clusters_detailed(self) -> List[Dict[str, Any]]:
+        detailed: List[Dict[str, Any]] = []
+        for cluster_status in self.list_clusters():
+            cluster_name = cluster_status.cluster_name
+            resources = self.get_cluster_resources(cluster_name)
+
+            gpus_dict: Dict[str, int] = {}
+            for gpu in resources.gpus or []:
+                if isinstance(gpu, dict) and gpu.get("gpu"):
+                    gpus_dict[gpu["gpu"]] = gpu.get("count", 0)
+
+            state_str = (
+                cluster_status.state.name if hasattr(cluster_status.state, "name") else str(cluster_status.state)
+            )
+            is_up = state_str.upper() in ("UP", "INIT")
+
+            node = {
+                "node_name": cluster_name,
+                "is_fixed": False,
+                "is_active": is_up,
+                "state": state_str.upper(),
+                "reason": cluster_status.status_message or state_str,
+                "resources": {
+                    "cpus_total": resources.cpus or 0,
+                    "cpus_allocated": (resources.cpus or 0) if is_up else 0,
+                    "gpus": gpus_dict,
+                    "gpus_free": {} if is_up else gpus_dict,
+                    "memory_gb_total": resources.memory_gb or 0,
+                    "memory_gb_allocated": (resources.memory_gb or 0) if is_up else 0,
+                },
+            }
+            detailed.append(
+                {
+                    "cluster_id": cluster_name,
+                    "cluster_name": cluster_name,
+                    "backend_type": "Lambda",
+                    "elastic_enabled": True,
+                    "max_nodes": 1,
+                    "head_node_ip": (cluster_status.provider_data or {}).get("ip"),
+                    "nodes": [node],
+                }
+            )
+        return detailed
+
+    # Lambda Labs has no queue / native job API — mirror RunPod's behavior.
+    def submit_job(self, cluster_name: str, job_config: JobConfig) -> Dict[str, Any]:
+        raise NotImplementedError("Lambda Labs has no job submission API")
+
+    def list_jobs(self, cluster_name: str) -> List[JobInfo]:
+        raise NotImplementedError("Lambda Labs has no job queue")
+
+    def get_job_logs(
+        self,
+        cluster_name: str,
+        job_id: Union[str, int],
+        tail_lines: Optional[int] = None,
+        follow: bool = False,
+    ) -> Union[str, Any]:
+        return "Logs not available via Lambda Labs API. SSH into the instance to view logs."
+
+    def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
+        raise NotImplementedError("Lambda Labs has no job cancellation API")
+
+    def check(self) -> tuple[bool, str | None]:
+        try:
+            # /instance-types is a lightweight authenticated endpoint.
+            self._make_request("GET", "/instance-types", timeout=10)
+            return True, None
+        except Exception as exc:
+            reason = f"Lambda Labs provider check failed: {exc}"
+            logger.warning(reason)
+            return False, reason

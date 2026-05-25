@@ -39,6 +39,7 @@ import GcpProviderFields from './providerForms/GcpProviderFields';
 import AzureProviderFields from './providerForms/AzureProviderFields';
 import LocalProviderFields from './providerForms/LocalProviderFields';
 import NebiusProviderFields from './providerForms/NebiusProviderFields';
+import LambdaProviderFields from './providerForms/LambdaProviderFields';
 
 interface ProviderDetailsModalProps {
   open: boolean;
@@ -90,6 +91,9 @@ const DEFAULT_CONFIGS = {
   gcp: `{
   "region": "us-central1"
 }`,
+  lambda: `{
+  "default_region": "us-east-1"
+}`,
 } as const;
 
 /** Nebius config keys edited via structured form (rest is preserved as passthrough). */
@@ -114,6 +118,7 @@ const DEFAULT_SUPPORTED_ACCELERATORS: Record<string, string[]> = {
   nebius: ['NVIDIA'],
   vastai: ['NVIDIA'],
   gcp: ['NVIDIA'],
+  lambda: ['NVIDIA'],
 };
 
 export default function ProviderDetailsModal({
@@ -168,6 +173,13 @@ export default function ProviderDetailsModal({
   const [runpodApiKey, setRunpodApiKey] = useState('');
   const [runpodApiKeyChanged, setRunpodApiKeyChanged] = useState(false);
   const [runpodApiBaseUrl, setRunpodApiBaseUrl] = useState('');
+  // Lambda Labs-specific form fields
+  const [lambdaApiKey, setLambdaApiKey] = useState('');
+  const [lambdaApiKeyChanged, setLambdaApiKeyChanged] = useState(false);
+  const [lambdaRegion, setLambdaRegion] = useState('us-east-1');
+  const [lambdaInstanceType, setLambdaInstanceType] = useState('');
+  const [lambdaSshKeyNames, setLambdaSshKeyNames] = useState('');
+  const [lambdaFileSystemNames, setLambdaFileSystemNames] = useState('');
 
   // Azure-specific form fields
   const [azureSubscriptionId, setAzureSubscriptionId] = useState('');
@@ -258,6 +270,11 @@ export default function ProviderDetailsModal({
         value: 'gcp',
         label: 'GCP (beta)',
         description: 'Launch and manage compute on Google Cloud.',
+      },
+      {
+        value: 'lambda',
+        label: 'Lambda Labs (beta)',
+        description: 'Launch on-demand GPU instances on Lambda Cloud.',
       },
       {
         value: 'azure',
@@ -482,6 +499,71 @@ export default function ProviderDetailsModal({
       }
     }
   };
+
+  const parseLambdaConfig = (configObj: any) => {
+    if (configObj && typeof configObj === 'object') {
+      setLambdaApiKey(
+        configObj.api_key === '***' ? '' : configObj.api_key || '',
+      );
+      setLambdaApiKeyChanged(false);
+      setLambdaRegion(
+        configObj.default_region || configObj.region || 'us-east-1',
+      );
+      setLambdaInstanceType(configObj.lambda_instance_type || '');
+      setLambdaSshKeyNames(
+        Array.isArray(configObj.lambda_ssh_key_names)
+          ? configObj.lambda_ssh_key_names.join(',')
+          : '',
+      );
+      setLambdaFileSystemNames(
+        Array.isArray(configObj.lambda_file_system_names)
+          ? configObj.lambda_file_system_names.join(',')
+          : '',
+      );
+      if (configObj.supported_accelerators) {
+        setSupportedAccelerators(configObj.supported_accelerators);
+      }
+    }
+  };
+
+  const buildLambdaConfig = useCallback(() => {
+    const splitList = (raw: string): string[] =>
+      raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+    const configObj: any = {
+      default_region: lambdaRegion || 'us-east-1',
+    };
+    if (!providerId || lambdaApiKeyChanged) {
+      configObj.api_key = lambdaApiKey;
+    }
+    if (lambdaInstanceType.trim()) {
+      configObj.lambda_instance_type = lambdaInstanceType.trim();
+    }
+    const sshKeys = splitList(lambdaSshKeyNames);
+    if (sshKeys.length > 0) {
+      configObj.lambda_ssh_key_names = sshKeys;
+    }
+    const fsNames = splitList(lambdaFileSystemNames);
+    if (fsNames.length > 0) {
+      configObj.lambda_file_system_names = fsNames;
+    }
+    if (supportedAccelerators && supportedAccelerators.length > 0) {
+      configObj.supported_accelerators = supportedAccelerators;
+    }
+    return configObj;
+  }, [
+    lambdaApiKey,
+    lambdaApiKeyChanged,
+    lambdaRegion,
+    lambdaInstanceType,
+    lambdaSshKeyNames,
+    lambdaFileSystemNames,
+    supportedAccelerators,
+    providerId,
+  ]);
 
   const buildRunpodConfig = useCallback(() => {
     const configObj: any = {
@@ -725,6 +807,9 @@ export default function ProviderDetailsModal({
       if (providerData.type === 'runpod') {
         parseRunpodConfig(rawConfigObj);
       }
+      if (providerData.type === 'lambda') {
+        parseLambdaConfig(rawConfigObj);
+      }
       if (providerData.type === 'azure') {
         parseAzureConfig(rawConfigObj);
       }
@@ -781,6 +866,12 @@ export default function ProviderDetailsModal({
       setRunpodApiKey('');
       setRunpodApiKeyChanged(false);
       setRunpodApiBaseUrl('');
+      setLambdaApiKey('');
+      setLambdaApiKeyChanged(false);
+      setLambdaRegion('us-east-1');
+      setLambdaInstanceType('');
+      setLambdaSshKeyNames('');
+      setLambdaFileSystemNames('');
       setAzureSubscriptionId('');
       setAzureTenantId('');
       setAzureClientId('');
@@ -845,6 +936,12 @@ export default function ProviderDetailsModal({
       setRunpodApiKey('');
       setRunpodApiKeyChanged(false);
       setRunpodApiBaseUrl('');
+      setLambdaApiKey('');
+      setLambdaApiKeyChanged(false);
+      setLambdaRegion('us-east-1');
+      setLambdaInstanceType('');
+      setLambdaSshKeyNames('');
+      setLambdaFileSystemNames('');
       setAzureSubscriptionId('');
       setAzureTenantId('');
       setAzureClientId('');
@@ -952,6 +1049,14 @@ export default function ProviderDetailsModal({
           // Ignore parse errors
         }
       }
+      if (type === 'lambda') {
+        try {
+          const configObj = JSON.parse(defaultConfig);
+          parseLambdaConfig(configObj);
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
       if (type === 'azure') {
         try {
           const configObj = JSON.parse(defaultConfig);
@@ -1018,6 +1123,10 @@ export default function ProviderDetailsModal({
         const configObj = buildRunpodConfig();
         setConfig(JSON.stringify(configObj, null, 2));
       }
+      if (type === 'lambda') {
+        const configObj = buildLambdaConfig();
+        setConfig(JSON.stringify(configObj, null, 2));
+      }
       if (type === 'azure') {
         const configObj = buildAzureConfig();
         setConfig(JSON.stringify(configObj, null, 2));
@@ -1045,6 +1154,7 @@ export default function ProviderDetailsModal({
     buildSkypilotConfig,
     buildDstackConfig,
     buildRunpodConfig,
+    buildLambdaConfig,
     buildAzureConfig,
     buildAwsConfig,
     buildVastAiConfig,
@@ -1241,6 +1351,8 @@ export default function ProviderDetailsModal({
         parsedConfig = buildDstackConfig();
       } else if (type === 'runpod') {
         parsedConfig = buildRunpodConfig();
+      } else if (type === 'lambda') {
+        parsedConfig = buildLambdaConfig();
       } else if (type === 'azure') {
         parsedConfig = buildAzureConfig();
       } else if (type === 'aws') {
@@ -1751,6 +1863,23 @@ export default function ProviderDetailsModal({
                     />
                   )}
 
+                  {type === 'lambda' && (
+                    <LambdaProviderFields
+                      lambdaApiKey={lambdaApiKey}
+                      setLambdaApiKey={setLambdaApiKey}
+                      lambdaRegion={lambdaRegion}
+                      setLambdaRegion={setLambdaRegion}
+                      lambdaInstanceType={lambdaInstanceType}
+                      setLambdaInstanceType={setLambdaInstanceType}
+                      lambdaSshKeyNames={lambdaSshKeyNames}
+                      setLambdaSshKeyNames={setLambdaSshKeyNames}
+                      lambdaFileSystemNames={lambdaFileSystemNames}
+                      setLambdaFileSystemNames={setLambdaFileSystemNames}
+                      providerId={providerId}
+                      setLambdaApiKeyChanged={setLambdaApiKeyChanged}
+                    />
+                  )}
+
                   {type === 'vastai' && (
                     <VastAiProviderFields
                       vastAiApiKey={vastAiApiKey}
@@ -1829,6 +1958,7 @@ export default function ProviderDetailsModal({
                     type !== 'skypilot' &&
                     type !== 'dstack' &&
                     type !== 'runpod' &&
+                    type !== 'lambda' &&
                     type !== 'local' &&
                     type !== 'aws' &&
                     type !== 'nebius' &&

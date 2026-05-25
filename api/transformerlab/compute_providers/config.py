@@ -56,6 +56,11 @@ class ComputeProviderConfig(BaseModel):
     service_account_json: Optional[Dict[str, Any]] = None
     service_account_email: Optional[str] = None
 
+    # Lambda Labs-specific config
+    lambda_instance_type: Optional[str] = None  # e.g. "gpu_1x_a10"
+    lambda_ssh_key_names: Optional[list[str]] = None  # SSH key names registered with Lambda
+    lambda_file_system_names: Optional[list[str]] = None  # Persistent filesystems to attach
+
     # Nebius-specific config
     nebius_profile: Optional[str] = None  # Nebius CLI profile name
     nebius_config_path: Optional[str] = None  # Provider-scoped Nebius CLI config path
@@ -296,6 +301,20 @@ def create_compute_provider(config: ComputeProviderConfig) -> "ComputeProvider":
             boot_image_family=config.boot_image_family,
             disk_size_gib=config.disk_size_gib,
             ssh_user=config.ssh_user,
+            extra_config=config.extra_config,
+        )
+    elif config.type == "lambda":
+        from .lambda_labs import LambdaProvider
+
+        if not config.api_key:
+            raise ValueError("Lambda Labs provider requires api_key in config")
+        return LambdaProvider(
+            api_key=config.api_key,
+            api_base_url=config.api_base_url,
+            default_region=config.default_region or config.region,
+            default_instance_type=config.lambda_instance_type or config.default_gpu_type,
+            default_ssh_key_names=config.lambda_ssh_key_names,
+            default_file_system_names=config.lambda_file_system_names,
             extra_config=config.extra_config,
         )
     elif config.type == "vastai":

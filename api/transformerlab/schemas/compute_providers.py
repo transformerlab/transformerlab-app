@@ -63,6 +63,11 @@ class ProviderConfigBase(BaseModel):
     default_template_id: Optional[str] = None  # Default Docker template ID
     default_network_volume_id: Optional[str] = None  # Default network volume ID
 
+    # Lambda Labs-specific config
+    lambda_instance_type: Optional[str] = None  # e.g. "gpu_1x_a10"
+    lambda_ssh_key_names: Optional[List[str]] = None
+    lambda_file_system_names: Optional[List[str]] = None
+
     # Azure-specific config
     azure_subscription_id: Optional[str] = None
     azure_tenant_id: Optional[str] = None
