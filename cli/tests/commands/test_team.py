@@ -71,7 +71,7 @@ def test_top_level_secret_removed():
 @patch("transformerlab_cli.commands.team.api")
 @patch("transformerlab_cli.commands.team.create_provider_interactively", return_value="prov-1")
 @patch("transformerlab_cli.commands.team.check_configs")
-def test_wizard_non_interactive_json(_mock_check, mock_create, mock_api):
+def test_wizard_non_interactive_json(_mock_check, _mock_create, mock_api):
     """Non-interactive JSON wizard creates a provider, sets default, sets secrets, checks."""
     mock_api.patch.return_value = _mock_response(200, {"status": "success"})
     mock_api.put_json.return_value = _mock_response(200, {"status": "success"})
@@ -108,7 +108,7 @@ def test_wizard_non_interactive_json(_mock_check, mock_create, mock_api):
 @patch("transformerlab_cli.commands.team.api")
 @patch("transformerlab_cli.commands.team.create_provider_interactively", return_value="prov-2")
 @patch("transformerlab_cli.commands.team.check_configs")
-def test_wizard_no_check_no_default(_mock_check, mock_create, mock_api):
+def test_wizard_no_check_no_default(_mock_check, _mock_create, mock_api):
     """--no-check and --no-set-default skip those steps."""
     mock_api.put_json.return_value = _mock_response(200, {"status": "success"})
     result = runner.invoke(
@@ -136,7 +136,8 @@ def test_wizard_no_check_no_default(_mock_check, mock_create, mock_api):
 
 
 def test_setup_help():
-    result = runner.invoke(app, ["team", "setup", "--help"])
+    # Widen the terminal so rich does not wrap/truncate the option names.
+    result = runner.invoke(app, ["team", "setup", "--help"], env={"COLUMNS": "200"})
     assert result.exit_code == 0
     assert "--set-default" in result.output
     assert "--secret" in result.output
@@ -145,7 +146,7 @@ def test_setup_help():
 @patch("transformerlab_cli.commands.team.api")
 @patch("transformerlab_cli.commands.team.create_provider_interactively", return_value="prov-3")
 @patch("transformerlab_cli.commands.team.check_configs")
-def test_wizard_normal_secret_merges(_mock_check, mock_create, mock_api):
+def test_wizard_normal_secret_merges(_mock_check, _mock_create, mock_api):
     """A non-special --secret is merged into team secrets via GET+PUT."""
     mock_api.get.return_value = _mock_response(200, {"secrets": {"EXISTING": "v"}})
     mock_api.put_json.return_value = _mock_response(200, {"status": "success"})
@@ -180,7 +181,7 @@ def test_wizard_normal_secret_merges(_mock_check, mock_create, mock_api):
 @patch("transformerlab_cli.commands.team.api")
 @patch("transformerlab_cli.commands.team.create_provider_interactively", return_value="prov-4")
 @patch("transformerlab_cli.commands.team.check_configs")
-def test_wizard_bad_secret_format_errors(_mock_check, mock_create, mock_api):
+def test_wizard_bad_secret_format_errors(_mock_check, _mock_create, mock_api):
     """--secret without '=' errors out."""
     result = runner.invoke(
         app,
@@ -208,7 +209,7 @@ def test_wizard_bad_secret_format_errors(_mock_check, mock_create, mock_api):
 @patch("transformerlab_cli.commands.team.api")
 @patch("transformerlab_cli.commands.team.create_provider_interactively", return_value="prov-5")
 @patch("transformerlab_cli.commands.team.check_configs")
-def test_wizard_set_default_failure_exits(_mock_check, mock_create, mock_api):
+def test_wizard_set_default_failure_exits(_mock_check, _mock_create, mock_api):
     """A non-200 from set-default surfaces an error and exits non-zero."""
     mock_api.patch.return_value = _mock_response(500, {})
     result = runner.invoke(
