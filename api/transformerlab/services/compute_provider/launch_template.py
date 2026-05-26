@@ -22,6 +22,7 @@ from transformerlab.services.compute_provider.launch_credentials import (
     get_aws_credentials_from_file,
 )
 from transformerlab.services.compute_provider.launch_secrets import find_missing_secrets_for_template_launch
+from transformerlab.services.compute_provider import storage_usage_service
 from transformerlab.services.compute_provider.launch_sweep import create_sweep_parent_job, launch_sweep_jobs
 from transformerlab.services.compute_provider.launch_task_files import copy_task_files_to_dir
 from transformerlab.services.compute_provider.trackio_launch import (
@@ -85,6 +86,11 @@ async def launch_template_on_provider(
         raise HTTPException(status_code=404, detail="Provider not found")
     if provider.disabled:
         raise HTTPException(status_code=403, detail="Provider is disabled and cannot be used to launch tasks")
+
+    # Storage limit check: block launches when the org is over the global per-org cap.
+    storage_ok, storage_msg = await storage_usage_service.check_storage_within_limit(session, team_id)
+    if not storage_ok:
+        raise HTTPException(status_code=403, detail=storage_msg)
 
     # Check if sweeps are enabled
     if request.run_sweeps and request.sweep_config:

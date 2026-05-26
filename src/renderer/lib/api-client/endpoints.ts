@@ -402,6 +402,14 @@ Endpoints.Quota = {
     `${API_URL()}quota/user/${userId}/team/${teamId}`,
 };
 
+Endpoints.Storage = {
+  GetUsage: () => `${API_URL()}compute_provider/usage/storage`,
+  Rescan: () => `${API_URL()}compute_provider/usage/storage/rescan`,
+  GetAlerts: () => `${API_URL()}compute_provider/usage/storage/alerts`,
+  UpdateThresholds: () =>
+    `${API_URL()}compute_provider/usage/storage/thresholds`,
+};
+
 Endpoints.Teams = {
   GetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
   SetSecrets: (teamId: string) => `${API_URL()}teams/${teamId}/secrets`,
