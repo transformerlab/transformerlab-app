@@ -189,7 +189,8 @@ def _upload_aws_credentials(provider_id: str, access_key_id: str, secret_access_
             json_data={"access_key_id": access_key_id, "secret_access_key": secret_access_key},
         )
     if response.status_code == 200:
-        console.print("[success]✓[/success] AWS credentials saved to API host.")
+        if cli_state.output_format != "json":
+            console.print("[success]✓[/success] AWS credentials saved to API host.")
     else:
         console.print(f"[error]Error:[/error] Failed to upload AWS credentials. {_extract_error_detail(response)}")
         raise typer.Exit(1)
@@ -205,7 +206,8 @@ def _upload_gcp_service_account(provider_id: str, service_account_json: str) -> 
             json_data={"service_account_json": service_account_json},
         )
     if response.status_code == 200:
-        console.print("[success]✓[/success] GCP service account saved.")
+        if cli_state.output_format != "json":
+            console.print("[success]✓[/success] GCP service account saved.")
     else:
         console.print(f"[error]Error:[/error] Failed to upload GCP service account. {_extract_error_detail(response)}")
         raise typer.Exit(1)
@@ -308,7 +310,8 @@ def create_provider_interactively(
 
     result = response.json()
     provider_id = result.get("id", "unknown")
-    console.print(f"[success]✓[/success] Provider created with ID: [bold]{provider_id}[/bold]")
+    if cli_state.output_format != "json":
+        console.print(f"[success]✓[/success] Provider created with ID: [bold]{provider_id}[/bold]")
 
     if provider_type == "aws" and aws_access_key_id and aws_secret_access_key:
         _upload_aws_credentials(provider_id, aws_access_key_id, aws_secret_access_key)
@@ -388,7 +391,8 @@ def command_provider_add(
     if check_response.status_code == 200:
         check_result = check_response.json()
         if check_result.get("status"):
-            console.print("[success]✓[/success] Provider health check passed.")
+            if cli_state.output_format != "json":
+                console.print("[success]✓[/success] Provider health check passed.")
         else:
             reason = _extract_provider_check_reason(check_result)
             console.print(f"[error]Error:[/error] Provider health check failed. {reason}")

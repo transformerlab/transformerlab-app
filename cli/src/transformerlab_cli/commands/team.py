@@ -25,13 +25,21 @@ app = typer.Typer()
 def _save_secret(name: str, value: str) -> None:
     """Save one secret (team-level), routing special keys to the special_secrets endpoint."""
     if name in SPECIAL_SECRET_KEYS:
-        api.put_json(_get_special_secrets_path(False), json_data={"secret_type": name, "value": value})
+        response = api.put_json(_get_special_secrets_path(False), json_data={"secret_type": name, "value": value})
     else:
         path = _get_secrets_path(False)
         get_response = api.get(f"{path}?include_values=true")
-        secrets = get_response.json().get("secrets", {}) if get_response.status_code == 200 else {}
+        if get_response.status_code != 200:
+            console.print(
+                f"[error]Error:[/error] Failed to fetch current secrets. {_extract_error_detail(get_response)}"
+            )
+            raise typer.Exit(1)
+        secrets = get_response.json().get("secrets", {})
         secrets[name] = value
-        api.put_json(path, json_data={"secrets": secrets})
+        response = api.put_json(path, json_data={"secrets": secrets})
+    if response.status_code != 200:
+        console.print(f"[error]Error:[/error] Failed to save secret {name}. {_extract_error_detail(response)}")
+        raise typer.Exit(1)
 
 
 def _run_check(provider_id: str) -> dict:
@@ -88,7 +96,10 @@ def command_team_setup(
     else:
         default_set = set_default
     if default_set:
-        api.patch(f"/compute_provider/providers/{provider_id}", json_data={"is_default": True})
+        response = api.patch(f"/compute_provider/providers/{provider_id}", json_data={"is_default": True})
+        if response.status_code != 200:
+            console.print(f"[error]Error:[/error] Failed to set provider as default. {_extract_error_detail(response)}")
+            raise typer.Exit(1)
 
     # Step 3: set platform secrets.
     secrets_set: list[str] = []
