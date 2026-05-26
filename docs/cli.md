@@ -60,6 +60,8 @@ cli/src/transformerlab_cli/
 │   ├── task.py                 # lab task {list,init,add,validate,edit,upload,delete,info,queue,gallery,interactive}
 │   ├── interactive.py          # implementation for `lab task interactive`
 │   ├── provider.py             # lab provider {list,add,info,update,delete,check,enable,disable,set-default,clear-default}
+│   ├── team.py                 # lab team {setup, secret} (onboarding wizard + secret subgroup)
+│   ├── secret.py               # lab team secret {set,list,keys,delete} (registered as a subgroup of `team`)
 │   ├── server.py               # lab server {install,version,start,stop,restart,update}
 │   ├── experiment.py           # lab experiment {list,create,delete,set-default,tag,tags}
 │   ├── notes.py                # lab notes {show,edit,append}
@@ -152,6 +154,28 @@ lab job list --experiment exp-b
 lab task add ./my-task -e exp-c
 lab notes show -e exp-d
 lab job monitor -e exp-z
+```
+
+### Team setup and secrets
+
+Team-scoped configuration lives under `lab team`:
+
+- **`lab team setup`** — an onboarding wizard for a new team. Interactively walks through creating a compute provider (delegating to `create_provider_interactively` in `provider.py`), optionally setting it as the team default, and adding secrets. It is fully scriptable for non-interactive use via flags: `--name`, `--type`, `--config`, `--credentials-file`, `--secret KEY=VALUE` (repeatable), `--set-default` / `--no-set-default`, and `--check` / `--no-check` (run the provider health check at the end).
+- **`lab team secret`** — secret management subgroup with `set`, `list`, `keys`, and `delete`. (`keys` shows the platform-recognized secret key names.) This was previously the top-level `lab secret` group; it now lives under `lab team`.
+
+```bash
+# Interactive onboarding
+lab team setup
+
+# Non-interactive (combine with the global --no-interactive flag)
+lab team setup --no-interactive --name my-provider --type ssh \
+  --credentials-file ./creds.json --set-default --secret HF_TOKEN=hf_xxx --check
+
+# Secrets
+lab team secret set HF_TOKEN hf_xxx
+lab team secret list
+lab team secret keys
+lab team secret delete HF_TOKEN
 ```
 
 ## Adding a New Command
