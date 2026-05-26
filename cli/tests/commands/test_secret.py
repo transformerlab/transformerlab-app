@@ -245,10 +245,12 @@ def test_secret_list_error(_mock_config, _mock_check, _mock_get):
 @patch("transformerlab_cli.commands.secret.check_configs")
 @patch("transformerlab_cli.commands.secret.get_config", return_value="team-123")
 def test_secret_set_picker_special_key(_mock_config, _mock_check, mock_put):
-    """Bare `team secret set` shows a picker; choosing item 2 maps to _HF_TOKEN."""
+    """Bare `team secret set` shows a picker; choosing _HF_TOKEN maps to the special_secrets endpoint."""
     mock_put.return_value = _mock_response(200, {"status": "success", "secret_type": "_HF_TOKEN"})
-    # SPECIAL_SECRET_KEYS order: _GITHUB_PAT_TOKEN(1), _HF_TOKEN(2), _WANDB_API_KEY(3), _NGROK_AUTH_TOKEN(4)
-    result = runner.invoke(app, ["team", "secret", "set"], input="2\nhf_abc123\n")
+    from transformerlab_cli.commands.secret import SPECIAL_SECRET_KEYS
+
+    hf_index = list(SPECIAL_SECRET_KEYS.keys()).index("_HF_TOKEN") + 1
+    result = runner.invoke(app, ["team", "secret", "set"], input=f"{hf_index}\nhf_abc123\n")
     assert result.exit_code == 0
     put_call = mock_put.call_args
     assert "special_secrets" in put_call.args[0]

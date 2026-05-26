@@ -1,6 +1,7 @@
 """Tests for the lab team namespace, setup wizard, and global non-interactive flag."""
 
-from unittest.mock import MagicMock
+import json
+from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -49,7 +50,7 @@ def test_default_is_interactive():
 def test_team_help_lists_subcommands():
     result = runner.invoke(app, ["team", "--help"])
     assert result.exit_code == 0
-    # TODO(Task 5): assert "setup" in result.output
+    assert "setup" in result.output
     assert "secret" in result.output
 
 
@@ -65,3 +66,77 @@ def test_top_level_secret_removed():
     result = runner.invoke(app, ["secret", "keys"])
     assert result.exit_code != 0
     assert "No such command" in result.output or "Usage" in result.output
+
+
+@patch("transformerlab_cli.commands.team.api")
+@patch("transformerlab_cli.commands.team.create_provider_interactively", return_value="prov-1")
+@patch("transformerlab_cli.commands.team.check_configs")
+def test_wizard_non_interactive_json(_mock_check, mock_create, mock_api):
+    """Non-interactive JSON wizard creates a provider, sets default, sets secrets, checks."""
+    mock_api.patch.return_value = _mock_response(200, {"status": "success"})
+    mock_api.put_json.return_value = _mock_response(200, {"status": "success"})
+    mock_api.get.return_value = _mock_response(200, {"status": True})
+    result = runner.invoke(
+        app,
+        [
+            "--format",
+            "json",
+            "team",
+            "setup",
+            "--name",
+            "p",
+            "--type",
+            "local",
+            "--config",
+            "{}",
+            "--set-default",
+            "--secret",
+            "_HF_TOKEN=hf_abc",
+            "--check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["provider_id"] == "prov-1"
+    assert data["default_set"] is True
+    assert data["secrets_set"] == ["_HF_TOKEN"]
+    assert data["check"]["ok"] is True
+    assert any(c.kwargs["json_data"].get("is_default") is True for c in mock_api.patch.call_args_list)
+    assert any("special_secrets" in c.args[0] for c in mock_api.put_json.call_args_list)
+
+
+@patch("transformerlab_cli.commands.team.api")
+@patch("transformerlab_cli.commands.team.create_provider_interactively", return_value="prov-2")
+@patch("transformerlab_cli.commands.team.check_configs")
+def test_wizard_no_check_no_default(_mock_check, mock_create, mock_api):
+    """--no-check and --no-set-default skip those steps."""
+    mock_api.put_json.return_value = _mock_response(200, {"status": "success"})
+    result = runner.invoke(
+        app,
+        [
+            "--format",
+            "json",
+            "team",
+            "setup",
+            "--name",
+            "p",
+            "--type",
+            "local",
+            "--config",
+            "{}",
+            "--no-set-default",
+            "--no-check",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["default_set"] is False
+    assert data["check"] is None
+    mock_api.get.assert_not_called()
+
+
+def test_setup_help():
+    result = runner.invoke(app, ["team", "setup", "--help"])
+    assert result.exit_code == 0
+    assert "--set-default" in result.output
+    assert "--secret" in result.output

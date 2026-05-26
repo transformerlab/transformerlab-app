@@ -61,7 +61,11 @@ def _prompt_special_secret_key() -> str:
         if 1 <= idx <= len(items):
             return items[idx - 1][0]
         if idx == custom_idx:
-            return typer.prompt("Custom key name").strip()
+            while True:
+                custom = typer.prompt("Custom key name").strip()
+                if custom:
+                    return custom
+                console.print("[error]A key name is required[/error]")
         console.print(f"[error]Please enter a number between 1 and {custom_idx}[/error]")
 
 
