@@ -277,3 +277,18 @@ def test_secret_set_no_key_non_interactive_errors():
     result = runner.invoke(app, ["--no-interactive", "team", "secret", "set"])
     assert result.exit_code == 1
     assert "required" in result.output.lower()
+
+
+@patch("transformerlab_cli.commands.secret.api.put_json")
+@patch(
+    "transformerlab_cli.commands.secret.api.get",
+    return_value=_mock_response(200, json.loads(json.dumps(SAMPLE_SECRETS_WITH_VALUES))),
+)
+@patch("transformerlab_cli.commands.secret.check_configs")
+@patch("transformerlab_cli.commands.secret.get_config", return_value="team-123")
+def test_secret_delete_global_no_interactive_skips_confirm(_mock_config, _mock_check, mock_get, mock_put):
+    """The global --no-interactive flag skips the delete confirmation prompt."""
+    mock_put.return_value = _mock_response(200, {"status": "success"})
+    result = runner.invoke(app, ["--no-interactive", "team", "secret", "delete", "API_KEY"])
+    assert result.exit_code == 0
+    assert "deleted" in result.output

@@ -161,21 +161,26 @@ lab job monitor -e exp-z
 Team-scoped configuration lives under `lab team`:
 
 - **`lab team setup`** — an onboarding wizard for a new team. Interactively walks through creating a compute provider (delegating to `create_provider_interactively` in `provider.py`), optionally setting it as the team default, and adding secrets. It is fully scriptable for non-interactive use via flags: `--name`, `--type`, `--config`, `--credentials-file`, `--secret KEY=VALUE` (repeatable), `--set-default` / `--no-set-default`, and `--check` / `--no-check` (run the provider health check at the end).
-- **`lab team secret`** — secret management subgroup with `set`, `list`, `keys`, and `delete`. (`keys` shows the platform-recognized secret key names.) This was previously the top-level `lab secret` group; it now lives under `lab team`.
+- **`lab team secret`** — secret management lives under `lab team secret` with `set`, `list`, `keys`, and `delete`. (`keys` shows the platform-recognized secret key names.)
+
+`--no-interactive` and `--format json` are global flags on the root callback, so they must come immediately after `lab`, **before** the `team` subgroup.
 
 ```bash
 # Interactive onboarding
 lab team setup
 
-# Non-interactive (combine with the global --no-interactive flag)
-lab team setup --no-interactive --name my-provider --type ssh \
-  --credentials-file ./creds.json --set-default --secret HF_TOKEN=hf_xxx --check
+# Non-interactive (the global --no-interactive flag comes right after `lab`)
+lab --no-interactive team setup --name my-provider --type ssh \
+  --credentials-file ./creds.json --set-default --secret _HF_TOKEN=hf_xxx --check
 
 # Secrets
-lab team secret set HF_TOKEN hf_xxx
+lab team secret set _HF_TOKEN hf_xxx
 lab team secret list
 lab team secret keys
-lab team secret delete HF_TOKEN
+lab team secret delete _HF_TOKEN
+
+# JSON output (the global --format json flag also comes right after `lab`)
+lab --format json team secret list
 ```
 
 ## Adding a New Command

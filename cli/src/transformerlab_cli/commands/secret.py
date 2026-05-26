@@ -173,9 +173,10 @@ def command_secret_delete(
 ):
     """Delete a secret."""
     check_configs(output_format=cli_state.output_format)
+    skip_confirm = no_interactive or cli_state.no_interactive
 
     if name in SPECIAL_SECRET_KEYS:
-        if not no_interactive:
+        if not skip_confirm:
             typer.confirm(f"Delete special secret {name}?", abort=True)
         path = _get_special_secrets_path(user)
         payload = {"secret_type": name, "value": ""}
@@ -194,7 +195,7 @@ def command_secret_delete(
             console.print(f"[error]Error:[/error] Secret [bold]{name}[/bold] not found.")
             raise typer.Exit(1)
 
-        if not no_interactive:
+        if not skip_confirm:
             typer.confirm(f"Delete secret {name}?", abort=True)
 
         del secrets[name]
