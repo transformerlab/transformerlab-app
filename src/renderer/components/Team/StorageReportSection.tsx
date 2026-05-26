@@ -202,6 +202,11 @@ export default function StorageReportSection({ teamId }: { teamId: string }) {
         </CardContent>
       </Card>
 
+      {/*
+        Per-user breakdown is temporarily disabled. The per-user attribution scan
+        re-walks every job dir and dominated storage scan time, so it is gated off on
+        the backend (TFL_STORAGE_REPORT_PER_USER_ENABLED). Re-enable this block when
+        per-user attribution is turned back on.
       <Card>
         <CardContent>
           <Typography level="title-md">Breakdown by user</Typography>
@@ -228,6 +233,7 @@ export default function StorageReportSection({ teamId }: { teamId: string }) {
           </Table>
         </CardContent>
       </Card>
+      */}
 
       <Card>
         <CardContent>
@@ -241,6 +247,11 @@ export default function StorageReportSection({ teamId }: { teamId: string }) {
                 onChange={(e) => setOrgThresholdGb(e.target.value)}
               />
             </FormControl>
+            {/*
+              Per-user threshold is temporarily hidden while per-user attribution is
+              disabled on the backend (TFL_STORAGE_REPORT_PER_USER_ENABLED); it can't
+              fire alerts without per-user data. The stored value is preserved (still
+              sent by saveThresholds). Re-enable this input when attribution is back on.
             <FormControl>
               <FormLabel>Per-user threshold (GB)</FormLabel>
               <Input
@@ -249,6 +260,7 @@ export default function StorageReportSection({ teamId }: { teamId: string }) {
                 onChange={(e) => setUserThresholdGb(e.target.value)}
               />
             </FormControl>
+            */}
           </Stack>
           <Button
             size="sm"

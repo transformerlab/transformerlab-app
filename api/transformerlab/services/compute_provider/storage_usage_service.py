@@ -4,6 +4,7 @@ import inspect
 import json
 import logging
 import os
+import time
 from typing import Any, Dict, Optional
 
 from sqlalchemy import select
@@ -29,6 +30,12 @@ from transformerlab.utils.datetime_utils import utc_now_naive
 logger = logging.getLogger(__name__)
 
 _BYTES_PER_GB = 1024**3
+
+
+def _per_user_enabled() -> bool:
+    """Per-user attribution re-walks every job dir and dominates scan time, so it is
+    off by default. Set TFL_STORAGE_REPORT_PER_USER_ENABLED=1 (or true/yes) to turn it back on."""
+    return os.environ.get("TFL_STORAGE_REPORT_PER_USER_ENABLED", "").strip().lower() in ("1", "true", "yes")
 
 
 def _safe_json_loads(raw: Optional[str]) -> dict:
@@ -104,22 +111,40 @@ async def _compute_per_user_bytes(team_id: str) -> Dict[str, int]:
     return per_user
 
 
+async def _timed_du(label: str, path: Any) -> int:
+    """``storage.du`` with a debug timing line so we can see which category is slow."""
+    start = time.perf_counter()
+    size = await storage.du(path)
+    logger.debug("storage du: %s took %.2fs (%d bytes) [%s]", label, time.perf_counter() - start, size, path)
+    return size
+
+
 async def compute_org_storage(team_id: str) -> Dict[str, Any]:
     """Compute total + category breakdown + per-user bytes for one org."""
     set_organization_id(team_id)
 
     breakdown: Dict[str, int] = {}
-    breakdown["workspace_models"] = await storage.du(await _resolve(get_models_dir()))
-    breakdown["workspace_datasets"] = await storage.du(await _resolve(get_datasets_dir()))
-    breakdown["workspace_experiments"] = await storage.du(await _resolve(get_experiments_dir()))
+    breakdown["workspace_models"] = await _timed_du("workspace_models", await _resolve(get_models_dir()))
+    breakdown["workspace_datasets"] = await _timed_du("workspace_datasets", await _resolve(get_datasets_dir()))
+    breakdown["workspace_experiments"] = await _timed_du("workspace_experiments", await _resolve(get_experiments_dir()))
 
-    workspace_total = await storage.du(await _resolve(get_workspace_dir()))
+    workspace_total = await _timed_du("workspace_total", await _resolve(get_workspace_dir()))
     accounted = breakdown["workspace_models"] + breakdown["workspace_datasets"] + breakdown["workspace_experiments"]
     breakdown["workspace_other"] = max(workspace_total - accounted, 0)
-    breakdown["local_provider_runs"] = await storage.du(get_local_provider_org_dir(team_id))
+    breakdown["local_provider_runs"] = await _timed_du("local_provider_runs", get_local_provider_org_dir(team_id))
 
     total_bytes = workspace_total + breakdown["local_provider_runs"]
-    per_user = await _compute_per_user_bytes(team_id)
+
+    # Per-user attribution re-walks every job dir and is the slowest step, so it is gated
+    # behind a flag (default off). When disabled we store an empty map; the org total and
+    # category breakdown are unaffected, and user-threshold alerts simply won't fire.
+    if _per_user_enabled():
+        per_user_start = time.perf_counter()
+        per_user = await _compute_per_user_bytes(team_id)
+        logger.debug("storage du: per_user attribution took %.2fs", time.perf_counter() - per_user_start)
+    else:
+        per_user = {}
+        logger.debug("storage du: per_user attribution skipped (TFL_STORAGE_REPORT_PER_USER_ENABLED not set)")
 
     return {"total_bytes": total_bytes, "breakdown": breakdown, "per_user": per_user}
 

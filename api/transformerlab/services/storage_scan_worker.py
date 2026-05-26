@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 
 from transformerlab.db.session import async_session
@@ -25,16 +26,31 @@ async def _session_scope():
 async def scan_all_orgs_once() -> dict:
     stats = {"orgs": 0, "errors": 0}
     team_ids = await get_all_team_ids()
+    logger.debug("storage scan: starting sweep over %d org(s)", len(team_ids))
+    sweep_start = time.perf_counter()
     for team_id in team_ids:
+        org_start = time.perf_counter()
         try:
             result = await storage_usage_service.compute_org_storage(team_id)
             async with _session_scope() as session:
                 snapshot = await storage_usage_service.write_snapshot(session, team_id, result)
                 await storage_usage_service.evaluate_thresholds(session, snapshot)
             stats["orgs"] += 1
+            logger.debug(
+                "storage scan: org %s done in %.2fs (total=%d bytes)",
+                team_id,
+                time.perf_counter() - org_start,
+                result.get("total_bytes", 0),
+            )
         except Exception as exc:  # noqa: BLE001
             stats["errors"] += 1
-            logger.warning("storage scan: org %s failed: %s", team_id, exc)
+            logger.warning("storage scan: org %s failed after %.2fs: %s", team_id, time.perf_counter() - org_start, exc)
+    logger.debug(
+        "storage scan: sweep complete in %.2fs (orgs=%d errors=%d)",
+        time.perf_counter() - sweep_start,
+        stats["orgs"],
+        stats["errors"],
+    )
     return stats
 
 
