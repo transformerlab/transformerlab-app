@@ -229,10 +229,19 @@ async def set_thresholds(
     org_threshold_bytes: Optional[int],
     user_threshold_bytes: Optional[int],
 ) -> None:
-    if org_threshold_bytes is not None:
-        await config_set("storage_org_notify_threshold_bytes", str(org_threshold_bytes), team_id=team_id)
-    if user_threshold_bytes is not None:
-        await config_set("storage_user_notify_threshold_bytes", str(user_threshold_bytes), team_id=team_id)
+    """Set the org/user notify thresholds for a team. A ``None`` value clears the
+    threshold (stored as an empty string, which the getters treat as unset), so the
+    UI can disable a threshold by submitting an empty field."""
+    await config_set(
+        "storage_org_notify_threshold_bytes",
+        "" if org_threshold_bytes is None else str(org_threshold_bytes),
+        team_id=team_id,
+    )
+    await config_set(
+        "storage_user_notify_threshold_bytes",
+        "" if user_threshold_bytes is None else str(user_threshold_bytes),
+        team_id=team_id,
+    )
 
 
 async def _send_storage_alert(*, team_id: str, scope: str, subject: str, used_bytes: int, limit_bytes: int) -> None:

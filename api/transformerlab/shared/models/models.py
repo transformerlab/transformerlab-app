@@ -1,5 +1,18 @@
 from typing import Optional
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID, Date, Float, UniqueConstraint, Boolean
+from sqlalchemy import (
+    String,
+    JSON,
+    DateTime,
+    func,
+    Integer,
+    BigInteger,
+    Index,
+    UUID,
+    Date,
+    Float,
+    UniqueConstraint,
+    Boolean,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID
 import uuid
@@ -278,7 +291,7 @@ class OrgStorageSnapshot(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     team_id: Mapped[str] = mapped_column(String, nullable=False)
-    total_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     breakdown_json: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     per_user_json: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     scanned_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)

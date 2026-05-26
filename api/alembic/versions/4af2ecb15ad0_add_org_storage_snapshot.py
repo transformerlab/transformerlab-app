@@ -26,7 +26,7 @@ def upgrade() -> None:
         "org_storage_snapshot",
         sa.Column("id", sa.String(), nullable=False),
         sa.Column("team_id", sa.String(), nullable=False),
-        sa.Column("total_bytes", sa.Integer(), nullable=False),
+        sa.Column("total_bytes", sa.BigInteger(), nullable=False),
         sa.Column("breakdown_json", sa.String(), nullable=True),
         sa.Column("per_user_json", sa.String(), nullable=True),
         sa.Column("scanned_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),

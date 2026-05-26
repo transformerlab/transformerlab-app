@@ -37,6 +37,17 @@ async def test_global_limit_none_when_unset():
 
 
 @pytest.mark.asyncio
+async def test_set_thresholds_clears_with_none():
+    calls = []
+    with patch.object(svc, "config_set", new=AsyncMock(side_effect=lambda *a, **k: calls.append((a, k)))):
+        await svc.set_thresholds("t1", org_threshold_bytes=10, user_threshold_bytes=None)
+    # Both keys are written; a None value is stored as an empty string so the getter treats it as unset.
+    written = {a[0]: a[1] for a, _ in calls}
+    assert written["storage_org_notify_threshold_bytes"] == "10"
+    assert written["storage_user_notify_threshold_bytes"] == ""
+
+
+@pytest.mark.asyncio
 async def test_evaluate_thresholds_fires_org_alert_once():
     svc._armed_alerts.clear()
     snap = type("S", (), {"team_id": "t1", "total_bytes": 100, "per_user_json": "{}"})()
