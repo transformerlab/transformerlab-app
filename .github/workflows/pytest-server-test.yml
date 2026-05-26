@@ -33,8 +33,8 @@ jobs:
       AUTH_SUCCESS_REDIRECT_URL: /
       AUTH_ERROR_REDIRECT_URL: /
       AUTH_LOGOUT_REDIRECT_URL: /
-      TRANSFORMERLAB_JWT_SECRET: ${{ secrets.TRANSFORMERLAB_JWT_SECRET }}
-      TRANSFORMERLAB_REFRESH_SECRET: ${{ secrets.TRANSFORMERLAB_REFRESH_SECRET }}
+      TRANSFORMERLAB_JWT_SECRET: ${{ secrets.TRANSFORMERLAB_JWT_SECRET || 'ci-jwt-secret-for-live-server-tests-only-32' }}
+      TRANSFORMERLAB_REFRESH_SECRET: ${{ secrets.TRANSFORMERLAB_REFRESH_SECRET || 'ci-refresh-secret-for-live-server-tests-32' }}
       EMAIL_METHOD: "dev"
     strategy:
       fail-fast: false

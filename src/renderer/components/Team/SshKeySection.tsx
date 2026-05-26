@@ -279,9 +279,10 @@ export default function SshKeySection({ teamId }: { teamId: string }) {
         )}
       </Stack>
       <Typography level="body-sm" color="neutral" mb={2}>
-        Your organization has one SSH key for accessing interactive SSH tasks.
-        The key is automatically added to authorized_keys when launching SSH
-        tasks.
+        Your team has one shared SSH key. Transformer Lab adds it to
+        authorized_keys on every cloud VM it launches for your jobs (Azure, AWS,
+        GCP, RunPod), and it&apos;s also used to authorize interactive SSH
+        sessions into running tasks.
       </Typography>
       <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
         <Typography level="body-sm">

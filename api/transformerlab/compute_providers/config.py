@@ -56,6 +56,16 @@ class ComputeProviderConfig(BaseModel):
     service_account_json: Optional[Dict[str, Any]] = None
     service_account_email: Optional[str] = None
 
+    # Nebius-specific config
+    nebius_profile: Optional[str] = None  # Nebius CLI profile name
+    nebius_config_path: Optional[str] = None  # Provider-scoped Nebius CLI config path
+    parent_id: Optional[str] = None  # Nebius project/parent ID
+    subnet_id: Optional[str] = None  # Nebius VPC subnet ID
+    default_platform: Optional[str] = None  # e.g. "gpu-h100-sxm" or "cpu-d3"
+    default_preset: Optional[str] = None  # e.g. "1gpu-16vcpu-200gb"
+    boot_image_family: Optional[str] = None  # e.g. "ubuntu24.04-cuda13.0"
+    disk_size_gib: Optional[int] = None
+
     # Additional provider-specific config
     extra_config: Dict[str, Any] = Field(default_factory=dict)
 
@@ -263,6 +273,29 @@ def create_compute_provider(config: ComputeProviderConfig) -> "ComputeProvider":
             aws_profile=config.aws_profile,
             region=config.region or "us-east-1",
             team_id=config.team_id,
+            extra_config=config.extra_config,
+        )
+    elif config.type == "nebius":
+        from .nebius import NebiusProvider
+
+        if not config.team_id:
+            raise ValueError("Nebius provider requires team_id in config")
+        if not config.subnet_id and not config.parent_id:
+            raise ValueError(
+                "Nebius provider requires parent_id (Nebius project) for automatic default network/subnet, "
+                "or subnet_id if you use your own VPC subnet"
+            )
+        return NebiusProvider(
+            team_id=config.team_id,
+            parent_id=config.parent_id,
+            subnet_id=config.subnet_id,
+            profile=config.nebius_profile,
+            config_path=config.nebius_config_path,
+            default_platform=config.default_platform,
+            default_preset=config.default_preset,
+            boot_image_family=config.boot_image_family,
+            disk_size_gib=config.disk_size_gib,
+            ssh_user=config.ssh_user,
             extra_config=config.extra_config,
         )
     elif config.type == "vastai":
