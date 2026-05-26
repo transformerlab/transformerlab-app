@@ -3,10 +3,22 @@
 import json
 from unittest.mock import patch, MagicMock
 
+import pytest
 from typer.testing import CliRunner
 from transformerlab_cli.main import app
+from transformerlab_cli.state import cli_state
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def _reset_cli_state():
+    cli_state.output_format = "pretty"
+    cli_state.no_interactive = False
+    yield
+    cli_state.output_format = "pretty"
+    cli_state.no_interactive = False
+
 
 SAMPLE_SECRETS_RESPONSE = {
     "status": "success",
@@ -227,3 +239,39 @@ def test_secret_list_error(_mock_config, _mock_check, _mock_get):
     result = runner.invoke(app, ["team", "secret", "list"])
     assert result.exit_code == 1
     assert "Error" in result.output
+
+
+@patch("transformerlab_cli.commands.secret.api.put_json")
+@patch("transformerlab_cli.commands.secret.check_configs")
+@patch("transformerlab_cli.commands.secret.get_config", return_value="team-123")
+def test_secret_set_picker_special_key(_mock_config, _mock_check, mock_put):
+    """Bare `team secret set` shows a picker; choosing item 2 maps to _HF_TOKEN."""
+    mock_put.return_value = _mock_response(200, {"status": "success", "secret_type": "_HF_TOKEN"})
+    # SPECIAL_SECRET_KEYS order: _GITHUB_PAT_TOKEN(1), _HF_TOKEN(2), _WANDB_API_KEY(3), _NGROK_AUTH_TOKEN(4)
+    result = runner.invoke(app, ["team", "secret", "set"], input="2\nhf_abc123\n")
+    assert result.exit_code == 0
+    put_call = mock_put.call_args
+    assert "special_secrets" in put_call.args[0]
+    assert put_call.kwargs["json_data"]["secret_type"] == "_HF_TOKEN"
+    assert put_call.kwargs["json_data"]["value"] == "hf_abc123"
+
+
+@patch("transformerlab_cli.commands.secret.api.put_json")
+@patch("transformerlab_cli.commands.secret.api.get", return_value=_mock_response(200, SAMPLE_EMPTY_SECRETS))
+@patch("transformerlab_cli.commands.secret.check_configs")
+@patch("transformerlab_cli.commands.secret.get_config", return_value="team-123")
+def test_secret_set_picker_custom_key(_mock_config, _mock_check, mock_get, mock_put):
+    """Picking the custom option prompts for an arbitrary key and value."""
+    mock_put.return_value = _mock_response(200, {"status": "success"})
+    # Custom is the last menu item (index 5). Then key name, then value.
+    result = runner.invoke(app, ["team", "secret", "set"], input="5\nMY_CUSTOM\ncustomval\n")
+    assert result.exit_code == 0
+    put_call = mock_put.call_args
+    assert put_call.kwargs["json_data"]["secrets"]["MY_CUSTOM"] == "customval"
+
+
+def test_secret_set_no_key_non_interactive_errors():
+    """In non-interactive mode, a missing key is an error (no prompt)."""
+    result = runner.invoke(app, ["--no-interactive", "team", "secret", "set"])
+    assert result.exit_code == 1
+    assert "required" in result.output.lower()
