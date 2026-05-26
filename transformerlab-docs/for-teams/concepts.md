@@ -83,9 +83,10 @@ A compute provider is the backend that actually runs your jobs. Transformer Lab 
 | --------------------- | ------------------------------------------ |
 | **Local**             | Run on the machine hosting Transformer Lab |
 | **Slurm**             | Submit to an on-premise HPC cluster        |
-| **SkyPilot**          | Orchestrate across AWS, GCP, or Azure      |
-| **RunPod**            | Serverless GPU cloud                       |
-| **dStack**            | Open-source distributed compute            |
+| **SkyPilot**          | Orchestrate across multiple clouds         |
+| **Runpod**            | Serverless GPU cloud                       |
+| **dstack**            | Open-source distributed compute            |
+| **Nebius**            | Cloud GPU provider                         |
 | **AWS / GCP / Azure** | Direct cloud VM provisioning               |
 
 When you launch a task, Transformer Lab translates your resource requirements into the provider's native format (e.g., an `sbatch` command for Slurm, a VM launch for cloud providers) and handles monitoring and log retrieval.
