@@ -241,8 +241,9 @@ export default function ResourceOverridesSection({
             </Stack>
             <FormHelperText>
               These values override the template&apos;s resource requirements
-              for this run only. Leave a field empty to use the template
-              default.
+              for this run only. Fields are pre-filled with the task&apos;s
+              current resources — edit a value to change it, or clear a field to
+              drop that requirement for this run.
             </FormHelperText>
 
             {isSkypilotProvider && (
