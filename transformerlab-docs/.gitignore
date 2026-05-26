@@ -137,3 +137,6 @@ build/
 
 # Local Netlify folder
 .netlify
+
+# Stray browser profile (e.g. from running tooling with --user-data-dir=./browser_data)
+browser_data/
