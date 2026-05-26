@@ -135,12 +135,15 @@ def test_wizard_no_check_no_default(_mock_check, _mock_create, mock_api):
     mock_api.get.assert_not_called()
 
 
-def test_setup_help():
-    # Widen the terminal so rich does not wrap/truncate the option names.
-    result = runner.invoke(app, ["team", "setup", "--help"], env={"COLUMNS": "200"})
-    assert result.exit_code == 0
-    assert "--set-default" in result.output
-    assert "--secret" in result.output
+def test_setup_exposes_flags():
+    """The wizard exposes the documented flags (checked via click params, not fragile help text)."""
+    import typer.main
+
+    cmd = typer.main.get_command(app)
+    setup = cmd.get_command(None, "team").get_command(None, "setup")
+    opts = {opt for param in setup.params for opt in param.opts}
+    assert "--set-default" in opts
+    assert "--secret" in opts
 
 
 @patch("transformerlab_cli.commands.team.api")
