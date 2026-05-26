@@ -1,43 +1,34 @@
 import React from 'react';
 import { Box, Typography, Sheet, Stack } from '@mui/joy';
-import { ResponsiveBar } from '@nivo/bar';
 import { JobRecord } from './jobDetailUtils';
-
-interface StatusHistoryEntry {
-  status: string;
-  timestamp_ms: number;
-}
 
 interface Phase {
   phase: string;
   duration_ms: number;
 }
 
-const TERMINAL_STATUSES = new Set(['COMPLETE', 'FAILED', 'STOPPED', 'DELETED']);
+interface LaunchStep {
+  timestamp?: string;
+  phase?: string;
+  message?: string;
+}
 
-function phasesFromStatusHistory(
-  history: StatusHistoryEntry[],
-  jobStatus: string | undefined,
-  finishedAtMs: number | null,
-): Phase[] {
-  const phases: Phase[] = [];
-  for (let i = 0; i < history.length - 1; i++) {
-    phases.push({
-      phase: history[i].status,
-      duration_ms: history[i + 1].timestamp_ms - history[i].timestamp_ms,
-    });
-  }
-  // Close out the trailing phase if the job is terminal and we have an end time.
-  if (history.length > 0 && jobStatus && TERMINAL_STATUSES.has(jobStatus)) {
-    const last = history[history.length - 1];
-    if (finishedAtMs && finishedAtMs > last.timestamp_ms) {
-      phases.push({
-        phase: last.status,
-        duration_ms: finishedAtMs - last.timestamp_ms,
-      });
-    }
-  }
-  return phases;
+const PHASE_COLORS = [
+  '#4e79a7',
+  '#f28e2b',
+  '#e15759',
+  '#76b7b2',
+  '#59a14f',
+  '#edc948',
+  '#b07aa1',
+  '#ff9da7',
+];
+
+function parseGmtToMs(ts: unknown): number | null {
+  if (typeof ts !== 'string' || !ts.trim()) return null;
+  const iso = ts.trim().replace(' ', 'T') + 'Z';
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? null : ms;
 }
 
 function formatDuration(ms: number): string {
@@ -53,21 +44,68 @@ function formatDuration(ms: number): string {
 }
 
 function derivePhases(job: JobRecord): Phase[] {
-  const jd: any = job.job_data ?? {};
-  const history: StatusHistoryEntry[] = Array.isArray(jd.status_history)
-    ? (jd.status_history as StatusHistoryEntry[]).filter(
-        (h) => h && typeof h.timestamp_ms === 'number' && h.status,
-      )
-    : [];
-  const finishedAtMs = jd.finished_at
-    ? Date.parse(String(jd.finished_at))
-    : null;
+  const jd = job.job_data ?? {};
+  const startMs = parseGmtToMs(jd.start_time);
+  const endMs = parseGmtToMs(jd.end_time) ?? parseGmtToMs(jd.stop_time);
 
-  const phases = phasesFromStatusHistory(history, job.status, finishedAtMs);
+  if (startMs === null || endMs === null) return [];
 
-  return phases
-    .filter((p) => p.duration_ms > 0)
-    .sort((a, b) => b.duration_ms - a.duration_ms);
+  const createdMs = job.created_at ? Date.parse(String(job.created_at)) : null;
+  const phases: Phase[] = [];
+
+  if (createdMs !== null && !Number.isNaN(createdMs) && startMs > createdMs) {
+    phases.push({ phase: 'Queued', duration_ms: startMs - createdMs });
+  }
+
+  const lp = jd.launch_progress;
+  const steps: LaunchStep[] =
+    lp &&
+    typeof lp === 'object' &&
+    Array.isArray((lp as Record<string, unknown>).steps)
+      ? ((lp as Record<string, unknown>).steps as LaunchStep[]).filter(
+          (s) => s && typeof s.timestamp === 'string',
+        )
+      : [];
+
+  if (steps.length > 0) {
+    const stepTimestamps = steps
+      .map((s) => ({
+        phase: s.phase || s.message || 'launch',
+        ms: parseGmtToMs(s.timestamp),
+      }))
+      .filter((s): s is { phase: string; ms: number } => s.ms !== null);
+
+    for (let i = 0; i < stepTimestamps.length; i++) {
+      const from = i === 0 ? startMs : stepTimestamps[i - 1].ms;
+      const to = stepTimestamps[i].ms;
+      if (to > from) {
+        phases.push({
+          phase: stepTimestamps[i].phase,
+          duration_ms: to - from,
+        });
+      }
+    }
+
+    const lastStepMs = stepTimestamps[stepTimestamps.length - 1]?.ms;
+    if (lastStepMs && endMs > lastStepMs) {
+      phases.push({ phase: 'Running', duration_ms: endMs - lastStepMs });
+    }
+  } else {
+    if (endMs > startMs) {
+      phases.push({ phase: 'Running', duration_ms: endMs - startMs });
+    }
+  }
+
+  const merged: Phase[] = [];
+  for (const p of phases) {
+    const prev = merged.find((m) => m.phase === p.phase);
+    if (prev) {
+      prev.duration_ms += p.duration_ms;
+    } else {
+      merged.push({ ...p });
+    }
+  }
+  return merged.filter((p) => p.duration_ms > 0);
 }
 
 export default function PerformanceSection({ job }: { job: JobRecord }) {
@@ -82,11 +120,7 @@ export default function PerformanceSection({ job }: { job: JobRecord }) {
   }
 
   const totalMs = phases.reduce((sum, p) => sum + p.duration_ms, 0);
-  const data = phases.map((p) => ({
-    phase: p.phase,
-    duration: p.duration_ms / 1000,
-    label: formatDuration(p.duration_ms),
-  }));
+  const maxMs = Math.max(...phases.map((p) => p.duration_ms));
 
   return (
     <Stack spacing={2}>
@@ -94,83 +128,55 @@ export default function PerformanceSection({ job }: { job: JobRecord }) {
         Total measured: {formatDuration(totalMs)}
       </Typography>
       <Sheet variant="outlined" sx={{ p: 2, borderRadius: 'sm' }}>
-        <Typography level="title-sm" sx={{ mb: 1 }}>
+        <Typography level="title-sm" sx={{ mb: 2 }}>
           Time by phase
         </Typography>
-        <Box sx={{ height: Math.max(160, phases.length * 36 + 80) }}>
-          <ResponsiveBar
-            data={data}
-            keys={['duration']}
-            indexBy="phase"
-            layout="horizontal"
-            margin={{ top: 10, right: 80, bottom: 40, left: 120 }}
-            padding={0.25}
-            valueFormat={(v) => formatDuration(Number(v) * 1000)}
-            axisBottom={{
-              legend: 'seconds',
-              legendPosition: 'middle',
-              legendOffset: 32,
-            }}
-            axisLeft={{ tickSize: 0, tickPadding: 8 }}
-            theme={{
-              axis: {
-                ticks: { text: { fontWeight: 600, fontSize: 14 } },
-              },
-            }}
-            colors={{ scheme: 'category10' }}
-            enableGridX
-            enableGridY={false}
-            enableLabel={false}
-            tooltip={({ indexValue, value }) => (
-              <Box
+        <Stack spacing={1}>
+          {phases.map((p, i) => (
+            <Box
+              key={p.phase}
+              sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+            >
+              <Typography
+                level="body-sm"
                 sx={{
-                  px: 1,
-                  py: 0.5,
-                  bgcolor: 'background.surface',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 'sm',
-                  fontSize: 'xs',
+                  width: 160,
+                  textAlign: 'right',
+                  flexShrink: 0,
+                  fontWeight: 600,
                 }}
               >
-                <strong>{indexValue}</strong>:{' '}
-                {formatDuration(Number(value) * 1000)}
+                {p.phase}
+              </Typography>
+              <Box
+                sx={{
+                  flex: 1,
+                  position: 'relative',
+                  height: 24,
+                  bgcolor: 'neutral.100',
+                  borderRadius: 'xs',
+                  overflow: 'hidden',
+                }}
+              >
+                <Box
+                  sx={{
+                    width: `${(p.duration_ms / maxMs) * 100}%`,
+                    height: '100%',
+                    bgcolor: PHASE_COLORS[i % PHASE_COLORS.length],
+                    borderRadius: 'xs',
+                    minWidth: 2,
+                  }}
+                />
               </Box>
-            )}
-            layers={[
-              'grid',
-              'axes',
-              'bars',
-              ({ bars }) => (
-                <g>
-                  {bars.map((bar) => {
-                    const label = formatDuration(Number(bar.data.value) * 1000);
-                    // Place label outside the bar (to the right) so it's always
-                    // readable regardless of bar width or color contrast.
-                    return (
-                      <text
-                        key={bar.key}
-                        x={bar.x + bar.width + 6}
-                        y={bar.y + bar.height / 2}
-                        dominantBaseline="central"
-                        style={{
-                          fill: 'var(--joy-palette-text-secondary, #555)',
-                          fontSize: 12,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {label}
-                      </text>
-                    );
-                  })}
-                </g>
-              ),
-              'markers',
-              'legends',
-            ]}
-            animate={false}
-          />
-        </Box>
+              <Typography
+                level="body-sm"
+                sx={{ width: 60, flexShrink: 0, fontWeight: 600 }}
+              >
+                {formatDuration(p.duration_ms)}
+              </Typography>
+            </Box>
+          ))}
+        </Stack>
       </Sheet>
     </Stack>
   );

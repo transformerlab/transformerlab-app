@@ -48,10 +48,7 @@ export function getVisibleSections(job: JobRecord): SectionKey[] {
   ) {
     sections.push('metrics');
   }
-  if (
-    Array.isArray((d as any).status_history) &&
-    (d as any).status_history.length > 0
-  ) {
+  if (d.start_time && d.end_time) {
     sections.push('performance');
   }
   return sections;
