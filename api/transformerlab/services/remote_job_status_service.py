@@ -256,11 +256,12 @@ async def _check_job_via_provider(
         ProviderType.LOCAL.value,
         ProviderType.RUNPOD.value,
         ProviderType.AWS.value,
+        ProviderType.NEBIUS.value,
         ProviderType.AZURE.value,
         ProviderType.GCP.value,
         ProviderType.VASTAI.value,
     ):
-        # LOCAL/RUNPOD/AWS/GCP: cluster state directly represents job lifecycle.
+        # LOCAL/RUNPOD/AWS/GCP/Azure/Nebius/Vast.ai: cluster state directly represents job lifecycle.
         if provider_type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
             if hasattr(provider_instance, "extra_config"):
                 provider_instance.extra_config["workspace_dir"] = job_data["workspace_dir"]
@@ -325,6 +326,12 @@ async def _check_job_via_provider(
             # Local setup can be interrupted before a pid file is created.
             # If the user requested stop, treat this as terminal STOPPED so
             # the job does not remain stuck in STOPPING.
+            cluster_state = ClusterState.STOPPED
+        elif (
+            provider_type == ProviderType.NEBIUS.value
+            and job_status == JobStatus.STOPPING.value
+            and (cluster_state == ClusterState.UNKNOWN or status_message == "Instance not found")
+        ):
             cluster_state = ClusterState.STOPPED
         elif (
             provider_type == ProviderType.VASTAI.value
