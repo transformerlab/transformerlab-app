@@ -110,6 +110,22 @@ def test_secret_list_json(_mock_config, _mock_check, _mock_api):
 @patch("transformerlab_cli.commands.secret.api.get", return_value=_mock_response(200, SAMPLE_SECRETS_WITH_VALUES))
 @patch("transformerlab_cli.commands.secret.check_configs")
 @patch("transformerlab_cli.commands.secret.get_config", return_value="team-123")
+def test_secret_set_prompts_for_value(_mock_config, _mock_check, mock_get, mock_put):
+    """Test that omitting value prompts with hidden input."""
+    mock_put.return_value = _mock_response(200, {"status": "success"})
+    result = runner.invoke(app, ["secret", "set", "MY_KEY"], input="secret-from-prompt\n")
+    assert result.exit_code == 0
+    assert "saved" in result.output
+
+    put_call = mock_put.call_args
+    payload = put_call.kwargs["json_data"]
+    assert payload["secrets"]["MY_KEY"] == "secret-from-prompt"
+
+
+@patch("transformerlab_cli.commands.secret.api.put_json")
+@patch("transformerlab_cli.commands.secret.api.get", return_value=_mock_response(200, SAMPLE_SECRETS_WITH_VALUES))
+@patch("transformerlab_cli.commands.secret.check_configs")
+@patch("transformerlab_cli.commands.secret.get_config", return_value="team-123")
 def test_secret_set(_mock_config, _mock_check, mock_get, mock_put):
     """Test setting a secret."""
     mock_put.return_value = _mock_response(200, {"status": "success", "message": "Team secrets saved successfully"})

@@ -86,11 +86,14 @@ def command_secret_keys():
 @app.command("set")
 def command_secret_set(
     name: str = typer.Argument(..., help="Secret name"),
-    value: str = typer.Argument(..., help="Secret value"),
+    value: str = typer.Argument(None, help="Secret value (omit to be prompted with hidden input)"),
     user: bool = typer.Option(False, "--user", help="Set as a user-level secret instead of team secret"),
 ):
     """Set a secret. Overwrites if the name already exists."""
     check_configs(output_format=cli_state.output_format)
+
+    if value is None:
+        value = typer.prompt("Value", hide_input=True)
 
     if name in SPECIAL_SECRET_KEYS:
         path = _get_special_secrets_path(user)
