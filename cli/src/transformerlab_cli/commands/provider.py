@@ -623,12 +623,15 @@ def command_provider_verify_lifecycle(
             print(json.dumps({"job_id": job_id, "status": "launched"}))
         else:
             console.print(f"[success]✓[/success] Storage probe launched as job [bold]{job_id}[/bold].")
-            console.print(f"  Check with: lab provider verify-lifecycle {provider_id} (or inspect job {job_id}).")
+            console.print(f"  Inspect it with: lab job info {job_id}")
         return
 
     check_url = f"{base}/{job_id}"
     found = False
     last_path = None
+    # TODO: This loop only watches for the sentinel file and does not inspect job status,
+    # so if the probe job fails immediately it will still run all max_polls before reporting
+    # failure. Consider checking job status here to bail out early on a FAILED job.
     for attempt in range(1, max_polls + 1):
         check_res = api.get(check_url, timeout=60.0)
         if check_res.status_code != 200:

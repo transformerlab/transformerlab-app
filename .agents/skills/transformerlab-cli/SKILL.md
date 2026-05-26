@@ -813,7 +813,7 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab provider update <id>` | Update provider config | No |
 | `lab provider delete <id>` | Delete a provider (`--no-interactive` to skip prompt) | No |
 | `lab provider check <id>` | Check provider health | No |
-| `lab provider verify-lifecycle <id>` | Verify provider lifecycle via a storage probe — launches a probe job and polls for its sentinel file in shared storage (`--no-wait` to launch only; `--poll-interval`/`--max-polls` to tune polling) | No |
+| `lab provider verify-lifecycle <id>` | Verify provider lifecycle via a storage probe (`--no-wait` to launch only; see `--help` for polling options) | No |
 | `lab provider enable <id>` | Enable a provider | No |
 | `lab provider disable <id>` | Disable a provider | No |
 | `lab model list` | List all model groups | No |
