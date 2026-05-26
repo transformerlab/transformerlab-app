@@ -1,6 +1,6 @@
 ---
 title: Core Concepts
-sidebar_position: 10
+sidebar_position: 1
 ---
 
 # Core Concepts
@@ -44,7 +44,7 @@ run: |
   python train.py
 ```
 
-This is just a sample — task.yaml supports many more fields including GitHub repo integration, hyperparameter sweeps, and resource constraints. See the [Task YAML Structure](./running-a-task/task-yaml-structure.md) page for the full reference.
+This is just a sample — task.yaml supports many more fields including GitHub repo integration, hyperparameter sweeps, and resource constraints. See the [Task YAML Structure](../running-a-task/task-yaml-structure.md) page for the full reference.
 
 You can create tasks by uploading a YAML file, importing from a task gallery, or writing one from scratch in the built-in editor.
 
