@@ -164,6 +164,7 @@ The `overrides` block in `package.json` forces secure transitive versions to cle
 - Bumping `eslint-config-erb` / `@typescript-eslint/*` (parent of `minimatch`)
 - Bumping `webpack` / `terser-webpack-plugin` (parent of `serialize-javascript`)
 - Bumping `webpack` / `css-loader` / `postcss-loader` (parents of `postcss`)
+- Bumping `@segment/analytics-next` (parent of `js-cookie`; pinned `3.0.1` as of 1.84.0, override forces `>=3.0.7` for CVE-2026-46625)
 
 When upgrading those, try removing the override first and re-run a dependency vulnerability scan. If the parent now pulls a safe version on its own, drop the override entry and update this file if necessary.
 
