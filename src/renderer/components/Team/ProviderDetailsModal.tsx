@@ -384,7 +384,8 @@ export default function ProviderDetailsModal({
     if (slurmMode === 'ssh') {
       configObj.ssh_host = slurmSshHost;
       configObj.ssh_user = slurmSshUser;
-      configObj.ssh_port = parseInt(slurmSshPort, 10) || 22;
+      const parsedSshPort = parseInt(slurmSshPort, 10);
+      configObj.ssh_port = Number.isNaN(parsedSshPort) ? 22 : parsedSshPort;
       if (slurmSshKeyPath) {
         configObj.ssh_key_path = slurmSshKeyPath;
       }
