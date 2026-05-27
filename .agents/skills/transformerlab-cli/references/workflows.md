@@ -325,15 +325,15 @@ JOB_JSON=$(lab --format json task interactive \
   --provider local --template jupyter --no-poll)
 JOB_ID=$(echo "$JOB_JSON" | jq -r .job_id)
 
-# 3. Poll for readiness (repeat until is_ready=true)
-lab --format json job tunnel-info "$JOB_ID"
-# → {"is_ready": false, ...}        ← service still starting
-# → {"is_ready": true, "tunnel_url": "http://localhost:8888", "token": "abc123", "instructions": [...]}
+# 3. Poll for readiness via job info (repeat until tunnel_info.is_ready=true)
+lab --format json job info "$JOB_ID"
+# → {..., "tunnel_info": {"is_ready": false, ...}}        ← service still starting
+# → {..., "tunnel_info": {"is_ready": true, "tunnel_url": "http://localhost:8888", "token": "abc123", "instructions": [...]}}
 
 # 4. Present the connection info to the user (URLs, tokens, etc.)
 
 # 5. Stop the session when done
-lab job stop "$JOB_ID" --no-interactive
+lab job stop "$JOB_ID"
 ```
 
 ### Remote provider variant (with env vars and resources)

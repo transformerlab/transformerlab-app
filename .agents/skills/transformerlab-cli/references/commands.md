@@ -244,12 +244,29 @@ Job statuses: `WAITING`, `LAUNCHING`, `RUNNING`, `INTERACTIVE`, `COMPLETE`, `FAI
 
 ### `job info <job_id>`
 
-Get detailed job information including status, progress, config, resources, provider, artifacts, errors, and scores.
+Get detailed job information including status, progress, config, resources, provider, artifacts, errors, and scores. For interactive jobs (`subtype: "interactive"`), automatically includes `tunnel_info` with connection URLs, tokens, ports, and readiness status.
 
 **JSON output:**
 ```json
-{"id": 1, "status": "RUNNING", "progress": 45, "config": {...}, "artifacts": [...], "errors": [...], ...}
+{"id": "abc-123", "status": "RUNNING", "progress": 45, "config": {...}, "artifacts": [...], "errors": [...], ...}
 ```
+
+**JSON output for interactive jobs (extra `tunnel_info` field):**
+```json
+{
+  "id": "abc-123", "status": "INTERACTIVE", ...,
+  "tunnel_info": {
+    "is_ready": true,
+    "tunnel_url": "http://localhost:8888",
+    "token": "...",
+    "interactive_type": "jupyter",
+    "ports": [{"port": 8888, "label": "Jupyter Lab", "protocol": "http"}],
+    "instructions": [{"kind": "url", "title": "Open Jupyter", "value_key": "jupyter_url"}, ...]
+  }
+}
+```
+
+When `tunnel_info.is_ready` is `false`, the service is still starting — poll again after a few seconds. For VS Code, the `auth_code` may appear before `tunnel_url` (user must complete GitHub device auth at https://github.com/login/device first).
 
 ### `job machine-logs <job_id>`
 
@@ -294,25 +311,6 @@ Download job artifacts.
 ### `job stop <job_id>`
 
 Stop a running job.
-
-### `job tunnel-info <job_id>`
-
-Get tunnel/access information for an interactive job (URLs, tokens, ports).
-
-**JSON output:**
-```json
-{
-  "is_ready": true,
-  "tunnel_url": "https://abc123.ngrok.app",
-  "token": "...",
-  "interactive_type": "jupyter",
-  "cluster_name": "Jupyter Notebook",
-  "ports": [{"port": 8888, "label": "Jupyter", "protocol": "http"}],
-  "instructions": [{"kind": "url", "title": "Open Jupyter", "value_key": "tunnel_url"}, ...]
-}
-```
-
-When `is_ready` is `false`, the service is still starting — poll again after a few seconds. This is the agent-friendly way to check interactive task readiness after launching with `--no-poll`.
 
 ### `job monitor`
 

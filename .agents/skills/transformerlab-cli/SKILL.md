@@ -646,7 +646,7 @@ Also note that secrets passed inside `--config` (e.g. `api_token`, `azure_client
 5. **`task add` has no `--yes` flag** — pipe `echo "y"` to confirm: `echo "y" | lab task add ./my-task`
 6. **Skip confirmation on destructive commands:** use `--no-interactive` for `provider delete`, `job delete`, and `job delete-all`; use `--yes` / `-y` for `model delete` / `dataset delete` (the flag names differ — verify with `--help`)
 7. **Never run `lab job monitor` when operating as an AI agent.** It launches an interactive Textual TUI that blocks automation and can hang unattended runs; use `lab job list`, `lab job info`, and `lab job task-logs` (`--follow` only when explicitly requested) instead.
-8. **`task interactive` supports full non-interactive mode.** Pass `--provider` and `--template` to skip all prompts. Use `--no-poll` to launch without blocking, then poll readiness with `lab job tunnel-info <job_id>`. See the "Launching interactive tasks" workflow below.
+8. **`task interactive` supports full non-interactive mode.** Pass `--provider` and `--template` to skip all prompts. Use `--no-poll` to launch without blocking, then poll readiness with `lab job info <job_id>` (includes `tunnel_info` for interactive jobs). See the "Launching interactive tasks" workflow below.
 9. **`job task-logs --follow`** streams continuously and blocks until the job finishes — use when the user wants real-time monitoring
 10. **Never use the deprecated `lab job logs`** — see the "Job logs: three real commands" section below.
 11. **Before queuing a task, CONFIRM the experiment with the user.** Run `lab config` to read the current default and `lab --format json experiment list` to verify it exists, then ask: "I'm about to queue this under experiment `<name>` (your current default). OK, or pick another?" Show 2–3 alternatives from `experiment list` if the current one looks stale or missing. Skip the confirmation only when the user has already named the experiment in this turn.
@@ -768,15 +768,15 @@ lab --format json task interactive \
   --provider local --template jupyter --no-poll
 # → {"job_id": "abc-123", "task_id": "def-456", "experiment_id": "alpha"}
 
-# 3. Poll for readiness
-lab --format json job tunnel-info JOB_ID
-# → {"is_ready": false, ...}   ← not ready yet, poll again
-# → {"is_ready": true, "tunnel_url": "...", "token": "...", "instructions": [...]}
+# 3. Poll for readiness via job info (includes tunnel_info for interactive jobs)
+lab --format json job info JOB_ID
+# → {..., "tunnel_info": {"is_ready": false, ...}}   ← not ready yet, poll again
+# → {..., "tunnel_info": {"is_ready": true, "tunnel_url": "...", "token": "...", "instructions": [...]}}
 
 # 4. Present connection info to the user
 
 # 5. When done, stop the session
-lab job stop JOB_ID --no-interactive
+lab job stop JOB_ID
 ```
 
 **Key flags for `task interactive`:**
@@ -842,7 +842,6 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab job request-logs <id>` | Fetch provider launch/provisioning logs | Yes |
 | `lab job artifacts <id>` | List job artifacts | Yes |
 | `lab job download <id>` | Download artifacts (`--file` for glob) | Yes |
-| `lab job tunnel-info <id>` | Get tunnel/access info for an interactive job (URLs, tokens, ports) | Yes |
 | `lab job stop <id>` | Stop a running job | Yes |
 | `lab job delete <id>` | Delete a job (`--no-interactive` to skip prompt) | Yes |
 | `lab job delete-all` | Delete all jobs in the current experiment (`--no-interactive` to skip prompt) | Yes |
