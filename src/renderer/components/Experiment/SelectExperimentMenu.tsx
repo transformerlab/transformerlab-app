@@ -4,6 +4,7 @@ import MenuItem from '@mui/joy/MenuItem';
 import {
   CheckIcon,
   ChevronDownIcon,
+  FlaskConicalIcon,
   LayoutGridIcon,
   PlusCircleIcon,
   StopCircleIcon,
@@ -217,6 +218,15 @@ export default function SelectExperimentMenu({ models }) {
                     whiteSpace: 'nowrap',
                   }}
                 >
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      display: 'inline-flex',
+                      marginRight: '8px',
+                    }}
+                  >
+                    <FlaskConicalIcon size="20px" strokeWidth={1.5} />
+                  </span>
                   {experimentInfo?.name || 'Select'}
                   <span
                     style={{
@@ -257,8 +267,14 @@ export default function SelectExperimentMenu({ models }) {
                 width: '100%',
                 overflow: 'hidden',
                 justifyContent: 'flex-start',
+                gap: '8px',
               }}
             >
+              <FlaskConicalIcon
+                size="20px"
+                strokeWidth={1.5}
+                style={{ flexShrink: 0 }}
+              />
               <span
                 style={{
                   flex: 1,
@@ -325,6 +341,9 @@ export default function SelectExperimentMenu({ models }) {
                       whiteSpace: 'nowrap',
                     }}
                   >
+                    <ListItemDecorator>
+                      <FlaskConicalIcon strokeWidth={1} />
+                    </ListItemDecorator>
                     <span
                       style={{
                         overflow: 'hidden',
