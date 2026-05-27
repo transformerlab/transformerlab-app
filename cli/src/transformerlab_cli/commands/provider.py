@@ -100,6 +100,27 @@ def _extract_error_detail(response) -> str:
         return response.text
 
 
+def _resolve_provider_id(identifier: str) -> str | None:
+    """Resolve a provider identifier (id or name) to a provider id.
+
+    Provider names are unique within a team (enforced by the API), and the CLI
+    is always team-scoped, so a name resolves to at most one provider. Returns
+    the provider id, or None if no provider matches the identifier.
+    """
+    response = api.get("/compute_provider/providers/?include_disabled=true")
+    if response.status_code != 200:
+        return None
+
+    providers = response.json()
+    for provider in providers:
+        if provider.get("id") == identifier:
+            return identifier
+    for provider in providers:
+        if provider.get("name") == identifier:
+            return provider.get("id")
+    return None
+
+
 def _extract_provider_check_reason(result: dict) -> str:
     """Extract a human-readable provider check failure reason."""
     reason = result.get("reason")
@@ -537,14 +558,21 @@ def command_provider_update(
 
 @app.command("delete")
 def command_provider_delete(
-    provider_id: str = typer.Argument(..., help="Provider ID to delete"),
+    identifier: str = typer.Argument(..., help="Provider ID or name to delete"),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
-    """Delete a compute provider."""
+    """Delete a compute provider by ID or name."""
     check_configs(output_format=cli_state.output_format)
 
+    # Resolve the identifier (id or name) up front so we only prompt for
+    # confirmation when the provider actually exists.
+    provider_id = _resolve_provider_id(identifier)
+    if provider_id is None:
+        console.print(f"[error]Error:[/error] Provider {identifier} not found.")
+        raise typer.Exit(1)
+
     if not no_interactive:
-        typer.confirm(f"Delete provider {provider_id}?", abort=True)
+        typer.confirm(f"Delete provider {identifier}?", abort=True)
 
     with console.status(f"[bold success]Deleting provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.delete(f"/compute_provider/providers/{provider_id}")
