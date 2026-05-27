@@ -13,21 +13,23 @@ from .models import (
 
 def format_status_snapshot(
     title: str,
-    fields: dict,
+    fields: Dict[str, Any],
     *,
     footer: Optional[str] = None,
 ) -> str:
     """Render a labeled key/value status snapshot as plain text.
 
     Used by provider get_request_logs implementations to present orchestration
-    status consistently. Empty string and None values are omitted; 0/False are kept.
+    status consistently. Empty string and None field values are omitted; 0/False
+    are kept. A footer of None means no footer; any other value (including "") is
+    appended after a blank-line separator.
     """
     lines = [f"=== {title} ==="]
     for key, value in fields.items():
         if value is None or value == "":
             continue
         lines.append(f"{key}: {value}")
-    if footer:
+    if footer is not None:
         lines.append("")
         lines.append(footer)
     return "\n".join(lines)

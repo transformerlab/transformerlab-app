@@ -356,3 +356,83 @@ class TestRequestLogsEndpoint:
         resp = client.get("/experiment/exp-1/jobs/test-1/request_logs?tail_lines=1000")
         assert resp.status_code == 200
         mock_provider.get_request_logs.assert_called_once_with("req-abc-123", tail_lines=1000)
+
+
+# ---------------------------------------------------------------------------
+# RunPod provider tests
+# ---------------------------------------------------------------------------
+
+
+class TestRunPodGetRequestLogs:
+    def _provider(self):
+        from transformerlab.compute_providers.runpod import RunpodProvider
+
+        p = RunpodProvider.__new__(RunpodProvider)
+        p.api_key = "k"
+        p.api_base_url = "https://rest.runpod.io/v1"
+        return p
+
+    def test_returns_snapshot(self):
+        p = self._provider()
+        resp = MagicMock()
+        resp.json.return_value = {
+            "id": "pod-1",
+            "name": "tfl",
+            "desiredStatus": "RUNNING",
+            "gpuTypeId": "NVIDIA A100",
+            "runtime": {"publicIp": "9.9.9.9"},
+        }
+        with patch.object(p, "_make_request", return_value=resp) as mock_req:
+            out = p.get_request_logs("pod-1")
+        mock_req.assert_called_once_with("GET", "/pods/pod-1")
+        assert "RunPod pod pod-1" in out
+        assert "Status: RUNNING" in out
+        assert "Public IP: 9.9.9.9" in out
+
+    def test_error_returns_message(self):
+        p = self._provider()
+        with patch.object(p, "_make_request", side_effect=RuntimeError("boom")):
+            out = p.get_request_logs("pod-x")
+        assert "Failed to fetch RunPod pod status" in out
+        assert "boom" in out
+
+
+# ---------------------------------------------------------------------------
+# VastAI provider tests
+# ---------------------------------------------------------------------------
+
+
+class TestVastAIGetRequestLogs:
+    def _provider(self):
+        from transformerlab.compute_providers.vastai import VastAIProvider
+
+        p = VastAIProvider.__new__(VastAIProvider)
+        p.api_key = "k"
+        return p
+
+    def test_returns_snapshot_dict_instance(self):
+        p = self._provider()
+        resp = MagicMock()
+        resp.json.return_value = {
+            "instances": {
+                "id": 42,
+                "label": "tfl",
+                "actual_status": "running",
+                "status_msg": "ready",
+                "gpu_name": "RTX 4090",
+                "public_ipaddr": "8.8.8.8",
+            }
+        }
+        with patch.object(p, "_make_request", return_value=resp) as mock_req:
+            out = p.get_request_logs("42")
+        mock_req.assert_called_once_with("GET", "/instances/42/")
+        assert "Vast.ai instance 42" in out
+        assert "Status: running" in out
+        assert "Public IP: 8.8.8.8" in out
+
+    def test_error_returns_message(self):
+        p = self._provider()
+        with patch.object(p, "_make_request", side_effect=RuntimeError("nope")):
+            out = p.get_request_logs("42")
+        assert "Failed to fetch Vast.ai instance status" in out
+        assert "nope" in out
