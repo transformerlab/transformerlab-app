@@ -104,7 +104,10 @@ def command_team_setup(
     # Step 3: set platform secrets.
     secrets_set: list[str] = []
     if interactive:
-        while typer.confirm("Set a platform secret now?", default=False):
+        while typer.confirm(
+            "Set another platform secret?" if secrets_set else "Set a platform secret now?",
+            default=False,
+        ):
             key = _prompt_special_secret_key()
             value = typer.prompt("Value", hide_input=True)
             _save_secret(key, value)
