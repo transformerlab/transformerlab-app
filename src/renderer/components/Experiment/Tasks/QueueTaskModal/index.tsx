@@ -116,8 +116,8 @@ export default function QueueTaskModal({
     React.useState<SkypilotOverrides>({
       dockerImage: '',
       region: '',
-      useSpot: false,
     });
+  const [useSpot, setUseSpot] = React.useState(false);
   const [jobDstackFleetName, setJobDstackFleetName] = React.useState('');
   const [useTrackio, setUseTrackio] = React.useState(false);
   const [useProfiling, setUseProfiling] = React.useState(false);
@@ -224,6 +224,7 @@ export default function QueueTaskModal({
   const isSlurmProvider = selectedProvider?.type === 'slurm';
   const isSkypilotProvider = selectedProvider?.type === 'skypilot';
   const isDstackProvider = selectedProvider?.type === 'dstack';
+  const supportsSpot = selectedProvider?.supports_spot === true;
   const isGalleryImported = Boolean((task as any)?.gallery_import);
 
   const providerResourceGroups = React.useMemo<ProviderResourceGroup[]>(() => {
@@ -613,9 +614,15 @@ export default function QueueTaskModal({
     setSkypilotOverrides({
       dockerImage: cfg.docker_image || '',
       region: cfg.default_region || '',
-      useSpot: cfg.use_spot === true,
     });
+    setUseSpot(cfg.use_spot === true);
   }, [open, isSkypilotProvider, selectedProviderId, selectedProvider]);
+
+  React.useEffect(() => {
+    if (!open || !selectedProvider || isSkypilotProvider) return;
+    const cfg = selectedProvider.config || {};
+    setUseSpot(supportsSpot ? cfg.use_spot === true : false);
+  }, [open, selectedProvider, isSkypilotProvider, supportsSpot]);
 
   React.useEffect(() => {
     if (!open || !isDstackProvider || !selectedProvider) return;
@@ -840,8 +847,9 @@ export default function QueueTaskModal({
         config.docker_image = skypilotOverrides.dockerImage.trim();
       if (skypilotOverrides.region.trim())
         config.region = skypilotOverrides.region.trim();
-      if (skypilotOverrides.useSpot) config.use_spot = true;
     }
+
+    if (supportsSpot && useSpot) config.use_spot = true;
 
     if (provider?.type === 'dstack' && jobDstackFleetName.trim()) {
       config.fleet_name = jobDstackFleetName.trim();
@@ -1102,6 +1110,9 @@ export default function QueueTaskModal({
               providerType={providerType}
               skypilotOverrides={skypilotOverrides}
               onSkypilotOverridesChange={setSkypilotOverrides}
+              supportsSpot={supportsSpot}
+              useSpot={useSpot}
+              onUseSpotChange={setUseSpot}
               jobDstackFleetName={jobDstackFleetName}
               onJobDstackFleetNameChange={setJobDstackFleetName}
               incompatibilityAccelerators={incompatibilityAccelerators}
