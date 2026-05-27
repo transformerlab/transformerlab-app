@@ -295,7 +295,15 @@ export default function JobDetailPage() {
         <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
           {effectiveSection === 'overview' && <OverviewSection job={job} />}
           {effectiveSection === 'logs' && (
-            <LogsSection jobId={jobId} jobStatus={job?.status ?? ''} />
+            <LogsSection
+              jobId={jobId}
+              jobStatus={job?.status ?? ''}
+              providerRequestId={
+                job?.job_data?.provider_launch_result?.request_id ||
+                job?.job_data?.orchestrator_request_id ||
+                ''
+              }
+            />
           )}
           {effectiveSection === 'checkpoints' && (
             <CheckpointsSection jobId={jobId} />

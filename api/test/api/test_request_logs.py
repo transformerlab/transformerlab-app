@@ -436,3 +436,205 @@ class TestVastAIGetRequestLogs:
             out = p.get_request_logs("42")
         assert "Failed to fetch Vast.ai instance status" in out
         assert "nope" in out
+
+
+# ---------------------------------------------------------------------------
+# AWS provider tests
+# ---------------------------------------------------------------------------
+
+
+class TestAWSGetRequestLogs:
+    def _provider(self):
+        from transformerlab.compute_providers.aws import AWSProvider
+
+        p = AWSProvider.__new__(AWSProvider)
+        p.aws_profile = "default"
+        p.region = "us-east-1"
+        p.team_id = "team-1"
+        p.extra_config = {}
+        return p
+
+    def test_returns_snapshot_with_console(self):
+        p = self._provider()
+        ec2 = MagicMock()
+        ec2.describe_instances.return_value = {
+            "Reservations": [
+                {
+                    "Instances": [
+                        {
+                            "InstanceId": "i-123",
+                            "State": {"Name": "running"},
+                            "StateTransitionReason": "",
+                            "InstanceType": "g5.xlarge",
+                            "PublicIpAddress": "1.2.3.4",
+                        }
+                    ]
+                }
+            ]
+        }
+        ec2.describe_instance_status.return_value = {
+            "InstanceStatuses": [{"SystemStatus": {"Status": "ok"}, "InstanceStatus": {"Status": "ok"}}]
+        }
+        ec2.get_console_output.return_value = {"Output": "boot line 1\nboot line 2"}
+        with patch.object(p, "_get_ec2_client", return_value=ec2):
+            out = p.get_request_logs("i-123", tail_lines=1)
+        assert "EC2 instance i-123" in out
+        assert "State: running" in out
+        assert "System status: ok" in out
+        # tail_lines=1 keeps only the last console line
+        assert "boot line 2" in out
+        assert "boot line 1" not in out
+
+    def test_instance_not_found(self):
+        p = self._provider()
+        ec2 = MagicMock()
+        ec2.describe_instances.return_value = {"Reservations": []}
+        with patch.object(p, "_get_ec2_client", return_value=ec2):
+            out = p.get_request_logs("i-missing")
+        assert "not found" in out
+
+
+# ---------------------------------------------------------------------------
+# GCP provider tests
+# ---------------------------------------------------------------------------
+
+
+class TestGCPGetRequestLogs:
+    def _provider(self):
+        from transformerlab.compute_providers.gcp import GCPProvider
+
+        p = GCPProvider.__new__(GCPProvider)
+        p.project_id = "proj"
+        p.zone = "us-central1-a"
+        p.team_id = "team-1"
+        return p
+
+    def test_operation_then_instance_then_serial(self):
+        p = self._provider()
+        base = "https://compute.googleapis.com/compute/v1/projects/proj/zones/us-central1-a"
+
+        def fake_request(method, url, **kwargs):
+            if url.endswith("/operations/op-1"):
+                return {
+                    "name": "op-1",
+                    "status": "DONE",
+                    "operationType": "insert",
+                    "targetLink": f"{base}/instances/tfl-vm",
+                }
+            if url.endswith("/instances/tfl-vm"):
+                return {"name": "tfl-vm", "status": "RUNNING", "machineType": f"{base}/machineTypes/a2"}
+            if url.endswith("/instances/tfl-vm/serialPort"):
+                return {"contents": "line1\nline2\nline3"}
+            raise AssertionError(f"unexpected url {url}")
+
+        with patch.object(p, "_request", side_effect=fake_request):
+            out = p.get_request_logs("op-1", tail_lines=2)
+        assert "GCP launch op-1" in out
+        assert "Operation status: DONE" in out
+        assert "Instance status: RUNNING" in out
+        assert "line3" in out
+        assert "line1" not in out  # tail_lines=2
+
+    def test_request_id_is_instance_name_when_no_operation(self):
+        p = self._provider()
+
+        def fake_request(method, url, **kwargs):
+            if "/operations/" in url:
+                raise FileNotFoundError("no such operation")
+            if url.endswith("/instances/tfl-vm"):
+                return {"name": "tfl-vm", "status": "PROVISIONING"}
+            if url.endswith("/serialPort"):
+                return {"contents": ""}
+            raise AssertionError(f"unexpected url {url}")
+
+        with patch.object(p, "_request", side_effect=fake_request):
+            out = p.get_request_logs("tfl-vm")
+        assert "Instance status: PROVISIONING" in out
+
+
+# ---------------------------------------------------------------------------
+# Azure provider tests
+# ---------------------------------------------------------------------------
+
+
+class TestAzureGetRequestLogs:
+    def _provider(self):
+        from transformerlab.compute_providers.azure import AzureProvider
+
+        p = AzureProvider.__new__(AzureProvider)
+        p.resource_group = "rg"
+        p.subscription_id = "sub"
+        p.team_id = "team-1"
+        return p
+
+    def test_returns_snapshot_with_statuses(self):
+        p = self._provider()
+
+        status1 = MagicMock(code="ProvisioningState/succeeded", display_status="Provisioning succeeded", message=None)
+        status1.time = "2026-05-27T00:00:00Z"
+        status2 = MagicMock(code="PowerState/running", display_status="VM running", message=None)
+        status2.time = None
+        vm = MagicMock()
+        vm.name = "tfl-vm"
+        vm.id = "/subscriptions/sub/.../tfl-vm"
+        vm.provisioning_state = "Succeeded"
+        vm.location = "eastus"
+        vm.hardware_profile.vm_size = "Standard_NC24"
+        vm.instance_view.statuses = [status1, status2]
+
+        compute = MagicMock()
+        compute.virtual_machines.get.return_value = vm
+        with (
+            patch.object(p, "_get_compute_client", return_value=compute),
+            patch.object(p, "_get_vm_power_state", return_value="PowerState/running"),
+        ):
+            out = p.get_request_logs("tfl-vm")
+        compute.virtual_machines.get.assert_called_once_with("rg", "tfl-vm", expand="instanceView")
+        assert "Azure VM tfl-vm" in out
+        assert "Provisioning state: Succeeded" in out
+        assert "PowerState/running | VM running" in out
+
+    def test_error_returns_message(self):
+        p = self._provider()
+        compute = MagicMock()
+        compute.virtual_machines.get.side_effect = RuntimeError("auth failed")
+        with patch.object(p, "_get_compute_client", return_value=compute):
+            out = p.get_request_logs("tfl-vm")
+        assert "Failed to fetch Azure VM" in out
+        assert "auth failed" in out
+
+
+# ---------------------------------------------------------------------------
+# Nebius provider tests
+# ---------------------------------------------------------------------------
+
+
+class TestNebiusGetRequestLogs:
+    def _provider(self):
+        from transformerlab.compute_providers.nebius import NebiusProvider
+
+        p = NebiusProvider.__new__(NebiusProvider)
+        p.parent_id = "project-1"
+        p.team_id = "team-1"
+        return p
+
+    def test_returns_snapshot(self):
+        p = self._provider()
+        instance = {
+            "metadata": {"id": "inst-1", "name": "tfl", "created_at": "2026-05-27T00:00:00Z"},
+            "status": {"state": "RUNNING"},
+            "spec": {"resources": {"platform": "gpu-h100-sxm", "preset": "1gpu-16vcpu-200gb"}},
+        }
+        with patch.object(p, "_get_instance", return_value=instance) as mock_get:
+            out = p.get_request_logs("inst-1")
+        mock_get.assert_called_once_with("inst-1")
+        assert "Nebius instance inst-1" in out
+        assert "State: RUNNING" in out
+        assert "Platform: gpu-h100-sxm" in out
+
+    def test_error_returns_message(self):
+        p = self._provider()
+        with patch.object(p, "_get_instance", side_effect=RuntimeError("cli down")):
+            out = p.get_request_logs("inst-1")
+        assert "Failed to fetch Nebius instance" in out
+        assert "cli down" in out

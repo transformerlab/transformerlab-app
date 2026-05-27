@@ -1741,19 +1741,21 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         const outputJob = jobs?.find(
           (j: any) => String(j.id) === viewOutputFromJob,
         );
+        const providerRequestId =
+          outputJob?.job_data?.provider_launch_result?.request_id ||
+          outputJob?.job_data?.orchestrator_request_id ||
+          '';
         return (
           <ViewOutputModalStreaming
             jobId={viewOutputFromJob}
             setJobId={(jobId: string | null) => setViewOutputFromJob(jobId)}
             jobStatus={outputJob?.status || ''}
             tabs={
-              outputJob?.job_data?.provider_type === 'skypilot'
-                ? ['output', 'provider', 'skypilot']
+              providerRequestId
+                ? ['output', 'provider', 'orchestration']
                 : ['output', 'provider']
             }
-            skypilotRequestId={
-              outputJob?.job_data?.provider_launch_result?.request_id || ''
-            }
+            providerRequestId={providerRequestId}
           />
         );
       })()}
