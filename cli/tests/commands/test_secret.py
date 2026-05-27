@@ -219,6 +219,15 @@ def test_secret_list_user(_mock_check, mock_get):
     assert "/users/me/secrets" in mock_get.call_args.args[0]
 
 
+@patch("transformerlab_cli.commands.secret.api.get", return_value=_mock_response(200, SAMPLE_SECRETS_RESPONSE))
+@patch("transformerlab_cli.commands.secret.check_configs")
+def test_secret_list_user_short_flag(_mock_check, mock_get):
+    """The -u short alias behaves like --user for listing."""
+    result = runner.invoke(app, ["team", "secret", "list", "-u"])
+    assert result.exit_code == 0
+    assert "/users/me/secrets" in mock_get.call_args.args[0]
+
+
 @patch("transformerlab_cli.commands.secret.api.put_json")
 @patch("transformerlab_cli.commands.secret.api.get", return_value=_mock_response(200, SAMPLE_EMPTY_SECRETS))
 @patch("transformerlab_cli.commands.secret.check_configs")

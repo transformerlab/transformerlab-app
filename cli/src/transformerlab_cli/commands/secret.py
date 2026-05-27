@@ -71,7 +71,7 @@ def _prompt_special_secret_key() -> str:
 
 @app.command("list")
 def command_secret_list(
-    user: bool = typer.Option(False, "--user", help="List user-level secrets instead of team secrets"),
+    user: bool = typer.Option(False, "--user", "-u", help="List user-level secrets instead of team secrets"),
     show_values: bool = typer.Option(False, "--show-values", help="Show actual secret values (owner only for team)"),
 ):
     """List secrets."""
@@ -117,7 +117,7 @@ def command_secret_keys():
 def command_secret_set(
     name: str = typer.Argument(None, help="Secret name (omit to choose from a menu interactively)"),
     value: str = typer.Argument(None, help="Secret value (omit to be prompted with hidden input)"),
-    user: bool = typer.Option(False, "--user", help="Set as a user-level secret instead of team secret"),
+    user: bool = typer.Option(False, "--user", "-u", help="Set as a user-level secret instead of team secret"),
 ):
     """Set a secret. Overwrites if the name already exists."""
     if name is None:
@@ -168,7 +168,7 @@ def command_secret_set(
 @app.command("delete")
 def command_secret_delete(
     name: str = typer.Argument(..., help="Secret name to delete"),
-    user: bool = typer.Option(False, "--user", help="Delete a user-level secret instead of team secret"),
+    user: bool = typer.Option(False, "--user", "-u", help="Delete a user-level secret instead of team secret"),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Delete a secret."""
