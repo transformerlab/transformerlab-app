@@ -28,6 +28,7 @@ import ArtifactsSection from './ArtifactsSection';
 import EvalResultsSection from './EvalResultsSection';
 import SweepResultsSection from './SweepResultsSection';
 import MetricsSection from './MetricsSection';
+import PerformanceSection from './PerformanceSection';
 
 const SECTION_LABELS: Record<SectionKey, string> = {
   overview: 'Overview',
@@ -37,6 +38,7 @@ const SECTION_LABELS: Record<SectionKey, string> = {
   evalResults: 'Eval Results',
   sweepResults: 'Sweep Results',
   metrics: 'Metrics',
+  performance: 'Performance',
 };
 
 const VALID_SECTIONS = new Set<SectionKey>([
@@ -47,6 +49,7 @@ const VALID_SECTIONS = new Set<SectionKey>([
   'evalResults',
   'sweepResults',
   'metrics',
+  'performance',
 ]);
 
 export default function JobDetailPage() {
@@ -311,6 +314,9 @@ export default function JobDetailPage() {
           )}
           {effectiveSection === 'metrics' && job && (
             <MetricsSection job={job} />
+          )}
+          {effectiveSection === 'performance' && job && (
+            <PerformanceSection job={job} />
           )}
         </Box>
       </Box>
