@@ -38,6 +38,14 @@ SAMPLE_EMPTY_SECRETS = {
     "secret_keys": [],
 }
 
+# Special secrets share the same backing file and are returned by the regular
+# GET endpoint, but the regular PUT endpoint rejects them.
+SAMPLE_SECRETS_WITH_SPECIAL = {
+    "status": "success",
+    "secrets": {"API_KEY": "sk-123", "_HF_TOKEN": "hf_existing"},
+    "secret_keys": ["API_KEY", "_HF_TOKEN"],
+}
+
 
 def _mock_response(status_code: int = 200, json_data=None):
     mock = MagicMock()
@@ -150,6 +158,37 @@ def test_secret_set(_mock_config, _mock_check, mock_get, mock_put):
     payload = put_call.kwargs["json_data"]
     assert payload["secrets"]["NEW_KEY"] == "new-value"
     assert payload["secrets"]["API_KEY"] == "sk-123"
+
+
+@patch("transformerlab_cli.commands.secret.api.put_json")
+@patch("transformerlab_cli.commands.secret.api.get", return_value=_mock_response(200, SAMPLE_SECRETS_WITH_SPECIAL))
+@patch("transformerlab_cli.commands.secret.check_configs")
+@patch("transformerlab_cli.commands.secret.get_config", return_value="team-123")
+def test_secret_set_excludes_special_from_put(_mock_config, _mock_check, mock_get, mock_put):
+    """A non-special set must not echo special secrets back to the regular endpoint."""
+    mock_put.return_value = _mock_response(200, {"status": "success"})
+    result = runner.invoke(app, ["team", "secret", "set", "NEW_KEY", "new-value"])
+    assert result.exit_code == 0
+
+    payload = mock_put.call_args.kwargs["json_data"]
+    assert payload["secrets"]["NEW_KEY"] == "new-value"
+    assert payload["secrets"]["API_KEY"] == "sk-123"
+    assert "_HF_TOKEN" not in payload["secrets"]
+
+
+@patch("transformerlab_cli.commands.secret.api.put_json")
+@patch("transformerlab_cli.commands.secret.api.get", return_value=_mock_response(200, SAMPLE_SECRETS_WITH_SPECIAL))
+@patch("transformerlab_cli.commands.secret.check_configs")
+@patch("transformerlab_cli.commands.secret.get_config", return_value="team-123")
+def test_secret_delete_excludes_special_from_put(_mock_config, _mock_check, mock_get, mock_put):
+    """A non-special delete must not echo special secrets back to the regular endpoint."""
+    mock_put.return_value = _mock_response(200, {"status": "success"})
+    result = runner.invoke(app, ["team", "secret", "delete", "API_KEY", "--no-interactive"])
+    assert result.exit_code == 0
+
+    payload = mock_put.call_args.kwargs["json_data"]
+    assert "API_KEY" not in payload["secrets"]
+    assert "_HF_TOKEN" not in payload["secrets"]
 
 
 @patch("transformerlab_cli.commands.secret.api.put_json")

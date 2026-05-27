@@ -129,16 +129,19 @@ def test_members_set_role_bad_role(_check):
 def test_invitations_list_json(mock_api, _check, _cfg):
     mock_api.get.return_value = _mock_response(
         200,
-        [
-            {
-                "id": "inv-1",
-                "email": "x@example.com",
-                "role": "member",
-                "status": "pending",
-                "invited_by_email": "alice@example.com",
-                "expires_at": "2026-06-01",
-            }
-        ],
+        {
+            "team_id": "team-1",
+            "invitations": [
+                {
+                    "id": "inv-1",
+                    "email": "x@example.com",
+                    "role": "member",
+                    "status": "pending",
+                    "invited_by_email": "alice@example.com",
+                    "expires_at": "2026-06-01",
+                }
+            ],
+        },
     )
     result = runner.invoke(app, ["--format", "json", "team", "invitations", "list"])
     assert result.exit_code == 0, result.output

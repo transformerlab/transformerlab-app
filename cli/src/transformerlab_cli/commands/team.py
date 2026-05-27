@@ -41,7 +41,9 @@ def _save_secret(name: str, value: str) -> None:
                 f"[error]Error:[/error] Failed to fetch current secrets. {_extract_error_detail(get_response)}"
             )
             raise typer.Exit(1)
-        secrets = get_response.json().get("secrets", {})
+        # Exclude special secrets: they share this file but are rejected by the
+        # regular secrets endpoint and are managed via the special secrets path.
+        secrets = {k: v for k, v in get_response.json().get("secrets", {}).items() if k not in SPECIAL_SECRET_KEYS}
         secrets[name] = value
         response = api.put_json(path, json_data={"secrets": secrets})
     if response.status_code != 200:

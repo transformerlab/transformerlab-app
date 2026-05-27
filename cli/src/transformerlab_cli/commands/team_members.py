@@ -168,7 +168,7 @@ def command_invitations_list():
         console.print(f"[error]Error:[/error] Failed to fetch invitations. {_extract_error_detail(response)}")
         raise typer.Exit(1)
 
-    invitations = response.json()
+    invitations = response.json().get("invitations", [])
     if not invitations:
         exit_with_no_results(format_type, "No pending invitations")
 

@@ -149,7 +149,9 @@ def command_secret_set(
             console.print(f"[error]Error:[/error] Failed to fetch secrets. {_extract_error_detail(get_response)}")
             raise typer.Exit(1)
 
-        secrets = get_response.json().get("secrets", {})
+        # Exclude special secrets: they share this file but are rejected by the
+        # regular secrets endpoint and are managed via the special secrets path.
+        secrets = {k: v for k, v in get_response.json().get("secrets", {}).items() if k not in SPECIAL_SECRET_KEYS}
         secrets[name] = value
 
         with console.status("[bold success]Saving secret...[/bold success]", spinner="dots"):
@@ -190,7 +192,9 @@ def command_secret_delete(
             console.print(f"[error]Error:[/error] Failed to fetch secrets. {_extract_error_detail(get_response)}")
             raise typer.Exit(1)
 
-        secrets = get_response.json().get("secrets", {})
+        # Exclude special secrets: they share this file but are rejected by the
+        # regular secrets endpoint and are managed via the special secrets path.
+        secrets = {k: v for k, v in get_response.json().get("secrets", {}).items() if k not in SPECIAL_SECRET_KEYS}
         if name not in secrets:
             console.print(f"[error]Error:[/error] Secret [bold]{name}[/bold] not found.")
             raise typer.Exit(1)
