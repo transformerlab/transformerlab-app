@@ -871,6 +871,24 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab server install` | Interactive server setup wizard | No |
 | `lab server version` | Show installed server version | No |
 | `lab server update` | Update server to latest | No |
+| `lab team info` | Show current team: name, your role, member count, quota | No |
+| `lab team rename <name>` | Rename the current team (team owners only) | No |
+| `lab team setup` | Onboarding wizard: add a provider, set defaults/secrets, health-check | No |
+| `lab team secret list` | List secrets (`--user`/`-u` for user-level, `--show-values`) | No |
+| `lab team secret set [name] [value]` | Set a secret (`--user`/`-u` for user-level) | No |
+| `lab team secret delete <name>` | Delete a secret (`--user`/`-u`, `--no-interactive`) | No |
+| `lab team secret keys` | Show platform-recognized secret key names | No |
+| `lab team quota show` | Show the current team's monthly quota (minutes; shows hours too) | No |
+| `lab team quota set <minutes>` | Set team monthly quota in minutes (team owners only) | No |
+| `lab team quota usage` | Per-user quota usage for the team (team owners only) | No |
+| `lab team quota set-user <email\|uuid> <minutes>` | Set a per-user quota override (team owners only) | No |
+| `lab team quota me` | Show your own quota status in the current team | No |
+| `lab team members list` | List members of the current team | No |
+| `lab team members invite <email>` | Invite a member by email (`--role member\|owner`, team owners only) | No |
+| `lab team members remove <email\|uuid>` | Remove a member (`--no-interactive`; team owners only) | No |
+| `lab team members set-role <email\|uuid> <role>` | Change a member's role to `member`/`owner` (team owners only) | No |
+| `lab team invitations list` | List pending invitations for the team (team owners only) | No |
+| `lab team invitations cancel <invitation_id>` | Cancel a pending invitation (`--no-interactive`; team owners only) | No |
 
 ## JSON Output Shapes
 

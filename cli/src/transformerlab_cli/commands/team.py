@@ -15,8 +15,15 @@ from transformerlab_cli.commands.secret import (
     _prompt_special_secret_key,
     app as secret_app,
 )
+from transformerlab_cli.commands.team_members import (
+    _extract_error_detail as _member_error_detail,
+    invitations_app,
+    members_app,
+)
+from transformerlab_cli.commands.team_quota import app as quota_app
 from transformerlab_cli.state import cli_state
-from transformerlab_cli.util.config import check_configs
+from transformerlab_cli.util.auth import fetch_user_teams, get_api_key
+from transformerlab_cli.util.config import check_configs, get_config
 from transformerlab_cli.util.ui import console
 
 app = typer.Typer()
@@ -34,7 +41,9 @@ def _save_secret(name: str, value: str) -> None:
                 f"[error]Error:[/error] Failed to fetch current secrets. {_extract_error_detail(get_response)}"
             )
             raise typer.Exit(1)
-        secrets = get_response.json().get("secrets", {})
+        # Exclude special secrets: they share this file but are rejected by the
+        # regular secrets endpoint and are managed via the special secrets path.
+        secrets = {k: v for k, v in get_response.json().get("secrets", {}).items() if k not in SPECIAL_SECRET_KEYS}
         secrets[name] = value
         response = api.put_json(path, json_data={"secrets": secrets})
     if response.status_code != 200:
@@ -150,5 +159,71 @@ def command_team_setup(
         console.print(f"  Check:    {status}")
 
 
+@app.command("info")
+def command_team_info():
+    """Show the current team: name, your role, member count, and quota."""
+    check_configs(output_format=cli_state.output_format)
+    team_id = get_config("team_id")
+
+    teams_info = fetch_user_teams(get_api_key()) or {}
+    teams = teams_info.get("teams", [])
+    current = next((t for t in teams if t.get("id") == team_id), None)
+
+    member_count = None
+    members_response = api.get(f"/teams/{team_id}/members")
+    if members_response.status_code == 200:
+        member_count = len(members_response.json().get("members", []))
+
+    monthly_quota = None
+    quota_response = api.get(f"/quota/team/{team_id}")
+    if quota_response.status_code == 200:
+        monthly_quota = quota_response.json().get("monthly_quota_minutes")
+
+    info = {
+        "team_id": team_id,
+        "name": current.get("name") if current else None,
+        "role": current.get("role") if current else None,
+        "member_count": member_count,
+        "monthly_quota_minutes": monthly_quota,
+    }
+
+    if cli_state.output_format == "json":
+        print(json.dumps(info))
+        return
+
+    console.print("\n[bold label]Team Info[/bold label]")
+    console.print(f"  Name:    [bold]{info['name'] or 'N/A'}[/bold]")
+    console.print(f"  Team ID: {info['team_id']}")
+    console.print(f"  Role:    {info['role'] or 'N/A'}")
+    console.print(f"  Members: {info['member_count'] if info['member_count'] is not None else 'N/A'}")
+    if monthly_quota is not None:
+        hours, mins = divmod(int(monthly_quota), 60)
+        console.print(f"  Quota:   {monthly_quota} min ({hours}h {mins}m)")
+
+
+@app.command("rename")
+def command_team_rename(
+    name: str = typer.Argument(..., help="New team name"),
+):
+    """Rename the current team. Team owners only."""
+    check_configs(output_format=cli_state.output_format)
+    team_id = get_config("team_id")
+
+    with console.status("[bold success]Renaming team...[/bold success]", spinner="dots"):
+        response = api.put_json(f"/teams/{team_id}", json_data={"name": name})
+
+    if response.status_code != 200:
+        console.print(f"[error]Error:[/error] Failed to rename team. {_member_error_detail(response)}")
+        raise typer.Exit(1)
+
+    if cli_state.output_format == "json":
+        print(json.dumps(response.json()))
+    else:
+        console.print(f"[success]✓[/success] Team renamed to [bold]{name}[/bold].")
+
+
 app.add_typer(setup_app, name="setup", help="Onboarding wizard for a new team")
 app.add_typer(secret_app, name="secret", help="Secret management commands", no_args_is_help=True)
+app.add_typer(quota_app, name="quota", help="Team quota management", no_args_is_help=True)
+app.add_typer(members_app, name="members", help="Team member management", no_args_is_help=True)
+app.add_typer(invitations_app, name="invitations", help="Team invitation management", no_args_is_help=True)
