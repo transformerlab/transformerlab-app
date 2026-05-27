@@ -157,13 +157,37 @@ def test_provider_add_fails_when_provider_check_unhealthy(_mock_check, _mock_pos
     assert "Bad API key" in result.output
 
 
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, SAMPLE_PROVIDERS))
 @patch("transformerlab_cli.commands.provider.api.delete", return_value=_mock_response(200))
 @patch("transformerlab_cli.commands.provider.check_configs")
-def test_provider_delete(_mock_check, _mock_api):
-    """Test deleting a provider."""
+def test_provider_delete(_mock_check, mock_delete, _mock_get):
+    """Test deleting a provider by id."""
     result = runner.invoke(app, ["provider", "delete", "p1", "--no-interactive"])
     assert result.exit_code == 0
     assert "deleted" in result.output
+    mock_delete.assert_called_once_with("/compute_provider/providers/p1")
+
+
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, SAMPLE_PROVIDERS))
+@patch("transformerlab_cli.commands.provider.api.delete", return_value=_mock_response(200))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_delete_by_name(_mock_check, mock_delete, _mock_get):
+    """Test deleting a provider by name resolves to its id."""
+    result = runner.invoke(app, ["provider", "delete", "slurm-1", "--no-interactive"])
+    assert result.exit_code == 0
+    assert "deleted" in result.output
+    mock_delete.assert_called_once_with("/compute_provider/providers/p2")
+
+
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, SAMPLE_PROVIDERS))
+@patch("transformerlab_cli.commands.provider.api.delete", return_value=_mock_response(200))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_delete_not_found(_mock_check, mock_delete, _mock_get):
+    """Test deleting a nonexistent provider errors before confirming or calling delete."""
+    result = runner.invoke(app, ["provider", "delete", "nope"])
+    assert result.exit_code == 1
+    assert "not found" in result.output
+    mock_delete.assert_not_called()
 
 
 @patch("transformerlab_cli.commands.provider.api.patch", return_value=_mock_response(200))
