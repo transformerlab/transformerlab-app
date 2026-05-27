@@ -6,13 +6,24 @@ resources:
   memory: 4
 setup: |
   if [ "$(uname)" != "Darwin" ]; then
-    $SUDO apt-get update && $SUDO apt-get install -y gnupg software-properties-common apt-transport-https wget
-    wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
-    $SUDO install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | $SUDO tee /etc/apt/sources.list.d/vscode.list
-    $SUDO apt-get update && $SUDO apt-get install -y code
+    OVSX_VERSION="1.109.5"
+    ARCH=$(uname -m)
+    case "$ARCH" in
+      x86_64)  OVSX_ARCH="x64" ;;
+      aarch64) OVSX_ARCH="arm64" ;;
+      *)       OVSX_ARCH="$ARCH" ;;
+    esac
+    OVSX_DIR="$HOME/.local/openvscode-server"
+    if [ ! -x "$OVSX_DIR/bin/openvscode-server" ]; then
+      mkdir -p "$OVSX_DIR"
+      curl -fsSL "https://github.com/gitpod-io/openvscode-server/releases/download/openvscode-server-v${OVSX_VERSION}/openvscode-server-v${OVSX_VERSION}-linux-${OVSX_ARCH}.tar.gz" | tar xz --strip-components=1 -C "$OVSX_DIR"
+    fi
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$OVSX_DIR/bin/openvscode-server" "$HOME/.local/bin/openvscode-server"
+    export PATH="$HOME/.local/bin:$PATH"
   fi
 run: |
+  export PATH="$HOME/.local/bin:$PATH"
   python interactive-vscode/run.py
 envs:
   PYTHONUNBUFFERED: "1"

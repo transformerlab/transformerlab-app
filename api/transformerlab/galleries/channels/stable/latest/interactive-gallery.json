@@ -3,41 +3,33 @@
     "id": "vscode",
     "interactive_type": "vscode",
     "name": "VS Code",
-    "description": "Remote VS Code development environment via tunnel",
-    "github_repo_url": "https://github.com/transformerlab/transformerlab-app",
-    "github_repo_dir": "api/transformerlab/galleries/examples/interactive-vscode",
+    "description": "Browser-based VS Code environment (openvscode-server)",
     "env_parameters": [],
     "icon": "https://lab.cloud/img/icons/vscode.png",
+    "setup": "OVSX_VERSION=\"1.109.5\"; ARCH=$(uname -m); case \"$ARCH\" in x86_64) OVSX_ARCH=\"x64\" ;; aarch64) OVSX_ARCH=\"arm64\" ;; *) OVSX_ARCH=\"$ARCH\" ;; esac; OVSX_DIR=\"$HOME/.local/openvscode-server\"; if [ ! -x \"$OVSX_DIR/bin/openvscode-server\" ]; then mkdir -p \"$OVSX_DIR\"; curl -fsSL \"https://github.com/gitpod-io/openvscode-server/releases/download/openvscode-server-v${OVSX_VERSION}/openvscode-server-v${OVSX_VERSION}-linux-${OVSX_ARCH}.tar.gz\" | tar xz --strip-components=1 -C \"$OVSX_DIR\"; fi; mkdir -p \"$HOME/.local/bin\"; ln -sf \"$OVSX_DIR/bin/openvscode-server\" \"$HOME/.local/bin/openvscode-server\"",
+    "command": "export PATH=\"$HOME/.local/bin:$PATH\" && openvscode-server --host 0.0.0.0 --port 3000 --without-connection-token",
     "supported_accelerators": [
       "cpu",
       "NVIDIA",
       "AMD"
     ],
-    "remoteOnly": true,
-    "_comment_ports": "VS Code tunnel does not expose fixed local ports; the tunnel URL is generated dynamically by the VS Code CLI.",
-    "ports": [],
+    "remoteOnly": false,
+    "ports": [
+      {
+        "port": 3000,
+        "label": "VS Code",
+        "protocol": "http"
+      }
+    ],
     "modal_title": "VS Code Interactive Session",
-    "modal_subtitle": "Follow the steps below to authenticate and open your VS Code session.",
+    "modal_subtitle": "Access your VS Code environment through the URL below.",
     "instructions": [
       {
-        "kind": "code",
-        "title": "Step 1: Authorize VS Code",
-        "description": "When the VS Code service starts, it may print an authorization code. Copy the code below (when available), go to https://github.com/login/device and complete the sign-in flow in your browser.",
-        "value_key": "auth_code",
-        "placeholder": "Waiting for auth code from provider logs...",
-        "help_links": [
-          {
-            "label": "https://github.com/login/device",
-            "href": "https://github.com/login/device"
-          }
-        ]
-      },
-      {
         "kind": "url",
-        "title": "Step 2: Open VS Code",
-        "description": "After you finish authorization, the URL will appear here. Use it to open the remote environment in your browser-based VS Code.",
-        "value_key": "tunnel_url",
-        "placeholder": "Waiting for VS Code to print a URL in the provider logs..."
+        "title": "Open VS Code",
+        "description": "Click the link below to open VS Code in your browser.",
+        "value_key": "vscode_url",
+        "placeholder": "Waiting for VS Code to start..."
       }
     ]
   },

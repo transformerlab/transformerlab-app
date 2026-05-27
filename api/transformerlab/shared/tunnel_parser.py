@@ -6,48 +6,49 @@ PUBLIC_TUNNEL_URL_PATTERN = r"https://[a-zA-Z0-9-]+\.(?:trycloudflare\.com|ngrok
 
 def parse_vscode_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[str]]:
     """
-    Parse VSCode tunnel logs to extract auth code and tunnel URL.
+    Parse openvscode-server or VS Code tunnel logs to extract URL.
 
     Args:
         logs: Job logs as string
 
     Returns:
-        Tuple of (auth_code, tunnel_url) - both can be None if not found
+        Tuple of (auth_code, vscode_url) - auth_code is None for openvscode-server
     """
     auth_code = None
-    tunnel_url = None
+    vscode_url = None
 
     try:
         lines = logs.split("\n")
 
         for line in lines:
-            # Parse auth code: "use code 9669-7DED"
+            # openvscode-server: "Web UI available at http://0.0.0.0:3000" or "http://localhost:3000"
+            if not vscode_url:
+                match = re.search(r"(https?://(?:0\.0\.0\.0|localhost|127\.0\.0\.1):\d+)", line)
+                if match:
+                    url = match.group(1)
+                    vscode_url = url.replace("0.0.0.0", "127.0.0.1")
+
+            # Public tunnel URL (ngrok)
+            if not vscode_url:
+                match = re.search(rf"({PUBLIC_TUNNEL_URL_PATTERN}[^\s]*)", line)
+                if match:
+                    vscode_url = match.group(1)
+
+            # Legacy: VS Code tunnel with GitHub auth
             if "use code" in line and not auth_code:
                 match = re.search(r"use code (\w+-\w+)", line)
                 if match:
                     auth_code = match.group(1)
 
-            # Parse tunnel URL: "https://vscode.dev/tunnel/maclan/..."
-            if ("vscode.dev/tunnel" in line or "localhost:" in line) and not tunnel_url:
-                # Look for the full URL
+            if "vscode.dev/tunnel" in line and not vscode_url:
                 match = re.search(r"(https://vscode\.dev/tunnel/[^\s]+)", line)
                 if match:
-                    tunnel_url = match.group(1)
-                else:
-                    # Look for local URL: "http://localhost:\d+"
-                    match = re.search(r"(http://localhost:\d+)", line)
-                    if match:
-                        tunnel_url = match.group(1)
-                    else:
-                        # If no full URL, look for just the tunnel path
-                        match = re.search(r"(vscode\.dev/tunnel/[^\s]+)", line)
-                        if match:
-                            tunnel_url = f"https://{match.group(1)}"
+                    vscode_url = match.group(1)
 
-        return auth_code, tunnel_url
+        return auth_code, vscode_url
 
     except Exception as e:
-        print(f"Error parsing VSCode tunnel logs: {e}")
+        print(f"Error parsing VSCode logs: {e}")
         return None, None
 
 
@@ -226,21 +227,24 @@ def parse_ssh_tunnel_logs(logs: str) -> Tuple[Optional[str], Optional[int], Opti
 
 def get_vscode_tunnel_info(logs: str) -> dict:
     """
-    Get complete VSCode tunnel information from logs.
+    Get complete VS Code tunnel information from logs.
 
-    Args:
-        logs: Job logs as string
-
-    Returns:
-        Dictionary with tunnel information
+    For openvscode-server: is_ready when URL is found (no auth needed).
+    For legacy code tunnel: is_ready when both auth_code and URL are found.
     """
-    auth_code, tunnel_url = parse_vscode_tunnel_logs(logs)
+    auth_code, vscode_url = parse_vscode_tunnel_logs(logs)
+
+    if auth_code is not None:
+        is_ready = auth_code is not None and vscode_url is not None
+    else:
+        is_ready = vscode_url is not None
 
     return {
         "auth_code": auth_code,
-        "tunnel_url": tunnel_url,
-        "is_ready": auth_code is not None and tunnel_url is not None,
-        "status": "ready" if (auth_code is not None and tunnel_url is not None) else "loading",
+        "vscode_url": vscode_url,
+        "tunnel_url": vscode_url,
+        "is_ready": is_ready,
+        "status": "ready" if is_ready else "loading",
     }
 
 
