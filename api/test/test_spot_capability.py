@@ -58,3 +58,28 @@ def test_resolve_use_spot_helper_for_non_skypilot():
     assert _resolve_use_spot("aws", provider_config={}, request_config={}) is False
     # NOT capable -> always False even if requested
     assert _resolve_use_spot("vastai", provider_config={"use_spot": True}, request_config={"use_spot": True}) is False
+
+
+def test_resolve_use_spot_recovers_persisted_value_on_resume():
+    """Checkpoint-resume reuses the persisted cluster_config.use_spot through the same helper.
+
+    Mirrors the call shape in resume_remote_job_from_checkpoint, which passes the
+    original run's persisted use_spot as the per-job override.
+    """
+    from transformerlab.services.compute_provider.spot_utils import _resolve_use_spot
+
+    def recover(provider_type: str, provider_config: dict, persisted_cluster_config: dict) -> bool:
+        return _resolve_use_spot(
+            provider_type,
+            provider_config,
+            {"use_spot": persisted_cluster_config.get("use_spot")},
+        )
+
+    # Original run used spot on a capable provider -> preserved on resume.
+    assert recover("aws", {}, {"use_spot": True}) is True
+    # Original run was on-demand -> stays on-demand.
+    assert recover("aws", {}, {"use_spot": False}) is False
+    # Missing persisted value (older jobs) -> defaults to on-demand.
+    assert recover("aws", {}, {}) is False
+    # Provider no longer spot-capable -> safely drops spot even if originally set.
+    assert recover("vastai", {}, {"use_spot": True}) is False

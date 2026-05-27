@@ -911,6 +911,7 @@ def build_launch_payload(
     description: str | None = None,
     enable_profiling: bool = False,
     enable_profiling_torch: bool = False,
+    use_spot: bool = False,
 ) -> dict:
     """Build the payload for launching a task on a provider."""
     cfg = task.get("config") or {}
@@ -924,6 +925,13 @@ def build_launch_payload(
         if isinstance(cfg, dict) and field in cfg and cfg[field] not in (None, ""):
             return cfg[field]
         return None
+
+    # The backend reads spot/preemptible selection from the per-job `config`
+    # payload (same channel the frontend uses), so merge it alongside any
+    # parameter overrides.
+    launch_config: dict = dict(param_values) if param_values else {}
+    if use_spot:
+        launch_config["use_spot"] = True
 
     return {
         "experiment_id": task.get("experiment_id"),
@@ -942,7 +950,7 @@ def build_launch_payload(
         "enable_profiling_torch": enable_profiling_torch,
         "env_vars": task.get("env_vars", {}),
         "parameters": task.get("parameters", {}),
-        "config": param_values if param_values else None,
+        "config": launch_config or None,
         "file_mounts": cfg.get("file_mounts") or task.get("file_mounts"),
         "provider_name": provider_name,
         "github_repo_url": task.get("github_repo_url"),
@@ -1106,6 +1114,7 @@ def queue_task(
     param_overrides: dict | None = None,
     enable_profiling: bool = False,
     enable_profiling_torch: bool = False,
+    use_spot: bool = False,
 ) -> None:
     """Queue a task on a compute provider."""
     with console.status("[bold success]Fetching task...[/bold success]", spinner="dots"):
@@ -1140,6 +1149,12 @@ def queue_task(
             provider = next((p for p in providers if p.get("is_default")), providers[0])
         console.print(f"[dim]Using provider: {provider.get('name')}[/dim]")
 
+    if use_spot and not provider.get("supports_spot"):
+        console.print(
+            f"[warning]Warning:[/warning] Provider '{provider.get('name')}' does not support spot/preemptible "
+            "instances; --spot will be ignored and the job will run on-demand."
+        )
+
     parameters = task.get("parameters", {})
     overrides = param_overrides or {}
     if overrides:
@@ -1168,6 +1183,7 @@ def queue_task(
         description=description,
         enable_profiling=enable_profiling,
         enable_profiling_torch=enable_profiling_torch,
+        use_spot=use_spot,
     )
     provider_id = provider.get("id")
 
@@ -1214,6 +1230,14 @@ def command_task_queue(
         "--enable-profiling-torch",
         help="Enable torch profiler trace export for this run (requires --enable-profiling).",
     ),
+    spot: bool = typer.Option(
+        False,
+        "--spot",
+        help=(
+            "Request a spot/preemptible instance for this run. Only honored by spot-capable "
+            "providers (AWS, GCP, Azure, RunPod, dstack, Nebius, SkyPilot); ignored otherwise."
+        ),
+    ),
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Queue a task on a compute provider."""
@@ -1232,6 +1256,7 @@ def command_task_queue(
         param_overrides=param_overrides,
         enable_profiling=enable_profiling,
         enable_profiling_torch=enable_profiling_torch,
+        use_spot=spot,
     )
 
 
