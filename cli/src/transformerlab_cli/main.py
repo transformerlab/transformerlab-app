@@ -20,7 +20,7 @@ from transformerlab_cli.commands.experiment import app as experiment_app
 from transformerlab_cli.commands.notes import app as notes_app
 from transformerlab_cli.commands.dataset import app as dataset_app
 from transformerlab_cli.commands.model import app as model_app
-from transformerlab_cli.commands.secret import app as secret_app
+from transformerlab_cli.commands.team import app as team_app
 from transformerlab_cli.commands.install_agent_skill import app as install_agent_skill_app
 
 
@@ -53,17 +53,24 @@ app.add_typer(server_app, name="server", help="Server installation and configura
 app.add_typer(dataset_app, name="dataset", help="Dataset management commands", no_args_is_help=True)
 app.add_typer(model_app, name="model", help="Model management commands", no_args_is_help=True)
 app.add_typer(experiment_app, name="experiment", help="Experiment management commands", no_args_is_help=True)
-app.add_typer(secret_app, name="secret", help="Secret management commands", no_args_is_help=True)
+app.add_typer(team_app, name="team", help="Team configuration commands", no_args_is_help=True)
 app.add_typer(install_agent_skill_app)
 
 
 # Apply common setup to all commands
 @app.callback()
 def common_setup(
-    ctx: typer.Context, format: str = typer.Option("pretty", "--format", help="Output format: pretty or json")
+    ctx: typer.Context,
+    format: str = typer.Option("pretty", "--format", help="Output format: pretty or json"),
+    no_interactive: bool = typer.Option(
+        False,
+        "--no-interactive",
+        help="Never prompt; take all input from arguments/flags. Implied by --format json.",
+    ),
 ):
     """Common setup code to run before any command."""
     cli_state.output_format = format
+    cli_state.no_interactive = no_interactive or (format == "json")
     if not ctx.invoked_subcommand:
         show_header(console)  # Display the logo when no command is provided
     elif ctx.invoked_subcommand != "version" and format != "json":
