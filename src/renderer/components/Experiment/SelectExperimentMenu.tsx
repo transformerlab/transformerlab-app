@@ -368,13 +368,13 @@ export default function SelectExperimentMenu({ models }) {
                 );
               })}
             </Box>
+            <Divider />
             <MenuItem onClick={() => setIsManagerOpen(true)}>
               <ListItemDecorator>
                 <LayoutGridIcon strokeWidth={1} />
               </ListItemDecorator>
               Manage experiments
             </MenuItem>
-            <Divider />
             <MenuItem onClick={() => setModalOpen(true)} disabled={isLoading}>
               <ListItemDecorator>
                 <PlusCircleIcon strokeWidth={1} />
