@@ -11,6 +11,28 @@ from .models import (
 )
 
 
+def format_status_snapshot(
+    title: str,
+    fields: dict,
+    *,
+    footer: Optional[str] = None,
+) -> str:
+    """Render a labeled key/value status snapshot as plain text.
+
+    Used by provider get_request_logs implementations to present orchestration
+    status consistently. Empty string and None values are omitted; 0/False are kept.
+    """
+    lines = [f"=== {title} ==="]
+    for key, value in fields.items():
+        if value is None or value == "":
+            continue
+        lines.append(f"{key}: {value}")
+    if footer:
+        lines.append("")
+        lines.append(footer)
+    return "\n".join(lines)
+
+
 class ComputeProvider(ABC):
     """Abstract base class for all compute provider implementations."""
 

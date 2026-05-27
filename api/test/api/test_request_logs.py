@@ -12,7 +12,7 @@ Tests cover:
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from transformerlab.compute_providers.base import ComputeProvider
+from transformerlab.compute_providers.base import ComputeProvider, format_status_snapshot
 from transformerlab.compute_providers.models import ClusterStatus, ResourceInfo
 
 try:
@@ -109,6 +109,32 @@ class TestBaseProviderGetRequestLogs:
         provider = MinimalProvider()
         with pytest.raises(NotImplementedError):
             provider.get_request_logs("some-request-id", tail_lines=100)
+
+
+# ---------------------------------------------------------------------------
+# format_status_snapshot helper tests
+# ---------------------------------------------------------------------------
+
+
+class TestFormatStatusSnapshot:
+    def test_renders_title_and_fields(self):
+        out = format_status_snapshot("EC2 instance i-123", {"State": "running", "Public IP": "1.2.3.4"})
+        assert out.splitlines()[0] == "=== EC2 instance i-123 ==="
+        assert "State: running" in out
+        assert "Public IP: 1.2.3.4" in out
+
+    def test_skips_empty_values(self):
+        out = format_status_snapshot("T", {"A": "x", "B": None, "C": "", "D": 0})
+        assert "A: x" in out
+        assert "B:" not in out
+        assert "C:" not in out
+        # 0 is a meaningful value and should be kept
+        assert "D: 0" in out
+
+    def test_appends_footer(self):
+        out = format_status_snapshot("T", {"A": "x"}, footer="--- Console ---\nboot line")
+        assert out.endswith("--- Console ---\nboot line")
+        assert "A: x" in out
 
 
 # ---------------------------------------------------------------------------
