@@ -40,6 +40,16 @@ interface SecretEntry {
   isViewing?: boolean;
 }
 
+// Special secrets share the same backing file but are managed via the Special
+// Secrets section. They must be excluded from the regular secrets endpoint,
+// which rejects them and overwrites the whole file.
+const SPECIAL_SECRET_KEYS = new Set([
+  '_GITHUB_PAT_TOKEN',
+  '_HF_TOKEN',
+  '_WANDB_API_KEY',
+  '_NGROK_AUTH_TOKEN',
+]);
+
 export default function TeamSecretsSection({ teamId }: { teamId: string }) {
   const { fetchWithAuth } = useAuth();
   const [secrets, setSecrets] = useState<SecretEntry[]>([]);
@@ -68,12 +78,12 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
         if (res.ok) {
           const data = await res.json();
           // Convert secret keys to entries (values are masked)
-          const secretEntries: SecretEntry[] = (data.secret_keys || []).map(
-            (key: string) => ({
+          const secretEntries: SecretEntry[] = (data.secret_keys || [])
+            .filter((key: string) => !SPECIAL_SECRET_KEYS.has(key))
+            .map((key: string) => ({
               key,
               value: '', // Values are masked, so we don't show them
-            }),
-          );
+            }));
           setSecrets(secretEntries);
         } else {
           const errorData = await res.json();
@@ -206,7 +216,13 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
         );
         if (getRes.ok) {
           const getData = await getRes.json();
-          currentSecrets = getData.secrets || {};
+          // Drop special secrets: the regular endpoint rejects them and
+          // overwrites the whole file, so they must not be echoed back.
+          currentSecrets = Object.fromEntries(
+            Object.entries(
+              (getData.secrets || {}) as Record<string, string>,
+            ).filter(([key]) => !SPECIAL_SECRET_KEYS.has(key)),
+          );
         }
       } catch (err) {
         // If we can't fetch, start with empty object
@@ -244,14 +260,14 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
         );
         if (getRes.ok) {
           const getData = await getRes.json();
-          const updatedSecrets: SecretEntry[] = (getData.secret_keys || []).map(
-            (key: string) => ({
+          const updatedSecrets: SecretEntry[] = (getData.secret_keys || [])
+            .filter((key: string) => !SPECIAL_SECRET_KEYS.has(key))
+            .map((key: string) => ({
               key,
               value: '', // Don't show values after saving
               isEditing: false,
               isNew: false,
-            }),
-          );
+            }));
           setSecrets(updatedSecrets);
         } else {
           // Fallback: just update the current secret

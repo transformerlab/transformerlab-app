@@ -648,9 +648,19 @@ async def set_user_secrets(
         # Ensure workspace directory exists
         await storage.makedirs(workspace_dir, exist_ok=True)
 
+        # Special secrets live in the same file but are only mutable via the
+        # special secrets endpoint. Preserve them so a regular-secrets PUT
+        # (which overwrites the whole file) does not silently wipe them.
+        preserved_special = {}
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                existing = json.loads(await f.read())
+            preserved_special = {k: v for k, v in existing.items() if k in SPECIAL_SECRET_KEYS}
+        merged = {**secrets_data.secrets, **preserved_special}
+
         # Write secrets to file
         async with await storage.open(secrets_path, "w") as f:
-            await f.write(json.dumps(secrets_data.secrets, indent=2))
+            await f.write(json.dumps(merged, indent=2))
 
         return {
             "status": "success",
