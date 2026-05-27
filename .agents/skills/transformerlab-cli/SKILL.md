@@ -571,6 +571,7 @@ lab provider delete PROVIDER_ID --no-interactive
 | `aws` | `region`. Provide AWS access keys via `--credentials-file PATH` pointing at a JSON file with `aws_access_key_id` + `aws_secret_access_key` (uploaded to the API host's `~/.aws/credentials`) |
 | `gcp` | `region`, optional `zone`. Must also pass `--credentials-file PATH` pointing at your service account JSON key file |
 | `azure` | `azure_subscription_id`, `azure_tenant_id`, `azure_client_id`, `azure_client_secret`, `azure_location` |
+| `nebius` | optional infra config `parent_id` (project id; required unless `subnet_id` set), `subnet_id`, `default_platform`, `default_preset`, `boot_image_family`, `disk_size_gib`. Provide the service-account key pair via `--credentials-file PATH` pointing at a JSON file with `service_account_id` + `public_key_id` + `private_key` (uploaded via the dedicated `/nebius/credentials` endpoint) |
 
 ### `--credentials-file` for secrets (preferred)
 
@@ -621,6 +622,12 @@ lab provider add --no-interactive --name my-gcp --type gcp \
 lab provider add --no-interactive --name my-azure --type azure \
   --config '{"azure_subscription_id": "sub", "azure_tenant_id": "tenant", "azure_client_id": "client", "azure_location": "eastus"}' \
   --credentials-file ./azure-secrets.json
+
+# Nebius — service-account key pair lives in --credentials-file (uploaded via /nebius/credentials)
+# nebius-creds.json: {"service_account_id": "serviceaccount-...", "public_key_id": "publickey-...", "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"}
+lab provider add --no-interactive --name my-nebius --type nebius \
+  --config '{"parent_id": "project-123"}' \
+  --credentials-file ./nebius-creds.json
 
 # SkyPilot / RunPod / dstack — same pattern: put api_token / api_key in --credentials-file
 # skypilot-secrets.json: {"api_token": "TOKEN"}

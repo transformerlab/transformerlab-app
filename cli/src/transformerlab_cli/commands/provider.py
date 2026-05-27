@@ -51,7 +51,6 @@ PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("azure_client_id", "Azure client ID (Service Principal)"),
         ("azure_client_secret", "Azure client secret (Service Principal)"),
         ("azure_location", "Azure location (e.g. eastus)"),
-        ("azure_resource_group", "Azure resource group (optional)"),
     ],
     "nebius": [
         ("parent_id", "Nebius project (parent) ID (required unless subnet_id is set)"),
