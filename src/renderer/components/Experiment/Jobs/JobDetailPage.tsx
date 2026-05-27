@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  useParams,
+  useNavigate,
+  useSearchParams,
+  useLocation,
+} from 'react-router-dom';
 import Box from '@mui/joy/Box';
 import CircularProgress from '@mui/joy/CircularProgress';
 import Typography from '@mui/joy/Typography';
@@ -55,6 +60,11 @@ export default function JobDetailPage() {
     jobId: string;
   }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromLocation =
+    typeof (location.state as any)?.from === 'string'
+      ? ((location.state as any).from as string)
+      : null;
   const [searchParams] = useSearchParams();
   const initialSectionFromUrl = (() => {
     const s = searchParams.get('section');
@@ -190,11 +200,11 @@ export default function JobDetailPage() {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Tooltip title={backLabel}>
+          <Tooltip title={fromLocation ? 'Back' : backLabel}>
             <IconButton
               size="sm"
               variant="plain"
-              onClick={() => navigate(backHref)}
+              onClick={() => navigate(fromLocation ?? backHref)}
             >
               <ArrowLeftIcon size={16} />
             </IconButton>
