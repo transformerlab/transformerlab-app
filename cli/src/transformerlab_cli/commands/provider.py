@@ -9,7 +9,7 @@ from transformerlab_cli.state import cli_state
 
 app = typer.Typer()
 
-PROVIDER_TYPES = ["slurm", "skypilot", "runpod", "vastai", "dstack", "aws", "gcp", "azure", "local"]
+PROVIDER_TYPES = ["slurm", "skypilot", "runpod", "vastai", "dstack", "aws", "gcp", "azure", "nebius", "local"]
 
 PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
     "skypilot": [
@@ -51,12 +51,26 @@ PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("azure_client_id", "Azure client ID (Service Principal)"),
         ("azure_client_secret", "Azure client secret (Service Principal)"),
         ("azure_location", "Azure location (e.g. eastus)"),
+        ("azure_resource_group", "Azure resource group (optional)"),
+    ],
+    "nebius": [
+        ("parent_id", "Nebius project (parent) ID (required unless subnet_id is set)"),
+        ("subnet_id", "Nebius VPC subnet ID (optional; blank = automatic default subnet)"),
+        ("default_platform", "Default platform (optional, e.g. gpu-h100-sxm)"),
+        ("default_preset", "Default preset (optional, e.g. 1gpu-16vcpu-200gb)"),
+        ("boot_image_family", "Boot image family (optional, e.g. ubuntu24.04-cuda13.0)"),
+        ("disk_size_gib", "Boot disk size in GiB (optional, default 200)"),
     ],
     "vastai": [
         ("api_key", "Vast.ai API key"),
     ],
     "local": [],
 }
+
+# Nebius authenticates via a service-account key pair uploaded through a dedicated
+# credentials endpoint (like AWS/GCP), not via plain config fields. These are the keys
+# the CLI extracts from --credentials-file (or prompts for) and forwards to that endpoint.
+NEBIUS_CREDENTIAL_KEYS = ("service_account_id", "public_key_id", "private_key")
 
 
 def _prompt_provider_type() -> str:
@@ -141,6 +155,23 @@ def _prompt_gcp_service_account_json() -> str:
             continue
 
 
+def _prompt_nebius_credentials() -> dict:
+    """Prompt for the Nebius service-account key pair. Returns {} if all fields are skipped."""
+    console.print(
+        "\n[bold label]Nebius Credentials[/bold label] "
+        "[muted](service-account key pair; the public key stays in the Nebius console)[/muted]"
+    )
+    service_account_id = typer.prompt("  Service Account ID", default="", show_default=False).strip()
+    public_key_id = typer.prompt("  Public Key ID", default="", show_default=False).strip()
+    private_key = typer.prompt("  Private Key (PEM)", default="", show_default=False).strip()
+    creds = {
+        "service_account_id": service_account_id,
+        "public_key_id": public_key_id,
+        "private_key": private_key,
+    }
+    return creds if any(creds.values()) else {}
+
+
 def _read_credentials_file(path: str) -> dict:
     """Read a JSON credentials file and return its parsed contents.
 
@@ -208,6 +239,34 @@ def _upload_gcp_service_account(provider_id: str, service_account_json: str) -> 
         console.print("[success]✓[/success] GCP service account saved.")
     else:
         console.print(f"[error]Error:[/error] Failed to upload GCP service account. {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+
+
+def _upload_nebius_credentials(provider_id: str, creds: dict) -> None:
+    """POST the Nebius service-account key pair to the dedicated credentials endpoint."""
+    with console.status(
+        f"[bold success]Uploading Nebius credentials for {provider_id}...[/bold success]", spinner="dots"
+    ):
+        response = api.post_json(
+            f"/compute_provider/providers/{provider_id}/nebius/credentials",
+            json_data={key: creds[key] for key in NEBIUS_CREDENTIAL_KEYS},
+        )
+    if response.status_code == 200:
+        console.print("[success]✓[/success] Nebius credentials saved.")
+    else:
+        console.print(f"[error]Error:[/error] Failed to upload Nebius credentials. {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+
+
+def _validate_nebius_credentials(creds: dict) -> None:
+    """Ensure a Nebius credential set has all three key-pair fields (all-or-nothing)."""
+    present = [key for key in NEBIUS_CREDENTIAL_KEYS if creds.get(key)]
+    if present and len(present) != len(NEBIUS_CREDENTIAL_KEYS):
+        missing = [key for key in NEBIUS_CREDENTIAL_KEYS if not creds.get(key)]
+        console.print(
+            "[error]Error:[/error] Nebius credentials must include all of "
+            f"{', '.join(NEBIUS_CREDENTIAL_KEYS)} (missing: {', '.join(missing)})."
+        )
         raise typer.Exit(1)
 
 
@@ -308,6 +367,7 @@ def command_provider_add(
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     gcp_service_account_json: str | None = None
+    nebius_credentials: dict = {}
     if credentials_file:
         if provider_type == "gcp":
             gcp_service_account_json = _read_service_account_file(credentials_file)
@@ -316,6 +376,11 @@ def command_provider_add(
             if provider_type == "aws":
                 aws_access_key_id = str(creds.pop("aws_access_key_id", "") or "")
                 aws_secret_access_key = str(creds.pop("aws_secret_access_key", "") or "")
+            elif provider_type == "nebius":
+                for key in NEBIUS_CREDENTIAL_KEYS:
+                    value = creds.pop(key, "")
+                    if value:
+                        nebius_credentials[key] = str(value)
             config_dict.update(creds)
 
     # AWS access key pair: must be both-or-neither.
@@ -348,6 +413,20 @@ def command_provider_add(
             )
             raise typer.Exit(1)
 
+    # Nebius service-account key pair: required at create time (uploaded via dedicated endpoint).
+    if provider_type == "nebius":
+        _validate_nebius_credentials(nebius_credentials)
+        if not nebius_credentials and interactive:
+            nebius_credentials = _prompt_nebius_credentials()
+            _validate_nebius_credentials(nebius_credentials)
+        if not nebius_credentials:
+            console.print(
+                "[error]Error:[/error] Nebius providers require service-account credentials. "
+                "Pass --credentials-file PATH pointing at a JSON file containing "
+                f"{', '.join(NEBIUS_CREDENTIAL_KEYS)} (or run interactively)."
+            )
+            raise typer.Exit(1)
+
     payload = {"name": name, "type": provider_type, "config": config_dict}
 
     with console.status("[bold success]Creating provider...[/bold success]", spinner="dots"):
@@ -367,6 +446,8 @@ def command_provider_add(
         _upload_aws_credentials(provider_id, aws_access_key_id, aws_secret_access_key)
     if provider_type == "gcp" and gcp_service_account_json:
         _upload_gcp_service_account(provider_id, gcp_service_account_json)
+    if provider_type == "nebius" and nebius_credentials:
+        _upload_nebius_credentials(provider_id, nebius_credentials)
 
     with console.status(f"[bold success]Checking provider {provider_id}...[/bold success]", spinner="dots"):
         check_response = api.get(f"/compute_provider/providers/{provider_id}/check", timeout=60.0)
@@ -452,6 +533,7 @@ def command_provider_update(
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     gcp_service_account_json: str | None = None
+    nebius_credentials: dict = {}
     provider_type: str | None = None
     if credentials_file is not None:
         with console.status(f"[bold success]Fetching provider {provider_id}...[/bold success]", spinner="dots"):
@@ -477,6 +559,12 @@ def command_provider_update(
                         "'aws_access_key_id' and 'aws_secret_access_key' (or neither)."
                     )
                     raise typer.Exit(1)
+            elif provider_type == "nebius":
+                for key in NEBIUS_CREDENTIAL_KEYS:
+                    value = creds.pop(key, "")
+                    if value:
+                        nebius_credentials[key] = str(value)
+                _validate_nebius_credentials(nebius_credentials)
             if creds:
                 if config_patch is None:
                     config_patch = {}
@@ -489,7 +577,9 @@ def command_provider_update(
     if is_default is not None:
         payload["is_default"] = is_default
 
-    has_dedicated_credentials = bool(aws_access_key_id and aws_secret_access_key) or bool(gcp_service_account_json)
+    has_dedicated_credentials = (
+        bool(aws_access_key_id and aws_secret_access_key) or bool(gcp_service_account_json) or bool(nebius_credentials)
+    )
     if not payload and not has_dedicated_credentials:
         console.print(
             "[warning]Nothing to update.[/warning] "
@@ -513,6 +603,8 @@ def command_provider_update(
         _upload_aws_credentials(provider_id, aws_access_key_id, aws_secret_access_key)
     if provider_type == "gcp" and gcp_service_account_json:
         _upload_gcp_service_account(provider_id, gcp_service_account_json)
+    if provider_type == "nebius" and nebius_credentials:
+        _upload_nebius_credentials(provider_id, nebius_credentials)
 
     console.print(f"[success]✓[/success] Provider [bold]{provider_id}[/bold] updated.")
 
