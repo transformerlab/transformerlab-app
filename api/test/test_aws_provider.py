@@ -372,6 +372,32 @@ class TestLaunchCluster:
         assert mock_cpu_ami.call_count == 0
         assert mock_ec2.run_instances.call_args[1]["ImageId"] == "ami-gpu"
 
+    def test_spot_market_options_when_use_spot(self, provider):
+        mock_ec2 = self._make_mock_ec2()
+        with (
+            patch.object(provider, "_get_ec2_client", return_value=mock_ec2),
+            patch("transformerlab.compute_providers.aws.asyncio.run", return_value="ssh-ed25519 AAAA"),
+            patch.object(
+                provider, "_ensure_iam_instance_profile", return_value="arn:aws:iam::123:instance-profile/tfl"
+            ),
+        ):
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py", use_spot=True))
+        call_kwargs = mock_ec2.run_instances.call_args[1]
+        assert call_kwargs["InstanceMarketOptions"] == {"MarketType": "spot"}
+
+    def test_no_market_options_when_not_spot(self, provider):
+        mock_ec2 = self._make_mock_ec2()
+        with (
+            patch.object(provider, "_get_ec2_client", return_value=mock_ec2),
+            patch("transformerlab.compute_providers.aws.asyncio.run", return_value="ssh-ed25519 AAAA"),
+            patch.object(
+                provider, "_ensure_iam_instance_profile", return_value="arn:aws:iam::123:instance-profile/tfl"
+            ),
+        ):
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py"))
+        call_kwargs = mock_ec2.run_instances.call_args[1]
+        assert "InstanceMarketOptions" not in call_kwargs
+
 
 class TestDeepLearningAmiLookup:
     def test_uses_fallback_name_pattern_when_primary_has_no_results(self, provider):
