@@ -70,7 +70,7 @@ function derivePhases(job: JobRecord): Phase[] {
   if (steps.length > 0) {
     const stepTimestamps = steps
       .map((s) => ({
-        phase: s.phase || s.message || 'launch',
+        phase: s.message || s.phase || 'launch',
         ms: parseGmtToMs(s.timestamp),
       }))
       .filter((s): s is { phase: string; ms: number } => s.ms !== null);
