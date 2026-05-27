@@ -39,6 +39,36 @@ def _get_special_secrets_path(user: bool) -> str:
     return f"/teams/{team_id}/special_secrets"
 
 
+def _prompt_special_secret_key() -> str:
+    """Show a menu of platform secret keys by friendly description and return the chosen raw key.
+
+    The last option is a custom key, which prompts for an arbitrary key name.
+    """
+    items = list(SPECIAL_SECRET_KEYS.items())  # [(raw_key, description), ...]
+    console.print("\n[bold label]Select a secret to set:[/bold label]")
+    for i, (raw_key, description) in enumerate(items, 1):
+        console.print(f"  [bold]{i}[/bold]. {description} [muted]({raw_key})[/muted]")
+    custom_idx = len(items) + 1
+    console.print(f"  [bold]{custom_idx}[/bold]. Custom key…")
+
+    while True:
+        choice = typer.prompt("\nSelect a key", default="1")
+        try:
+            idx = int(choice)
+        except ValueError:
+            console.print("[error]Please enter a valid number[/error]")
+            continue
+        if 1 <= idx <= len(items):
+            return items[idx - 1][0]
+        if idx == custom_idx:
+            while True:
+                custom = typer.prompt("Custom key name").strip()
+                if custom:
+                    return custom
+                console.print("[error]A key name is required[/error]")
+        console.print(f"[error]Please enter a number between 1 and {custom_idx}[/error]")
+
+
 @app.command("list")
 def command_secret_list(
     user: bool = typer.Option(False, "--user", help="List user-level secrets instead of team secrets"),
@@ -85,14 +115,25 @@ def command_secret_keys():
 
 @app.command("set")
 def command_secret_set(
-    name: str = typer.Argument(..., help="Secret name"),
+    name: str = typer.Argument(None, help="Secret name (omit to choose from a menu interactively)"),
     value: str = typer.Argument(None, help="Secret value (omit to be prompted with hidden input)"),
     user: bool = typer.Option(False, "--user", help="Set as a user-level secret instead of team secret"),
 ):
     """Set a secret. Overwrites if the name already exists."""
+    if name is None:
+        if cli_state.no_interactive:
+            console.print("[error]Error:[/error] A secret name is required with --no-interactive/--format json")
+            raise typer.Exit(1)
+
     check_configs(output_format=cli_state.output_format)
 
+    if name is None:
+        name = _prompt_special_secret_key()
+
     if value is None:
+        if cli_state.no_interactive:
+            console.print("[error]Error:[/error] A secret value is required with --no-interactive/--format json")
+            raise typer.Exit(1)
         value = typer.prompt("Value", hide_input=True)
 
     if name in SPECIAL_SECRET_KEYS:
@@ -132,9 +173,10 @@ def command_secret_delete(
 ):
     """Delete a secret."""
     check_configs(output_format=cli_state.output_format)
+    skip_confirm = no_interactive or cli_state.no_interactive
 
     if name in SPECIAL_SECRET_KEYS:
-        if not no_interactive:
+        if not skip_confirm:
             typer.confirm(f"Delete special secret {name}?", abort=True)
         path = _get_special_secrets_path(user)
         payload = {"secret_type": name, "value": ""}
@@ -153,7 +195,7 @@ def command_secret_delete(
             console.print(f"[error]Error:[/error] Secret [bold]{name}[/bold] not found.")
             raise typer.Exit(1)
 
-        if not no_interactive:
+        if not skip_confirm:
             typer.confirm(f"Delete secret {name}?", abort=True)
 
         del secrets[name]

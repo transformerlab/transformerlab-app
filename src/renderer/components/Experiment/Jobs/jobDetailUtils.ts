@@ -5,7 +5,8 @@ export type SectionKey =
   | 'artifacts'
   | 'evalResults'
   | 'sweepResults'
-  | 'metrics';
+  | 'metrics'
+  | 'performance';
 
 export interface JobRecord {
   id: string;
@@ -46,6 +47,9 @@ export function getVisibleSections(job: JobRecord): SectionKey[] {
     Object.keys(d.current_metrics as Record<string, unknown>).length > 0
   ) {
     sections.push('metrics');
+  }
+  if (d.start_time && d.end_time) {
+    sections.push('performance');
   }
   return sections;
 }

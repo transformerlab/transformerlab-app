@@ -100,6 +100,27 @@ def _extract_error_detail(response) -> str:
         return response.text
 
 
+def _resolve_provider_id(identifier: str) -> str | None:
+    """Resolve a provider identifier (id or name) to a provider id.
+
+    Provider names are unique within a team (enforced by the API), and the CLI
+    is always team-scoped, so a name resolves to at most one provider. Returns
+    the provider id, or None if no provider matches the identifier.
+    """
+    response = api.get("/compute_provider/providers/?include_disabled=true")
+    if response.status_code != 200:
+        return None
+
+    providers = response.json()
+    for provider in providers:
+        if provider.get("id") == identifier:
+            return identifier
+    for provider in providers:
+        if provider.get("name") == identifier:
+            return provider.get("id")
+    return None
+
+
 def _extract_provider_check_reason(result: dict) -> str:
     """Extract a human-readable provider check failure reason."""
     reason = result.get("reason")
@@ -189,7 +210,8 @@ def _upload_aws_credentials(provider_id: str, access_key_id: str, secret_access_
             json_data={"access_key_id": access_key_id, "secret_access_key": secret_access_key},
         )
     if response.status_code == 200:
-        console.print("[success]✓[/success] AWS credentials saved to API host.")
+        if cli_state.output_format != "json":
+            console.print("[success]✓[/success] AWS credentials saved to API host.")
     else:
         console.print(f"[error]Error:[/error] Failed to upload AWS credentials. {_extract_error_detail(response)}")
         raise typer.Exit(1)
@@ -205,10 +227,119 @@ def _upload_gcp_service_account(provider_id: str, service_account_json: str) -> 
             json_data={"service_account_json": service_account_json},
         )
     if response.status_code == 200:
-        console.print("[success]✓[/success] GCP service account saved.")
+        if cli_state.output_format != "json":
+            console.print("[success]✓[/success] GCP service account saved.")
     else:
         console.print(f"[error]Error:[/error] Failed to upload GCP service account. {_extract_error_detail(response)}")
         raise typer.Exit(1)
+
+
+def create_provider_interactively(
+    name: str | None,
+    provider_type: str | None,
+    config: str | None,
+    interactive: bool,
+    credentials_file: str | None,
+) -> str:
+    """Resolve provider inputs, create the provider, upload any credentials, and return its id.
+
+    Does NOT run the health check — callers run it when appropriate. Raises typer.Exit on any
+    validation or API failure, printing an error first (matching the CLI's existing behavior).
+    """
+    if not interactive:
+        if not name or not provider_type or config is None:
+            console.print("[error]Error:[/error] --name, --type, and --config are required with --no-interactive")
+            raise typer.Exit(1)
+        if provider_type not in PROVIDER_TYPES:
+            console.print(
+                f"[error]Error:[/error] Invalid type '{provider_type}'. Must be one of: {', '.join(PROVIDER_TYPES)}"
+            )
+            raise typer.Exit(1)
+        try:
+            config_dict = json.loads(config)
+        except json.JSONDecodeError as e:
+            console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
+            raise typer.Exit(1)
+    else:
+        if not name:
+            name = typer.prompt("Provider name")
+        if not provider_type:
+            provider_type = _prompt_provider_type()
+        elif provider_type not in PROVIDER_TYPES:
+            console.print(
+                f"[error]Error:[/error] Invalid type '{provider_type}'. Must be one of: {', '.join(PROVIDER_TYPES)}"
+            )
+            raise typer.Exit(1)
+        if config is not None:
+            try:
+                config_dict = json.loads(config)
+            except json.JSONDecodeError as e:
+                console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
+                raise typer.Exit(1)
+        else:
+            config_dict = _prompt_config_fields(provider_type)
+
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    gcp_service_account_json: str | None = None
+    if credentials_file:
+        if provider_type == "gcp":
+            gcp_service_account_json = _read_service_account_file(credentials_file)
+        else:
+            creds = _read_credentials_file(credentials_file)
+            if provider_type == "aws":
+                aws_access_key_id = str(creds.pop("aws_access_key_id", "") or "")
+                aws_secret_access_key = str(creds.pop("aws_secret_access_key", "") or "")
+            config_dict.update(creds)
+
+    if provider_type == "aws":
+        if bool(aws_access_key_id) != bool(aws_secret_access_key):
+            console.print(
+                "[error]Error:[/error] --credentials-file for --type aws must contain both "
+                "'aws_access_key_id' and 'aws_secret_access_key' (or neither)."
+            )
+            raise typer.Exit(1)
+        if interactive and not aws_access_key_id and not aws_secret_access_key:
+            aws_access_key_id, aws_secret_access_key = _prompt_aws_credentials()
+        if not interactive and not aws_access_key_id and not aws_secret_access_key:
+            console.print(
+                "[error]Error:[/error] AWS providers require credentials. "
+                "Pass --credentials-file PATH pointing at a JSON file containing "
+                "'aws_access_key_id' and 'aws_secret_access_key' (or run interactively)."
+            )
+            raise typer.Exit(1)
+
+    if provider_type == "gcp":
+        if not gcp_service_account_json and interactive:
+            gcp_service_account_json = _prompt_gcp_service_account_json()
+        if not gcp_service_account_json:
+            console.print(
+                "[error]Error:[/error] GCP providers require a service account JSON key. "
+                "Pass --credentials-file PATH pointing at your service account JSON "
+                "(or run interactively)."
+            )
+            raise typer.Exit(1)
+
+    payload = {"name": name, "type": provider_type, "config": config_dict}
+
+    with console.status("[bold success]Creating provider...[/bold success]", spinner="dots"):
+        response = api.post_json("/compute_provider/providers/", json_data=payload)
+
+    if response.status_code != 200:
+        console.print(f"[error]Error:[/error] Failed to create provider. {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+
+    result = response.json()
+    provider_id = result.get("id", "unknown")
+    if cli_state.output_format != "json":
+        console.print(f"[success]✓[/success] Provider created with ID: [bold]{provider_id}[/bold]")
+
+    if provider_type == "aws" and aws_access_key_id and aws_secret_access_key:
+        _upload_aws_credentials(provider_id, aws_access_key_id, aws_secret_access_key)
+    if provider_type == "gcp" and gcp_service_account_json:
+        _upload_gcp_service_account(provider_id, gcp_service_account_json)
+
+    return provider_id
 
 
 ## COMMANDS ##
@@ -267,106 +398,13 @@ def command_provider_add(
     """Add a new compute provider."""
     check_configs(output_format=cli_state.output_format)
 
-    if not interactive:
-        if not name or not provider_type or config is None:
-            console.print("[error]Error:[/error] --name, --type, and --config are required with --no-interactive")
-            raise typer.Exit(1)
-        if provider_type not in PROVIDER_TYPES:
-            console.print(
-                f"[error]Error:[/error] Invalid type '{provider_type}'. Must be one of: {', '.join(PROVIDER_TYPES)}"
-            )
-            raise typer.Exit(1)
-        try:
-            config_dict = json.loads(config)
-        except json.JSONDecodeError as e:
-            console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
-            raise typer.Exit(1)
-    else:
-        if not name:
-            name = typer.prompt("Provider name")
-        if not provider_type:
-            provider_type = _prompt_provider_type()
-        elif provider_type not in PROVIDER_TYPES:
-            console.print(
-                f"[error]Error:[/error] Invalid type '{provider_type}'. Must be one of: {', '.join(PROVIDER_TYPES)}"
-            )
-            raise typer.Exit(1)
-        if config is not None:
-            try:
-                config_dict = json.loads(config)
-            except json.JSONDecodeError as e:
-                console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
-                raise typer.Exit(1)
-        else:
-            config_dict = _prompt_config_fields(provider_type)
-
-    # --credentials-file: shape depends on provider type.
-    #   aws: JSON object with aws_access_key_id / aws_secret_access_key (uploaded via /aws/credentials).
-    #        Any remaining keys merge into config.
-    #   gcp: the raw service account JSON key file (uploaded via /gcp/credentials).
-    #   other: a flat JSON object merged on top of --config (file values win).
-    aws_access_key_id: str = ""
-    aws_secret_access_key: str = ""
-    gcp_service_account_json: str | None = None
-    if credentials_file:
-        if provider_type == "gcp":
-            gcp_service_account_json = _read_service_account_file(credentials_file)
-        else:
-            creds = _read_credentials_file(credentials_file)
-            if provider_type == "aws":
-                aws_access_key_id = str(creds.pop("aws_access_key_id", "") or "")
-                aws_secret_access_key = str(creds.pop("aws_secret_access_key", "") or "")
-            config_dict.update(creds)
-
-    # AWS access key pair: must be both-or-neither.
-    if provider_type == "aws":
-        if bool(aws_access_key_id) != bool(aws_secret_access_key):
-            console.print(
-                "[error]Error:[/error] --credentials-file for --type aws must contain both "
-                "'aws_access_key_id' and 'aws_secret_access_key' (or neither)."
-            )
-            raise typer.Exit(1)
-        if interactive and not aws_access_key_id and not aws_secret_access_key:
-            aws_access_key_id, aws_secret_access_key = _prompt_aws_credentials()
-        if not interactive and not aws_access_key_id and not aws_secret_access_key:
-            console.print(
-                "[error]Error:[/error] AWS providers require credentials. "
-                "Pass --credentials-file PATH pointing at a JSON file containing "
-                "'aws_access_key_id' and 'aws_secret_access_key' (or run interactively)."
-            )
-            raise typer.Exit(1)
-
-    # GCP service account JSON: required at create time (provider will be unhealthy without it).
-    if provider_type == "gcp":
-        if not gcp_service_account_json and interactive:
-            gcp_service_account_json = _prompt_gcp_service_account_json()
-        if not gcp_service_account_json:
-            console.print(
-                "[error]Error:[/error] GCP providers require a service account JSON key. "
-                "Pass --credentials-file PATH pointing at your service account JSON "
-                "(or run interactively)."
-            )
-            raise typer.Exit(1)
-
-    payload = {"name": name, "type": provider_type, "config": config_dict}
-
-    with console.status("[bold success]Creating provider...[/bold success]", spinner="dots"):
-        response = api.post_json("/compute_provider/providers/", json_data=payload)
-
-    if response.status_code != 200:
-        console.print(f"[error]Error:[/error] Failed to create provider. {_extract_error_detail(response)}")
-        raise typer.Exit(1)
-
-    result = response.json()
-    provider_id = result.get("id", "unknown")
-    console.print(f"[success]✓[/success] Provider created with ID: [bold]{provider_id}[/bold]")
-
-    # Submit AWS credentials and GCP service account JSON via their dedicated endpoints,
-    # before the health check (the check will fail without credentials).
-    if provider_type == "aws" and aws_access_key_id and aws_secret_access_key:
-        _upload_aws_credentials(provider_id, aws_access_key_id, aws_secret_access_key)
-    if provider_type == "gcp" and gcp_service_account_json:
-        _upload_gcp_service_account(provider_id, gcp_service_account_json)
+    provider_id = create_provider_interactively(
+        name=name,
+        provider_type=provider_type,
+        config=config,
+        interactive=interactive,
+        credentials_file=credentials_file,
+    )
 
     with console.status(f"[bold success]Checking provider {provider_id}...[/bold success]", spinner="dots"):
         check_response = api.get(f"/compute_provider/providers/{provider_id}/check", timeout=60.0)
@@ -374,7 +412,8 @@ def command_provider_add(
     if check_response.status_code == 200:
         check_result = check_response.json()
         if check_result.get("status"):
-            console.print("[success]✓[/success] Provider health check passed.")
+            if cli_state.output_format != "json":
+                console.print("[success]✓[/success] Provider health check passed.")
         else:
             reason = _extract_provider_check_reason(check_result)
             console.print(f"[error]Error:[/error] Provider health check failed. {reason}")
@@ -519,14 +558,21 @@ def command_provider_update(
 
 @app.command("delete")
 def command_provider_delete(
-    provider_id: str = typer.Argument(..., help="Provider ID to delete"),
+    identifier: str = typer.Argument(..., help="Provider ID or name to delete"),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
-    """Delete a compute provider."""
+    """Delete a compute provider by ID or name."""
     check_configs(output_format=cli_state.output_format)
 
+    # Resolve the identifier (id or name) up front so we only prompt for
+    # confirmation when the provider actually exists.
+    provider_id = _resolve_provider_id(identifier)
+    if provider_id is None:
+        console.print(f"[error]Error:[/error] Provider {identifier} not found.")
+        raise typer.Exit(1)
+
     if not no_interactive:
-        typer.confirm(f"Delete provider {provider_id}?", abort=True)
+        typer.confirm(f"Delete provider {identifier}?", abort=True)
 
     with console.status(f"[bold success]Deleting provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.delete(f"/compute_provider/providers/{provider_id}")
