@@ -1247,6 +1247,78 @@ def command_job_delete_all(
     raise typer.Exit(1)
 
 
+@app.command("tunnel-info")
+def command_job_tunnel_info(
+    job_id: str = typer.Argument(..., help="Job ID to get tunnel/access info for"),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
+):
+    """Get tunnel/access information for an interactive job (URLs, tokens, ports)."""
+    current_experiment = _resolve_experiment_id(experiment)
+    output_format = cli_state.output_format
+    endpoint = f"/experiment/{current_experiment}/jobs/{job_id}/tunnel_info"
+
+    if output_format != "json":
+        with console.status("[bold success]Fetching tunnel info...[/bold success]", spinner="dots"):
+            response = api.get(endpoint, timeout=15.0)
+    else:
+        response = api.get(endpoint, timeout=15.0)
+
+    if response.status_code != 200:
+        detail = _extract_error_detail(response)
+        if output_format == "json":
+            print(json.dumps({"error": detail, "status_code": response.status_code}))
+        else:
+            console.print(f"[error]Error:[/error] {detail}")
+        raise typer.Exit(1)
+
+    data = response.json()
+
+    if output_format == "json":
+        print(json.dumps(data))
+        return
+
+    is_ready = data.get("is_ready", False)
+    if not is_ready:
+        console.print(f"[warning]Service is not ready yet.[/warning] Job: {job_id}")
+        console.print(f"Poll again with: [bold]lab job tunnel-info {job_id}[/bold]")
+        return
+
+    console.print(f"\n[success bold]✓ Service is ready![/success bold] Job: {job_id}\n")
+    values = {k: str(v) for k, v in data.items() if v is not None and isinstance(v, (str, int, float))}
+    for block in data.get("instructions", []):
+        kind = block.get("kind")
+        title = block.get("title", "")
+        value_key = block.get("value_key")
+        value = values.get(value_key, "") if value_key else ""
+        if kind == "url" and value:
+            console.print(Panel(f"[link={value}]{value}[/link]", title=title, border_style="green"))
+        elif kind in ("code", "command") and value:
+            console.print(Panel(f"[bold]{value}[/bold]", title=title, border_style="cyan"))
+        elif kind == "kv":
+            lines = []
+            for item in block.get("items", []):
+                val = values.get(item.get("value_key", ""), "")
+                if val:
+                    lines.append(f"  {item.get('label', '')}: {val}")
+            if lines:
+                console.print(Panel("\n".join(lines), title=title, border_style="dim"))
+        elif kind == "text":
+            template = block.get("template", "")
+            if template:
+                import re
+
+                resolved = re.sub(r"\{\{(\w+)\}\}", lambda m: values.get(m.group(1), m.group(1)), template)
+                console.print(Panel(resolved, title=title, border_style="dim"))
+
+    ports = data.get("ports", [])
+    if ports:
+        console.print("\n[bold]Exposed Ports:[/bold]")
+        for p in ports:
+            console.print(f"  {p.get('label', '')}: port {p.get('port', '')} ({p.get('protocol', '')})")
+
+    console.print(f"\nTo stop this session: [bold]lab job stop {job_id}[/bold]")
+
+
 @app.command("monitor")
 def command_job_monitor(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),

@@ -185,9 +185,41 @@ Launch an interactive task (Jupyter, vLLM, Ollama, etc.).
 
 | Option | Description |
 |---|---|
+| `--provider <name_or_id>` | Provider name or ID (skips interactive selection) |
+| `--template <gallery_id>` | Gallery template ID or name (e.g. `jupyter`, `vllm`, `ollama`) |
+| `--env <KEY=VALUE>` | Environment variable (repeatable). E.g. `--env MODEL_NAME=llama3` |
+| `--cpus <n>` | CPUs for remote provider |
+| `--memory <n>` | Memory in GB for remote provider |
+| `--disk <n>` | Disk in GB for remote provider |
+| `--accelerators <spec>` | Accelerator spec for remote provider (e.g. `A100:1`) |
+| `--num-nodes <n>` | Number of nodes for remote provider |
+| `--minutes <n>` | Max minutes for remote provider |
+| `--no-poll` | Launch and exit immediately without waiting for readiness |
 | `--timeout <seconds>` | Timeout waiting for service readiness (default: 300) |
 
-**Warning:** This is inherently interactive and blocks. Only use when the user specifically requests it.
+**Non-interactive mode:** Pass `--provider` and `--template` to skip all prompts. Use `--format json` for machine-readable output. Combine with `--no-poll` to launch and check readiness later via `lab job tunnel-info`.
+
+```bash
+# Non-interactive launch (agent-friendly)
+lab --format json task interactive --provider local --template jupyter --no-poll
+
+# With env vars and resources
+lab --format json task interactive --provider my-aws --template vllm \
+  --env MODEL_NAME=meta-llama/Llama-3-8B --accelerators "A100:1" --memory 32 --no-poll
+
+# Launch and wait for readiness (blocks up to --timeout seconds)
+lab --format json task interactive --provider local --template jupyter --timeout 120
+```
+
+**JSON output (with `--no-poll`):**
+```json
+{"job_id": "abc-123", "task_id": "def-456", "experiment_id": "alpha"}
+```
+
+**JSON output (without `--no-poll`, after service is ready):**
+```json
+{"is_ready": true, "tunnel_url": "https://...", "token": "...", "instructions": [...], "job_id": "abc-123", "task_id": "def-456", "experiment_id": "alpha"}
+```
 
 ---
 
@@ -262,6 +294,25 @@ Download job artifacts.
 ### `job stop <job_id>`
 
 Stop a running job.
+
+### `job tunnel-info <job_id>`
+
+Get tunnel/access information for an interactive job (URLs, tokens, ports).
+
+**JSON output:**
+```json
+{
+  "is_ready": true,
+  "tunnel_url": "https://abc123.ngrok.app",
+  "token": "...",
+  "interactive_type": "jupyter",
+  "cluster_name": "Jupyter Notebook",
+  "ports": [{"port": 8888, "label": "Jupyter", "protocol": "http"}],
+  "instructions": [{"kind": "url", "title": "Open Jupyter", "value_key": "tunnel_url"}, ...]
+}
+```
+
+When `is_ready` is `false`, the service is still starting — poll again after a few seconds. This is the agent-friendly way to check interactive task readiness after launching with `--no-poll`.
 
 ### `job monitor`
 

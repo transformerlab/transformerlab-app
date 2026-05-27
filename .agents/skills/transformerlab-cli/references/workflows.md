@@ -310,3 +310,46 @@ lab --format json job publish model JOB_ID MODEL_NAME --group "my-model" --mode 
 # 7. Publish any output datasets (e.g. generated eval results)
 lab --format json job publish dataset JOB_ID DATASET_NAME --group "my-eval-results" --mode new --tag latest
 ```
+
+## 11. Interactive Task Lifecycle: Launch → Poll → Connect → Stop
+
+Launch an interactive service (Jupyter, vLLM, Ollama, etc.) non-interactively and poll for readiness.
+
+```bash
+# 1. Discover available templates and their required env vars
+lab --format json task gallery --type interactive
+# Returns: [{"id": "jupyter", "name": "Jupyter Notebook", "env_parameters": [...], ...}, ...]
+
+# 2. Launch on a known provider (non-interactive, returns immediately)
+JOB_JSON=$(lab --format json task interactive \
+  --provider local --template jupyter --no-poll)
+JOB_ID=$(echo "$JOB_JSON" | jq -r .job_id)
+
+# 3. Poll for readiness (repeat until is_ready=true)
+lab --format json job tunnel-info "$JOB_ID"
+# → {"is_ready": false, ...}        ← service still starting
+# → {"is_ready": true, "tunnel_url": "http://localhost:8888", "token": "abc123", "instructions": [...]}
+
+# 4. Present the connection info to the user (URLs, tokens, etc.)
+
+# 5. Stop the session when done
+lab job stop "$JOB_ID" --no-interactive
+```
+
+### Remote provider variant (with env vars and resources)
+
+```bash
+lab --format json task interactive \
+  --provider my-aws --template vllm \
+  --env MODEL_NAME=meta-llama/Llama-3-8B \
+  --accelerators "A100:1" --memory 32 --minutes 120 \
+  --no-poll
+```
+
+### Blocking variant (wait for readiness inline)
+
+```bash
+# Blocks until service is ready or --timeout is hit (default 300s)
+lab --format json task interactive --provider local --template jupyter --timeout 120
+# Returns full tunnel_info JSON when ready
+```
