@@ -71,7 +71,7 @@ def _prompt_special_secret_key() -> str:
 
 @app.command("list")
 def command_secret_list(
-    user: bool = typer.Option(False, "--user", help="List user-level secrets instead of team secrets"),
+    user: bool = typer.Option(False, "--user", "-u", help="List user-level secrets instead of team secrets"),
     show_values: bool = typer.Option(False, "--show-values", help="Show actual secret values (owner only for team)"),
 ):
     """List secrets."""
@@ -117,7 +117,7 @@ def command_secret_keys():
 def command_secret_set(
     name: str = typer.Argument(None, help="Secret name (omit to choose from a menu interactively)"),
     value: str = typer.Argument(None, help="Secret value (omit to be prompted with hidden input)"),
-    user: bool = typer.Option(False, "--user", help="Set as a user-level secret instead of team secret"),
+    user: bool = typer.Option(False, "--user", "-u", help="Set as a user-level secret instead of team secret"),
 ):
     """Set a secret. Overwrites if the name already exists."""
     if name is None:
@@ -149,7 +149,9 @@ def command_secret_set(
             console.print(f"[error]Error:[/error] Failed to fetch secrets. {_extract_error_detail(get_response)}")
             raise typer.Exit(1)
 
-        secrets = get_response.json().get("secrets", {})
+        # Exclude special secrets: they share this file but are rejected by the
+        # regular secrets endpoint and are managed via the special secrets path.
+        secrets = {k: v for k, v in get_response.json().get("secrets", {}).items() if k not in SPECIAL_SECRET_KEYS}
         secrets[name] = value
 
         with console.status("[bold success]Saving secret...[/bold success]", spinner="dots"):
@@ -168,7 +170,7 @@ def command_secret_set(
 @app.command("delete")
 def command_secret_delete(
     name: str = typer.Argument(..., help="Secret name to delete"),
-    user: bool = typer.Option(False, "--user", help="Delete a user-level secret instead of team secret"),
+    user: bool = typer.Option(False, "--user", "-u", help="Delete a user-level secret instead of team secret"),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Delete a secret."""
@@ -190,7 +192,9 @@ def command_secret_delete(
             console.print(f"[error]Error:[/error] Failed to fetch secrets. {_extract_error_detail(get_response)}")
             raise typer.Exit(1)
 
-        secrets = get_response.json().get("secrets", {})
+        # Exclude special secrets: they share this file but are rejected by the
+        # regular secrets endpoint and are managed via the special secrets path.
+        secrets = {k: v for k, v in get_response.json().get("secrets", {}).items() if k not in SPECIAL_SECRET_KEYS}
         if name not in secrets:
             console.print(f"[error]Error:[/error] Secret [bold]{name}[/bold] not found.")
             raise typer.Exit(1)
