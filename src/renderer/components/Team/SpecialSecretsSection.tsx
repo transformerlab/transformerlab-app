@@ -217,13 +217,15 @@ export default function SpecialSecretsSection({
         </Alert>
       )}
 
+      <Typography level="title-sm" mb={1}>
+        Special Secrets
+      </Typography>
       <Table sx={{ mb: 3, tableLayout: 'auto' }}>
         <thead>
           <tr>
-            <th style={{ width: '40%' }}>Secret</th>
-            <th style={{ width: '25%' }}>Status</th>
-            <th style={{ width: '20%' }}>Last 4</th>
-            <th style={{ width: '15%' }}></th>
+            <th style={{ width: '45%' }}>Secret</th>
+            <th style={{ width: '30%' }}>Status</th>
+            <th style={{ width: '25%' }}>Last 4</th>
           </tr>
         </thead>
         <tbody>
@@ -246,20 +248,6 @@ export default function SpecialSecretsSection({
                   <Typography level="body-sm" fontFamily="monospace">
                     {exists ? entry?.masked_value || '—' : '—'}
                   </Typography>
-                </td>
-                <td>
-                  <Button
-                    size="sm"
-                    variant="plain"
-                    onClick={() => {
-                      setSelectedSecretType(key);
-                      setSecretValue('');
-                      setError(null);
-                    }}
-                    disabled={saving}
-                  >
-                    {exists ? 'Update' : 'Set'}
-                  </Button>
                 </td>
               </tr>
             );
