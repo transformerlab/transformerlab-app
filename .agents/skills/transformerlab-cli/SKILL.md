@@ -810,6 +810,8 @@ For purely automated templates (`jupyter`, `vllm`, `ollama`, etc.), `tunnel_info
 
 **Remote providers:** Require `NGROK_AUTH_TOKEN` (auto-defaults to `{{secret._NGROK_AUTH_TOKEN}}`). Pass resource flags or accept gallery defaults.
 
+**The team must have `_NGROK_AUTH_TOKEN` set as a special secret on the server**, otherwise the API rejects launches of any ngrok-using template (`jupyter`, `vllm`, `ollama`, `comfy_ui`, `ssh`) with `Missing secrets: ngrok Auth Token. Please define these secrets at the team or user level before launching.` Before launching one of those on a remote provider, run `lab --format json team secret list | jq '.[] | select(.name=="_NGROK_AUTH_TOKEN")'` — if empty, stop and tell the user to set it via **Team Settings → Special Secrets** in the web UI, or `lab team secret set _NGROK_AUTH_TOKEN <token>` from the CLI. (`ollama_gradio` and `mlx_*` templates don't use ngrok and are unaffected.)
+
 **Local providers:** No ngrok needed. Services are accessible on localhost.
 
 ### Checking Cluster Status (SkyPilot providers)
