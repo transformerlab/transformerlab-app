@@ -734,8 +734,17 @@ async def set_team_secrets(workspace_dir: str, secrets: dict) -> dict:
     secrets_path = storage.join(workspace_dir, "team_secrets.json")
     try:
         await storage.makedirs(workspace_dir, exist_ok=True)
+        # Special secrets live in the same file but are only mutable via the
+        # special secrets endpoint. Preserve them so a regular-secrets PUT
+        # (which overwrites the whole file) does not silently wipe them.
+        preserved_special = {}
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                existing = json.loads(await f.read())
+            preserved_special = {k: v for k, v in existing.items() if k in SPECIAL_SECRET_KEYS}
+        merged = {**secrets, **preserved_special}
         async with await storage.open(secrets_path, "w") as f:
-            await f.write(json.dumps(secrets, indent=2))
+            await f.write(json.dumps(merged, indent=2))
         return {"status": "success", "message": "Team secrets saved successfully", "secret_keys": list(secrets.keys())}
     except HTTPException:
         raise
