@@ -795,22 +795,35 @@ export default function QueueTaskModal({
       }
     }
 
-    if (cpusInput.trim()) config.cpus = cpusInput.trim();
-    if (memoryInput.trim()) config.memory = memoryInput.trim();
-    if (diskSpaceInput.trim()) config.disk_space = diskSpaceInput.trim();
-    if (acceleratorsInput.trim())
-      config.accelerators = acceleratorsInput.trim();
-    if (numNodesInput.trim()) {
-      const parsedNumNodes = Number(numNodesInput.trim());
+    // The resource inputs are pre-populated from the task's effective
+    // resources, so they are authoritative for this run. Always emit each
+    // field: a non-empty value overrides the template, and an empty (cleared)
+    // field is sent as `null` to explicitly drop that requirement. Omitting a
+    // cleared field would make it silently fall back to the template value,
+    // which means a user could never remove a pre-filled resource (e.g. clear
+    // `accelerators` to run without a GPU).
+    config.cpus = cpusInput.trim() || null;
+    config.memory = memoryInput.trim() || null;
+    config.disk_space = diskSpaceInput.trim() || null;
+    config.accelerators = acceleratorsInput.trim() || null;
+    const numNodesTrimmed = numNodesInput.trim();
+    if (numNodesTrimmed) {
+      const parsedNumNodes = Number(numNodesTrimmed);
       config.num_nodes = Number.isNaN(parsedNumNodes)
-        ? numNodesInput.trim()
+        ? numNodesTrimmed
         : parsedNumNodes;
+    } else {
+      config.num_nodes = null;
     }
-    if (minutesRequestedInput.trim()) {
-      const parsedMinutes = Number(minutesRequestedInput.trim());
-      if (!Number.isNaN(parsedMinutes) && parsedMinutes > 0) {
-        config.minutes_requested = parsedMinutes;
-      }
+    const minutesTrimmed = minutesRequestedInput.trim();
+    if (minutesTrimmed) {
+      const parsedMinutes = Number(minutesTrimmed);
+      config.minutes_requested =
+        !Number.isNaN(parsedMinutes) && parsedMinutes > 0
+          ? parsedMinutes
+          : null;
+    } else {
+      config.minutes_requested = null;
     }
     if (jobDescription.trim()) config.description = jobDescription.trim();
 

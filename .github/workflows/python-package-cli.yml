@@ -92,7 +92,7 @@ jobs:
       issues: write
     steps:
       - name: Open issue on CLI publish failure
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const releaseTag = context.payload.release?.tag_name || context.ref;

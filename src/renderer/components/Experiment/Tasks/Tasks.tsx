@@ -1219,11 +1219,24 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           (task as any)?.interactive_gallery_id ??
           config?.interactive_gallery_id ??
           undefined,
-        cpus: cpus ?? cfg.cpus ?? task.cpus,
-        memory: memory ?? cfg.memory ?? task.memory,
-        disk_space: disk_space ?? cfg.disk_space ?? task.disk_space,
-        accelerators: accelerators ?? cfg.accelerators ?? task.accelerators,
-        num_nodes: num_nodes ?? cfg.num_nodes ?? task.num_nodes,
+        // Resource fields: the modal sends an explicit value, or `null` when a
+        // field was cleared. Only fall back to the template (cfg/task) when the
+        // modal did not provide the field at all (`undefined`); a `null` is an
+        // intentional clear and must be preserved.
+        cpus: cpus !== undefined ? cpus : (cfg.cpus ?? task.cpus),
+        memory: memory !== undefined ? memory : (cfg.memory ?? task.memory),
+        disk_space:
+          disk_space !== undefined
+            ? disk_space
+            : (cfg.disk_space ?? task.disk_space),
+        accelerators:
+          accelerators !== undefined
+            ? accelerators
+            : (cfg.accelerators ?? task.accelerators),
+        num_nodes:
+          num_nodes !== undefined
+            ? num_nodes
+            : (cfg.num_nodes ?? task.num_nodes),
         setup: cfg.setup || task.setup,
         env_vars: cfg.env_vars || task.env_vars || {},
         parameters: cfg.parameters || task.parameters || undefined, // Keep original parameter definitions
@@ -1246,10 +1259,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               ? task.lower_is_better
               : undefined,
         minutes_requested:
-          minutes_requested ??
-          cfg.minutes_requested ??
-          task.minutes_requested ??
-          undefined,
+          minutes_requested !== undefined
+            ? minutes_requested
+            : (cfg.minutes_requested ?? task.minutes_requested ?? undefined),
         enable_trackio:
           typeof enable_trackio === 'boolean' ? enable_trackio : undefined,
         enable_profiling:

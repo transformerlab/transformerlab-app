@@ -243,6 +243,27 @@ def put(
     )
 
 
+def put_json(
+    path: str,
+    json_data: dict = None,
+    timeout: float = 60.0,
+    reraise_transport: bool | None = None,
+) -> httpx.Response:
+    """
+    Makes a PUT HTTP request with JSON body.
+
+    Args:
+        path (str): The API path to send the request to.
+        json_data (dict, optional): The JSON data to include in the PUT request.
+        timeout (float): Request timeout in seconds. Default is 60.0.
+        reraise_transport: See get().
+
+    Returns:
+        httpx.Response: The response object from the HTTP request.
+    """
+    return _send("PUT", path, timeout=timeout, json_body=json_data, reraise_transport=reraise_transport)
+
+
 def patch(
     path: str,
     json_data: dict = None,
