@@ -10,6 +10,8 @@ import {
   FormLabel,
   Select,
   Option,
+  Table,
+  Chip,
 } from '@mui/joy';
 import { KeyIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -215,6 +217,56 @@ export default function SpecialSecretsSection({
         </Alert>
       )}
 
+      <Table sx={{ mb: 3, tableLayout: 'auto' }}>
+        <thead>
+          <tr>
+            <th style={{ width: '40%' }}>Secret</th>
+            <th style={{ width: '25%' }}>Status</th>
+            <th style={{ width: '20%' }}>Last 4</th>
+            <th style={{ width: '15%' }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(SPECIAL_SECRET_TYPES).map(([key, label]) => {
+            const entry = specialSecrets[key];
+            const exists = Boolean(entry?.exists);
+            return (
+              <tr key={key}>
+                <td>{label}</td>
+                <td>
+                  <Chip
+                    size="sm"
+                    color={exists ? 'success' : 'neutral'}
+                    variant="soft"
+                  >
+                    {exists ? 'Configured' : 'Not configured'}
+                  </Chip>
+                </td>
+                <td>
+                  <Typography level="body-sm" fontFamily="monospace">
+                    {exists ? entry?.masked_value || '—' : '—'}
+                  </Typography>
+                </td>
+                <td>
+                  <Button
+                    size="sm"
+                    variant="plain"
+                    onClick={() => {
+                      setSelectedSecretType(key);
+                      setSecretValue('');
+                      setError(null);
+                    }}
+                    disabled={saving}
+                  >
+                    {exists ? 'Update' : 'Set'}
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Table>
+
       <Stack spacing={2} maxWidth={500}>
         <FormControl>
           <FormLabel>Secret Type</FormLabel>
@@ -233,17 +285,6 @@ export default function SpecialSecretsSection({
             ))}
           </Select>
         </FormControl>
-
-        {currentSecret?.exists && (
-          <Alert color="success" variant="soft">
-            {
-              SPECIAL_SECRET_TYPES[
-                selectedSecretType as keyof typeof SPECIAL_SECRET_TYPES
-              ]
-            }{' '}
-            is configured. Last 4 characters: {currentSecret.masked_value}
-          </Alert>
-        )}
 
         <FormControl>
           <FormLabel>
