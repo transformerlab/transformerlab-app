@@ -29,6 +29,9 @@ interface InteractModalProps {
   onClose: () => void;
 }
 
+// Hoisted so the icon element isn't re-created on every render of each button.
+const externalLinkIcon = <ExternalLinkIcon size={16} />;
+
 export default function InteractIframeModal({
   jobId,
   open,
@@ -138,7 +141,7 @@ export default function InteractIframeModal({
                     rel="noopener noreferrer"
                     variant="solid"
                     color="primary"
-                    endDecorator={<ExternalLinkIcon size={16} />}
+                    endDecorator={externalLinkIcon}
                     sx={{ textTransform: 'capitalize' }}
                   >
                     Open {label}
