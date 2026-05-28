@@ -288,13 +288,21 @@ def _import_task(experiment_id: str, gallery_entry: dict, env_vars: dict) -> str
             detail = response.json().get("detail", response.text)
         except (ValueError, KeyError):
             detail = response.text
-        console.print(f"[error]Error:[/error] Failed to import task: {detail}")
+        msg = f"Failed to import task: {detail}"
+        if cli_state.output_format == "json":
+            print(json_mod.dumps({"error": msg}))
+        else:
+            console.print(f"[error]Error:[/error] {msg}")
         raise typer.Exit(1)
 
     data = response.json()
     task_id = data.get("id")
     if not task_id:
-        console.print("[error]Error:[/error] No task ID returned from import.")
+        msg = "No task ID returned from import."
+        if cli_state.output_format == "json":
+            print(json_mod.dumps({"error": msg}))
+        else:
+            console.print(f"[error]Error:[/error] {msg}")
         raise typer.Exit(1)
 
     return str(task_id)
@@ -348,13 +356,21 @@ def _launch(provider: dict, payload: dict) -> str:
             detail = response.json().get("detail", response.text)
         except (ValueError, KeyError):
             detail = response.text
-        console.print(f"[error]Error:[/error] Failed to launch task: {detail}")
+        msg = f"Failed to launch task: {detail}"
+        if cli_state.output_format == "json":
+            print(json_mod.dumps({"error": msg}))
+        else:
+            console.print(f"[error]Error:[/error] {msg}")
         raise typer.Exit(1)
 
     data = response.json()
     job_id = data.get("job_id")
     if not job_id:
-        console.print("[error]Error:[/error] No job ID returned from launch.")
+        msg = "No job ID returned from launch."
+        if cli_state.output_format == "json":
+            print(json_mod.dumps({"error": msg}))
+        else:
+            console.print(f"[error]Error:[/error] {msg}")
         raise typer.Exit(1)
 
     return str(job_id)
