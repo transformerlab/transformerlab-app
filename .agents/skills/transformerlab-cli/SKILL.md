@@ -646,7 +646,7 @@ Also note that secrets passed inside `--config` (e.g. `api_token`, `azure_client
 5. **`task add` has no `--yes` flag** — pipe `echo "y"` to confirm: `echo "y" | lab task add ./my-task`
 6. **Skip confirmation on destructive commands:** use `--no-interactive` for `provider delete`, `job delete`, and `job delete-all`; use `--yes` / `-y` for `model delete` / `dataset delete` (the flag names differ — verify with `--help`)
 7. **Never run `lab job monitor` when operating as an AI agent.** It launches an interactive Textual TUI that blocks automation and can hang unattended runs; use `lab job list`, `lab job info`, and `lab job task-logs` (`--follow` only when explicitly requested) instead.
-8. **`task interactive` supports full non-interactive mode.** Pass `--provider` and `--template` to skip all prompts. Use `--no-poll` to launch without blocking, then poll readiness with `lab job info <job_id>` (includes `tunnel_info` for interactive jobs). See the "Launching interactive tasks" workflow below.
+8. **`task interactive` supports full non-interactive mode.** Pass `--provider` and `--template` to skip all prompts. Use `--no-poll` to launch without blocking, then poll readiness with `lab job info <job_id>` (includes `tunnel_info` for interactive jobs). For `vscode`/`ssh`, watch for `tunnel_info.auth_code` and surface it to the user — `is_ready` will not flip until they complete the device login. See the "Launching interactive tasks" workflow below.
 9. **`job task-logs --follow`** streams continuously and blocks until the job finishes — use when the user wants real-time monitoring
 10. **Never use the deprecated `lab job logs`** — see the "Job logs: three real commands" section below.
 11. **Before queuing a task, CONFIRM the experiment with the user.** Run `lab config` to read the current default and `lab --format json experiment list` to verify it exists, then ask: "I'm about to queue this under experiment `<name>` (your current default). OK, or pick another?" Show 2–3 alternatives from `experiment list` if the current one looks stale or missing. Skip the confirmation only when the user has already named the experiment in this turn.
@@ -773,11 +773,31 @@ lab --format json job info JOB_ID
 # → {..., "tunnel_info": {"is_ready": false, ...}}   ← not ready yet, poll again
 # → {..., "tunnel_info": {"is_ready": true, "tunnel_url": "...", "token": "...", "instructions": [...]}}
 
-# 4. Present connection info to the user
+# 4. Present connection info to the user (render every block in tunnel_info.instructions)
 
 # 5. When done, stop the session
 lab job stop JOB_ID
 ```
+
+**Rendering `tunnel_info.instructions[]`:** the `instructions` array is the source of truth for what to show the user — iterate it and render each block by its `kind`. Don't hardcode "show tunnel_url only": some templates require the user to *act* on an earlier block before `is_ready` can flip (see "Human-in-the-loop" below).
+
+| `kind` | What to surface |
+|---|---|
+| `code` | The `value_key` field on the block (e.g. `auth_code`) — a short string the user pastes elsewhere. Include `help_links[]`. |
+| `url` | The `value_key` field (e.g. `tunnel_url`, `jupyter_url`) — the link the user opens. |
+| `command` | The `value_key` field — a shell command the user runs locally (e.g. `ssh_command`). |
+| `kv` | The `items[]` list — labeled key/value pairs (e.g. SSH `domain`/`port`/`username`). |
+| `text` | The `template` field, with `{{var}}` substituted from `tunnel_info` values. |
+
+**Human-in-the-loop templates (`vscode`, `ssh`):** `is_ready` will *not* flip until the user completes an out-of-band auth step. Agent flow:
+
+1. Poll `lab job info JOB_ID` after launch. As soon as `tunnel_info.auth_code` (or any `kind: "code"` block's `value_key`) becomes non-null, surface the code to the user along with the `help_links[]` URL (e.g. `https://github.com/login/device` for `vscode`). Mention that the code expires in ~15 min so they should authorize promptly.
+2. **Do NOT wait for the user to confirm — keep polling immediately.** Authorization happens in the user's browser, independent of this conversation; the agent sees the result via `tunnel_info.is_ready` flipping to `true` on the next poll (typically within seconds of the user clicking Authorize). Pausing for a "I'm done" message wastes the user's time and conflates the agent's state machine with theirs.
+3. While polling, ignore "Startup may have stalled" messages in the UI — that's a timeout heuristic, not a real failure. The underlying `code tunnel` / `sshd` process is alive and waiting on auth. Only treat the job as failed if `status` becomes `FAILED`/`STOPPED`/`COMPLETE`.
+4. Once `is_ready` flips, render the remaining `instructions[]` blocks (tunnel URL, etc.). If the user never authorizes and the code expires, the job will eventually fail — stop it (`lab job stop`) and relaunch rather than waiting for `code tunnel` to print a new code.
+5. Budget for the human round-trip: when you control the polling loop yourself, allow ~15 min wall time after the code appears. If you're using the CLI's built-in poller (no `--no-poll`), pass `--timeout 900` or higher.
+
+For purely automated templates (`jupyter`, `vllm`, `ollama`, etc.), `tunnel_info` has no `auth_code`/`kind: "code"` block and `is_ready` flips on its own — skip the pause and present `tunnel_url` once ready.
 
 **Key flags for `task interactive`:**
 - `--provider <name>` and `--template <id>` — required for non-interactive mode
