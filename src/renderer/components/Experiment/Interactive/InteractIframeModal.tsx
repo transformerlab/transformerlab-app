@@ -38,7 +38,8 @@ export default function InteractIframeModal({
   onClose,
 }: InteractModalProps) {
   const iframeRefs = React.useRef<Map<number, HTMLIFrameElement>>(new Map());
-  const [activeTab, setActiveTab] = React.useState(0);
+  // Only read inside handleRefresh, never in render, so a ref avoids needless re-renders on tab change.
+  const activeTabRef = React.useRef(0);
   const { experimentInfo } = useExperimentInfo();
 
   const url = React.useMemo(() => {
@@ -56,21 +57,25 @@ export default function InteractIframeModal({
   const isReady = Boolean(data?.is_ready);
   const values: Record<string, string> = data || {};
 
-  const urls = Object.keys(values)
-    .filter(
-      (k) => k.endsWith('_url') && typeof values[k] === 'string' && values[k],
-    )
-    .map((k) => ({
-      label: k.replace(/_url$/, '').replace(/_/g, ' '),
-      url: values[k],
-    }));
+  const urls = Object.keys(values).reduce<{ label: string; url: string }[]>(
+    (acc, k) => {
+      if (k.endsWith('_url') && typeof values[k] === 'string' && values[k]) {
+        acc.push({
+          label: k.replace(/_url$/, '').replace(/_/g, ' '),
+          url: values[k],
+        });
+      }
+      return acc;
+    },
+    [],
+  );
 
   // vscode.dev sets `Content-Security-Policy: frame-ancestors 'none'`, so any
   // iframe embed fails with "refused to connect". Open in a new tab instead.
   const openInNewTab = data?.interactive_type === 'vscode';
 
   const handleRefresh = () => {
-    const iframe = iframeRefs.current.get(activeTab);
+    const iframe = iframeRefs.current.get(activeTabRef.current);
     if (iframe) {
       // eslint-disable-next-line no-self-assign
       iframe.src = iframe.src;
@@ -152,7 +157,9 @@ export default function InteractIframeModal({
           ) : (
             <Tabs
               defaultValue={0}
-              onChange={(_, val) => setActiveTab(val as number)}
+              onChange={(_, val) => {
+                activeTabRef.current = val as number;
+              }}
               sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
             >
               <TabList>
