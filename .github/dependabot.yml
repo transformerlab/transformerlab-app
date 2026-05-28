@@ -211,6 +211,15 @@ updates:
       # fails immediately on import. Revisit after refactoring the import path. See PR #2083.
       - dependency-name: 'azure-mgmt-resource'
         versions: ['>=25']
+      # azure-mgmt-compute 35+ rebuilt the VM create REST surface around ARM
+      # `ResourceDefinition`, dropping the flat `hardware_profile` / `storage_profile` /
+      # `os_profile` / `network_profile` keys our provider passes to
+      # `begin_create_or_update`. Launching any Azure VM fails with
+      # `Could not find member 'hardware_profile' on object of type 'ResourceDefinition'`.
+      # Hold at 34.x until the payload builder in compute_providers/azure.py is ported
+      # to the new schema. See PR #2087 (the bump we reverted).
+      - dependency-name: 'azure-mgmt-compute'
+        versions: ['>=35']
       # boto3 patches beyond 1.40.70 are uninstallable. Each boto3 patch pins a
       # matching botocore patch, and aiobotocore's compatible window in the 1.40
       # line is botocore>=1.40.37,<1.40.71 — so boto3 1.40.71+ (and all of 1.41.x)
