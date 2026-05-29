@@ -1363,8 +1363,38 @@ def command_task_gallery(
 def command_task_interactive(
     timeout: int = typer.Option(300, "--timeout", "-t", help="Timeout in seconds waiting for service readiness"),
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
+    provider: str | None = typer.Option(None, "--provider", help="Provider name or ID (skips interactive selection)"),
+    template: str | None = typer.Option(
+        None, "--template", help="Gallery template ID or name (e.g. 'jupyter', 'vllm')"
+    ),
+    env: list[str] | None = typer.Option(None, "--env", metavar="KEY=VALUE", help="Environment variable (repeatable)"),
+    cpus: str | None = typer.Option(None, "--cpus", help="CPUs for remote provider"),
+    memory: str | None = typer.Option(None, "--memory", help="Memory in GB for remote provider"),
+    disk_space: str | None = typer.Option(None, "--disk", help="Disk in GB for remote provider"),
+    accelerators: str | None = typer.Option(None, "--accelerators", help="Accelerator spec for remote provider"),
+    num_nodes: int | None = typer.Option(None, "--num-nodes", help="Number of nodes for remote provider"),
+    minutes: int | None = typer.Option(None, "--minutes", help="Max minutes for remote provider"),
+    no_poll: bool = typer.Option(False, "--no-poll", help="Launch and exit without waiting for readiness"),
 ):
-    """Launch an interactive task (Jupyter, vLLM, Ollama, etc.)."""
+    """Launch an interactive task (Jupyter, vLLM, Ollama, etc.).
+
+    In interactive mode (default), prompts for provider, template, env vars, and resources.
+    Pass --provider and --template to skip prompts (required for non-interactive/agent use).
+    Use --format json (before the subcommand) for machine-readable output.
+    """
     from transformerlab_cli.commands.interactive import interactive
 
-    interactive(timeout=timeout, experiment_id=experiment)
+    interactive(
+        timeout=timeout,
+        experiment_id=experiment,
+        provider=provider,
+        template=template,
+        env=env,
+        cpus=cpus,
+        memory=memory,
+        disk_space=disk_space,
+        accelerators=accelerators,
+        num_nodes=num_nodes,
+        minutes=minutes,
+        no_poll=no_poll,
+    )
