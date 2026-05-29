@@ -28,12 +28,20 @@ def _fetch_providers() -> list[dict]:
         response = api.get("/compute_provider/providers/")
 
     if response.status_code != 200:
-        console.print("[error]Error:[/error] Failed to fetch providers.")
+        msg = "Failed to fetch providers."
+        if cli_state.output_format == "json":
+            print(json_mod.dumps({"error": msg}))
+        else:
+            console.print(f"[error]Error:[/error] {msg}")
         raise typer.Exit(1)
 
     providers = response.json()
     if not providers:
-        console.print("[error]Error:[/error] No compute providers available. Add one in team settings first.")
+        msg = "No compute providers available. Add one in team settings first."
+        if cli_state.output_format == "json":
+            print(json_mod.dumps({"error": msg}))
+        else:
+            console.print(f"[error]Error:[/error] {msg}")
         raise typer.Exit(1)
 
     return providers
@@ -84,7 +92,11 @@ def _fetch_gallery(experiment_id: str, provider: dict) -> list[dict]:
         response = api.get(f"/experiment/{experiment_id}/task/gallery/interactive")
 
     if response.status_code != 200:
-        console.print("[error]Error:[/error] Failed to fetch interactive gallery.")
+        msg = "Failed to fetch interactive gallery."
+        if cli_state.output_format == "json":
+            print(json_mod.dumps({"error": msg}))
+        else:
+            console.print(f"[error]Error:[/error] {msg}")
         raise typer.Exit(1)
 
     gallery = response.json().get("data", [])
@@ -110,9 +122,13 @@ def _fetch_gallery(experiment_id: str, provider: dict) -> list[dict]:
         compatible.append(entry)
 
     if not compatible:
-        console.print("[warning]No compatible interactive tasks for this provider.[/warning]")
-        if is_local:
-            console.print("[dim]Some tasks are only available on remote providers.[/dim]")
+        msg = "No compatible interactive tasks for this provider."
+        if cli_state.output_format == "json":
+            print(json_mod.dumps({"error": msg, "is_local": is_local}))
+        else:
+            console.print(f"[warning]{msg}[/warning]")
+            if is_local:
+                console.print("[dim]Some tasks are only available on remote providers.[/dim]")
         raise typer.Exit(1)
 
     return compatible
