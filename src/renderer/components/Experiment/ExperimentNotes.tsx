@@ -46,6 +46,27 @@ import PublicShareLinkPopover from './PublicShareLinkPopover';
 
 const ASSET_MARKDOWN_PREFIX = 'notes/assets/';
 
+// MDXEditor parses markdown through MDX, which interprets `<` as the start of an
+// HTML/JSX tag and `{` as the start of a JS expression. Plain prose like
+// `R_OOC<0.9`, `<=2`, or `score={...}` therefore fails rich-text parsing with
+// errors such as "Unexpected character `=` before name" or "Could not parse
+// expression with acorn". We escape those characters so they render literally,
+// but only OUTSIDE code spans/fenced blocks (where `<`/`{` are valid content and
+// MDX does not parse them) so code samples are left intact.
+function escapeMdxOutsideCode(md: string): string {
+  // Split while capturing fenced code blocks and inline code spans; with a
+  // capturing group, the delimiters land at odd indices in the result.
+  return md
+    .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
+    .map((segment, index) => {
+      if (index % 2 === 1) return segment; // code segment — leave untouched
+      return segment
+        .replace(/<(?![A-Za-z/!])/g, '&lt;')
+        .replace(/\{/g, '&#123;');
+    })
+    .join('');
+}
+
 export default function ExperimentNotes() {
   const { experimentInfo } = useExperimentInfo();
   const [isDirty, setIsDirty] = useState(false);
@@ -105,12 +126,9 @@ export default function ExperimentNotes() {
         (_match, pre, filename, post) =>
           `${pre}${chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, filename)}${post}`,
       );
-      // MDXEditor parses markdown through MDX. A raw `<` that does not begin a valid
-      // HTML/JSX tag (e.g. `R_OOC<0.9`, `<=2`, `5 < 10`) is interpreted as a malformed
-      // tag start and fails rich-text parsing with "Unexpected character ... before name".
-      // Escape any `<` not followed by a letter, `/` (closing tag), or `!` (comment/doctype)
-      // so comparison operators and the like render literally.
-      result = result.replace(/<(?![A-Za-z/!])/g, '&lt;');
+      // Escape MDX-significant characters (`<`, `{`) in prose so the editor can
+      // render notes containing comparisons/operators/expressions. See helper.
+      result = escapeMdxOutsideCode(result);
       return result;
     },
     [experimentId],
