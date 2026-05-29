@@ -54,7 +54,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
 
   const {
     data: outputData,
-    error,
+    isError: error,
     isValidating,
     mutate,
   } = useSWR(

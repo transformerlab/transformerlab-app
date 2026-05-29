@@ -75,7 +75,7 @@ export default function PublicShareViewer() {
       {!loading && data?.resource_type === 'experiment_notes' && (
         <PublicShareNotes
           markdown={(data.payload as { markdown: string }).markdown}
-          apiUrl={apiUrl}
+          apiUrl={apiUrl ?? ''}
         />
       )}
       {!loading && data?.resource_type === 'experiment_chart' && (

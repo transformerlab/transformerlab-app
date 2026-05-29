@@ -254,8 +254,8 @@ function TaskCard({
           {task?.metadata?.framework && (
             /* Framework is an array of strings */
             <Stack direction="row" spacing={1} flexWrap="wrap">
-              {task.metadata.framework.map((fw: string, fwIndex: number) => (
-                <Chip key={fwIndex} size="sm" variant="soft">
+              {task.metadata.framework.map((fw: string) => (
+                <Chip key={fw} size="sm" variant="soft">
                   {fw}
                 </Chip>
               ))}
