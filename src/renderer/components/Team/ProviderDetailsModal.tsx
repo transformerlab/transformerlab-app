@@ -362,7 +362,7 @@ export default function ProviderDetailsModal({
       setSlurmMode(configObj.mode === 'rest' ? 'rest' : 'ssh');
       setSlurmSshHost(configObj.ssh_host || '');
       setSlurmSshUser(configObj.ssh_user || '');
-      setSlurmSshPort(String(configObj.ssh_port || 22));
+      setSlurmSshPort(String(configObj.ssh_port ?? 22));
       setSlurmSshKeyPath(configObj.ssh_key_path || '');
       setSlurmRestUrl(configObj.rest_url || '');
       setSlurmApiToken(
@@ -1236,6 +1236,18 @@ export default function ProviderDetailsModal({
       let parsedConfig: any;
       if (type === 'slurm') {
         parsedConfig = buildSlurmConfig();
+        if (
+          parsedConfig.ssh_port !== undefined &&
+          (!Number.isInteger(parsedConfig.ssh_port) ||
+            parsedConfig.ssh_port < 1 ||
+            parsedConfig.ssh_port > 65535)
+        ) {
+          addNotification({
+            type: 'danger',
+            message: 'SSH port must be a whole number between 1 and 65535.',
+          });
+          return;
+        }
       } else if (type === 'skypilot') {
         parsedConfig = buildSkypilotConfig();
       } else if (type === 'dstack') {
