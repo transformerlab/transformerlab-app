@@ -2230,9 +2230,17 @@ class Lab:
                     # Find the most recent checkpoint
                     if os.path.exists(args.output_dir):
                         checkpoints = [d for d in os.listdir(args.output_dir) if d.startswith("checkpoint-")]
+
+                        def _checkpoint_step(name: str) -> int:
+                            # Names are normally "checkpoint-<step>", but guard against
+                            # non-numeric suffixes (e.g. "checkpoint-final") so sorting
+                            # never raises ValueError.
+                            suffix = name.split("-", 1)[1] if "-" in name else ""
+                            return int(suffix) if suffix.isdigit() else -1
+
                         if checkpoints:
                             # Sort by checkpoint number
-                            checkpoints.sort(key=lambda x: int(x.split("-")[1]))
+                            checkpoints.sort(key=_checkpoint_step)
                             latest_checkpoint = checkpoints[-1]
                             checkpoint_dir = os.path.join(args.output_dir, latest_checkpoint)
 
