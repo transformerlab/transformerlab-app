@@ -221,6 +221,50 @@ def test_provider_check_shows_reason_and_fails(_mock_check, _mock_api):
     assert "Bad API key" in result.output
 
 
+@patch(
+    "transformerlab_cli.commands.provider.api.get",
+    return_value=_mock_response(200, {"found": True, "path": "/ws/debug/storage-probe-7.txt"}),
+)
+@patch(
+    "transformerlab_cli.commands.provider.api.post_json",
+    return_value=_mock_response(200, {"job_id": 7, "experiment_id": "__storage_probe__"}),
+)
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_verify_lifecycle_passes(_mock_check, _mock_post, _mock_get):
+    """Lifecycle verification passes when the sentinel file is found."""
+    result = runner.invoke(app, ["provider", "verify-lifecycle", "p1"])
+    assert result.exit_code == 0
+    assert "Lifecycle verified" in result.output
+
+
+@patch(
+    "transformerlab_cli.commands.provider.api.get",
+    return_value=_mock_response(200, {"found": False, "path": "/ws/debug/storage-probe-7.txt"}),
+)
+@patch(
+    "transformerlab_cli.commands.provider.api.post_json",
+    return_value=_mock_response(200, {"job_id": 7, "experiment_id": "__storage_probe__"}),
+)
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_verify_lifecycle_fails_on_timeout(_mock_check, _mock_post, _mock_get):
+    """Lifecycle verification fails and exits non-zero when the sentinel never appears."""
+    result = runner.invoke(app, ["provider", "verify-lifecycle", "p1", "--max-polls", "1"])
+    assert result.exit_code == 1
+    assert "Lifecycle verification failed" in result.output
+
+
+@patch(
+    "transformerlab_cli.commands.provider.api.post_json",
+    return_value=_mock_response(200, {"job_id": 7, "experiment_id": "__storage_probe__"}),
+)
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_verify_lifecycle_no_wait(_mock_check, _mock_post):
+    """--no-wait launches the probe and reports the job ID without polling."""
+    result = runner.invoke(app, ["provider", "verify-lifecycle", "p1", "--no-wait"])
+    assert result.exit_code == 0
+    assert "7" in result.output
+
+
 @patch("transformerlab_cli.commands.provider.api.patch", return_value=_mock_response(200))
 @patch("transformerlab_cli.commands.provider.check_configs")
 def test_provider_set_default(_mock_check, mock_patch):

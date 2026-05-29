@@ -110,6 +110,7 @@ export default function ModelsSection({
     modelName: string,
     info: SaveVersionInfo,
   ) => {
+    if (jobId == null) return;
     setSavingModel(modelName);
     setSaveError(null);
     setSaveSuccess(null);

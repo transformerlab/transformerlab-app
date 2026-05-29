@@ -596,7 +596,7 @@ export function useAPI(
 
 // Create a new function called useSWRWithAuth which is EXACTLY the same as useSWR,
 // but uses fetchWithAuth as the fetcher.
-export function useSWRWithAuth(
+export function useSWRWithAuth<T = any>(
   key: string | null,
   fetcher_unused?: any,
   options?: any,
@@ -619,11 +619,16 @@ export function useSWRWithAuth(
 
     return res.json();
   };
-  const { data, error, isLoading, mutate } = useSWR(key, fetcher, options);
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
+    key,
+    fetcher,
+    options,
+  );
 
   return {
-    data,
+    data: data as T,
     isLoading,
+    isValidating,
     isError: error,
     mutate,
   };

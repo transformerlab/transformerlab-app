@@ -1798,7 +1798,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           setPreviewDatasetModal({ ...previewDatasetModal, open })
         }
         dataset_id={previewDatasetModal.datasetId}
-        viewType="preview"
       />
       <TrackioModal
         jobId={trackioJobIdForModal}
