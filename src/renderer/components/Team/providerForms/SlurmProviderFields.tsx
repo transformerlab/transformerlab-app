@@ -102,6 +102,7 @@ export default function SlurmProviderFields({
               onChange={(event) => setSlurmSshPort(event.currentTarget.value)}
               placeholder="22"
               type="number"
+              slotProps={{ input: { min: 1, max: 65535 } }}
               fullWidth
             />
           </FormControl>
