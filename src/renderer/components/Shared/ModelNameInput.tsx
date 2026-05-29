@@ -6,71 +6,11 @@ import {
   Typography,
 } from '@mui/joy';
 import { XIcon } from 'lucide-react';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const MAX_HISTORY_SIZE = 10;
-const STORAGE_KEY_PREFIX = 'tlab:modelHistory:';
-
-/** Derive the localStorage key for a given interactive_type. */
-export function getModelHistoryKey(
-  taskTypeOrId: string | undefined | null,
-): string {
-  if (!taskTypeOrId) return `${STORAGE_KEY_PREFIX}default`;
-  return `${STORAGE_KEY_PREFIX}${taskTypeOrId}`;
-}
-
-// ---------------------------------------------------------------------------
-// localStorage helpers
-// ---------------------------------------------------------------------------
-
-/** Read the saved history array for a given storage key. */
-function readModelHistory(storageKey: string): string[] {
-  try {
-    const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed))
-      return parsed.filter((v) => typeof v === 'string');
-  } catch {
-    // ignore corrupted data
-  }
-  return [];
-}
-
-/**
- * Persist a model name into the history for the given storage key.
- * - Deduplicates (moves existing entry to the front).
- * - Caps the list at MAX_HISTORY_SIZE.
- */
-export function saveModelToHistory(
-  storageKey: string,
-  modelName: string,
-): void {
-  const trimmed = modelName.trim();
-  if (!trimmed) return;
-  try {
-    const current = readModelHistory(storageKey);
-    const deduplicated = [trimmed, ...current.filter((v) => v !== trimmed)];
-    const capped = deduplicated.slice(0, MAX_HISTORY_SIZE);
-    window.localStorage.setItem(storageKey, JSON.stringify(capped));
-  } catch {
-    // Ignore storage errors (e.g. private browsing quota)
-  }
-}
-
-/** Remove a single entry from the stored history. */
-function removeModelFromHistory(storageKey: string, modelName: string): void {
-  try {
-    const current = readModelHistory(storageKey);
-    const updated = current.filter((v) => v !== modelName);
-    window.localStorage.setItem(storageKey, JSON.stringify(updated));
-  } catch {
-    // ignore
-  }
-}
+import {
+  getModelHistoryKey,
+  readModelHistory,
+  removeModelFromHistory,
+} from './modelHistory';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -161,8 +101,8 @@ export default function ModelNameInput({
       // Render each option with an inline ✕ button to remove it from history
       renderOption={(props, option) => (
         <AutocompleteOption
-          {...props}
           key={option}
+          {...props}
           sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}
         >
           <Typography

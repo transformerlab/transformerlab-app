@@ -110,6 +110,7 @@ export default function DatasetsSection({
     datasetName: string,
     info: SaveVersionInfo,
   ) => {
+    if (jobId == null) return;
     setSavingDataset(datasetName);
     setSaveError(null);
     setSaveSuccess(null);
