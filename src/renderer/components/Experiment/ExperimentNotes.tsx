@@ -105,9 +105,12 @@ export default function ExperimentNotes() {
         (_match, pre, filename, post) =>
           `${pre}${chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, filename)}${post}`,
       );
-      // MDXEditor parses markdown through MDX. Raw `<` followed by a digit (e.g. `5 < 10`)
-      // can be interpreted as a malformed JSX tag start and fail rich-text parsing.
-      result = result.replace(/<(?=\d)/g, '&lt;');
+      // MDXEditor parses markdown through MDX. A raw `<` that does not begin a valid
+      // HTML/JSX tag (e.g. `R_OOC<0.9`, `<=2`, `5 < 10`) is interpreted as a malformed
+      // tag start and fails rich-text parsing with "Unexpected character ... before name".
+      // Escape any `<` not followed by a letter, `/` (closing tag), or `!` (comment/doctype)
+      // so comparison operators and the like render literally.
+      result = result.replace(/<(?![A-Za-z/!])/g, '&lt;');
       return result;
     },
     [experimentId],
