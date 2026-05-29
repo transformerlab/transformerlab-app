@@ -1,11 +1,46 @@
 import asyncio
 from abc import ABC, abstractmethod
 import json
+import math
 from typing import Iterable, Union
 from . import storage
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_non_finite(value):
+    """Recursively replace non-finite floats (NaN, Infinity, -Infinity) with None.
+
+    These values are tolerated by Python's json.loads/dumps (allow_nan defaults
+    to True) but are invalid per the JSON spec. Starlette/FastAPI serialize HTTP
+    responses with allow_nan=False, so a single NaN anywhere in job_data 500s the
+    entire response. Coercing to null keeps stored job_data spec-valid and lets
+    every consumer read it safely.
+
+    Returns a tuple of (sanitized_value, changed) where ``changed`` is True if any
+    non-finite value was replaced.
+    """
+    if isinstance(value, float):
+        if math.isfinite(value):
+            return value, False
+        return None, True
+    if isinstance(value, dict):
+        changed = False
+        result = {}
+        for k, v in value.items():
+            result[k], v_changed = _sanitize_non_finite(v)
+            changed = changed or v_changed
+        return result, changed
+    if isinstance(value, list):
+        changed = False
+        result = []
+        for item in value:
+            sanitized, item_changed = _sanitize_non_finite(item)
+            result.append(sanitized)
+            changed = changed or item_changed
+        return result, changed
+    return value, False
 
 
 class BaseLabResource(ABC):
@@ -105,7 +140,14 @@ class BaseLabResource(ABC):
                     # Remove any trailing % characters (common in some shell outputs)
                     content = content.rstrip("%")
                     content = content.strip()
-                    return json.loads(content)
+                    data = json.loads(content)
+                    # json.loads parses bare NaN/Infinity tokens (invalid per the
+                    # JSON spec) into float('nan')/inf. Coerce them to null so the
+                    # value can't 500 downstream serialization (e.g. FastAPI).
+                    sanitized, changed = _sanitize_non_finite(data)
+                    if changed:
+                        logger.warning("Non-finite value(s) found in %s; coerced to null on read.", json_file)
+                    return sanitized
             except FileNotFoundError:
                 # File doesn't exist, return empty dict
                 return {}
@@ -145,6 +187,12 @@ class BaseLabResource(ABC):
         """
         if not isinstance(json_data, dict):
             raise TypeError("json_data must be a dict")
+
+        # Coerce non-finite floats (NaN/Infinity) to null at the source so we never
+        # persist JSON-spec-invalid tokens that 500 downstream serialization.
+        json_data, changed = _sanitize_non_finite(json_data)
+        if changed:
+            logger.warning("Non-finite value(s) in json_data for %s; coerced to null before write.", self.id)
 
         # Write directly to index.json
         json_file = await self._get_json_file()
