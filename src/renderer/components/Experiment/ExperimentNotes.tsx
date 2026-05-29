@@ -53,6 +53,14 @@ const ASSET_MARKDOWN_PREFIX = 'notes/assets/';
 // expression with acorn". We escape those characters so they render literally,
 // but only OUTSIDE code spans/fenced blocks (where `<`/`{` are valid content and
 // MDX does not parse them) so code samples are left intact.
+//
+// The negative lookbehind `(?<!\\)` is critical: MDXEditor's own serializer
+// already escapes literal `<`/`{` in prose as backslash escapes (`\<`, `\{`),
+// which round-trip safely on their own. Without the lookbehind we would convert
+// the `<` inside `\<` into `\&lt;`, where the leading backslash now escapes the
+// `&` — so MDX parses the entity as the literal text `&lt;` and the note shows
+// `test&lt;0.90` instead of `test<0.90` after a reload. We only escape `<`/`{`
+// that are not already backslash-escaped.
 function escapeMdxOutsideCode(md: string): string {
   // Split while capturing fenced code blocks and inline code spans; with a
   // capturing group, the delimiters land at odd indices in the result.
@@ -61,8 +69,8 @@ function escapeMdxOutsideCode(md: string): string {
     .map((segment, index) => {
       if (index % 2 === 1) return segment; // code segment — leave untouched
       return segment
-        .replace(/<(?![A-Za-z/!])/g, '&lt;')
-        .replace(/\{/g, '&#123;');
+        .replace(/(?<!\\)<(?![A-Za-z/!])/g, '&lt;')
+        .replace(/(?<!\\)\{/g, '&#123;');
     })
     .join('');
 }
