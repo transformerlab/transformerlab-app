@@ -54,6 +54,7 @@ interface JobsListProps {
   jobs: any[];
   launchProgressByJobId?: Record<string, LaunchProgressInfo>;
   onDeleteJob?: (jobId: string) => void;
+  onViewJob?: (jobId: string) => void;
   onViewOutput?: (jobId: string) => void;
   onViewCheckpoints?: (jobId: string) => void;
   onViewAllArtifacts?: (jobId: string) => void;
@@ -111,6 +112,7 @@ const JobsList: React.FC<JobsListProps> = ({
   jobs,
   launchProgressByJobId,
   onDeleteJob,
+  onViewJob,
   onViewOutput,
   onViewCheckpoints,
   onViewAllArtifacts,
@@ -390,11 +392,23 @@ const JobsList: React.FC<JobsListProps> = ({
                       >
                         <Typography
                           level="body-xs"
+                          onClick={
+                            onViewJob ? () => onViewJob(job?.id) : undefined
+                          }
                           sx={{
                             color: 'text.tertiary',
                             borderBottom: '1px solid',
                             borderColor: 'divider',
                             pb: 0.25,
+                            ...(onViewJob
+                              ? {
+                                  cursor: 'pointer',
+                                  '&:hover': {
+                                    color: 'text.primary',
+                                    textDecoration: 'underline',
+                                  },
+                                }
+                              : {}),
                           }}
                           title={fullJobId}
                         >
