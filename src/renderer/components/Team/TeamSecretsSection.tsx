@@ -104,8 +104,60 @@ export default function TeamSecretsSection({ teamId }: { teamId: string }) {
     setSecrets([...secrets, { key: '', value: '', isNew: true }]);
   };
 
-  const handleRemoveSecret = (index: number) => {
-    setSecrets(secrets.filter((_, i) => i !== index));
+  const handleRemoveSecret = async (index: number) => {
+    const secret = secrets[index];
+
+    // Unsaved row — drop locally without hitting the server.
+    if (secret.isNew) {
+      setSecrets(secrets.filter((_, i) => i !== index));
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      // Fetch the current secrets map, drop the key, PUT it back. The endpoint
+      // doesn't support per-key DELETE, so we round-trip the whole map (same
+      // shape handleSaveSecret uses).
+      const getRes = await fetchWithAuth(
+        `${chatAPI.Endpoints.Teams.GetSecrets(teamId)}?include_values=true`,
+      );
+      if (!getRes.ok) {
+        const errorData = await getRes.json().catch(() => ({}));
+        setError(errorData.detail || 'Failed to fetch current secrets');
+        return;
+      }
+      const getData = await getRes.json();
+      const remaining = Object.fromEntries(
+        Object.entries(
+          (getData.secrets || {}) as Record<string, string>,
+        ).filter(
+          ([key]) => !SPECIAL_SECRET_KEYS.has(key) && key !== secret.key,
+        ),
+      );
+
+      const res = await fetchWithAuth(
+        chatAPI.Endpoints.Teams.SetSecrets(teamId),
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secrets: remaining }),
+        },
+      );
+
+      if (res.ok) {
+        setSecrets(secrets.filter((_, i) => i !== index));
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setError(errorData.detail || 'Failed to delete secret');
+      }
+    } catch (err: any) {
+      console.error('Error deleting secret:', err);
+      setError('Failed to delete secret');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleUpdateSecret = (
