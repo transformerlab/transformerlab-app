@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
-from .base import ComputeProvider
+from .base import ComputeProvider, format_status_snapshot
 from .models import (
     ClusterConfig,
     ClusterState,
@@ -558,6 +558,55 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             status_message=ec2_state,
             provider_data=instance,
         )
+
+    def get_request_logs(self, request_id: str, tail_lines: Optional[int] = None) -> str:
+        """Return an orchestration snapshot for an EC2 instance, plus console output."""
+        try:
+            ec2 = self._get_ec2_client()
+            resp = ec2.describe_instances(InstanceIds=[request_id])
+        except Exception as e:  # noqa: BLE001
+            return f"Failed to describe EC2 instance '{request_id}': {e}"
+
+        instance = None
+        for reservation in resp.get("Reservations", []):
+            instances = reservation.get("Instances", [])
+            if instances:
+                instance = instances[0]
+                break
+        if not instance:
+            return f"EC2 instance '{request_id}' not found."
+
+        fields = {
+            "Instance ID": instance.get("InstanceId", request_id),
+            "State": instance.get("State", {}).get("Name", "unknown"),
+            "State transition": instance.get("StateTransitionReason") or "",
+            "State reason": instance.get("StateReason", {}).get("Message", ""),
+            "Instance type": instance.get("InstanceType"),
+            "Public IP": instance.get("PublicIpAddress"),
+            "Private IP": instance.get("PrivateIpAddress"),
+            "Launch time": str(instance.get("LaunchTime")) if instance.get("LaunchTime") else None,
+        }
+
+        try:
+            status_resp = ec2.describe_instance_status(InstanceIds=[request_id], IncludeAllInstances=True)
+            statuses = status_resp.get("InstanceStatuses", [])
+            if statuses:
+                st = statuses[0]
+                fields["System status"] = st.get("SystemStatus", {}).get("Status")
+                fields["Instance status"] = st.get("InstanceStatus", {}).get("Status")
+        except Exception:  # noqa: BLE001
+            pass
+
+        console = ""
+        try:
+            console = ec2.get_console_output(InstanceId=request_id).get("Output") or ""
+        except Exception as e:  # noqa: BLE001
+            console = f"(console output unavailable: {e})"
+        if console and tail_lines:
+            console = "\n".join(console.splitlines()[-tail_lines:])
+        footer = ("--- Console output ---\n" + console) if console else None
+
+        return format_status_snapshot(f"EC2 instance {request_id}", fields, footer=footer)
 
     def get_job_logs(
         self,
