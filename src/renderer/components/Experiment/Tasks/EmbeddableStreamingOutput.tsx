@@ -200,12 +200,12 @@ function RefreshIndicator({
   );
 }
 
-type TabValue = 'output' | 'provider' | 'skypilot';
+type TabValue = 'output' | 'provider' | 'orchestration';
 
 const TAB_OPTIONS: { value: TabValue; label: string }[] = [
   { value: 'output', label: 'Lab SDK Output' },
   { value: 'provider', label: 'Machine Logs' },
-  { value: 'skypilot', label: 'SkyPilot Logs' },
+  { value: 'orchestration', label: 'Orchestration Logs' },
 ];
 
 export interface EmbeddableStreamingOutputProps {
@@ -214,15 +214,15 @@ export interface EmbeddableStreamingOutputProps {
   tabs?: TabValue[];
   /** Current job status string (e.g. 'RUNNING', 'COMPLETE'). Passed from the parent to avoid extra polling. */
   jobStatus?: string;
-  /** The SkyPilot request ID for the job, shown in the SkyPilot Logs tab. */
-  skypilotRequestId?: string;
+  /** The provider launch request ID, shown in the Orchestration Logs tab. */
+  providerRequestId?: string;
 }
 
 export default function EmbeddableStreamingOutput({
   jobId,
   tabs: tabsProp = ['output', 'provider'],
   jobStatus = '',
-  skypilotRequestId,
+  providerRequestId,
 }: EmbeddableStreamingOutputProps) {
   const { experimentInfo } = useExperimentInfo();
   const { fetchWithAuth } = useAuth();
@@ -378,7 +378,7 @@ export default function EmbeddableStreamingOutput({
               typeof value === 'string' &&
               (value === 'output' ||
                 value === 'provider' ||
-                value === 'skypilot')
+                value === 'orchestration')
             ) {
               setActiveTab(value as TabValue);
             }
@@ -436,10 +436,10 @@ export default function EmbeddableStreamingOutput({
               )}
             </>
           )}
-          {activeTab === 'skypilot' && skypilotRequestId && (
+          {activeTab === 'orchestration' && providerRequestId && (
             <>
               <Typography level="body-sm" sx={{ fontFamily: 'monospace' }}>
-                Request ID: {skypilotRequestId}
+                Request ID: {providerRequestId}
               </Typography>
               {requestLogs && (
                 <IconButton
@@ -456,7 +456,7 @@ export default function EmbeddableStreamingOutput({
             </>
           )}
         </Box>
-        {activeTab !== 'skypilot' && (
+        {activeTab !== 'orchestration' && (
           <RefreshIndicator
             seconds={
               activeTab === 'output' ? outputCountdown : providerCountdown
@@ -502,7 +502,7 @@ export default function EmbeddableStreamingOutput({
               onMutateReady={handleOutputMutateReady}
             />
           </Box>
-        ) : activeTab === 'skypilot' ? (
+        ) : activeTab === 'orchestration' ? (
           <Box
             sx={{
               flex: 1,

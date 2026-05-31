@@ -34,7 +34,7 @@ export default function JobsChartModal({
         <ModalClose />
         <JobsChartView
           jobs={jobs}
-          experimentId={experimentId}
+          experimentId={experimentId ?? undefined}
           onClose={onClose}
           headerActions={shareButton}
         />

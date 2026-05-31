@@ -8,18 +8,13 @@ import {
   Stack,
 } from '@mui/joy';
 import type { SlurmFlag } from './types';
+import { createSlurmFlag } from './slurmFlags';
 
 interface SlurmFlagsSectionProps {
   flags: SlurmFlag[];
   onChange: (flags: SlurmFlag[]) => void;
   isSubmitting: boolean;
 }
-
-let nextFlagId = 0;
-export const createSlurmFlag = (value = ''): SlurmFlag => ({
-  id: `slurm-flag-${++nextFlagId}`,
-  value,
-});
 
 export default function SlurmFlagsSection({
   flags,
