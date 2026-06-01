@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db.session import get_async_session
 from transformerlab.shared.models.models import User, Team, TeamRole
 from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
