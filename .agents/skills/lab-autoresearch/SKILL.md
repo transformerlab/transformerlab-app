@@ -22,7 +22,7 @@ This skill is the entry point for the autonomous experiment loop. The full spec 
 
 The loop is layered on the `lab` CLI:
 
-- One **experiment** per session, one **job** per iteration.
+- One **experiment** per session, one **job** per iteration. You can run **several sessions concurrently** — each is its own experiment, scoped on every command with `--experiment/-e <exp>` and grouped by a shared campaign tag (see "Running multiple sessions in parallel" in the spec).
 - A job's `-m/--description` is the iteration note; its `score` dict (set via `lab.finish(score=…)`) is the result; `lab job discard` is the keep/discard flag.
 - For hyperparameter fan-out, prefer the task's `sweeps:` block over manually queuing N jobs.
 - The session plan (objective, files in scope, constraints, backlog, what's been tried) is written to **experiment notes** via `lab notes` — there is no local `autoresearch.md` file.
