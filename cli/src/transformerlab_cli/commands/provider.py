@@ -1,4 +1,5 @@
 import json
+import time
 
 import typer
 
@@ -9,7 +10,7 @@ from transformerlab_cli.state import cli_state
 
 app = typer.Typer()
 
-PROVIDER_TYPES = ["slurm", "skypilot", "runpod", "vastai", "dstack", "aws", "gcp", "azure", "local"]
+PROVIDER_TYPES = ["slurm", "skypilot", "runpod", "vastai", "dstack", "aws", "gcp", "azure", "nebius", "local"]
 
 PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
     "skypilot": [
@@ -52,11 +53,24 @@ PROVIDER_CONFIG_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("azure_client_secret", "Azure client secret (Service Principal)"),
         ("azure_location", "Azure location (e.g. eastus)"),
     ],
+    "nebius": [
+        ("parent_id", "Nebius project (parent) ID (required unless subnet_id is set)"),
+        ("subnet_id", "Nebius VPC subnet ID (optional; blank = automatic default subnet)"),
+        ("default_platform", "Default platform (optional, e.g. gpu-h100-sxm)"),
+        ("default_preset", "Default preset (optional, e.g. 1gpu-16vcpu-200gb)"),
+        ("boot_image_family", "Boot image family (optional, e.g. ubuntu24.04-cuda13.0)"),
+        ("disk_size_gib", "Boot disk size in GiB (optional, default 200)"),
+    ],
     "vastai": [
         ("api_key", "Vast.ai API key"),
     ],
     "local": [],
 }
+
+# Nebius authenticates via a service-account key pair uploaded through a dedicated
+# credentials endpoint (like AWS/GCP), not via plain config fields. These are the keys
+# the CLI extracts from --credentials-file (or prompts for) and forwards to that endpoint.
+NEBIUS_CREDENTIAL_KEYS = ("service_account_id", "public_key_id", "private_key")
 
 
 def _prompt_provider_type() -> str:
@@ -100,6 +114,27 @@ def _extract_error_detail(response) -> str:
         return response.text
 
 
+def _resolve_provider_id(identifier: str) -> str | None:
+    """Resolve a provider identifier (id or name) to a provider id.
+
+    Provider names are unique within a team (enforced by the API), and the CLI
+    is always team-scoped, so a name resolves to at most one provider. Returns
+    the provider id, or None if no provider matches the identifier.
+    """
+    response = api.get("/compute_provider/providers/?include_disabled=true")
+    if response.status_code != 200:
+        return None
+
+    providers = response.json()
+    for provider in providers:
+        if provider.get("id") == identifier:
+            return identifier
+    for provider in providers:
+        if provider.get("name") == identifier:
+            return provider.get("id")
+    return None
+
+
 def _extract_provider_check_reason(result: dict) -> str:
     """Extract a human-readable provider check failure reason."""
     reason = result.get("reason")
@@ -139,6 +174,23 @@ def _prompt_gcp_service_account_json() -> str:
             return _read_service_account_file(path)
         except typer.Exit:
             continue
+
+
+def _prompt_nebius_credentials() -> dict:
+    """Prompt for the Nebius service-account key pair. Returns {} if all fields are skipped."""
+    console.print(
+        "\n[bold label]Nebius Credentials[/bold label] "
+        "[muted](service-account key pair; the public key stays in the Nebius console)[/muted]"
+    )
+    service_account_id = typer.prompt("  Service Account ID", default="", show_default=False).strip()
+    public_key_id = typer.prompt("  Public Key ID", default="", show_default=False).strip()
+    private_key = typer.prompt("  Private Key (PEM)", default="", show_default=False).strip()
+    creds = {
+        "service_account_id": service_account_id,
+        "public_key_id": public_key_id,
+        "private_key": private_key,
+    }
+    return creds if any(creds.values()) else {}
 
 
 def _read_credentials_file(path: str) -> dict:
@@ -189,7 +241,8 @@ def _upload_aws_credentials(provider_id: str, access_key_id: str, secret_access_
             json_data={"access_key_id": access_key_id, "secret_access_key": secret_access_key},
         )
     if response.status_code == 200:
-        console.print("[success]✓[/success] AWS credentials saved to API host.")
+        if cli_state.output_format != "json":
+            console.print("[success]✓[/success] AWS credentials saved to API host.")
     else:
         console.print(f"[error]Error:[/error] Failed to upload AWS credentials. {_extract_error_detail(response)}")
         raise typer.Exit(1)
@@ -205,10 +258,175 @@ def _upload_gcp_service_account(provider_id: str, service_account_json: str) -> 
             json_data={"service_account_json": service_account_json},
         )
     if response.status_code == 200:
-        console.print("[success]✓[/success] GCP service account saved.")
+        if cli_state.output_format != "json":
+            console.print("[success]✓[/success] GCP service account saved.")
     else:
         console.print(f"[error]Error:[/error] Failed to upload GCP service account. {_extract_error_detail(response)}")
         raise typer.Exit(1)
+
+
+def _upload_nebius_credentials(provider_id: str, creds: dict) -> None:
+    """POST the Nebius service-account key pair to the dedicated credentials endpoint."""
+    with console.status(
+        f"[bold success]Uploading Nebius credentials for {provider_id}...[/bold success]", spinner="dots"
+    ):
+        response = api.post_json(
+            f"/compute_provider/providers/{provider_id}/nebius/credentials",
+            json_data={key: creds[key] for key in NEBIUS_CREDENTIAL_KEYS},
+        )
+    if response.status_code == 200:
+        console.print("[success]✓[/success] Nebius credentials saved.")
+    else:
+        console.print(f"[error]Error:[/error] Failed to upload Nebius credentials. {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+
+
+def _validate_nebius_credentials(creds: dict) -> None:
+    """Ensure a Nebius credential set has all three key-pair fields (all-or-nothing)."""
+    present = [key for key in NEBIUS_CREDENTIAL_KEYS if creds.get(key)]
+    if present and len(present) != len(NEBIUS_CREDENTIAL_KEYS):
+        missing = [key for key in NEBIUS_CREDENTIAL_KEYS if not creds.get(key)]
+        console.print(
+            "[error]Error:[/error] Nebius credentials must include all of "
+            f"{', '.join(NEBIUS_CREDENTIAL_KEYS)} (missing: {', '.join(missing)})."
+        )
+        raise typer.Exit(1)
+
+
+def create_provider_interactively(
+    name: str | None,
+    provider_type: str | None,
+    config: str | None,
+    interactive: bool,
+    credentials_file: str | None,
+) -> str:
+    """Resolve provider inputs, create the provider, upload any credentials, and return its id.
+
+    Does NOT run the health check — callers run it when appropriate. Raises typer.Exit on any
+    validation or API failure, printing an error first (matching the CLI's existing behavior).
+    """
+    if not interactive:
+        if not name or not provider_type or config is None:
+            console.print("[error]Error:[/error] --name, --type, and --config are required with --no-interactive")
+            raise typer.Exit(1)
+        if provider_type not in PROVIDER_TYPES:
+            console.print(
+                f"[error]Error:[/error] Invalid type '{provider_type}'. Must be one of: {', '.join(PROVIDER_TYPES)}"
+            )
+            raise typer.Exit(1)
+        try:
+            config_dict = json.loads(config)
+        except json.JSONDecodeError as e:
+            console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
+            raise typer.Exit(1)
+    else:
+        if not name:
+            name = typer.prompt("Provider name")
+        if not provider_type:
+            provider_type = _prompt_provider_type()
+        elif provider_type not in PROVIDER_TYPES:
+            console.print(
+                f"[error]Error:[/error] Invalid type '{provider_type}'. Must be one of: {', '.join(PROVIDER_TYPES)}"
+            )
+            raise typer.Exit(1)
+        if config is not None:
+            try:
+                config_dict = json.loads(config)
+            except json.JSONDecodeError as e:
+                console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
+                raise typer.Exit(1)
+        else:
+            config_dict = _prompt_config_fields(provider_type)
+
+    # --credentials-file: shape depends on provider type.
+    #   aws: JSON object with aws_access_key_id / aws_secret_access_key (uploaded via /aws/credentials).
+    #        Any remaining keys merge into config.
+    #   gcp: the raw service account JSON key file (uploaded via /gcp/credentials).
+    #   other: a flat JSON object merged on top of --config (file values win).
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    gcp_service_account_json: str | None = None
+    nebius_credentials: dict = {}
+    if credentials_file:
+        if provider_type == "gcp":
+            gcp_service_account_json = _read_service_account_file(credentials_file)
+        else:
+            creds = _read_credentials_file(credentials_file)
+            if provider_type == "aws":
+                aws_access_key_id = str(creds.pop("aws_access_key_id", "") or "")
+                aws_secret_access_key = str(creds.pop("aws_secret_access_key", "") or "")
+            elif provider_type == "nebius":
+                for key in NEBIUS_CREDENTIAL_KEYS:
+                    value = creds.pop(key, "")
+                    if value:
+                        nebius_credentials[key] = str(value)
+            config_dict.update(creds)
+
+    if provider_type == "aws":
+        if bool(aws_access_key_id) != bool(aws_secret_access_key):
+            console.print(
+                "[error]Error:[/error] --credentials-file for --type aws must contain both "
+                "'aws_access_key_id' and 'aws_secret_access_key' (or neither)."
+            )
+            raise typer.Exit(1)
+        if interactive and not aws_access_key_id and not aws_secret_access_key:
+            aws_access_key_id, aws_secret_access_key = _prompt_aws_credentials()
+        if not interactive and not aws_access_key_id and not aws_secret_access_key:
+            console.print(
+                "[error]Error:[/error] AWS providers require credentials. "
+                "Pass --credentials-file PATH pointing at a JSON file containing "
+                "'aws_access_key_id' and 'aws_secret_access_key' (or run interactively)."
+            )
+            raise typer.Exit(1)
+
+    # GCP service account JSON: required at create time (provider will be unhealthy without it).
+    if provider_type == "gcp":
+        if not gcp_service_account_json and interactive:
+            gcp_service_account_json = _prompt_gcp_service_account_json()
+        if not gcp_service_account_json:
+            console.print(
+                "[error]Error:[/error] GCP providers require a service account JSON key. "
+                "Pass --credentials-file PATH pointing at your service account JSON "
+                "(or run interactively)."
+            )
+            raise typer.Exit(1)
+
+    # Nebius service-account key pair: required at create time (uploaded via dedicated endpoint).
+    if provider_type == "nebius":
+        _validate_nebius_credentials(nebius_credentials)
+        if not nebius_credentials and interactive:
+            nebius_credentials = _prompt_nebius_credentials()
+            _validate_nebius_credentials(nebius_credentials)
+        if not nebius_credentials:
+            console.print(
+                "[error]Error:[/error] Nebius providers require service-account credentials. "
+                "Pass --credentials-file PATH pointing at a JSON file containing "
+                f"{', '.join(NEBIUS_CREDENTIAL_KEYS)} (or run interactively)."
+            )
+            raise typer.Exit(1)
+
+    payload = {"name": name, "type": provider_type, "config": config_dict}
+
+    with console.status("[bold success]Creating provider...[/bold success]", spinner="dots"):
+        response = api.post_json("/compute_provider/providers/", json_data=payload)
+
+    if response.status_code != 200:
+        console.print(f"[error]Error:[/error] Failed to create provider. {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+
+    result = response.json()
+    provider_id = result.get("id", "unknown")
+    if cli_state.output_format != "json":
+        console.print(f"[success]✓[/success] Provider created with ID: [bold]{provider_id}[/bold]")
+
+    if provider_type == "aws" and aws_access_key_id and aws_secret_access_key:
+        _upload_aws_credentials(provider_id, aws_access_key_id, aws_secret_access_key)
+    if provider_type == "gcp" and gcp_service_account_json:
+        _upload_gcp_service_account(provider_id, gcp_service_account_json)
+    if provider_type == "nebius" and nebius_credentials:
+        _upload_nebius_credentials(provider_id, nebius_credentials)
+
+    return provider_id
 
 
 ## COMMANDS ##
@@ -267,106 +485,13 @@ def command_provider_add(
     """Add a new compute provider."""
     check_configs(output_format=cli_state.output_format)
 
-    if not interactive:
-        if not name or not provider_type or config is None:
-            console.print("[error]Error:[/error] --name, --type, and --config are required with --no-interactive")
-            raise typer.Exit(1)
-        if provider_type not in PROVIDER_TYPES:
-            console.print(
-                f"[error]Error:[/error] Invalid type '{provider_type}'. Must be one of: {', '.join(PROVIDER_TYPES)}"
-            )
-            raise typer.Exit(1)
-        try:
-            config_dict = json.loads(config)
-        except json.JSONDecodeError as e:
-            console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
-            raise typer.Exit(1)
-    else:
-        if not name:
-            name = typer.prompt("Provider name")
-        if not provider_type:
-            provider_type = _prompt_provider_type()
-        elif provider_type not in PROVIDER_TYPES:
-            console.print(
-                f"[error]Error:[/error] Invalid type '{provider_type}'. Must be one of: {', '.join(PROVIDER_TYPES)}"
-            )
-            raise typer.Exit(1)
-        if config is not None:
-            try:
-                config_dict = json.loads(config)
-            except json.JSONDecodeError as e:
-                console.print(f"[error]Error:[/error] Invalid JSON in --config: {e}")
-                raise typer.Exit(1)
-        else:
-            config_dict = _prompt_config_fields(provider_type)
-
-    # --credentials-file: shape depends on provider type.
-    #   aws: JSON object with aws_access_key_id / aws_secret_access_key (uploaded via /aws/credentials).
-    #        Any remaining keys merge into config.
-    #   gcp: the raw service account JSON key file (uploaded via /gcp/credentials).
-    #   other: a flat JSON object merged on top of --config (file values win).
-    aws_access_key_id: str = ""
-    aws_secret_access_key: str = ""
-    gcp_service_account_json: str | None = None
-    if credentials_file:
-        if provider_type == "gcp":
-            gcp_service_account_json = _read_service_account_file(credentials_file)
-        else:
-            creds = _read_credentials_file(credentials_file)
-            if provider_type == "aws":
-                aws_access_key_id = str(creds.pop("aws_access_key_id", "") or "")
-                aws_secret_access_key = str(creds.pop("aws_secret_access_key", "") or "")
-            config_dict.update(creds)
-
-    # AWS access key pair: must be both-or-neither.
-    if provider_type == "aws":
-        if bool(aws_access_key_id) != bool(aws_secret_access_key):
-            console.print(
-                "[error]Error:[/error] --credentials-file for --type aws must contain both "
-                "'aws_access_key_id' and 'aws_secret_access_key' (or neither)."
-            )
-            raise typer.Exit(1)
-        if interactive and not aws_access_key_id and not aws_secret_access_key:
-            aws_access_key_id, aws_secret_access_key = _prompt_aws_credentials()
-        if not interactive and not aws_access_key_id and not aws_secret_access_key:
-            console.print(
-                "[error]Error:[/error] AWS providers require credentials. "
-                "Pass --credentials-file PATH pointing at a JSON file containing "
-                "'aws_access_key_id' and 'aws_secret_access_key' (or run interactively)."
-            )
-            raise typer.Exit(1)
-
-    # GCP service account JSON: required at create time (provider will be unhealthy without it).
-    if provider_type == "gcp":
-        if not gcp_service_account_json and interactive:
-            gcp_service_account_json = _prompt_gcp_service_account_json()
-        if not gcp_service_account_json:
-            console.print(
-                "[error]Error:[/error] GCP providers require a service account JSON key. "
-                "Pass --credentials-file PATH pointing at your service account JSON "
-                "(or run interactively)."
-            )
-            raise typer.Exit(1)
-
-    payload = {"name": name, "type": provider_type, "config": config_dict}
-
-    with console.status("[bold success]Creating provider...[/bold success]", spinner="dots"):
-        response = api.post_json("/compute_provider/providers/", json_data=payload)
-
-    if response.status_code != 200:
-        console.print(f"[error]Error:[/error] Failed to create provider. {_extract_error_detail(response)}")
-        raise typer.Exit(1)
-
-    result = response.json()
-    provider_id = result.get("id", "unknown")
-    console.print(f"[success]✓[/success] Provider created with ID: [bold]{provider_id}[/bold]")
-
-    # Submit AWS credentials and GCP service account JSON via their dedicated endpoints,
-    # before the health check (the check will fail without credentials).
-    if provider_type == "aws" and aws_access_key_id and aws_secret_access_key:
-        _upload_aws_credentials(provider_id, aws_access_key_id, aws_secret_access_key)
-    if provider_type == "gcp" and gcp_service_account_json:
-        _upload_gcp_service_account(provider_id, gcp_service_account_json)
+    provider_id = create_provider_interactively(
+        name=name,
+        provider_type=provider_type,
+        config=config,
+        interactive=interactive,
+        credentials_file=credentials_file,
+    )
 
     with console.status(f"[bold success]Checking provider {provider_id}...[/bold success]", spinner="dots"):
         check_response = api.get(f"/compute_provider/providers/{provider_id}/check", timeout=60.0)
@@ -374,7 +499,8 @@ def command_provider_add(
     if check_response.status_code == 200:
         check_result = check_response.json()
         if check_result.get("status"):
-            console.print("[success]✓[/success] Provider health check passed.")
+            if cli_state.output_format != "json":
+                console.print("[success]✓[/success] Provider health check passed.")
         else:
             reason = _extract_provider_check_reason(check_result)
             console.print(f"[error]Error:[/error] Provider health check failed. {reason}")
@@ -452,6 +578,7 @@ def command_provider_update(
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     gcp_service_account_json: str | None = None
+    nebius_credentials: dict = {}
     provider_type: str | None = None
     if credentials_file is not None:
         with console.status(f"[bold success]Fetching provider {provider_id}...[/bold success]", spinner="dots"):
@@ -477,6 +604,12 @@ def command_provider_update(
                         "'aws_access_key_id' and 'aws_secret_access_key' (or neither)."
                     )
                     raise typer.Exit(1)
+            elif provider_type == "nebius":
+                for key in NEBIUS_CREDENTIAL_KEYS:
+                    value = creds.pop(key, "")
+                    if value:
+                        nebius_credentials[key] = str(value)
+                _validate_nebius_credentials(nebius_credentials)
             if creds:
                 if config_patch is None:
                     config_patch = {}
@@ -489,7 +622,9 @@ def command_provider_update(
     if is_default is not None:
         payload["is_default"] = is_default
 
-    has_dedicated_credentials = bool(aws_access_key_id and aws_secret_access_key) or bool(gcp_service_account_json)
+    has_dedicated_credentials = (
+        bool(aws_access_key_id and aws_secret_access_key) or bool(gcp_service_account_json) or bool(nebius_credentials)
+    )
     if not payload and not has_dedicated_credentials:
         console.print(
             "[warning]Nothing to update.[/warning] "
@@ -513,20 +648,29 @@ def command_provider_update(
         _upload_aws_credentials(provider_id, aws_access_key_id, aws_secret_access_key)
     if provider_type == "gcp" and gcp_service_account_json:
         _upload_gcp_service_account(provider_id, gcp_service_account_json)
+    if provider_type == "nebius" and nebius_credentials:
+        _upload_nebius_credentials(provider_id, nebius_credentials)
 
     console.print(f"[success]✓[/success] Provider [bold]{provider_id}[/bold] updated.")
 
 
 @app.command("delete")
 def command_provider_delete(
-    provider_id: str = typer.Argument(..., help="Provider ID to delete"),
+    identifier: str = typer.Argument(..., help="Provider ID or name to delete"),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
-    """Delete a compute provider."""
+    """Delete a compute provider by ID or name."""
     check_configs(output_format=cli_state.output_format)
 
+    # Resolve the identifier (id or name) up front so we only prompt for
+    # confirmation when the provider actually exists.
+    provider_id = _resolve_provider_id(identifier)
+    if provider_id is None:
+        console.print(f"[error]Error:[/error] Provider {identifier} not found.")
+        raise typer.Exit(1)
+
     if not no_interactive:
-        typer.confirm(f"Delete provider {provider_id}?", abort=True)
+        typer.confirm(f"Delete provider {identifier}?", abort=True)
 
     with console.status(f"[bold success]Deleting provider {provider_id}...[/bold success]", spinner="dots"):
         response = api.delete(f"/compute_provider/providers/{provider_id}")
@@ -568,6 +712,100 @@ def command_provider_check(
         raise typer.Exit(1)
     else:
         console.print(f"[error]Error:[/error] Health check failed. {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+
+
+@app.command("verify-lifecycle")
+def command_provider_verify_lifecycle(
+    provider_id: str = typer.Argument(..., help="Provider ID to verify"),
+    no_wait: bool = typer.Option(
+        False,
+        "--no-wait",
+        help="Launch the probe job and print its job ID without waiting for the result.",
+    ),
+    poll_interval: float = typer.Option(
+        20.0,
+        "--poll-interval",
+        help="Seconds to wait between checks for the sentinel file.",
+    ),
+    max_polls: int = typer.Option(
+        10,
+        "--max-polls",
+        help="Maximum number of times to check for the sentinel file before giving up.",
+    ),
+):
+    """Verify a compute provider's lifecycle by running a storage probe.
+
+    Launches a minimal probe job on the provider that writes a sentinel file to
+    shared storage, then polls until the file appears (pass) or it times out (fail).
+    This confirms the provider can launch a job and reach shared storage end-to-end.
+    """
+    check_configs(output_format=cli_state.output_format)
+
+    base = f"/compute_provider/providers/{provider_id}/debug/storage-probe"
+
+    with console.status(
+        f"[bold success]Launching storage probe on provider {provider_id}...[/bold success]", spinner="dots"
+    ):
+        launch_res = api.post_json(base, timeout=60.0)
+
+    if launch_res.status_code == 404:
+        console.print(f"[error]Error:[/error] Provider {provider_id} not found.")
+        raise typer.Exit(1)
+    if launch_res.status_code != 200:
+        console.print(f"[error]Error:[/error] Failed to launch storage probe. {_extract_error_detail(launch_res)}")
+        raise typer.Exit(1)
+
+    job_id = launch_res.json().get("job_id")
+    if job_id is None:
+        console.print("[error]Error:[/error] Launch did not return a job ID.")
+        raise typer.Exit(1)
+
+    if no_wait:
+        if cli_state.output_format == "json":
+            print(json.dumps({"job_id": job_id, "status": "launched"}))
+        else:
+            console.print(f"[success]✓[/success] Storage probe launched as job [bold]{job_id}[/bold].")
+            console.print(f"  Inspect it with: lab job info {job_id}")
+        return
+
+    check_url = f"{base}/{job_id}"
+    found = False
+    last_path = None
+    # TODO: This loop only watches for the sentinel file and does not inspect job status,
+    # so if the probe job fails immediately it will still run all max_polls before reporting
+    # failure. Consider checking job status here to bail out early on a FAILED job.
+    for attempt in range(1, max_polls + 1):
+        check_res = api.get(check_url, timeout=60.0)
+        if check_res.status_code != 200:
+            console.print(f"[error]Error:[/error] Could not check probe status. {_extract_error_detail(check_res)}")
+            raise typer.Exit(1)
+
+        check_data = check_res.json()
+        last_path = check_data.get("path")
+        if check_data.get("found"):
+            found = True
+            break
+
+        if attempt < max_polls:
+            with console.status(
+                f"[bold]Waiting for sentinel file (attempt {attempt}/{max_polls})...[/bold]", spinner="dots"
+            ):
+                time.sleep(poll_interval)
+
+    if cli_state.output_format == "json":
+        print(json.dumps({"job_id": job_id, "found": found, "path": last_path}))
+        if not found:
+            raise typer.Exit(1)
+        return
+
+    if found:
+        console.print(f"[success]✓[/success] Lifecycle verified — sentinel found in shared storage ({last_path}).")
+    else:
+        console.print(
+            f"[error]✗[/error] Lifecycle verification failed — sentinel file not found in shared storage "
+            f"after {max_polls} checks (job {job_id})."
+        )
         raise typer.Exit(1)
 
 

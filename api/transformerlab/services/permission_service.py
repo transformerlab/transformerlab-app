@@ -17,7 +17,8 @@ from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from transformerlab.shared.models.models import ResourcePermission, TeamRole, UserTeam
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db import team as db_team
+from transformerlab.db.session import get_async_session
 
 VALID_ACTIONS = frozenset({"read", "write", "execute", "delete", "admin"})
 
@@ -28,12 +29,7 @@ async def get_user_team(
     team_id: str,
 ) -> UserTeam | None:
     """Fetch the UserTeam membership row for a (user, team) pair, or None."""
-    stmt = select(UserTeam).where(
-        UserTeam.user_id == user_id,
-        UserTeam.team_id == team_id,
-    )
-    result = await session.execute(stmt)
-    return result.scalar_one_or_none()
+    return await db_team.get_user_team_membership(session, user_id, team_id)
 
 
 async def check_permission(

@@ -40,7 +40,8 @@
     "docker-test:up": "docker compose -f docker-compose.test.yml up -d --build --wait",
     "docker-test:down": "docker compose -f docker-compose.test.yml down",
     "docker-test:logs": "docker compose -f docker-compose.test.yml logs -f",
-    "docker-test:playwright": "npm run docker-test:up && npx playwright test; npm run docker-test:down"
+    "docker-test:playwright": "npm run docker-test:up && npx playwright test; npm run docker-test:down",
+    "doctor": "react-doctor"
   },
   "browserslist": [],
   "prettier": {
@@ -67,10 +68,10 @@
     "@nivo/line": "^0.88.0",
     "@nivo/radar": "^0.88.0",
     "@segment/analytics-next": "^1.84.0",
-    "@sentry/react": "^10.53.1",
+    "@sentry/react": "^10.54.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "dayjs": "^1.11.20",
+    "dayjs": "^1.11.21",
     "easy-peasy": "^6.1.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.477.0",
@@ -122,12 +123,14 @@
     "webpack-bundle-analyzer": "^5.3.0",
     "webpack-cli": "^5.1.1",
     "webpack-dev-server": "^5.2.4",
-    "webpack-merge": "^6.0.1"
+    "webpack-merge": "^6.0.1",
+    "react-doctor": "^0.2.6"
   },
   "overrides": {
     "serialize-javascript": "^7.0.3",
     "minimatch": "^10.2.3",
-    "postcss": "^8.5.10"
+    "postcss": "^8.5.10",
+    "js-cookie": "^3.0.7"
   },
   "engines": {
     "node": ">=14.x",

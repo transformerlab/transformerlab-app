@@ -185,9 +185,41 @@ Launch an interactive task (Jupyter, vLLM, Ollama, etc.).
 
 | Option | Description |
 |---|---|
+| `--provider <name_or_id>` | Provider name or ID (skips interactive selection) |
+| `--template <gallery_id>` | Gallery template ID or name (e.g. `jupyter`, `vllm`, `ollama`) |
+| `--env <KEY=VALUE>` | Environment variable (repeatable). E.g. `--env MODEL_NAME=llama3` |
+| `--cpus <n>` | CPUs for remote provider |
+| `--memory <n>` | Memory in GB for remote provider |
+| `--disk <n>` | Disk in GB for remote provider |
+| `--accelerators <spec>` | Accelerator spec for remote provider (e.g. `A100:1`) |
+| `--num-nodes <n>` | Number of nodes for remote provider |
+| `--minutes <n>` | Max minutes for remote provider |
+| `--no-poll` | Launch and exit immediately without waiting for readiness |
 | `--timeout <seconds>` | Timeout waiting for service readiness (default: 300) |
 
-**Warning:** This is inherently interactive and blocks. Only use when the user specifically requests it.
+**Non-interactive mode:** Pass `--provider` and `--template` to skip all prompts. Use `--format json` for machine-readable output. Combine with `--no-poll` to launch and check readiness later via `lab job tunnel-info`.
+
+```bash
+# Non-interactive launch (agent-friendly)
+lab --format json task interactive --provider local --template jupyter --no-poll
+
+# With env vars and resources
+lab --format json task interactive --provider my-aws --template vllm \
+  --env MODEL_NAME=meta-llama/Llama-3-8B --accelerators "A100:1" --memory 32 --no-poll
+
+# Launch and wait for readiness (blocks up to --timeout seconds)
+lab --format json task interactive --provider local --template jupyter --timeout 120
+```
+
+**JSON output (with `--no-poll`):**
+```json
+{"job_id": "abc-123", "task_id": "def-456", "experiment_id": "alpha"}
+```
+
+**JSON output (without `--no-poll`, after service is ready):**
+```json
+{"is_ready": true, "tunnel_url": "https://...", "token": "...", "instructions": [...], "job_id": "abc-123", "task_id": "def-456", "experiment_id": "alpha"}
+```
 
 ---
 
@@ -212,12 +244,29 @@ Job statuses: `WAITING`, `LAUNCHING`, `RUNNING`, `INTERACTIVE`, `COMPLETE`, `FAI
 
 ### `job info <job_id>`
 
-Get detailed job information including status, progress, config, resources, provider, artifacts, errors, and scores.
+Get detailed job information including status, progress, config, resources, provider, artifacts, errors, and scores. For interactive jobs (`subtype: "interactive"`), automatically includes `tunnel_info` with connection URLs, tokens, ports, and readiness status.
 
 **JSON output:**
 ```json
-{"id": 1, "status": "RUNNING", "progress": 45, "config": {...}, "artifacts": [...], "errors": [...], ...}
+{"id": "abc-123", "status": "RUNNING", "progress": 45, "config": {...}, "artifacts": [...], "errors": [...], ...}
 ```
+
+**JSON output for interactive jobs (extra `tunnel_info` field):**
+```json
+{
+  "id": "abc-123", "status": "INTERACTIVE", ...,
+  "tunnel_info": {
+    "is_ready": true,
+    "tunnel_url": "http://localhost:8888",
+    "token": "...",
+    "interactive_type": "jupyter",
+    "ports": [{"port": 8888, "label": "Jupyter Lab", "protocol": "http"}],
+    "instructions": [{"kind": "url", "title": "Open Jupyter", "value_key": "jupyter_url"}, ...]
+  }
+}
+```
+
+When `tunnel_info.is_ready` is `false`, the service is still starting — poll again after a few seconds. For VS Code, the `auth_code` may appear before `tunnel_url` (user must complete GitHub device auth at https://github.com/login/device first).
 
 ### `job machine-logs <job_id>`
 
@@ -320,8 +369,9 @@ The shape of `--config` depends on `--type`:
 | `aws` | `region`. | `{"aws_access_key_id": "...", "aws_secret_access_key": "..."}` — uploaded to `~/.aws/credentials` on the API host. |
 | `gcp` | `region`, optional `zone`. | The **raw service account JSON key file** (point `--credentials-file` directly at the file you'd pass to `gcloud auth activate-service-account --key-file=`). |
 | `azure` | `azure_subscription_id`, `azure_tenant_id`, `azure_client_id`, `azure_location` | `{"azure_client_secret": "..."}` |
+| `nebius` | optional `parent_id` (project id; required unless `subnet_id` set), `subnet_id`, `default_platform`, `default_preset`, `boot_image_family`, `disk_size_gib` | `{"service_account_id": "...", "public_key_id": "...", "private_key": "..."}` — uploaded to the dedicated `/nebius/credentials` endpoint. |
 
-You can put any combination of secret fields in `--credentials-file` — for non-AWS/GCP types they merge on top of `--config` and take precedence on conflict. AWS access keys and GCP service account JSON are routed to their dedicated upload endpoints.
+You can put any combination of secret fields in `--credentials-file` — for non-AWS/GCP/Nebius types they merge on top of `--config` and take precedence on conflict. AWS access keys, GCP service account JSON, and Nebius service-account key pairs are routed to their dedicated upload endpoints.
 
 ```bash
 lab provider add --no-interactive --name local --type local --config '{}'

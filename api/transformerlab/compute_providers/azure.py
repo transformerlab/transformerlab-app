@@ -10,7 +10,7 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Union
 
-from .base import ComputeProvider
+from .base import ComputeProvider, format_status_snapshot
 from .models import ClusterConfig, ClusterState, ClusterStatus, JobConfig, JobInfo, ResourceInfo
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
@@ -582,6 +582,41 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             status_message=power_state,
             provider_data={"vm_id": vm.id, "vm_size": vm_size},
         )
+
+    def get_request_logs(self, request_id: str, tail_lines: Optional[int] = None) -> str:
+        """Return an orchestration snapshot for an Azure VM (instanceView statuses)."""
+        try:
+            compute_client = self._get_compute_client()
+            vm = compute_client.virtual_machines.get(self.resource_group, request_id, expand="instanceView")
+        except Exception as e:  # noqa: BLE001
+            return f"Failed to fetch Azure VM '{request_id}': {e}"
+
+        fields = {
+            "VM name": vm.name,
+            "VM ID": vm.id,
+            "Provisioning state": vm.provisioning_state,
+            "Power state": self._get_vm_power_state(vm),
+            "Location": vm.location,
+            "VM size": vm.hardware_profile.vm_size if vm.hardware_profile else None,
+        }
+
+        status_lines = []
+        instance_view = getattr(vm, "instance_view", None)
+        if instance_view and instance_view.statuses:
+            for s in instance_view.statuses:
+                parts = [s.code or ""]
+                if getattr(s, "display_status", None):
+                    parts.append(s.display_status)
+                if getattr(s, "time", None):
+                    parts.append(str(s.time))
+                if getattr(s, "message", None):
+                    parts.append(s.message)
+                status_lines.append(" | ".join(p for p in parts if p))
+        if status_lines and tail_lines:
+            status_lines = status_lines[-tail_lines:]
+        footer = ("--- Instance view statuses ---\n" + "\n".join(status_lines)) if status_lines else None
+
+        return format_status_snapshot(f"Azure VM {request_id}", fields, footer=footer)
 
     def list_clusters(self) -> List[ClusterStatus]:
         compute_client = self._get_compute_client()

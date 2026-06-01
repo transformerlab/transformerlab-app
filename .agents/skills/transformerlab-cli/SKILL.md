@@ -571,6 +571,7 @@ lab provider delete PROVIDER_ID --no-interactive
 | `aws` | `region`. Provide AWS access keys via `--credentials-file PATH` pointing at a JSON file with `aws_access_key_id` + `aws_secret_access_key` (uploaded to the API host's `~/.aws/credentials`) |
 | `gcp` | `region`, optional `zone`. Must also pass `--credentials-file PATH` pointing at your service account JSON key file |
 | `azure` | `azure_subscription_id`, `azure_tenant_id`, `azure_client_id`, `azure_client_secret`, `azure_location` |
+| `nebius` | optional infra config `parent_id` (project id; required unless `subnet_id` set), `subnet_id`, `default_platform`, `default_preset`, `boot_image_family`, `disk_size_gib`. Provide the service-account key pair via `--credentials-file PATH` pointing at a JSON file with `service_account_id` + `public_key_id` + `private_key` (uploaded via the dedicated `/nebius/credentials` endpoint) |
 
 ### `--credentials-file` for secrets (preferred)
 
@@ -622,6 +623,12 @@ lab provider add --no-interactive --name my-azure --type azure \
   --config '{"azure_subscription_id": "sub", "azure_tenant_id": "tenant", "azure_client_id": "client", "azure_location": "eastus"}' \
   --credentials-file ./azure-secrets.json
 
+# Nebius — service-account key pair lives in --credentials-file (uploaded via /nebius/credentials)
+# nebius-creds.json: {"service_account_id": "serviceaccount-...", "public_key_id": "publickey-...", "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"}
+lab provider add --no-interactive --name my-nebius --type nebius \
+  --config '{"parent_id": "project-123"}' \
+  --credentials-file ./nebius-creds.json
+
 # SkyPilot / RunPod / dstack — same pattern: put api_token / api_key in --credentials-file
 # skypilot-secrets.json: {"api_token": "TOKEN"}
 lab provider add --no-interactive --name my-skypilot-prod --type skypilot \
@@ -646,7 +653,7 @@ Also note that secrets passed inside `--config` (e.g. `api_token`, `azure_client
 5. **`task add` has no `--yes` flag** — pipe `echo "y"` to confirm: `echo "y" | lab task add ./my-task`
 6. **Skip confirmation on destructive commands:** use `--no-interactive` for `provider delete`, `job delete`, and `job delete-all`; use `--yes` / `-y` for `model delete` / `dataset delete` (the flag names differ — verify with `--help`)
 7. **Never run `lab job monitor` when operating as an AI agent.** It launches an interactive Textual TUI that blocks automation and can hang unattended runs; use `lab job list`, `lab job info`, and `lab job task-logs` (`--follow` only when explicitly requested) instead.
-8. **Never use `task interactive`** unless the user specifically requests an interactive session
+8. **`task interactive` supports full non-interactive mode.** Pass `--provider` and `--template` to skip all prompts. Use `--no-poll` to launch without blocking, then poll readiness with `lab job info <job_id>` (includes `tunnel_info` for interactive jobs). For `vscode`/`ssh`, watch for `tunnel_info.auth_code` and surface it to the user — `is_ready` will not flip until they complete the device login. See the "Launching interactive tasks" workflow below.
 9. **`job task-logs --follow`** streams continuously and blocks until the job finishes — use when the user wants real-time monitoring
 10. **Never use the deprecated `lab job logs`** — see the "Job logs: three real commands" section below.
 11. **Before queuing a task, CONFIRM the experiment with the user.** Run `lab config` to read the current default and `lab --format json experiment list` to verify it exists, then ask: "I'm about to queue this under experiment `<name>` (your current default). OK, or pick another?" Show 2–3 alternatives from `experiment list` if the current one looks stale or missing. Skip the confirmation only when the user has already named the experiment in this turn.
@@ -755,6 +762,78 @@ lab job request-logs JOB_ID   # provider launch/provisioning logs
 | Status FAILED with a Python traceback | Task code error | Read the full provider logs to see the traceback |
 | Status FAILED, no logs available | Cluster failed to provision | Check if the requested accelerator type is available |
 
+### Launching interactive tasks (agent workflow)
+
+Interactive tasks launch long-running services (Jupyter, vLLM, Ollama, etc.) and expose them via URLs. The full non-interactive agent workflow:
+
+```bash
+# 1. List available templates
+lab --format json task gallery --type interactive
+
+# 2. Launch non-interactively with --no-poll (returns immediately)
+lab --format json task interactive \
+  --provider local --template jupyter --no-poll
+# → {"job_id": "abc-123", "task_id": "def-456", "experiment_id": "alpha"}
+
+# 3. Poll for readiness via job info (includes tunnel_info for interactive jobs)
+lab --format json job info JOB_ID
+# → {..., "tunnel_info": {"is_ready": false, ...}}   ← not ready yet, poll again
+# → {..., "tunnel_info": {"is_ready": true, "tunnel_url": "...", "token": "...", "instructions": [...]}}
+
+# 4. Present connection info to the user (render every block in tunnel_info.instructions)
+
+# 5. When done, stop the session
+lab job stop JOB_ID
+```
+
+**Rendering `tunnel_info.instructions[]`:** the `instructions` array is the source of truth for what to show the user — iterate it and render each block by its `kind`. Don't hardcode "show tunnel_url only": some templates require the user to *act* on an earlier block before `is_ready` can flip (see "Human-in-the-loop" below).
+
+| `kind` | What to surface |
+|---|---|
+| `code` | The `value_key` field on the block (e.g. `auth_code`) — a short string the user pastes elsewhere. Include `help_links[]`. |
+| `url` | The `value_key` field (e.g. `tunnel_url`, `jupyter_url`) — the link the user opens. |
+| `command` | The `value_key` field — a shell command the user runs locally (e.g. `ssh_command`). |
+| `kv` | The `items[]` list — labeled key/value pairs (e.g. SSH `domain`/`port`/`username`). |
+| `text` | The `template` field, with `{{var}}` substituted from `tunnel_info` values. |
+
+**Human-in-the-loop templates (`vscode`, `ssh`):** `is_ready` will *not* flip until the user completes an out-of-band auth step. Agent flow:
+
+1. Poll `lab job info JOB_ID` after launch. As soon as `tunnel_info.auth_code` (or any `kind: "code"` block's `value_key`) becomes non-null, surface the code to the user along with the `help_links[]` URL (e.g. `https://github.com/login/device` for `vscode`). Mention that the code expires in ~15 min so they should authorize promptly.
+2. **Do NOT wait for the user to confirm — keep polling immediately.** Authorization happens in the user's browser, independent of this conversation; the agent sees the result via `tunnel_info.is_ready` flipping to `true` on the next poll (typically within seconds of the user clicking Authorize). Pausing for a "I'm done" message wastes the user's time and conflates the agent's state machine with theirs.
+3. While polling, ignore "Startup may have stalled" messages in the UI — that's a timeout heuristic, not a real failure. The underlying `code tunnel` / `sshd` process is alive and waiting on auth. Only treat the job as failed if `status` becomes `FAILED`/`STOPPED`/`COMPLETE`.
+4. Once `is_ready` flips, render the remaining `instructions[]` blocks (tunnel URL, etc.). If the user never authorizes and the code expires, the job will eventually fail — stop it (`lab job stop`) and relaunch rather than waiting for `code tunnel` to print a new code.
+5. Budget for the human round-trip: when you control the polling loop yourself, allow ~15 min wall time after the code appears. If you're using the CLI's built-in poller (no `--no-poll`), pass `--timeout 900` or higher.
+
+For purely automated templates (`jupyter`, `vllm`, `ollama`, etc.), `tunnel_info` has no `auth_code`/`kind: "code"` block and `is_ready` flips on its own — skip the pause and present `tunnel_url` once ready.
+
+**Key flags for `task interactive`:**
+- `--provider <name>` and `--template <id>` — required for non-interactive mode
+- `--env KEY=VALUE` — repeatable, sets environment variables (e.g. `--env MODEL_NAME=llama3`)
+- `--cpus`, `--memory`, `--disk`, `--accelerators`, `--num-nodes`, `--minutes` — resource overrides for remote providers
+- `--no-poll` — launch and exit immediately; poll readiness later with `lab job tunnel-info`
+- Without `--no-poll`, the command blocks and polls internally until the service is ready or `--timeout` is hit
+
+**Available templates:** `jupyter`, `vllm`, `ollama`, `ollama_gradio`, `comfy_ui`, `vscode`, `ssh`, `mlx_gradio`, `mlx_audio_tts`. Run `lab --format json task gallery --type interactive` to get the current list with descriptions and required env vars.
+
+**Required `--env` flags by template.** Several templates declare gallery `env_parameters` with `required: true`. In non-interactive mode (`--provider` + `--template`), if you omit the `--env` flag for a required param, the CLI silently substitutes the gallery's *placeholder hint string* as the value (`interactive.py:177`) — e.g. `MODEL_NAME` becomes literally `"e.g. meta-llama/Llama-2-7b-chat-hf"` and the job fails downstream with a confusing model-not-found error. **Always pass real values explicitly for these:**
+
+| Template | Required `--env` |
+|---|---|
+| `vllm` | `MODEL_NAME=<hf-model-id>`, `TP_SIZE=<int>`, plus `HF_TOKEN=...` for gated models |
+| `ollama` | `MODEL_NAME=<ollama-model-name>` (e.g. `tinyllama`, `llama2`) |
+| `ollama_gradio` | `MODEL_NAME=<ollama-model-name>` |
+| `mlx_gradio` | `MODEL_NAME=<mlx-compatible-hf-id>` |
+| `mlx_audio_tts` | `MODEL_NAME=<mlx-compatible-tts-hf-id>` |
+| `jupyter`, `comfy_ui`, `vscode`, `ssh` | none beyond ngrok auto-default |
+
+If the user hasn't given you a model name, **ask** before launching — don't fall back to a placeholder, and don't pick one yourself.
+
+**Remote providers:** Require `NGROK_AUTH_TOKEN` (auto-defaults to `{{secret._NGROK_AUTH_TOKEN}}`). Pass resource flags or accept gallery defaults.
+
+**The team must have `_NGROK_AUTH_TOKEN` set as a special secret on the server**, otherwise the API rejects launches of any ngrok-using template (`jupyter`, `vllm`, `ollama`, `comfy_ui`, `ssh`) with `Missing secrets: ngrok Auth Token. Please define these secrets at the team or user level before launching.` Before launching one of those on a remote provider, run `lab --format json team secret list | jq '.[] | select(.name=="_NGROK_AUTH_TOKEN")'` — if empty, stop and tell the user to set it via **Team Settings → Special Secrets** in the web UI, or `lab team secret set _NGROK_AUTH_TOKEN <token>` from the CLI. (`ollama_gradio` and `mlx_*` templates don't use ngrok and are unaffected.)
+
+**Local providers:** No ngrok needed. Services are accessible on localhost.
+
 ### Checking Cluster Status (SkyPilot providers)
 
 Use `lab job info JOB_ID` — it shows `cluster_name` and provisioning state. For more detail use `lab job request-logs JOB_ID` (provider launch logs). If a cluster never provisioned, the request-logs will show why (wrong accelerator type, quota, etc.).
@@ -797,6 +876,7 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab task delete <id>` | Delete a task (`--no-interactive` to skip confirmation) | Yes |
 | `lab task queue <id>` | Queue task on compute provider (`-m/--description` for a markdown run note; `-p/--param key=value` to override task parameters per run; required for agents, see "Always write a run description") | Yes |
 | `lab task gallery` | Browse/import from task gallery | Yes |
+| `lab task interactive` | Launch an interactive task (`--provider`, `--template`, `--no-poll` for agent use) | Yes |
 | `lab job list` | List jobs (`--running` for active only) | Yes |
 | `lab job info <id>` | Get detailed job information | Yes |
 | `lab job task-logs <id>` | Fetch task/SDK output (`--follow` to stream) | Yes |
@@ -813,6 +893,7 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab provider update <id>` | Update provider config | No |
 | `lab provider delete <id>` | Delete a provider (`--no-interactive` to skip prompt) | No |
 | `lab provider check <id>` | Check provider health | No |
+| `lab provider verify-lifecycle <id>` | Verify provider lifecycle via a storage probe (`--no-wait` to launch only; see `--help` for polling options) | No |
 | `lab provider enable <id>` | Enable a provider | No |
 | `lab provider disable <id>` | Disable a provider | No |
 | `lab model list` | List all model groups | No |
@@ -833,6 +914,24 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab server install` | Interactive server setup wizard | No |
 | `lab server version` | Show installed server version | No |
 | `lab server update` | Update server to latest | No |
+| `lab team info` | Show current team: name, your role, member count, quota | No |
+| `lab team rename <name>` | Rename the current team (team owners only) | No |
+| `lab team setup` | Onboarding wizard: add a provider, set defaults/secrets, health-check | No |
+| `lab team secret list` | List secrets (`--user`/`-u` for user-level, `--show-values`) | No |
+| `lab team secret set [name] [value]` | Set a secret (`--user`/`-u` for user-level) | No |
+| `lab team secret delete <name>` | Delete a secret (`--user`/`-u`, `--no-interactive`) | No |
+| `lab team secret keys` | Show platform-recognized secret key names | No |
+| `lab team quota show` | Show the current team's monthly quota (minutes; shows hours too) | No |
+| `lab team quota set <minutes>` | Set team monthly quota in minutes (team owners only) | No |
+| `lab team quota usage` | Per-user quota usage for the team (team owners only) | No |
+| `lab team quota set-user <email\|uuid> <minutes>` | Set a per-user quota override (team owners only) | No |
+| `lab team quota me` | Show your own quota status in the current team | No |
+| `lab team members list` | List members of the current team | No |
+| `lab team members invite <email>` | Invite a member by email (`--role member\|owner`, team owners only) | No |
+| `lab team members remove <email\|uuid>` | Remove a member (`--no-interactive`; team owners only) | No |
+| `lab team members set-role <email\|uuid> <role>` | Change a member's role to `member`/`owner` (team owners only) | No |
+| `lab team invitations list` | List pending invitations for the team (team owners only) | No |
+| `lab team invitations cancel <invitation_id>` | Cancel a pending invitation (`--no-interactive`; team owners only) | No |
 
 ## JSON Output Shapes
 

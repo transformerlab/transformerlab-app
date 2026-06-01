@@ -139,7 +139,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   }, [allJobs]);
 
   const sortedTasks = useMemo(() => {
-    return tasksList.toSorted((a, b) => {
+    return [...tasksList].sort((a, b) => {
       const tsA = lastRunByTaskId[String(a.id)] ?? '';
       const tsB = lastRunByTaskId[String(b.id)] ?? '';
       if (!tsA && !tsB) return 0;
