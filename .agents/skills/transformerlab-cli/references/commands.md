@@ -88,6 +88,34 @@ lab experiment list --tag fine-tuning --tag llama  # must have both tags
 lab --format json experiment list --tag llama    # JSON output includes `tags` field
 ```
 
+### `experiment tag add <experiment> <tags...>`
+
+Add one or more tags to an experiment. `<experiment>` is a name or id; `<tags...>` is one or more space-separated tags. Both arguments are required.
+
+```bash
+lab experiment tag add my-experiment fine-tuning           # add one tag
+lab experiment tag add my-experiment fine-tuning llama     # add multiple at once
+```
+
+### `experiment tag remove <experiment> <tags...>`
+
+Remove one or more tags from an experiment. Same argument shape as `tag add`.
+
+```bash
+lab experiment tag remove my-experiment llama
+lab experiment tag remove my-experiment fine-tuning llama
+```
+
+### `experiment tags`
+
+List every distinct tag across all experiments you can read. No arguments.
+
+```bash
+lab experiment tags
+```
+
+> **Note:** `experiment create` does **not** accept tags — there is no `--tag` flag on `create`. Create the experiment first, then apply tags with `experiment tag add`.
+
 ---
 
 ## Task Commands
