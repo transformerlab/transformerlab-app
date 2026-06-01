@@ -270,7 +270,7 @@ lab task add ./hello-world-task --no-interactive
 
 ## Managing Experiments
 
-Use `lab experiment` commands to list, create, delete, and set the default experiment. **Experiments are the container for tasks and jobs** — most `lab task` / `lab job` commands operate against the *current* experiment (the one stored in `~/.lab/config.json` as `current_experiment`).
+Use `lab experiment` commands to list, create, delete, tag, and set the default experiment. **Experiments are the container for tasks and jobs** — most `lab task` / `lab job` commands operate against the *current* experiment (the one stored in `~/.lab/config.json` as `current_experiment`).
 
 ```bash
 # List all experiments. The current default is marked with `*`.
@@ -288,6 +288,33 @@ lab experiment delete my-experiment --no-interactive
 
 # Switch which experiment is the default. This writes to ~/.lab/config.json.
 lab experiment set-default my-experiment
+```
+
+### Tagging experiments
+
+Experiments support free-form tags for organizing and filtering. **`lab experiment create` does NOT accept tags** — there is no `--tag` flag on `create`. Tags are managed *after* creation with the dedicated `lab experiment tag` subcommands, and you filter by them with `lab experiment list --tag`.
+
+```bash
+# Add one or more tags to an experiment (by name or id). Both args required.
+lab experiment tag add my-experiment fine-tuning llama
+
+# Remove one or more tags from an experiment
+lab experiment tag remove my-experiment llama
+
+# List every distinct tag across experiments you can read
+lab experiment tags
+
+# Filter experiments by tag. Repeat --tag to AND multiple tags (client-side filter).
+lab experiment list --tag fine-tuning
+lab experiment list --tag fine-tuning --tag llama   # must have BOTH tags
+lab --format json experiment list --tag llama       # JSON output includes a `tags` field
+```
+
+To create-and-tag in one flow, run `create` then `tag add`:
+
+```bash
+lab experiment create my-experiment --set-default
+lab experiment tag add my-experiment fine-tuning llama
 ```
 
 ### `lab experiment set-default` vs `lab config set current_experiment`
@@ -864,6 +891,10 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab experiment create <name>` | Create a new experiment (`--set-default` to also switch to it) | No |
 | `lab experiment delete <id>` | Delete an experiment (`--no-interactive` to skip prompt) | No |
 | `lab experiment set-default <id>` | Set the default experiment (validates server-side, then writes `current_experiment` to `~/.lab/config.json`) | No |
+| `lab experiment list --tag <tag>` | Filter experiments by tag; repeat `--tag` to AND multiple tags (client-side) | No |
+| `lab experiment tag add <experiment> <tags...>` | Add one or more tags to an experiment (by name or id) | No |
+| `lab experiment tag remove <experiment> <tags...>` | Remove one or more tags from an experiment | No |
+| `lab experiment tags` | List all distinct tags across experiments you can read | No |
 | `lab notes show` | Render the current experiment's shared markdown notes (`--raw` for plain markdown) | Yes |
 | `lab notes edit` | Open the current experiment's notes in `$EDITOR` (defaults to nano) | Yes |
 | `lab notes append <text>` | Append a line to the current experiment's notes non-interactively — preferred for agents | Yes |
