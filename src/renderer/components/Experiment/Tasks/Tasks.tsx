@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import Sheet from '@mui/joy/Sheet';
 
 import {
@@ -111,6 +111,8 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     Record<string, boolean>
   >({});
   const { experimentInfo } = useExperimentInfo();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { addNotification } = useNotification();
   const { fetchWithAuth, team } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1662,6 +1664,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             jobs={filteredJobs}
             launchProgressByJobId={launchProgressByJobId}
             onDeleteJob={handleDeleteJob}
+            onViewJob={(jobId) => {
+              const jobIdStr =
+                jobId === null || jobId === undefined ? '' : String(jobId);
+              if (!jobIdStr || jobIdStr === '-1' || jobIdStr === 'NaN') return;
+              if (!experimentInfo?.id) return;
+              navigate(`/experiment/${experimentInfo.id}/jobs/${jobIdStr}`, {
+                state: { from: location.pathname + location.search },
+              });
+            }}
             onViewOutput={(jobId) => {
               const jobIdStr =
                 jobId === null || jobId === undefined ? '' : String(jobId);
@@ -1741,19 +1752,21 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         const outputJob = jobs?.find(
           (j: any) => String(j.id) === viewOutputFromJob,
         );
+        const providerRequestId =
+          outputJob?.job_data?.provider_launch_result?.request_id ||
+          outputJob?.job_data?.orchestrator_request_id ||
+          '';
         return (
           <ViewOutputModalStreaming
             jobId={viewOutputFromJob}
             setJobId={(jobId: string | null) => setViewOutputFromJob(jobId)}
             jobStatus={outputJob?.status || ''}
             tabs={
-              outputJob?.job_data?.provider_type === 'skypilot'
-                ? ['output', 'provider', 'skypilot']
+              providerRequestId
+                ? ['output', 'provider', 'orchestration']
                 : ['output', 'provider']
             }
-            skypilotRequestId={
-              outputJob?.job_data?.provider_launch_result?.request_id || ''
-            }
+            providerRequestId={providerRequestId}
           />
         );
       })()}
@@ -1787,7 +1800,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           setPreviewDatasetModal({ ...previewDatasetModal, open })
         }
         dataset_id={previewDatasetModal.datasetId}
-        viewType="preview"
       />
       <TrackioModal
         jobId={trackioJobIdForModal}

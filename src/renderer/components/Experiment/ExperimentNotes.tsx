@@ -46,6 +46,35 @@ import PublicShareLinkPopover from './PublicShareLinkPopover';
 
 const ASSET_MARKDOWN_PREFIX = 'notes/assets/';
 
+// MDXEditor parses markdown through MDX, which interprets `<` as the start of an
+// HTML/JSX tag and `{` as the start of a JS expression. Plain prose like
+// `R_OOC<0.9`, `<=2`, or `score={...}` therefore fails rich-text parsing with
+// errors such as "Unexpected character `=` before name" or "Could not parse
+// expression with acorn". We escape those characters so they render literally,
+// but only OUTSIDE code spans/fenced blocks (where `<`/`{` are valid content and
+// MDX does not parse them) so code samples are left intact.
+//
+// The negative lookbehind `(?<!\\)` is critical: MDXEditor's own serializer
+// already escapes literal `<`/`{` in prose as backslash escapes (`\<`, `\{`),
+// which round-trip safely on their own. Without the lookbehind we would convert
+// the `<` inside `\<` into `\&lt;`, where the leading backslash now escapes the
+// `&` — so MDX parses the entity as the literal text `&lt;` and the note shows
+// `test&lt;0.90` instead of `test<0.90` after a reload. We only escape `<`/`{`
+// that are not already backslash-escaped.
+function escapeMdxOutsideCode(md: string): string {
+  // Split while capturing fenced code blocks and inline code spans; with a
+  // capturing group, the delimiters land at odd indices in the result.
+  return md
+    .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
+    .map((segment, index) => {
+      if (index % 2 === 1) return segment; // code segment — leave untouched
+      return segment
+        .replace(/(?<!\\)<(?![A-Za-z/!])/g, '&lt;')
+        .replace(/(?<!\\)\{/g, '&#123;');
+    })
+    .join('');
+}
+
 export default function ExperimentNotes() {
   const { experimentInfo } = useExperimentInfo();
   const [isDirty, setIsDirty] = useState(false);
@@ -105,9 +134,9 @@ export default function ExperimentNotes() {
         (_match, pre, filename, post) =>
           `${pre}${chatAPI.Endpoints.Experiment.GetNoteAsset(experimentId, filename)}${post}`,
       );
-      // MDXEditor parses markdown through MDX. Raw `<` followed by a digit (e.g. `5 < 10`)
-      // can be interpreted as a malformed JSX tag start and fail rich-text parsing.
-      result = result.replace(/<(?=\d)/g, '&lt;');
+      // Escape MDX-significant characters (`<`, `{`) in prose so the editor can
+      // render notes containing comparisons/operators/expressions. See helper.
+      result = escapeMdxOutsideCode(result);
       return result;
     },
     [experimentId],

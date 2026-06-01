@@ -26,7 +26,7 @@ from transformerlab.services.permission_service import require_permission
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
 from transformerlab.shared import shared, zip_utils
 from transformerlab.shared.models.models import ProviderType
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db.session import get_async_session
 from transformerlab.shared.tunnel_parser import get_tunnel_info
 from transformerlab.shared import galleries
 from transformerlab.shared.interactive_gallery_utils import find_interactive_gallery_entry

@@ -13,6 +13,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/authContext';
 import { useNotification } from '../Shared/NotificationSystem';
 
+// The login() action returns an Error with server response details attached.
+// Server-side failures populate `info`; network errors (server unreachable) do not.
+interface LoginError extends Error {
+  info?: { detail?: string; message?: string };
+  status?: number;
+}
+
 export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -126,7 +133,8 @@ export default function LoginForm() {
     try {
       const result = await login(email, password);
       if (result instanceof Error) {
-        if (result.info?.detail === 'LOGIN_USER_NOT_VERIFIED') {
+        const loginError = result as LoginError;
+        if (loginError.info?.detail === 'LOGIN_USER_NOT_VERIFIED') {
           setError(
             emailMethod === 'dev'
               ? 'Email not verified. Check the terminal where you started the server for the verification link.'
@@ -136,14 +144,14 @@ export default function LoginForm() {
         }
         // Distinguish network/connection errors from actual login failures.
         // Server-side errors have .info set; network errors (server unreachable) do not.
-        if (!(result as any).info) {
+        if (!loginError.info) {
           setError(
             'Unable to connect to the server. Please check that the server is running and try again.',
           );
           return;
         }
         setError(
-          result.info?.message ??
+          loginError.info?.message ??
             'Login failed. Please check your credentials.',
         );
       }

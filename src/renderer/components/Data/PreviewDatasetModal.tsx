@@ -9,26 +9,8 @@ import {
 } from '@mui/joy';
 
 import DatasetTable from './DatasetTable';
-import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
-import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import DatasetPreviewEditImage from './DatasetPreviewEditImage';
-import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 
-export default function PreviewDatasetModal({
-  dataset_id,
-  open,
-  setOpen,
-  viewType = 'preview',
-}) {
-  const { data, error, isLoading } = useAPI(
-    'datasets',
-    ['info'],
-    { dataset_id },
-    { enabled: open },
-  );
-
-  const isImageDataset = data?.features?.image?._type === 'Image';
-
+export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
   return (
     <Modal
       open={open}
@@ -52,11 +34,7 @@ export default function PreviewDatasetModal({
           }}
         >
           <Box sx={{ flex: 1, overflow: 'auto' }}>
-            {viewType === 'edit' ? (
-              <DatasetPreviewEditImage datasetId={dataset_id} template="" />
-            ) : (
-              <DatasetTable datasetId={dataset_id} />
-            )}
+            <DatasetTable datasetId={dataset_id} />
           </Box>
         </Sheet>
       </ModalDialog>
