@@ -45,7 +45,6 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: pw-browsers-${{ hashFiles('package-lock.json') }}
-
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
