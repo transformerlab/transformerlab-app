@@ -288,7 +288,8 @@ async def ensure_quota_recorded_for_completed_job(
     Returns True if quota was recorded, False otherwise.
     """
     from transformerlab.services import job_service
-    from transformerlab.shared.models.models import QuotaUsage, User
+    from transformerlab.shared.models.models import QuotaUsage
+    from transformerlab.db import user as db_user
     from sqlalchemy import select
 
     # Get the job
@@ -377,9 +378,7 @@ async def ensure_quota_recorded_for_completed_job(
             return False
 
         # Get user_id from email
-        stmt = select(User).where(User.email == user_email)
-        result = await session.execute(stmt)
-        user = result.scalar_one_or_none()
+        user = await db_user.get_user_by_email(session, user_email)
         if not user:
             return False
 

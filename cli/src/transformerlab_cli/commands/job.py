@@ -486,6 +486,71 @@ def list_jobs(
         console.print(table)
 
 
+def _is_interactive_job(job: dict) -> bool:
+    """Check if a job is an interactive task (Jupyter, vLLM, VS Code, etc.)."""
+    job_data = job.get("job_data", {})
+    if isinstance(job_data, dict) and job_data.get("subtype") == "interactive":
+        return True
+    return job.get("status") == "INTERACTIVE"
+
+
+def _fetch_tunnel_info(experiment_id: str, job_id: str) -> dict | None:
+    """Fetch tunnel/connection info for an interactive job. Returns None on failure."""
+    try:
+        response = api.get(f"/experiment/{experiment_id}/jobs/{job_id}/tunnel_info", timeout=15.0)
+        if response.status_code == 200:
+            return response.json()
+    except httpx.HTTPError:
+        pass
+    return None
+
+
+def _render_tunnel_info(tunnel_info: dict, job_id: str) -> None:
+    """Render tunnel/connection info for an interactive job in pretty mode."""
+    import re as re_mod
+
+    is_ready = tunnel_info.get("is_ready", False)
+    if is_ready:
+        console.print("\n[success bold]✓ Service is ready![/success bold]")
+    else:
+        console.print("\n[warning]Service is not fully ready yet.[/warning]")
+
+    values = {k: str(v) for k, v in tunnel_info.items() if v is not None and isinstance(v, (str, int, float))}
+    for block in tunnel_info.get("instructions", []):
+        kind = block.get("kind")
+        title = block.get("title", "")
+        value_key = block.get("value_key")
+        value = values.get(value_key, "") if value_key else ""
+        placeholder = block.get("placeholder", "")
+
+        if kind == "url" and value:
+            console.print(Panel(f"[link={value}]{value}[/link]", title=title, border_style="green"))
+        elif kind in ("code", "command") and value:
+            console.print(Panel(f"[bold]{value}[/bold]", title=title, border_style="cyan"))
+        elif kind == "kv":
+            lines = []
+            for item in block.get("items", []):
+                val = values.get(item.get("value_key", ""), "")
+                if val:
+                    lines.append(f"  {item.get('label', '')}: {val}")
+            if lines:
+                console.print(Panel("\n".join(lines), title=title, border_style="dim"))
+        elif kind == "text" and (template := block.get("template", "")):
+            resolved = re_mod.sub(r"\{\{(\w+)\}\}", lambda m: values.get(m.group(1), m.group(1)), template)
+            console.print(Panel(resolved, title=title, border_style="dim"))
+
+        if not value and placeholder and not is_ready:
+            console.print(f"  [dim]{title}: {placeholder}[/dim]")
+
+    ports = tunnel_info.get("ports", [])
+    if ports:
+        console.print("\n[bold]Exposed Ports:[/bold]")
+        for p in ports:
+            console.print(f"  {p.get('label', '')}: port {p.get('port', '')} ({p.get('protocol', '')})")
+
+    console.print(f"\nTo stop this session: [bold]lab job stop {job_id}[/bold]")
+
+
 def info_job(job_id: str, experiment_id: str):
     """Get details of a specific job."""
     output_format = cli_state.output_format
@@ -504,13 +569,29 @@ def info_job(job_id: str, experiment_id: str):
         console.print(f"[error]Error:[/error] Job with ID {job_id} not found.")
         return
 
+    # For interactive jobs, fetch tunnel/connection info
+    tunnel_info = None
+    if _is_interactive_job(job):
+        if output_format != "json":
+            with console.status("[bold success]Fetching connection info...[/bold success]", spinner="dots"):
+                tunnel_info = _fetch_tunnel_info(experiment_id, job_id)
+        else:
+            tunnel_info = _fetch_tunnel_info(experiment_id, job_id)
+
     if output_format == "json":
         files = _fetch_job_files(experiment_id, job_id)
-        print(json.dumps({**job, "files": files, "discarded": _is_discarded(job.get("job_data", {}))}))
+        result = {**job, "files": files, "discarded": _is_discarded(job.get("job_data", {}))}
+        if tunnel_info is not None:
+            result["tunnel_info"] = tunnel_info
+        print(json.dumps(result))
         return
 
     console.print(f"[bold success]Job Details for ID {job_id}:[/bold success]")
     _render_job(job)
+
+    # For interactive jobs, show connection info
+    if tunnel_info is not None:
+        _render_tunnel_info(tunnel_info, job_id)
 
     # Fetch and display job files
     with console.status("[bold success]Fetching job files[/bold success]", spinner="dots"):

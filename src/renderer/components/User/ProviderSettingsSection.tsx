@@ -323,7 +323,6 @@ export default function ProviderSettingsSection() {
                   <Stack gap={1}>
                     {(settings.custom_sbatch_flags || '')
                       .split('\n')
-                      .filter((_, idx, arr) => arr.length === 1 || true)
                       .map((rawLine, idx, arr) => {
                         const value = rawLine;
                         return (

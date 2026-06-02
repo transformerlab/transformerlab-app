@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import json
 import logging
 import re
 import shlex
@@ -11,7 +12,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
-from .base import ComputeProvider
+from .base import ComputeProvider, format_status_snapshot
 from .models import ClusterConfig, ClusterState, ClusterStatus, JobConfig, JobInfo, ResourceInfo
 
 logger = logging.getLogger(__name__)
@@ -494,6 +495,54 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             status_message=gce_state,
             provider_data=instance,
         )
+
+    def get_request_logs(self, request_id: str, tail_lines: Optional[int] = None) -> str:
+        """Return an orchestration snapshot for a GCP launch (operation + instance + serial)."""
+        zone_base = self._zone_base_url()
+
+        operation = None
+        try:
+            operation = self._request("GET", f"{zone_base}/operations/{request_id}")
+        except FileNotFoundError:
+            operation = None
+        except Exception as e:  # noqa: BLE001
+            return f"Failed to fetch GCP operation '{request_id}': {e}"
+
+        instance_name = request_id
+        if operation:
+            target_link = operation.get("targetLink") or ""
+            if target_link:
+                instance_name = target_link.rstrip("/").split("/")[-1]
+
+        fields: dict = {}
+        if operation:
+            fields["Operation"] = operation.get("name")
+            fields["Operation status"] = operation.get("status")
+            fields["Operation type"] = operation.get("operationType")
+            fields["Progress"] = operation.get("progress")
+            if operation.get("error"):
+                fields["Error"] = json.dumps(operation["error"])
+
+        try:
+            instance = self._request("GET", f"{zone_base}/instances/{instance_name}")
+        except Exception:  # noqa: BLE001
+            instance = None
+        if instance:
+            fields["Instance"] = instance.get("name")
+            fields["Instance status"] = instance.get("status")
+            fields["Machine type"] = str(instance.get("machineType", "")).split("/")[-1] or None
+
+        serial = ""
+        try:
+            serial_data = self._request("GET", f"{zone_base}/instances/{instance_name}/serialPort", params={"port": 1})
+            serial = serial_data.get("contents", "") if isinstance(serial_data, dict) else ""
+        except Exception as e:  # noqa: BLE001
+            serial = f"(serial port output unavailable: {e})"
+        if serial and tail_lines:
+            serial = "\n".join(serial.splitlines()[-tail_lines:])
+        footer = ("--- Serial port output ---\n" + serial) if serial else None
+
+        return format_status_snapshot(f"GCP launch {request_id}", fields, footer=footer)
 
     def list_clusters(self) -> List[ClusterStatus]:
         safe_team = _label_value(self.team_id)

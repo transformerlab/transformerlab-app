@@ -1,14 +1,14 @@
 """Router for managing quota tracking and enforcement."""
 
-import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db import team as db_team
+from transformerlab.db import user as db_user
+from transformerlab.db.session import get_async_session
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services import quota_service
-from transformerlab.shared.models.models import User
 
 router = APIRouter(prefix="/quota", tags=["quota"])
 
@@ -134,24 +134,17 @@ async def get_team_quota_usage_by_users(
     Get quota usage summary for all users in a team.
     Only team owners can access this endpoint.
     """
-    from sqlalchemy import select
-    from transformerlab.shared.models.models import UserTeam
-
     current_period = quota_service.get_current_period_start()
 
     # Get all team members
-    stmt = select(UserTeam).where(UserTeam.team_id == team_id)
-    result = await session.execute(stmt)
-    team_members = result.scalars().all()
+    team_members = await db_team.get_team_members(session, team_id)
 
     user_summaries = []
     for member in team_members:
         user_id_str = member.user_id
 
         # Get user details
-        user_stmt = select(User).where(User.id == uuid.UUID(user_id_str))
-        user_result = await session.execute(user_stmt)
-        user = user_result.scalar_one_or_none()
+        user = await db_user.get_user_by_id(session, user_id_str)
         if not user:
             continue
 
