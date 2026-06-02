@@ -139,6 +139,35 @@ def test_build_launch_payload_includes_profiling_flags():
     assert payload["enable_profiling_torch"] is True
 
 
+def test_build_launch_payload_includes_image():
+    """build_launch_payload puts --image into the launch body's config.docker_image."""
+    task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
+    payload = build_launch_payload(task, "Runpod", image="my-org/custom:latest")
+    assert payload["config"]["docker_image"] == "my-org/custom:latest"
+
+
+def test_build_launch_payload_image_merges_with_params():
+    """An image and a param override coexist in config."""
+    task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
+    payload = build_launch_payload(task, "Runpod", param_values={"lr": "3e-5"}, image="my-org/custom:latest")
+    assert payload["config"]["docker_image"] == "my-org/custom:latest"
+    assert payload["config"]["lr"] == "3e-5"
+
+
+def test_build_launch_payload_no_image_omits_docker_image():
+    """Without --image, config carries no docker_image key."""
+    task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
+    payload = build_launch_payload(task, "Runpod", param_values={"lr": "3e-5"})
+    assert "docker_image" not in (payload["config"] or {})
+
+
+def test_build_launch_payload_image_works_for_skypilot():
+    """--image uses the shared config.docker_image key, so SkyPilot consumes it too."""
+    task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
+    payload = build_launch_payload(task, "SkyPilot", image="docker:nvcr.io/nvidia/pytorch:23.10-py3")
+    assert payload["config"]["docker_image"] == "docker:nvcr.io/nvidia/pytorch:23.10-py3"
+
+
 SAMPLE_TASK = {
     "id": "t1",
     "name": "finetune",
@@ -209,6 +238,21 @@ def test_task_queue_param_override_lands_in_config(_mock_exp, _mock_get, _mock_p
     assert result.exit_code == 0, result.output
     _path, body = mock_post.call_args.args
     assert body["config"]["description"] == "iteration 7"
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+def test_task_queue_image_lands_in_config(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """`lab task queue --image <img>` sends docker_image in the launch payload's config."""
+    result = runner.invoke(
+        app,
+        ["task", "queue", "t1", "--no-interactive", "--image", "my-org/custom:latest"],
+    )
+    assert result.exit_code == 0, result.output
+    _path, body = mock_post.call_args.args
+    assert body["config"]["docker_image"] == "my-org/custom:latest"
 
 
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
