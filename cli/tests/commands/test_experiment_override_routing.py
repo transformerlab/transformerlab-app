@@ -7,6 +7,9 @@ default (``DEFAULT_BASE_URL`` = the unreachable ``alpha.lab.cloud:8338``) in
 place and every ``-e`` request was sent to the wrong host. The default (no
 ``-e``) path went through ``require_current_experiment()`` -> ``check_configs()``
 and therefore routed to the configured server.
+
+The resolver now lives in a single place (``config.resolve_experiment_id``); the
+task, job, and notes command groups import it as ``_resolve_experiment_id``.
 """
 
 import pytest
@@ -19,6 +22,8 @@ from transformerlab_cli.commands import job as job_cmd
 from transformerlab_cli.commands import notes as notes_cmd
 
 CONFIGURED_SERVER = "http://beta.lab.cloud"
+STALE_DEFAULT = "http://alpha.lab.cloud:8338"
+COMMAND_MODULES = [task_cmd, job_cmd, notes_cmd]
 
 
 def _write_valid_config():
@@ -34,35 +39,37 @@ def _write_valid_config():
     )
 
 
-@pytest.fixture()
-def reset_base_url(monkeypatch):
-    """Force the stale module default and use json format to avoid network."""
+@pytest.fixture(autouse=True)
+def _force_stale_base_url(monkeypatch):
+    """Start each test from the stale module default; json format avoids network."""
     monkeypatch.setattr(cli_state, "output_format", "json")
-    shared_mod.set_base_url(shared_mod.DEFAULT_BASE_URL)
-    assert shared_mod.BASE_URL() == "http://alpha.lab.cloud:8338"
+    shared_mod.set_base_url(STALE_DEFAULT)
+    assert shared_mod.BASE_URL() == STALE_DEFAULT
     yield
     shared_mod.set_base_url(shared_mod.DEFAULT_BASE_URL)
 
 
-@pytest.mark.parametrize("module", [task_cmd, job_cmd, notes_cmd])
-def test_experiment_override_routes_to_configured_server(module, reset_base_url):
-    """`-e <exp>` must still apply the configured server, not the stale default."""
+@pytest.mark.parametrize("module", COMMAND_MODULES)
+def test_command_modules_share_single_resolver(module):
+    """Each command group delegates to the one shared resolver (no duplicate copies)."""
+    assert module._resolve_experiment_id is config_mod.resolve_experiment_id
+
+
+def test_experiment_override_routes_to_configured_server():
+    """`-e <exp>` must apply the configured server, not the stale default."""
     _write_valid_config()
 
-    resolved = module._resolve_experiment_id("delta")
+    resolved = config_mod.resolve_experiment_id("delta")
 
     assert resolved == "delta"
-    assert shared_mod.BASE_URL() == CONFIGURED_SERVER, (
-        f"{module.__name__}._resolve_experiment_id left BASE_URL at the stale default instead of the configured server"
-    )
+    assert shared_mod.BASE_URL() == CONFIGURED_SERVER
 
 
-@pytest.mark.parametrize("module", [task_cmd, job_cmd, notes_cmd])
-def test_default_experiment_path_still_routes_to_configured_server(module, reset_base_url):
-    """The no-override path keeps routing to the configured server (unchanged)."""
+def test_default_experiment_path_routes_to_configured_server():
+    """The no-override path keeps routing to the configured server."""
     _write_valid_config()
 
-    resolved = module._resolve_experiment_id(None)
+    resolved = config_mod.resolve_experiment_id(None)
 
     assert resolved == "gamma"
     assert shared_mod.BASE_URL() == CONFIGURED_SERVER
