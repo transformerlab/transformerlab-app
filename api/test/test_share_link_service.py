@@ -1,7 +1,7 @@
 import pytest
 
 from transformerlab.services import share_link_service as svc
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db.session import get_async_session
 
 
 async def _session():

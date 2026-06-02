@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import requests
 
-from .base import ComputeProvider
+from .base import ComputeProvider, format_status_snapshot
 from .models import (
     ClusterConfig,
     ClusterState,
@@ -253,6 +253,33 @@ class VastAIProvider(ComputeProvider):
             resources_str=instance.get("gpu_name", ""),
             provider_data=instance,
         )
+
+    def get_request_logs(self, request_id: str, tail_lines: Optional[int] = None) -> str:
+        """Return an orchestration status snapshot for a Vast.ai instance."""
+        try:
+            response = self._make_request("GET", f"/instances/{request_id}/")
+            data = response.json()
+        except Exception as e:  # noqa: BLE001
+            return f"Failed to fetch Vast.ai instance status for '{request_id}': {e}"
+        instance = data.get("instances") if isinstance(data, dict) else None
+        if isinstance(instance, list):
+            instance = instance[0] if instance else None
+        if not isinstance(instance, dict):
+            instance = data if isinstance(data, dict) else {}
+        if not instance:
+            return f"Vast.ai instance '{request_id}' not found."
+        fields = {
+            "Instance ID": instance.get("id", request_id),
+            "Label": instance.get("label"),
+            "Status": instance.get("actual_status") or instance.get("cur_state"),
+            "Status message": instance.get("status_msg"),
+            "GPU": instance.get("gpu_name"),
+            "GPU count": instance.get("num_gpus"),
+            "Public IP": instance.get("public_ipaddr"),
+            "Image": instance.get("image_uuid") or instance.get("image"),
+            "Started": instance.get("start_date"),
+        }
+        return format_status_snapshot(f"Vast.ai instance {request_id}", fields)
 
     def list_clusters(self) -> List[ClusterStatus]:
         try:

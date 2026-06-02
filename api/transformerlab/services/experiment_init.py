@@ -3,8 +3,11 @@ from lab import storage
 from lab import HOME_DIR
 
 from sqlalchemy import select
-from transformerlab.shared.models.user_model import AsyncSessionLocal, create_personal_team
-from transformerlab.shared.models.models import User, UserTeam, TeamRole
+from transformerlab.db import team as db_team
+from transformerlab.db import user as db_user
+from transformerlab.db.session import async_session as AsyncSessionLocal
+from transformerlab.services.team_service import create_personal_team
+from transformerlab.shared.models.models import User, TeamRole
 from transformerlab.services.provider_service import initialize_team_local_provider
 from transformerlab.services.team_service import get_all_team_ids
 from transformerlab.models.users import UserManager, UserCreate
@@ -35,6 +38,7 @@ async def seed_default_admin_user():
         candidate_admin_emails = {admin_email, DEFAULT_ADMIN_EMAIL_FALLBACK}
         async with AsyncSessionLocal() as session:
             # Check if admin user already exists
+            # kept inline: uses .in_(set) + .unique() not covered by a helper
             stmt = select(User).where(User.email.in_(candidate_admin_emails))
             result = await session.execute(stmt)
             existing_admin = result.unique().scalar_one_or_none()
@@ -52,18 +56,15 @@ async def seed_default_admin_user():
                 admin_user = existing_admin
 
                 # Check if admin user has a team
-                stmt = select(UserTeam).where(UserTeam.user_id == str(admin_user_id)).limit(1)
-                result = await session.execute(stmt)
-                user_team = result.scalar_one_or_none()
+                user_team_list = await db_team.get_user_teams(session, str(admin_user_id))
+                user_team = user_team_list[0] if user_team_list else None
 
                 if not user_team:
                     # Create personal team for existing admin user
                     personal_team = await create_personal_team(session, admin_user)
-                    user_team = UserTeam(
-                        user_id=str(admin_user_id), team_id=personal_team.id, role=TeamRole.OWNER.value
+                    user_team = await db_team.add_user_to_team(
+                        session, str(admin_user_id), personal_team.id, TeamRole.OWNER.value
                     )
-                    session.add(user_team)
-                    await session.commit()
                     await session.refresh(personal_team)
                     team_id = personal_team.id
                     print(f"✅ Created personal team '{personal_team.name}' (id={team_id}) for existing admin user")
@@ -101,9 +102,8 @@ async def seed_default_admin_user():
             admin_user_id = admin_user.id
 
             # Re-fetch the user from the database to get a fresh, attached instance
-            stmt = select(User).where(User.id == admin_user_id)
-            result = await session.execute(stmt)
-            admin_user = result.unique().scalar_one()
+            admin_user = await db_user.get_user_by_id(session, admin_user_id)
+            assert admin_user is not None
 
             # Mark as verified so login works immediately
             admin_user.is_verified = True
@@ -111,16 +111,15 @@ async def seed_default_admin_user():
             await session.commit()
 
             # Create personal team for admin user if it doesn't exist
-            stmt = select(UserTeam).where(UserTeam.user_id == str(admin_user_id))
-            result = await session.execute(stmt)
-            user_team = result.scalar_one_or_none()
+            user_team_list = await db_team.get_user_teams(session, str(admin_user_id))
+            user_team = user_team_list[0] if user_team_list else None
 
             if not user_team:
                 # Create personal team for admin user
                 personal_team = await create_personal_team(session, admin_user)
-                user_team = UserTeam(user_id=str(admin_user_id), team_id=personal_team.id, role=TeamRole.OWNER.value)
-                session.add(user_team)
-                await session.commit()
+                user_team = await db_team.add_user_to_team(
+                    session, str(admin_user_id), personal_team.id, TeamRole.OWNER.value
+                )
                 await session.refresh(personal_team)
                 team_id = personal_team.id
                 print(f"✅ Created personal team '{personal_team.name}' (id={team_id}) for admin user")

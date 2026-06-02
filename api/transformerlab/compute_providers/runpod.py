@@ -10,7 +10,7 @@ import requests
 from transformerlab.services.ssh_key_service import get_org_ssh_private_key
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
-from .base import ComputeProvider
+from .base import ComputeProvider, format_status_snapshot
 from .models import (
     ClusterConfig,
     JobConfig,
@@ -565,6 +565,30 @@ class RunpodProvider(ComputeProvider):
             resources_str=pod.get("gpuTypeId") or pod.get("gpuType", {}).get("name", ""),
             provider_data=pod,
         )
+
+    def get_request_logs(self, request_id: str, tail_lines: Optional[int] = None) -> str:
+        """Return an orchestration status snapshot for a RunPod pod."""
+        try:
+            response = self._make_request("GET", f"/pods/{request_id}")
+            pod = response.json()
+        except Exception as e:  # noqa: BLE001
+            return f"Failed to fetch RunPod pod status for '{request_id}': {e}"
+        if not isinstance(pod, dict) or not pod:
+            return f"RunPod pod '{request_id}' not found."
+        runtime = pod.get("runtime") or {}
+        fields = {
+            "Pod ID": pod.get("id", request_id),
+            "Name": pod.get("name"),
+            "Status": pod.get("desiredStatus") or pod.get("status"),
+            "Image": pod.get("image") or pod.get("imageName"),
+            "GPU": pod.get("gpuTypeId") or (pod.get("machine") or {}).get("gpuTypeId"),
+            "GPU count": pod.get("gpuCount"),
+            "Public IP": runtime.get("publicIp") or pod.get("publicIp"),
+            "Created at": pod.get("createdAt"),
+            "Last started": pod.get("lastStartedAt"),
+            "Cost/hr": pod.get("costPerHr"),
+        }
+        return format_status_snapshot(f"RunPod pod {request_id}", fields)
 
     def list_clusters(self) -> List[ClusterStatus]:
         """List all pods."""

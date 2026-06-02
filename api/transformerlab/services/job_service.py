@@ -629,8 +629,7 @@ async def _record_quota_usage_internal(
     Internal helper to record quota usage. Assumes session is already provided.
     """
     from transformerlab.services import quota_service
-    from transformerlab.shared.models.models import User
-    from sqlalchemy import select
+    from transformerlab.db import user as db_user
 
     job_type = job_dict.get("type")
     if job_type != "REMOTE":
@@ -695,9 +694,7 @@ async def _record_quota_usage_internal(
             return
 
         # Get user_id from email
-        stmt = select(User).where(User.email == user_email)
-        result = await session.execute(stmt)
-        user = result.scalar_one_or_none()
+        user = await db_user.get_user_by_email(session, user_email)
         if not user:
             return
 

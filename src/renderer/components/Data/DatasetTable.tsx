@@ -35,7 +35,7 @@ const DatasetTable = ({ datasetId }: { datasetId: string }) => {
     const totalPages = Math.ceil(totalRows / rowsPerPage);
     setNumOfPages(totalPages);
   };
-  const { data, error, isLoading, mutate } = useSWR(
+  const { data, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.Preview(datasetId, split, offset, pageSize),
     fetcher,
   );

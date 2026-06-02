@@ -17,7 +17,7 @@ from transformerlab.routers.experiment.notes import (
 from transformerlab.services import share_link_service
 from transformerlab.services import experiment_service
 from transformerlab.services import job_service
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db.session import get_async_session
 
 router = APIRouter(prefix="/public/share", tags=["public-share"])
 

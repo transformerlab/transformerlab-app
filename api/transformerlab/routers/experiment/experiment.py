@@ -20,7 +20,7 @@ from transformerlab.routers.auth import get_user_and_team
 from transformerlab.services.permission_service import check_permission, get_user_team, require_permission
 from sqlalchemy import select
 from transformerlab.shared.models.models import TeamRole, UserExperimentAccess
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db.session import get_async_session
 
 from werkzeug.utils import secure_filename
 
