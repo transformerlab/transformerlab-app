@@ -6,7 +6,7 @@ import typer
 from rich.markdown import Markdown
 
 import transformerlab_cli.util.api as api
-from transformerlab_cli.util.config import resolve_experiment_id as _resolve_experiment_id
+from transformerlab_cli.util.config import resolve_experiment_id
 from transformerlab_cli.util.ui import console
 
 app = typer.Typer()
@@ -36,7 +36,7 @@ def command_notes_show(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ) -> None:
     """Show experiment notes."""
-    experiment_id = _resolve_experiment_id(experiment)
+    experiment_id = resolve_experiment_id(experiment)
     content = _get_notes(experiment_id)
     if not content.strip():
         console.print("[dim]No notes yet.[/dim]")
@@ -52,7 +52,7 @@ def command_notes_edit(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ) -> None:
     """Open experiment notes in $EDITOR for editing."""
-    experiment_id = _resolve_experiment_id(experiment)
+    experiment_id = resolve_experiment_id(experiment)
     content = _get_notes(experiment_id)
     editor = os.environ.get("EDITOR", "nano")
 
@@ -80,7 +80,7 @@ def command_notes_append(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ) -> None:
     """Append a line of text to experiment notes without opening an editor."""
-    experiment_id = _resolve_experiment_id(experiment)
+    experiment_id = resolve_experiment_id(experiment)
     current = _get_notes(experiment_id)
     new_content = f"{current}\n{text}" if current.strip() else text
     _save_notes(experiment_id, new_content)

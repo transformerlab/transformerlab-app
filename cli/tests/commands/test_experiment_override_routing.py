@@ -9,7 +9,7 @@ place and every ``-e`` request was sent to the wrong host. The default (no
 and therefore routed to the configured server.
 
 The resolver now lives in a single place (``config.resolve_experiment_id``); the
-task, job, and notes command groups import it as ``_resolve_experiment_id``.
+task, job, and notes command groups all import and call that one function.
 """
 
 import pytest
@@ -52,7 +52,7 @@ def _force_stale_base_url(monkeypatch):
 @pytest.mark.parametrize("module", COMMAND_MODULES)
 def test_command_modules_share_single_resolver(module):
     """Each command group delegates to the one shared resolver (no duplicate copies)."""
-    assert module._resolve_experiment_id is config_mod.resolve_experiment_id
+    assert module.resolve_experiment_id is config_mod.resolve_experiment_id
 
 
 def test_experiment_override_routes_to_configured_server():

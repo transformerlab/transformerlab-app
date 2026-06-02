@@ -16,7 +16,7 @@ from rich.syntax import Syntax
 import transformerlab_cli.util.api as api
 from transformerlab_cli.util import chunked_upload
 from transformerlab_cli.state import cli_state
-from transformerlab_cli.util.config import resolve_experiment_id as _resolve_experiment_id
+from transformerlab_cli.util.config import resolve_experiment_id
 from transformerlab_cli.util.ui import console, render_object, render_table
 
 app = typer.Typer()
@@ -591,7 +591,7 @@ def command_task_list(
     ),
 ):
     """List all tasks."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     list_tasks(output_format=cli_state.output_format, experiment_id=current_experiment, subtype=subtype)
 
 
@@ -758,7 +758,7 @@ def command_task_add(
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Add a new task. Provide a directory path directly, or use --from-git to fetch from a Git repository."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
 
     if from_git:
         add_task_from_github(from_git, experiment_id=current_experiment, interactive=not no_interactive)
@@ -778,7 +778,7 @@ def command_task_validate(
     timeout: int = typer.Option(300, "--timeout", help="Request timeout in seconds for validation"),
 ):
     """Validate a task.yaml file against the server schema."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     resolved_path = os.path.realpath(task_yaml_path)
     output_format = cli_state.output_format
     _validate_task_yaml_file(
@@ -822,7 +822,7 @@ def command_task_edit(
     if dry_run and not from_dir:
         console.print("[warning]Warning:[/warning] --dry-run only applies with --from-dir; ignoring.")
 
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
 
     if from_dir:
         edit_task_from_directory(
@@ -851,7 +851,7 @@ def command_task_upload(
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Upload additional files into an existing task."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     upload_files_to_task(
         task_id=task_id,
         path_to_upload=path,
@@ -867,7 +867,7 @@ def command_task_delete(
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Delete a task."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
 
     if not no_interactive:
         typer.confirm(f"Delete task {task_id}?", abort=True)
@@ -881,7 +881,7 @@ def command_task_info(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Get task details."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     info_task(task_id, current_experiment)
 
 
@@ -1210,7 +1210,7 @@ def command_task_queue(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Queue a task on a compute provider."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     _ensure_experiment_exists(current_experiment)
     if description == "-":
         if sys.stdin.isatty():
@@ -1334,7 +1334,7 @@ def command_task_gallery(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Browse the task gallery. Use --import <id> to add a task to the current experiment."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     output_format = cli_state.output_format
     is_interactive = gallery_type == "interactive"
 
