@@ -63,7 +63,7 @@ def test_task_help():
 
 
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASKS))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_list_json_output(_mock_exp, _mock_api):
     """task list --format json emits valid JSON array."""
     result = runner.invoke(app, ["--format", "json", "task", "list"])
@@ -74,7 +74,7 @@ def test_task_list_json_output(_mock_exp, _mock_api):
 
 
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASKS))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_list_json_no_spinner(_mock_exp, _mock_api):
     """task list --format json does not mix spinner text with JSON."""
     result = runner.invoke(app, ["--format", "json", "task", "list"])
@@ -82,7 +82,7 @@ def test_task_list_json_no_spinner(_mock_exp, _mock_api):
 
 
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASKS))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_list_no_subtype_hits_list_by_type(_mock_exp, mock_api_get):
     """Without --subtype, list calls list_by_type_in_experiment."""
     result = runner.invoke(app, ["--format", "json", "task", "list"])
@@ -94,7 +94,7 @@ def test_task_list_no_subtype_hits_list_by_type(_mock_exp, mock_api_get):
 
 
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASKS))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_list_with_subtype_hits_list_by_subtype(_mock_exp, mock_api_get):
     """--subtype interactive routes to list_by_subtype_in_experiment with the right query params."""
     result = runner.invoke(app, ["--format", "json", "task", "list", "--subtype", "interactive"])
@@ -106,7 +106,7 @@ def test_task_list_with_subtype_hits_list_by_subtype(_mock_exp, mock_api_get):
 
 
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASKS))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_list_rejects_unknown_subtype(_mock_exp, mock_api_get):
     """--subtype <unknown> exits non-zero with an Allowed: ... error and does not hit the server."""
     result = runner.invoke(app, ["task", "list", "--subtype", "cuckoo"])
@@ -153,7 +153,7 @@ SAMPLE_PROVIDERS = [{"id": "p1", "name": "Local"}]
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
 @patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_queue_sends_description(_mock_exp, _mock_get, _mock_providers, mock_post):
     """`lab task queue -m "..." --no-interactive` sends description in the launch body."""
     result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "-m", "hypothesis: larger batch"])
@@ -171,7 +171,7 @@ SAMPLE_PROVIDERS_MULTI = [
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
 @patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS_MULTI)
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_queue_no_interactive_picks_is_default_provider(_mock_exp, _mock_get, _mock_providers, mock_post):
     """When the task has no provider_id pinned, --no-interactive must pick the
     provider marked is_default=True, not just providers[0]."""
@@ -199,7 +199,7 @@ SAMPLE_TASK_WITH_PARAMS = {
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
 @patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_queue_param_override_lands_in_config(_mock_exp, _mock_get, _mock_providers, mock_post):
     """`lab task queue --param k=v` sends the override in the launch payload's config field."""
     result = runner.invoke(
@@ -214,7 +214,7 @@ def test_task_queue_param_override_lands_in_config(_mock_exp, _mock_get, _mock_p
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
 @patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_queue_param_yaml_coercion(_mock_exp, _mock_get, _mock_providers, mock_post):
     """--param values are parsed as YAML scalars: floats, bools, and bare strings."""
     result = runner.invoke(
@@ -244,7 +244,7 @@ def test_task_queue_param_yaml_coercion(_mock_exp, _mock_get, _mock_providers, m
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
 @patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_queue_param_short_flag_overrides_default(_mock_exp, _mock_get, _mock_providers, mock_post):
     """`-p k=v` (short alias) overrides the default value from task.yaml."""
     result = runner.invoke(
@@ -261,7 +261,7 @@ def test_task_queue_param_short_flag_overrides_default(_mock_exp, _mock_get, _mo
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
 @patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_queue_param_value_with_equals_sign(_mock_exp, _mock_get, _mock_providers, mock_post):
     """Value containing '=' is preserved (split on first '=' only)."""
     result = runner.invoke(
@@ -276,7 +276,7 @@ def test_task_queue_param_value_with_equals_sign(_mock_exp, _mock_get, _mock_pro
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
 @patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_queue_param_missing_equals_errors(_mock_exp, _mock_get, _mock_providers, mock_post):
     """`--param foo` (no '=') fails with a clear error and does not call the API."""
     result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "--param", "foo"])
@@ -288,7 +288,7 @@ def test_task_queue_param_missing_equals_errors(_mock_exp, _mock_get, _mock_prov
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
 @patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_queue_param_empty_key_errors(_mock_exp, _mock_get, _mock_providers, mock_post):
     """`--param =5` fails with a clear error."""
     result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "--param", "=5"])
@@ -300,7 +300,7 @@ def test_task_queue_param_empty_key_errors(_mock_exp, _mock_get, _mock_providers
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
 @patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK_WITH_PARAMS))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_queue_param_unknown_key_errors(_mock_exp, _mock_get, _mock_providers, mock_post):
     """`--param notdeclared=1` fails hard when key isn't in the task's parameters block."""
     result = runner.invoke(
@@ -318,7 +318,7 @@ def test_task_queue_param_unknown_key_errors(_mock_exp, _mock_get, _mock_provide
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
 @patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_queue_param_when_task_has_no_parameters_errors(_mock_exp, _mock_get, _mock_providers, mock_post):
     """Passing `--param` when the task declares no parameters fails clearly."""
     result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "--param", "x=1"])
@@ -330,7 +330,7 @@ def test_task_queue_param_when_task_has_no_parameters_errors(_mock_exp, _mock_ge
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
 @patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_queue_enable_profiling_flags(_mock_exp, _mock_get, _mock_providers, mock_post):
     """Queue command forwards profiling flags into launch payload."""
     result = runner.invoke(
@@ -353,7 +353,7 @@ def test_task_queue_enable_profiling_flags(_mock_exp, _mock_get, _mock_providers
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
 @patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_queue_enable_torch_profiling_requires_profiling(_mock_exp, _mock_get, _mock_providers, mock_post):
     """Torch profiling flag without base profiling fails with a clear error."""
     result = runner.invoke(
@@ -365,7 +365,7 @@ def test_task_queue_enable_torch_profiling_requires_profiling(_mock_exp, _mock_g
     mock_post.assert_not_called()
 
 
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="missing-exp")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="missing-exp")
 @patch("transformerlab_cli.commands.task.api.get")
 def test_task_queue_fails_when_current_experiment_missing_on_server(mock_get, _mock_exp):
     """Queue should fail early when resolved current experiment does not exist on the server."""
@@ -385,7 +385,7 @@ def test_task_queue_fails_when_current_experiment_missing_on_server(mock_get, _m
         _mock_resp({"id": "t1"}, status=200),
     ],
 )
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_add_from_git_no_interactive_skips_prompt_and_retries_create_if_missing(_mock_exp, mock_post):
     """`lab task add --from-git ... --no-interactive` should avoid prompts and retry with default task.yaml."""
     result = runner.invoke(app, ["task", "add", "--from-git", "https://github.com/example/repo", "--no-interactive"])
@@ -401,7 +401,7 @@ def test_task_add_from_git_no_interactive_skips_prompt_and_retries_create_if_mis
     "transformerlab_cli.commands.task.api.get",
     return_value=MagicMock(status_code=200, text="name: demo\nrun: echo hi\n"),
 )
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_edit_updates_yaml_from_file(_mock_exp, _mock_get, mock_put, _mock_post_text):
     """`lab task edit --from-file` validates YAML and updates task.yaml."""
     with runner.isolated_filesystem():
@@ -417,7 +417,7 @@ def test_task_edit_updates_yaml_from_file(_mock_exp, _mock_get, mock_put, _mock_
 @patch("transformerlab_cli.commands.task.api.put", return_value=_mock_resp({"received": [0]}))
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp({"received": []}))
 @patch("transformerlab_cli.commands.task.api.post_json")
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_edit_from_dir_uploads_directory_zip(_mock_exp, mock_post_json, _mock_get, _mock_put, _mock_post_text):
     """`lab task edit --from-dir` zips the directory and POSTs to the /edit endpoint."""
     mock_post_json.side_effect = [
@@ -455,7 +455,7 @@ def test_task_edit_rejects_from_file_and_from_dir_together():
 @patch("transformerlab_cli.commands.task.api.put", return_value=_mock_resp({"received": [0]}))
 @patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp({"received": []}))
 @patch("transformerlab_cli.commands.task.api.post_json")
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_upload_calls_upload_endpoint(_mock_exp, mock_post_json, _mock_get, _mock_put):
     """`lab task upload` uses upload pipeline then task upload endpoint."""
     mock_post_json.side_effect = [
@@ -474,7 +474,7 @@ def test_task_upload_calls_upload_endpoint(_mock_exp, mock_post_json, _mock_get,
     assert submit_path == "/experiment/exp1/task/t1/upload?upload_id=up-1"
 
 
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_validate_friendly_message_on_timeout(_mock_exp):
     """Validation timeouts show a clear message instead of a traceback."""
     with _patch_api_httpx_read_timeout():
@@ -488,7 +488,7 @@ def test_task_validate_friendly_message_on_timeout(_mock_exp):
     assert "api may be unreachable" in out.lower()
 
 
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_validate_json_on_timeout(_mock_exp):
     """JSON output includes structured error on transport failure."""
     with _patch_api_httpx_read_timeout():
@@ -504,7 +504,7 @@ def test_task_validate_json_on_timeout(_mock_exp):
 
 
 @patch("transformerlab_cli.commands.task.api.post_text", return_value=_mock_resp({"valid": True}))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_validate_uses_default_task_yaml_path(_mock_exp, mock_post_text):
     """`lab task validate` validates ./task.yaml by default."""
     with runner.isolated_filesystem():
@@ -518,7 +518,7 @@ def test_task_validate_uses_default_task_yaml_path(_mock_exp, mock_post_text):
 
 
 @patch("transformerlab_cli.commands.task.api.post_text", return_value=_mock_resp({"valid": True}))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_validate_accepts_custom_yaml_path(_mock_exp, mock_post_text):
     """`lab task validate <path>` validates YAML from the provided path."""
     with runner.isolated_filesystem():
@@ -530,7 +530,7 @@ def test_task_validate_accepts_custom_yaml_path(_mock_exp, mock_post_text):
 
 
 @patch("transformerlab_cli.commands.task.api.post_text", return_value=_mock_resp({"valid": True}))
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_validate_json_output_success(_mock_exp, _mock_post_text):
     """`lab --format json task validate` returns machine-readable success output."""
     with runner.isolated_filesystem():
@@ -543,7 +543,7 @@ def test_task_validate_json_output_success(_mock_exp, _mock_post_text):
     assert payload["path"].endswith("task.yaml")
 
 
-@patch("transformerlab_cli.commands.task.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_validate_json_output_invalid_yaml(_mock_exp):
     """`lab --format json task validate` returns machine-readable parse errors."""
     with runner.isolated_filesystem():

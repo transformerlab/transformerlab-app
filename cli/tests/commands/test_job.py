@@ -81,7 +81,7 @@ def test_job_help():
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_all(_mock_check, _mock_require, _mock_api):
     """Test that job list without --running shows all jobs."""
@@ -96,7 +96,7 @@ def test_job_list_all(_mock_check, _mock_require, _mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_shows_description(_mock_check, _mock_require, _mock_api):
     """Test that job list table includes the Description column with values."""
@@ -109,7 +109,7 @@ def test_job_list_shows_description(_mock_check, _mock_require, _mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_running_only(_mock_check, _mock_require, _mock_api):
     """Test that job list --running shows only RUNNING, LAUNCHING, and INTERACTIVE jobs."""
@@ -125,7 +125,7 @@ def test_job_list_running_only(_mock_check, _mock_require, _mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_running_no_short_flag(_mock_check, _mock_require, _mock_api):
     """Test that -r is not a valid short flag for --running."""
@@ -134,7 +134,7 @@ def test_job_list_running_no_short_flag(_mock_check, _mock_require, _mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response([SAMPLE_JOBS[1], SAMPLE_JOBS[3]]))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_running_no_matches(_mock_check, _mock_require, _mock_api):
     """Test that --running with no running jobs shows an empty table."""
@@ -146,7 +146,7 @@ def test_job_list_running_no_matches(_mock_check, _mock_require, _mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_json_output(_mock_check, _mock_get_config, _mock_api):
     """job list --format json emits valid JSON array."""
@@ -159,7 +159,7 @@ def test_job_list_json_output(_mock_check, _mock_get_config, _mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_json_no_spinner_text(_mock_check, _mock_get_config, _mock_api):
     """job list --format json does not emit spinner/decoration text."""
@@ -169,7 +169,7 @@ def test_job_list_json_no_spinner_text(_mock_check, _mock_get_config, _mock_api)
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_shows_duration(_mock_check, _mock_require, _mock_api):
     """Test that job list table shows duration for jobs with start/end times."""
@@ -198,7 +198,7 @@ def test_compute_duration_helper():
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_shows_score(_mock_check, _mock_require, _mock_api):
     """Test that job list table shows score values for jobs that have them."""
@@ -214,7 +214,7 @@ def test_job_list_shows_score(_mock_check, _mock_require, _mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_info_pretty_shows_discarded(_mock_require, _mock_api):
     """job info pretty output should include discarded status."""
     result = runner.invoke(app, ["job", "info", "2"])
@@ -224,7 +224,7 @@ def test_job_info_pretty_shows_discarded(_mock_require, _mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_info_pretty_shows_score_without_discard(_mock_require, _mock_api):
     """job info pretty output should show score metrics and hide score.discard."""
     result = runner.invoke(app, ["job", "info", "2"])
@@ -237,7 +237,7 @@ def test_job_info_pretty_shows_score_without_discard(_mock_require, _mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_sort_by_metric_desc_default(_mock_check, _mock_require, _mock_api):
     """Test that score sorting defaults to descending and missing metric jobs are last."""
@@ -254,7 +254,7 @@ def test_job_list_sort_by_metric_desc_default(_mock_check, _mock_require, _mock_
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_sort_by_metric_asc(_mock_check, _mock_require, _mock_api):
     """Test that score sorting can be switched to ascending."""
@@ -288,7 +288,7 @@ def _info_api_get(jobs, files):
     "transformerlab_cli.commands.job.api.get",
     side_effect=_info_api_get(SAMPLE_JOBS, [{"name": "out.log", "is_dir": False, "size": 42}]),
 )
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_info_json_output(_mock_require, _mock_api):
     """job info --format json emits the job dict with a files key."""
     result = runner.invoke(app, ["--format", "json", "job", "info", "1"])
@@ -301,7 +301,7 @@ def test_job_info_json_output(_mock_require, _mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_list_json_output_includes_discarded(_mock_check, _mock_require, _mock_api):
     """job list --format json should include explicit discarded flag per job."""
@@ -316,7 +316,7 @@ def test_job_list_json_output_includes_discarded(_mock_check, _mock_require, _mo
     "transformerlab_cli.commands.job.api.get",
     side_effect=_info_api_get(SAMPLE_JOBS, []),
 )
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_info_json_not_found(_mock_require, _mock_api):
     """job info --format json emits an error object when the job is missing."""
     result = runner.invoke(app, ["--format", "json", "job", "info", "999"])
@@ -345,7 +345,7 @@ _CURRENT_METRICS_JOBS = [
     "transformerlab_cli.commands.job.api.get",
     side_effect=_info_api_get(_CURRENT_METRICS_JOBS, []),
 )
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_info_shows_current_metrics(_mock_require, _mock_api):
     """job info pretty output should show live current_metrics snapshot."""
     result = runner.invoke(app, ["job", "info", "abc123"])
@@ -360,7 +360,7 @@ def test_job_info_shows_current_metrics(_mock_require, _mock_api):
     "transformerlab_cli.commands.job.api.get",
     side_effect=_info_api_get(SAMPLE_JOBS, []),
 )
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_info_pretty_still_works(_mock_require, _mock_api):
     """Pretty `job info` still renders the panel and does not regress."""
     result = runner.invoke(app, ["job", "info", "1"])
@@ -376,7 +376,7 @@ def test_job_info_pretty_still_works(_mock_require, _mock_api):
 
 
 @patch("transformerlab_cli.commands.job.api.post")
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.api.get")
 def test_job_stop_also_sends_cluster_stop_when_provider_metadata_exists(_mock_get, _mock_require, mock_post):
     """job stop should mirror GUI behavior and request provider cluster stop when possible."""
@@ -405,7 +405,7 @@ def test_job_stop_also_sends_cluster_stop_when_provider_metadata_exists(_mock_ge
 
 
 @patch("transformerlab_cli.commands.job.api.post")
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.api.get")
 def test_job_stop_skips_cluster_stop_without_provider_metadata(_mock_get, _mock_require, mock_post):
     """job stop should not call cluster-stop when provider metadata is missing."""
@@ -444,7 +444,7 @@ def _mock_error_response(status_code=500):
 
 
 @patch("transformerlab_cli.commands.job.fetch_logs", return_value=_mock_logs_response())
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_machine_logs_pretty(_mock_require, _mock_fetch):
     """machine-logs prints log text in pretty mode."""
     result = runner.invoke(app, ["job", "machine-logs", "42"])
@@ -454,7 +454,7 @@ def test_machine_logs_pretty(_mock_require, _mock_fetch):
 
 
 @patch("transformerlab_cli.commands.job.fetch_logs", return_value=_mock_logs_response())
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_machine_logs_json(_mock_require, _mock_fetch):
     """machine-logs --format json emits valid JSON with logs field."""
     result = runner.invoke(app, ["--format", "json", "job", "machine-logs", "42"])
@@ -466,7 +466,7 @@ def test_machine_logs_json(_mock_require, _mock_fetch):
 
 
 @patch("transformerlab_cli.commands.job.fetch_logs", return_value=_mock_error_response(502))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_machine_logs_error(_mock_require, _mock_fetch):
     """machine-logs returns non-zero exit on API error."""
     result = runner.invoke(app, ["job", "machine-logs", "42"])
@@ -477,7 +477,7 @@ def test_machine_logs_error(_mock_require, _mock_fetch):
     "transformerlab_cli.commands.job.fetch_logs",
     return_value=_mock_logs_response(""),
 )
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_machine_logs_not_ready_message_pretty(_mock_require, _mock_fetch):
     """machine-logs shows retry message from API and exits cleanly when logs are not ready yet."""
     _mock_fetch.return_value.json.return_value = {
@@ -495,7 +495,7 @@ def test_machine_logs_not_ready_message_pretty(_mock_require, _mock_fetch):
     "transformerlab_cli.commands.job.fetch_logs",
     return_value=_mock_logs_response(""),
 )
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_machine_logs_not_ready_message_json(_mock_require, _mock_fetch):
     """machine-logs --format json preserves retry metadata when logs are not ready yet."""
     _mock_fetch.return_value.json.return_value = {
@@ -517,7 +517,7 @@ def test_machine_logs_not_ready_message_json(_mock_require, _mock_fetch):
     "transformerlab_cli.commands.job.fetch_task_logs",
     return_value=_mock_logs_response("sdk output line 1\nsdk output line 2"),
 )
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_logs_pretty(_mock_require, _mock_fetch):
     """task-logs prints task output in pretty mode."""
     result = runner.invoke(app, ["job", "task-logs", "42"])
@@ -526,7 +526,7 @@ def test_task_logs_pretty(_mock_require, _mock_fetch):
 
 
 @patch("transformerlab_cli.commands.job.fetch_task_logs", return_value=_mock_logs_response("sdk line"))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_logs_json(_mock_require, _mock_fetch):
     """task-logs --format json emits valid JSON."""
     result = runner.invoke(app, ["--format", "json", "job", "task-logs", "42"])
@@ -536,7 +536,7 @@ def test_task_logs_json(_mock_require, _mock_fetch):
 
 
 @patch("transformerlab_cli.commands.job.fetch_task_logs", return_value=_mock_logs_response(""))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_logs_not_ready_message_json(_mock_require, _mock_fetch):
     """task-logs --format json preserves retry metadata when logs are not ready yet."""
     _mock_fetch.return_value.json.return_value = {
@@ -554,7 +554,7 @@ def test_task_logs_not_ready_message_json(_mock_require, _mock_fetch):
 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_logs_response("sdk line"))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_logs_hits_task_logs_endpoint(_mock_require, mock_get):
     """`fetch_task_logs` must hit the one-shot /task_logs endpoint, not the SSE /stream_output."""
     result = runner.invoke(app, ["job", "task-logs", "42"])
@@ -564,7 +564,7 @@ def test_task_logs_hits_task_logs_endpoint(_mock_require, mock_get):
 
 
 @patch("transformerlab_cli.commands.job.fetch_task_logs", return_value=_mock_error_response(404))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_task_logs_error(_mock_require, _mock_fetch):
     """task-logs returns non-zero exit on API error."""
     result = runner.invoke(app, ["job", "task-logs", "42"])
@@ -575,7 +575,7 @@ def test_task_logs_error(_mock_require, _mock_fetch):
     "transformerlab_cli.commands.job.fetch_request_logs",
     return_value=_mock_logs_response("Provisioning cluster...\nDone."),
 )
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_request_logs_pretty(_mock_require, _mock_fetch):
     """request-logs prints request/launch logs in pretty mode."""
     result = runner.invoke(app, ["job", "request-logs", "42"])
@@ -584,7 +584,7 @@ def test_request_logs_pretty(_mock_require, _mock_fetch):
 
 
 @patch("transformerlab_cli.commands.job.fetch_request_logs", return_value=_mock_logs_response("launch log"))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_request_logs_json(_mock_require, _mock_fetch):
     """request-logs --format json emits valid JSON."""
     result = runner.invoke(app, ["--format", "json", "job", "request-logs", "42"])
@@ -594,7 +594,7 @@ def test_request_logs_json(_mock_require, _mock_fetch):
 
 
 @patch("transformerlab_cli.commands.job.fetch_request_logs", return_value=_mock_logs_response(""))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_request_logs_not_ready_message_json(_mock_require, _mock_fetch):
     """request-logs --format json preserves retry metadata when logs are not ready yet."""
     _mock_fetch.return_value.json.return_value = {
@@ -612,7 +612,7 @@ def test_request_logs_not_ready_message_json(_mock_require, _mock_fetch):
 
 
 @patch("transformerlab_cli.commands.job.fetch_request_logs", return_value=_mock_error_response(400))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_request_logs_error(_mock_require, _mock_fetch):
     """request-logs returns non-zero exit on API error."""
     result = runner.invoke(app, ["job", "request-logs", "42"])
@@ -620,7 +620,7 @@ def test_request_logs_error(_mock_require, _mock_fetch):
 
 
 @patch("transformerlab_cli.commands.job.fetch_logs", return_value=_mock_logs_response())
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_deprecated_logs_still_works(_mock_require, _mock_fetch):
     """The deprecated 'logs' command should still work and delegate to machine-logs."""
     result = runner.invoke(app, ["job", "logs", "42"])
@@ -634,7 +634,7 @@ def test_deprecated_logs_still_works(_mock_require, _mock_fetch):
 
 
 @patch("transformerlab_cli.commands.job.api.put")
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_discard_sets_discard_true(_mock_require, mock_put):
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -649,7 +649,7 @@ def test_job_discard_sets_discard_true(_mock_require, mock_put):
 
 
 @patch("transformerlab_cli.commands.job.api.put")
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_discard_undo_sets_discard_false(_mock_require, mock_put):
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -669,7 +669,7 @@ def test_job_discard_undo_sets_discard_false(_mock_require, mock_put):
 
 
 @patch("transformerlab_cli.commands.job.api.post")
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_publish_dataset_success(_mock_require, mock_post):
     """job publish dataset should call the dataset save endpoint."""
     mock_resp = MagicMock()
@@ -708,7 +708,7 @@ def test_job_publish_dataset_success(_mock_require, mock_post):
 
 
 @patch("transformerlab_cli.commands.job.api.post")
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_publish_model_existing_requires_group(_mock_require, mock_post):
     """job publish model --mode existing should require --group in json mode (non-interactive)."""
     result = runner.invoke(
@@ -732,7 +732,7 @@ def test_job_publish_model_existing_requires_group(_mock_require, mock_post):
 
 
 @patch("transformerlab_cli.commands.job.api.post")
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_publish_model_interactive_prompts(_mock_require, mock_post):
     """job publish model should prompt for metadata in pretty mode."""
     mock_resp = MagicMock()
@@ -757,7 +757,7 @@ def test_job_publish_model_interactive_prompts(_mock_require, mock_post):
 
 @patch("transformerlab_cli.commands.job.api.post")
 @patch("transformerlab_cli.commands.job.api.get")
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_publish_model_interactive_selects_model_from_job(_mock_require, mock_get, mock_post):
     """job publish model without model name should list job models and let user pick one."""
     list_resp = MagicMock()
@@ -789,7 +789,7 @@ def test_job_publish_model_interactive_selects_model_from_job(_mock_require, moc
 
 
 @patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK"}))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_delete_no_interactive(_mock_check, _mock_require, mock_delete):
     """`job delete <id> --no-interactive` deletes without prompting."""
@@ -801,7 +801,7 @@ def test_job_delete_no_interactive(_mock_check, _mock_require, mock_delete):
 
 
 @patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK"}))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_delete_interactive_aborts_on_no(_mock_check, _mock_require, mock_delete):
     """Without `--no-interactive`, replying 'n' aborts the deletion."""
@@ -811,7 +811,7 @@ def test_job_delete_interactive_aborts_on_no(_mock_check, _mock_require, mock_de
 
 
 @patch("transformerlab_cli.commands.job.api.delete")
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_delete_not_found(_mock_check, _mock_require, mock_delete):
     """A 404 from the API should produce a non-zero exit and a helpful message."""
@@ -828,7 +828,7 @@ def test_job_delete_not_found(_mock_check, _mock_require, mock_delete):
 
 
 @patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK"}))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_delete_json_output(_mock_check, _mock_require, _mock_delete):
     """`job delete --format json` returns {"deleted": <id>}."""
@@ -842,7 +842,7 @@ def test_job_delete_json_output(_mock_check, _mock_require, _mock_delete):
 
 
 @patch("transformerlab_cli.commands.job.api.delete")
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_delete_json_error(_mock_check, _mock_require, mock_delete):
     """`job delete --format json` emits {"error": ...} on API failure."""
@@ -868,7 +868,7 @@ def test_job_delete_json_error(_mock_check, _mock_require, mock_delete):
 
 @patch("transformerlab_cli.commands.job.api.get")
 @patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK"}))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_delete_all_no_interactive(_mock_check, _mock_require, mock_delete, mock_get):
     """`job delete-all --no-interactive` deletes all jobs in the current experiment."""
@@ -883,7 +883,7 @@ def test_job_delete_all_no_interactive(_mock_check, _mock_require, mock_delete, 
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response([]))
 @patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK"}))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_delete_all_interactive_aborts_on_no(_mock_check, _mock_require, mock_delete, _mock_get):
     """Without `--no-interactive`, replying 'n' aborts delete-all."""
@@ -894,7 +894,7 @@ def test_job_delete_all_interactive_aborts_on_no(_mock_check, _mock_require, moc
 
 @patch("transformerlab_cli.commands.job.api.get")
 @patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK", "deleted": 5}))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_delete_all_json_output(_mock_check, _mock_require, _mock_delete, mock_get):
     """`job delete-all --format json` returns {"deleted": N}."""
@@ -911,7 +911,7 @@ def test_job_delete_all_json_output(_mock_check, _mock_require, _mock_delete, mo
 
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response([]))
 @patch("transformerlab_cli.commands.job.api.delete", return_value=_mock_api_response({"message": "OK", "deleted": 0}))
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
 def test_job_delete_all_zero_jobs(_mock_check, _mock_require, _mock_delete, _mock_get):
     """`job delete-all` on an empty experiment reports 0 and exits cleanly."""
@@ -936,7 +936,7 @@ def test_job_delete_all_zero_jobs(_mock_check, _mock_require, _mock_delete, _moc
         }
     ),
 )
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_metrics_pretty_table(_mock_require, _mock_api):
     """`job metrics` renders a Rich table with metric columns."""
     result = runner.invoke(app, ["job", "metrics", "42"])
@@ -959,7 +959,7 @@ def test_job_metrics_pretty_table(_mock_require, _mock_api):
         }
     ),
 )
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_metrics_json_output(_mock_require, _mock_api):
     """`job metrics --json` emits JSONL lines."""
     result = runner.invoke(app, ["job", "metrics", "42", "--json"])
@@ -986,7 +986,7 @@ def test_job_metrics_json_output(_mock_require, _mock_api):
         }
     ),
 )
-@patch("transformerlab_cli.commands.job.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 def test_job_metrics_keys_filter(_mock_require, _mock_api):
     """`job metrics --keys loss,acc` only shows requested metric columns."""
     result = runner.invoke(app, ["job", "metrics", "42", "--keys", "loss,acc"])
