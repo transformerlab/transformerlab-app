@@ -24,7 +24,7 @@ def _capture_pod_data(provider):
 
     provider._make_request = MagicMock(side_effect=fake_make_request)
     # Avoid live GPU-type lookups; echo the parsed GPU name back.
-    provider._map_gpu_type_to_runpod = lambda accel: "NVIDIA A100-SXM4-80GB"
+    provider._map_gpu_type_to_runpod = lambda _accel: "NVIDIA A100-SXM4-80GB"
     return captured
 
 
