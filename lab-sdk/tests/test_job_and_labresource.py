@@ -240,3 +240,36 @@ async def test_get_next_queued_job_sorted_by_created_at(tmp_path, monkeypatch):
     result = await Job.get_next_queued_job()
     assert result is not None
     assert result["id"] == "job-first"
+
+
+@pytest.mark.asyncio
+async def test_nan_score_not_persisted_as_invalid_json(tmp_workspace_job):
+    """A NaN/Inf value in job_data must be coerced to null so the on-disk
+    index.json stays spec-valid JSON (no bare NaN/Infinity tokens)."""
+    job = tmp_workspace_job
+    await job.update_job_data_field("score", {"accuracy": float("nan"), "loss": float("inf")})
+
+    # On-disk file must be strict-JSON parseable (allow_nan=False mirrors how
+    # Starlette/FastAPI serialize the HTTP response — this is what was 500ing).
+    job_dir = await job.get_dir()
+    with open(os.path.join(job_dir, "index.json")) as f:
+        raw = f.read()
+    parsed = json.loads(raw, parse_constant=lambda c: (_ for _ in ()).throw(ValueError(f"non-finite token: {c}")))
+    assert parsed["job_data"]["score"]["accuracy"] is None
+    assert parsed["job_data"]["score"]["loss"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_json_data_recovers_existing_nan_file(tmp_workspace_job):
+    """An index.json already corrupted with a bare NaN token (written before
+    the fix) must load cleanly with the non-finite value coerced to null."""
+    job = tmp_workspace_job
+    job_dir = await job.get_dir()
+    index_file = os.path.join(job_dir, "index.json")
+
+    # Simulate the human's mistake: invalid-per-spec JSON already on disk.
+    with open(index_file, "w") as f:
+        f.write('{"id": "metrics-job", "job_data": {"score": NaN}}')
+
+    data = await job.get_json_data(uncached=True)
+    assert data["job_data"]["score"] is None

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.db.session import get_async_session
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.services.compute_provider import sweep_job_service
 

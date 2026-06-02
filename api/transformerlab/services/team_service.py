@@ -16,6 +16,8 @@ from PIL import Image
 from sqlalchemy import and_, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from transformerlab.db import team as db_team
+from transformerlab.db import user as db_user
 from transformerlab.db.session import async_session
 from transformerlab.shared.models.models import (
     InvitationStatus,
@@ -114,10 +116,8 @@ def _is_personal_team(user: User, team: Team) -> bool:
 
 async def get_all_team_ids() -> List[str]:
     """Return the IDs of all teams in the database."""
-
     async with async_session() as session:
-        result = await session.execute(select(Team.id))
-        return [row[0] for row in result.all()]
+        return await db_team.get_all_team_ids(session)
 
 
 async def create_team(
@@ -130,14 +130,9 @@ async def create_team(
 ) -> dict:
     """Create a team, add the creator as owner, provision storage and default experiment."""
 
-    team = Team(name=name)
-    session.add(team)
-    await session.commit()
-    await session.refresh(team)
+    team = await db_team.insert_team(session, name)
 
-    user_team = UserTeam(user_id=str(user.id), team_id=team.id, role=TeamRole.OWNER.value)
-    session.add(user_team)
-    await session.commit()
+    await db_team.add_user_to_team(session, str(user.id), team.id, TeamRole.OWNER.value)
 
     remote_storage_enabled = getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
     if remote_storage_enabled or (getenv("TFL_STORAGE_PROVIDER") == "localfs" and getenv("TFL_STORAGE_URI")):
@@ -173,11 +168,34 @@ async def create_team(
     return {"id": team.id, "name": team.name}
 
 
+async def create_personal_team(session: AsyncSession, user) -> Team:
+    """Create a user's personal team ("<name>'s Team") and provision its
+    storage. The DB insert is delegated to db.team.insert_team; the cloud
+    bucket creation is the service-layer side effect."""
+    if user.first_name:
+        team_name = f"{user.first_name}'s Team"
+    else:
+        team_name = f"{user.email.split('@')[0]}'s Team"
+
+    team = await db_team.insert_team(session, team_name)
+
+    remote_storage_enabled = getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
+    if remote_storage_enabled or (getenv("TFL_STORAGE_PROVIDER") == "localfs" and getenv("TFL_STORAGE_URI")):
+        try:
+            from transformerlab.shared.remote_workspace import get_default_aws_profile
+
+            await asyncio.to_thread(create_bucket_for_team, team.id, get_default_aws_profile())
+        except Exception as e:
+            logger.warning("Failed to create storage for team %s: %s", team.id, e)
+
+    return team
+
+
 async def update_team(session: AsyncSession, team_id: str, name: str) -> dict:
     await session.execute(update(Team).where(Team.id == team_id).values(name=name))
     await session.commit()
-    result = await session.execute(select(Team).where(Team.id == team_id))
-    team = result.scalar_one()
+    team = await db_team.get_team_by_id(session, team_id)
+    assert team is not None
     return {"id": team.id, "name": team.name}
 
 
@@ -185,8 +203,7 @@ async def delete_team(session: AsyncSession, team_id: str, user: User, team: Tea
     if _is_personal_team(user, team):
         raise HTTPException(status_code=400, detail="Cannot delete personal team")
 
-    result = await session.execute(select(UserTeam).where(UserTeam.user_id == str(user.id)))
-    user_teams = result.scalars().all()
+    user_teams = await db_team.get_user_teams(session, str(user.id))
     if len(user_teams) <= 1:
         raise HTTPException(status_code=400, detail="Cannot delete the last team")
 
@@ -200,13 +217,11 @@ async def delete_team(session: AsyncSession, team_id: str, user: User, team: Tea
 
 
 async def get_team_members(session: AsyncSession, team_id: str) -> dict:
-    result = await session.execute(select(UserTeam).where(UserTeam.team_id == team_id))
-    user_teams = result.scalars().all()
+    user_teams = await db_team.get_team_members(session, team_id)
 
     user_ids = [ut.user_id for ut in user_teams]
     normalized_user_ids = _normalize_uuid_ids(user_ids)
-    result = await session.execute(select(User).where(User.id.in_(normalized_user_ids)))
-    users = {str(u.id): u for u in result.scalars().unique().all()}
+    users = {str(u.id): u for u in await db_user.get_users_by_ids(session, normalized_user_ids)}
 
     members = [
         {
@@ -240,6 +255,7 @@ async def leave_team(session: AsyncSession, team_id: str, user: User, team: Team
         await session.commit()
         return {"message": "Left team"}
 
+    # kept inline: != filter + order_by not covered by a helper
     result = await session.execute(
         select(UserTeam).where(UserTeam.team_id == team_id, UserTeam.user_id != str(user.id)).order_by(UserTeam.user_id)
     )
@@ -258,8 +274,7 @@ async def leave_team(session: AsyncSession, team_id: str, user: User, team: Team
 
 
 async def remove_member(session: AsyncSession, team_id: str, user_id: str) -> dict:
-    result = await session.execute(select(UserTeam).where(UserTeam.user_id == user_id, UserTeam.team_id == team_id))
-    user_team = result.scalar_one_or_none()
+    user_team = await db_team.get_user_team_membership(session, user_id, team_id)
     if not user_team:
         raise HTTPException(status_code=404, detail="User is not a member of this team")
 
@@ -281,8 +296,7 @@ async def update_member_role(session: AsyncSession, team_id: str, user_id: str, 
     if role not in [TeamRole.OWNER.value, TeamRole.MEMBER.value]:
         raise HTTPException(status_code=400, detail="Invalid role. Must be 'owner' or 'member'")
 
-    result = await session.execute(select(UserTeam).where(UserTeam.user_id == user_id, UserTeam.team_id == team_id))
-    user_team = result.scalar_one_or_none()
+    user_team = await db_team.get_user_team_membership(session, user_id, team_id)
     if not user_team:
         raise HTTPException(status_code=404, detail="User is not a member of this team")
 
@@ -335,13 +349,10 @@ async def invite_member(
     if role not in [TeamRole.OWNER.value, TeamRole.MEMBER.value]:
         raise HTTPException(status_code=400, detail="Invalid role. Must be 'owner' or 'member'")
 
-    result = await session.execute(select(User).where(User.email == email))
-    existing_user = result.scalar_one_or_none()
+    existing_user = await db_user.get_user_by_email(session, email)
     if existing_user:
-        result = await session.execute(
-            select(UserTeam).where(UserTeam.user_id == str(existing_user.id), UserTeam.team_id == team_id)
-        )
-        if result.scalar_one_or_none():
+        existing_membership = await db_team.get_user_team_membership(session, str(existing_user.id), team_id)
+        if existing_membership:
             raise HTTPException(status_code=400, detail="User is already a member of this team")
 
     result = await session.execute(
@@ -435,12 +446,9 @@ async def get_my_invitations(session: AsyncSession, user_email: str) -> dict:
     team_ids = list({inv.team_id for inv in valid})
     inviter_ids = list({inv.invited_by_user_id for inv in valid})
 
-    teams = {t.id: t for t in (await session.execute(select(Team).where(Team.id.in_(team_ids)))).scalars().all()}
+    teams = {t.id: t for t in await db_team.get_teams_by_ids(session, team_ids)}
     normalized_inviter_ids = _normalize_uuid_ids(inviter_ids)
-    inviters = {
-        str(u.id): u
-        for u in (await session.execute(select(User).where(User.id.in_(normalized_inviter_ids)))).scalars().all()
-    }
+    inviters = {str(u.id): u for u in await db_user.get_users_by_ids(session, normalized_inviter_ids)}
 
     responses = [
         {
@@ -474,11 +482,9 @@ async def get_invitation_by_token(session: AsyncSession, token: str) -> dict:
         invitation.status = InvitationStatus.EXPIRED.value
         await session.commit()
 
-    result = await session.execute(select(Team).where(Team.id == invitation.team_id))
-    team = result.scalar_one_or_none()
+    team = await db_team.get_team_by_id(session, invitation.team_id)
 
-    result = await session.execute(select(User).where(User.id == invitation.invited_by_user_id))
-    inviter = result.scalar_one_or_none()
+    inviter = await db_user.get_user_by_id(session, invitation.invited_by_user_id)
 
     return {
         "id": invitation.id,
@@ -499,8 +505,7 @@ async def get_team_invitations(session: AsyncSession, team_id: str) -> dict:
     result = await session.execute(stmt)
     invitations = result.scalars().all()
 
-    result = await session.execute(select(Team).where(Team.id == team_id))
-    team = result.scalar_one_or_none()
+    team = await db_team.get_team_by_id(session, team_id)
 
     for inv in invitations:
         if inv.status == InvitationStatus.PENDING.value and inv.expires_at < utc_now_naive():
@@ -509,10 +514,7 @@ async def get_team_invitations(session: AsyncSession, team_id: str) -> dict:
 
     inviter_ids = list({inv.invited_by_user_id for inv in invitations})
     normalized_inviter_ids = _normalize_uuid_ids(inviter_ids)
-    inviters = {
-        str(u.id): u
-        for u in (await session.execute(select(User).where(User.id.in_(normalized_inviter_ids)))).scalars().all()
-    }
+    inviters = {str(u.id): u for u in await db_user.get_users_by_ids(session, normalized_inviter_ids)}
 
     responses = [
         {
@@ -562,20 +564,17 @@ async def accept_invitation(
         await session.commit()
         raise HTTPException(status_code=400, detail="Invitation has expired")
 
-    result = await session.execute(
-        select(UserTeam).where(UserTeam.user_id == str(user.id), UserTeam.team_id == invitation.team_id)
-    )
-    if result.scalar_one_or_none():
+    existing_membership = await db_team.get_user_team_membership(session, str(user.id), invitation.team_id)
+    if existing_membership:
         invitation.status = InvitationStatus.ACCEPTED.value
         await session.commit()
         raise HTTPException(status_code=400, detail="You are already a member of this team")
 
-    session.add(UserTeam(user_id=str(user.id), team_id=invitation.team_id, role=invitation.role))
+    await db_team.add_user_to_team(session, str(user.id), invitation.team_id, invitation.role)
     invitation.status = InvitationStatus.ACCEPTED.value
     await session.commit()
 
-    result = await session.execute(select(Team).where(Team.id == invitation.team_id))
-    team = result.scalar_one_or_none()
+    team = await db_team.get_team_by_id(session, invitation.team_id)
 
     return {
         "message": "Invitation accepted successfully",
@@ -735,8 +734,17 @@ async def set_team_secrets(workspace_dir: str, secrets: dict) -> dict:
     secrets_path = storage.join(workspace_dir, "team_secrets.json")
     try:
         await storage.makedirs(workspace_dir, exist_ok=True)
+        # Special secrets live in the same file but are only mutable via the
+        # special secrets endpoint. Preserve them so a regular-secrets PUT
+        # (which overwrites the whole file) does not silently wipe them.
+        preserved_special = {}
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                existing = json.loads(await f.read())
+            preserved_special = {k: v for k, v in existing.items() if k in SPECIAL_SECRET_KEYS}
+        merged = {**secrets, **preserved_special}
         async with await storage.open(secrets_path, "w") as f:
-            await f.write(json.dumps(secrets, indent=2))
+            await f.write(json.dumps(merged, indent=2))
         return {"status": "success", "message": "Team secrets saved successfully", "secret_keys": list(secrets.keys())}
     except HTTPException:
         raise

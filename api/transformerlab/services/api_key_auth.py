@@ -8,8 +8,10 @@ from fastapi.security import HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from transformerlab.shared.models.models import ApiKey, User, UserTeam
-from transformerlab.shared.models.user_model import create_personal_team
+from transformerlab.shared.models.models import ApiKey, User
+from transformerlab.db import team as db_team
+from transformerlab.db import user as db_user
+from transformerlab.services.team_service import create_personal_team
 from transformerlab.utils.api_key_utils import (
     is_key_expired,
     validate_api_key_format,
@@ -92,9 +94,7 @@ async def validate_api_key_and_get_user(
         user_uuid = uuid.UUID(api_key_obj.user_id)
     except (ValueError, AttributeError):
         raise HTTPException(status_code=401, detail="Invalid API key")
-    stmt = select(User).where(User.id == user_uuid)
-    result = await session.execute(stmt)
-    user = result.unique().scalar_one_or_none()
+    user = await db_user.get_user_by_id(session, user_uuid)
 
     if not user:
         raise HTTPException(status_code=401, detail="User associated with API key not found")
@@ -117,16 +117,12 @@ async def get_user_personal_team_id(session: AsyncSession, user: User) -> str:
     Get the user's personal team ID. Creates one if it doesn't exist.
     """
     # Check if user has any team associations
-    stmt = select(UserTeam).where(UserTeam.user_id == str(user.id))
-    result = await session.execute(stmt)
-    user_teams = result.scalars().all()
+    user_teams = await db_team.get_user_teams(session, str(user.id))
 
     if not user_teams:
         # Create personal team
         personal_team = await create_personal_team(session, user)
-        user_team = UserTeam(user_id=str(user.id), team_id=personal_team.id, role="owner")
-        session.add(user_team)
-        await session.commit()
+        await db_team.add_user_to_team(session, str(user.id), personal_team.id, "owner")
         return personal_team.id
 
     # Return the first team (typically the personal team)

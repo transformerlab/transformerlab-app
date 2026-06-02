@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from transformerlab.db.session import get_async_session
 from transformerlab.routers.auth import require_team_owner
 from transformerlab.schemas.storage_usage import (
     StorageAlert,
@@ -11,7 +12,6 @@ from transformerlab.schemas.storage_usage import (
     StorageUsageResponse,
 )
 from transformerlab.services.compute_provider import storage_usage_service, usage_report_service
-from transformerlab.shared.models.user_model import get_async_session
 
 router = APIRouter(prefix="/usage", tags=["usage"])
 

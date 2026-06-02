@@ -7,8 +7,9 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
 
-from transformerlab.shared.models.user_model import get_async_session
-from transformerlab.shared.models.models import ApiKey, User, Team
+from transformerlab.db import team as db_team
+from transformerlab.db.session import get_async_session
+from transformerlab.shared.models.models import ApiKey, User
 from transformerlab.models.users import current_active_user
 from transformerlab.utils.api_key_utils import (
     generate_api_key,
@@ -90,9 +91,7 @@ async def create_api_key(
         await validate_team_exists(session, team_id)
         await validate_user_team_membership(session, user_id, team_id)
         # Get team name for response
-        stmt = select(Team).where(Team.id == team_id)
-        result = await session.execute(stmt)
-        team = result.scalar_one_or_none()
+        team = await db_team.get_team_by_id(session, team_id)
         if team:
             team_name = team.name
 
@@ -149,9 +148,7 @@ async def list_api_keys(
     team_ids = {key.team_id for key in api_keys if key.team_id}
     team_names = {}
     if team_ids:
-        stmt = select(Team).where(Team.id.in_(team_ids))
-        result = await session.execute(stmt)
-        teams = result.scalars().all()
+        teams = await db_team.get_teams_by_ids(session, team_ids)
         team_names = {team.id: team.name for team in teams}
 
     return [
@@ -189,9 +186,7 @@ async def get_api_key(
     # Get team name if team_id exists
     team_name = None
     if api_key.team_id:
-        stmt = select(Team).where(Team.id == api_key.team_id)
-        result = await session.execute(stmt)
-        team = result.scalar_one_or_none()
+        team = await db_team.get_team_by_id(session, api_key.team_id)
         if team:
             team_name = team.name
 
@@ -241,9 +236,7 @@ async def update_api_key(
     # Get team name if team_id exists
     team_name = None
     if api_key.team_id:
-        stmt = select(Team).where(Team.id == api_key.team_id)
-        result = await session.execute(stmt)
-        team = result.scalar_one_or_none()
+        team = await db_team.get_team_by_id(session, api_key.team_id)
         if team:
             team_name = team.name
 

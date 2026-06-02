@@ -4,6 +4,7 @@ import MenuItem from '@mui/joy/MenuItem';
 import {
   CheckIcon,
   ChevronDownIcon,
+  FlaskConicalIcon,
   LayoutGridIcon,
   PlusCircleIcon,
   StopCircleIcon,
@@ -217,16 +218,30 @@ export default function SelectExperimentMenu({ models }) {
                     whiteSpace: 'nowrap',
                   }}
                 >
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      display: 'inline-flex',
+                      marginRight: '6px',
+                    }}
+                  >
+                    <FlaskConicalIcon
+                      strokeWidth={1.5}
+                      style={{ width: '16px', height: '16px' }}
+                    />
+                  </span>
                   {experimentInfo?.name || 'Select'}
                   <span
                     style={{
                       flexGrow: 0,
                       justifyContent: 'right',
                       display: 'inline-flex',
-                      marginLeft: '8px',
+                      marginLeft: '4px',
                     }}
                   >
-                    <ChevronDownIcon size="18px" />
+                    <ChevronDownIcon
+                      style={{ width: '16px', height: '16px' }}
+                    />
                   </span>
                   <span
                     style={{
@@ -250,15 +265,21 @@ export default function SelectExperimentMenu({ models }) {
                 backgroundColor: 'transparent !important',
                 color: 'var(--joy-palette-neutral-plainColor)',
                 paddingLeft: 1,
-                marginRight: 0.5,
+                paddingRight: 0,
+                marginRight: 0,
                 marginBottom: '4px',
                 minHeight: '22px',
                 height: '22px',
                 width: '100%',
                 overflow: 'hidden',
                 justifyContent: 'flex-start',
+                gap: '6px',
               }}
             >
+              <FlaskConicalIcon
+                strokeWidth={1.5}
+                style={{ flexShrink: 0, width: '16px', height: '16px' }}
+              />
               <span
                 style={{
                   flex: 1,
@@ -276,10 +297,10 @@ export default function SelectExperimentMenu({ models }) {
                   flexShrink: 0,
                   display: 'inline-flex',
                   color: 'var(--joy-palette-neutral-plainColor)',
-                  marginLeft: '8px',
+                  marginLeft: '4px',
                 }}
               >
-                <ChevronDownIcon size="18px" />
+                <ChevronDownIcon style={{ width: '16px', height: '16px' }} />
               </span>
             </MenuButton>
           )}
@@ -325,6 +346,9 @@ export default function SelectExperimentMenu({ models }) {
                       whiteSpace: 'nowrap',
                     }}
                   >
+                    <ListItemDecorator>
+                      <FlaskConicalIcon strokeWidth={1} />
+                    </ListItemDecorator>
                     <span
                       style={{
                         overflow: 'hidden',
@@ -344,13 +368,13 @@ export default function SelectExperimentMenu({ models }) {
                 );
               })}
             </Box>
+            <Divider />
             <MenuItem onClick={() => setIsManagerOpen(true)}>
               <ListItemDecorator>
                 <LayoutGridIcon strokeWidth={1} />
               </ListItemDecorator>
               Manage experiments
             </MenuItem>
-            <Divider />
             <MenuItem onClick={() => setModalOpen(true)} disabled={isLoading}>
               <ListItemDecorator>
                 <PlusCircleIcon strokeWidth={1} />

@@ -2,7 +2,7 @@
 
 Autonomous optimization loop that runs as a workflow on top of the `lab` CLI: pick an idea, queue it as a job, score it, keep what works, discard what doesn't, repeat. Inspired by [`pi-autoresearch`](https://github.com/davebcn87/pi-autoresearch) but adapted to Transformer Lab — there is no extension, no `autoresearch.jsonl`, no local `autoresearch.md` file, and no separate widget. Everything is stored on the **experiment** and on each **job** record:
 
-- **Experiment** = the autoresearch session. One experiment per session.
+- **Experiment** = the autoresearch session. One experiment per session — and you can run **multiple sessions at once**, each in its own experiment (see "Running multiple sessions in parallel" below).
 - **Experiment notes** (`lab notes`) = the **session plan**: goal, metric, files in scope, off-limits, constraints, backlog, what's-been-tried. Lives on the experiment record itself; any agent that joins the experiment can `lab notes show --raw` to rehydrate. **This replaces the old `autoresearch.md` file** — there is no longer a local plan file to manage.
 - **Job description** (`-m/--description`) = what was attempted in that iteration.
 - **Job score** (`lab.finish(score={...})`) = primary + secondary metrics, set by the task itself.
@@ -34,6 +34,29 @@ The plan lives in experiment notes. See the parent skill's "Experiment Notes" se
   EDITOR=tee lab notes edit < /tmp/new_notes.md > /dev/null
   ```
   Prefer **append** in the hot loop and reserve full rewrites for periodic consolidation. (If `lab notes set --from-file` ever lands, replace this incantation with it.)
+
+## Running multiple sessions in parallel
+
+The default is one session at a time. But because each session's entire state lives on its **experiment**, you can run several sessions concurrently — different goals, different model families, or different directions off the same decision — each in its own experiment, all at once. This is the way to parallelize beyond a single loop.
+
+**The unit that gets its own experiment is a whole session — one approach/goal and *all* its iterations.** You parallelize by running *different kinds of experiments/approaches* side by side, each in its own experiment. You do **not** scatter one approach's runs across multiple experiments: every iteration of a single hypothesis (the entire pick → queue → score → keep/discard loop for that approach) stays in that approach's one experiment, exactly as in the single-session case. Within a session, breadth still comes from `sweeps:` and the parallel-jobs budget — not from extra experiments.
+
+The thing that makes it safe is **never relying on the global default experiment**. `lab experiment set-default` / `lab config set current_experiment` write one shared key in `~/.lab/config.json`; with two sessions live, whoever sets it last wins and the other session's un-scoped commands leak into the wrong experiment. So:
+
+- **Scope every command with `--experiment/-e <exp>`.** `lab task`, `lab job`, and `lab notes` all accept it, and it overrides the global default for that one call (see the parent skill's "Scoping a single command to an experiment"). In a parallel session, treat `-e` as **mandatory on every `task` / `job` / `notes` command** — `lab task queue TASK -e <exp> …`, `lab job list -e <exp> …`, `lab notes append "…" -e <exp>`. There is no env var or per-session config to set it once, so a single omitted `-e` silently lands in the wrong experiment.
+- **Do not call `set-default` once you're parallel.** The `init` flow below uses `--set-default` for convenience in the single-session case; when launching sessions in parallel, **drop `--set-default`** and capture the new experiment id instead (`lab --format json experiment list` or the create output), then thread it through `-e` everywhere.
+- **Tag every session's experiment with one shared campaign tag** right after creating it, so the fleet can be found and ranked together:
+  ```bash
+  lab experiment create "autoresearch-<slug>-<date>"            # no --set-default
+  lab experiment tag add "autoresearch-<slug>-<date>" autoresearch <campaign-tag>
+  # ...later, list/rank the whole campaign:
+  lab --format json experiment list --tag <campaign-tag>
+  ```
+  Record the experiment id + campaign tag at the top of each session's experiment notes so a resuming agent knows which `-e` to pass and which tag groups its siblings.
+
+A natural consumer is an orchestrator (e.g. the `primus` skill's experimentation stage) that fans out one autoresearch session per direction/model-family instead of running them sequentially. Each fan-out branch = one `init` (without `--set-default`) + a shared campaign tag + `-e` on every subsequent command.
+
+Everything else in this spec (the loop, scoring, keep/discard, sweeps, notes discipline) is unchanged — it just runs once per experiment, with `-e <exp>` appended to each `lab` call.
 
 ## When to use
 

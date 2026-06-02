@@ -11,7 +11,9 @@ from httpx_oauth.clients.openid import OpenID
 from httpx_oauth.clients.openid import OpenIDConfigurationError
 from lab import Experiment
 from lab.dirs import set_organization_id
-from transformerlab.shared.models.user_model import get_async_session, create_personal_team, get_user_db
+from transformerlab.db.session import get_async_session
+from transformerlab.db.user import get_user_db
+from transformerlab.services.team_service import create_personal_team
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -513,7 +515,7 @@ async def current_active_user(
 
     if token:
         from transformerlab.shared.models.models import OAuthAccount
-        from transformerlab.shared.models.user_model import SQLAlchemyUserDatabaseWithOAuth
+        from transformerlab.db.user import SQLAlchemyUserDatabaseWithOAuth
 
         try:
             # Create user_db instance

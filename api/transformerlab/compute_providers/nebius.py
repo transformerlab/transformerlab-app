@@ -22,7 +22,7 @@ from transformerlab.services.nebius_cli_resolve import nebius_cli_argv_prefix, n
 from transformerlab.services.ssh_key_service import get_org_ssh_private_key
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
-from .base import ComputeProvider
+from .base import ComputeProvider, format_status_snapshot
 from .models import ClusterConfig, ClusterState, ClusterStatus, JobConfig, JobInfo, ResourceInfo
 
 logger = logging.getLogger(__name__)
@@ -621,6 +621,27 @@ runcmd:
             status_message=state_text,
             provider_data=instance,
         )
+
+    def get_request_logs(self, request_id: str, tail_lines: Optional[int] = None) -> str:
+        """Return an orchestration status snapshot for a Nebius instance."""
+        try:
+            instance = self._get_instance(request_id)
+        except Exception as e:  # noqa: BLE001
+            return f"Failed to fetch Nebius instance '{request_id}': {e}"
+        if not isinstance(instance, dict) or not instance:
+            return f"Nebius instance '{request_id}' not found."
+
+        metadata = instance.get("metadata") or {}
+        status = instance.get("status") or {}
+        fields = {
+            "Instance ID": metadata.get("id") or _extract_resource_id(instance) or request_id,
+            "Name": metadata.get("name"),
+            "State": status.get("state") or status.get("status") or instance.get("state"),
+            "Created at": metadata.get("created_at") or metadata.get("createdAt"),
+            "Platform": _nested_get(instance, ["spec", "resources", "platform"]),
+            "Preset": _nested_get(instance, ["spec", "resources", "preset"]),
+        }
+        return format_status_snapshot(f"Nebius instance {request_id}", fields)
 
     def get_job_logs(
         self,
