@@ -341,6 +341,7 @@ export default function TaskRunsPage() {
               jobs={taskJobs}
               launchProgressByJobId={launchProgressByJobId}
               onDeleteJob={handleDeleteJob}
+              onViewJob={goToJob}
               onViewOutput={goToJobSection('logs')}
               onViewCheckpoints={goToJobSection('checkpoints')}
               onViewAllArtifacts={goToJobSection('artifacts')}

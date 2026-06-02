@@ -551,8 +551,6 @@ async def create_buckets_for_all_teams(session, profile_name: Optional[str] = No
     Returns:
         Tuple of (success_count, failure_count, error_messages)
     """
-    from transformerlab.shared.models.models import Team
-
     profile_name = profile_name or get_default_aws_profile()
 
     # Check if storage is configured
@@ -577,12 +575,10 @@ async def create_buckets_for_all_teams(session, profile_name: Optional[str] = No
             remote_label = "S3"
         print(f"Creating buckets for all teams using {remote_label} (TFL_STORAGE_PROVIDER={STORAGE_PROVIDER})")
 
-    from sqlalchemy import select
+    from transformerlab.db import team as db_team
 
     # Get all teams
-    stmt = select(Team)
-    result = await session.execute(stmt)
-    teams = result.scalars().all()
+    teams = await db_team.get_all_teams(session)
 
     success_count = 0
     failure_count = 0

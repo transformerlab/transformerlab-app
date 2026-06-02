@@ -16,7 +16,7 @@ from rich.syntax import Syntax
 import transformerlab_cli.util.api as api
 from transformerlab_cli.util import chunked_upload
 from transformerlab_cli.state import cli_state
-from transformerlab_cli.util.config import require_current_experiment
+from transformerlab_cli.util.config import resolve_experiment_id
 from transformerlab_cli.util.ui import console, render_object, render_table
 
 app = typer.Typer()
@@ -34,13 +34,6 @@ def _validate_subtype(value: str | None) -> str | None:
     if normalized not in KNOWN_TASK_SUBTYPES:
         raise typer.BadParameter(f"Allowed: {', '.join(KNOWN_TASK_SUBTYPES)}")
     return normalized
-
-
-def _resolve_experiment_id(experiment_id: str | None = None) -> str:
-    """Resolve experiment from command override or configured default."""
-    if experiment_id is not None and str(experiment_id).strip():
-        return str(experiment_id).strip()
-    return require_current_experiment()
 
 
 def _ensure_experiment_exists(experiment_id: str) -> None:
@@ -598,7 +591,7 @@ def command_task_list(
     ),
 ):
     """List all tasks."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     list_tasks(output_format=cli_state.output_format, experiment_id=current_experiment, subtype=subtype)
 
 
@@ -765,7 +758,7 @@ def command_task_add(
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Add a new task. Provide a directory path directly, or use --from-git to fetch from a Git repository."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
 
     if from_git:
         add_task_from_github(from_git, experiment_id=current_experiment, interactive=not no_interactive)
@@ -785,7 +778,7 @@ def command_task_validate(
     timeout: int = typer.Option(300, "--timeout", help="Request timeout in seconds for validation"),
 ):
     """Validate a task.yaml file against the server schema."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     resolved_path = os.path.realpath(task_yaml_path)
     output_format = cli_state.output_format
     _validate_task_yaml_file(
@@ -829,7 +822,7 @@ def command_task_edit(
     if dry_run and not from_dir:
         console.print("[warning]Warning:[/warning] --dry-run only applies with --from-dir; ignoring.")
 
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
 
     if from_dir:
         edit_task_from_directory(
@@ -858,7 +851,7 @@ def command_task_upload(
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Upload additional files into an existing task."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     upload_files_to_task(
         task_id=task_id,
         path_to_upload=path,
@@ -874,7 +867,7 @@ def command_task_delete(
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Delete a task."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
 
     if not no_interactive:
         typer.confirm(f"Delete task {task_id}?", abort=True)
@@ -888,7 +881,7 @@ def command_task_info(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Get task details."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     info_task(task_id, current_experiment)
 
 
@@ -1217,7 +1210,7 @@ def command_task_queue(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Queue a task on a compute provider."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     _ensure_experiment_exists(current_experiment)
     if description == "-":
         if sys.stdin.isatty():
@@ -1341,7 +1334,7 @@ def command_task_gallery(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Browse the task gallery. Use --import <id> to add a task to the current experiment."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     output_format = cli_state.output_format
     is_interactive = gallery_type == "interactive"
 
@@ -1363,8 +1356,38 @@ def command_task_gallery(
 def command_task_interactive(
     timeout: int = typer.Option(300, "--timeout", "-t", help="Timeout in seconds waiting for service readiness"),
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
+    provider: str | None = typer.Option(None, "--provider", help="Provider name or ID (skips interactive selection)"),
+    template: str | None = typer.Option(
+        None, "--template", help="Gallery template ID or name (e.g. 'jupyter', 'vllm')"
+    ),
+    env: list[str] | None = typer.Option(None, "--env", metavar="KEY=VALUE", help="Environment variable (repeatable)"),
+    cpus: str | None = typer.Option(None, "--cpus", help="CPUs for remote provider"),
+    memory: str | None = typer.Option(None, "--memory", help="Memory in GB for remote provider"),
+    disk_space: str | None = typer.Option(None, "--disk", help="Disk in GB for remote provider"),
+    accelerators: str | None = typer.Option(None, "--accelerators", help="Accelerator spec for remote provider"),
+    num_nodes: int | None = typer.Option(None, "--num-nodes", help="Number of nodes for remote provider"),
+    minutes: int | None = typer.Option(None, "--minutes", help="Max minutes for remote provider"),
+    no_poll: bool = typer.Option(False, "--no-poll", help="Launch and exit without waiting for readiness"),
 ):
-    """Launch an interactive task (Jupyter, vLLM, Ollama, etc.)."""
+    """Launch an interactive task (Jupyter, vLLM, Ollama, etc.).
+
+    In interactive mode (default), prompts for provider, template, env vars, and resources.
+    Pass --provider and --template to skip prompts (required for non-interactive/agent use).
+    Use --format json (before the subcommand) for machine-readable output.
+    """
     from transformerlab_cli.commands.interactive import interactive
 
-    interactive(timeout=timeout, experiment_id=experiment)
+    interactive(
+        timeout=timeout,
+        experiment_id=experiment,
+        provider=provider,
+        template=template,
+        env=env,
+        cpus=cpus,
+        memory=memory,
+        disk_space=disk_space,
+        accelerators=accelerators,
+        num_nodes=num_nodes,
+        minutes=minutes,
+        no_poll=no_poll,
+    )

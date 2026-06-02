@@ -22,20 +22,13 @@ from rich.text import Text
 
 from transformerlab_cli.state import cli_state
 from transformerlab_cli.util import api
-from transformerlab_cli.util.config import check_configs, require_current_experiment
+from transformerlab_cli.util.config import check_configs, resolve_experiment_id
 from transformerlab_cli.util.ui import console, exit_with_no_results
 
 app = typer.Typer()
 publish_app = typer.Typer()
 
 ACTIVE_JOB_STATUSES = {"RUNNING", "LAUNCHING", "INTERACTIVE", "WAITING"}
-
-
-def _resolve_experiment_id(experiment_id: str | None = None) -> str:
-    """Resolve experiment from command override or configured default."""
-    if experiment_id is not None and str(experiment_id).strip():
-        return str(experiment_id).strip()
-    return require_current_experiment()
 
 
 def _extract_provider_cluster_from_job(job: dict) -> tuple[str | None, str | None]:
@@ -486,6 +479,71 @@ def list_jobs(
         console.print(table)
 
 
+def _is_interactive_job(job: dict) -> bool:
+    """Check if a job is an interactive task (Jupyter, vLLM, VS Code, etc.)."""
+    job_data = job.get("job_data", {})
+    if isinstance(job_data, dict) and job_data.get("subtype") == "interactive":
+        return True
+    return job.get("status") == "INTERACTIVE"
+
+
+def _fetch_tunnel_info(experiment_id: str, job_id: str) -> dict | None:
+    """Fetch tunnel/connection info for an interactive job. Returns None on failure."""
+    try:
+        response = api.get(f"/experiment/{experiment_id}/jobs/{job_id}/tunnel_info", timeout=15.0)
+        if response.status_code == 200:
+            return response.json()
+    except httpx.HTTPError:
+        pass
+    return None
+
+
+def _render_tunnel_info(tunnel_info: dict, job_id: str) -> None:
+    """Render tunnel/connection info for an interactive job in pretty mode."""
+    import re as re_mod
+
+    is_ready = tunnel_info.get("is_ready", False)
+    if is_ready:
+        console.print("\n[success bold]✓ Service is ready![/success bold]")
+    else:
+        console.print("\n[warning]Service is not fully ready yet.[/warning]")
+
+    values = {k: str(v) for k, v in tunnel_info.items() if v is not None and isinstance(v, (str, int, float))}
+    for block in tunnel_info.get("instructions", []):
+        kind = block.get("kind")
+        title = block.get("title", "")
+        value_key = block.get("value_key")
+        value = values.get(value_key, "") if value_key else ""
+        placeholder = block.get("placeholder", "")
+
+        if kind == "url" and value:
+            console.print(Panel(f"[link={value}]{value}[/link]", title=title, border_style="green"))
+        elif kind in ("code", "command") and value:
+            console.print(Panel(f"[bold]{value}[/bold]", title=title, border_style="cyan"))
+        elif kind == "kv":
+            lines = []
+            for item in block.get("items", []):
+                val = values.get(item.get("value_key", ""), "")
+                if val:
+                    lines.append(f"  {item.get('label', '')}: {val}")
+            if lines:
+                console.print(Panel("\n".join(lines), title=title, border_style="dim"))
+        elif kind == "text" and (template := block.get("template", "")):
+            resolved = re_mod.sub(r"\{\{(\w+)\}\}", lambda m: values.get(m.group(1), m.group(1)), template)
+            console.print(Panel(resolved, title=title, border_style="dim"))
+
+        if not value and placeholder and not is_ready:
+            console.print(f"  [dim]{title}: {placeholder}[/dim]")
+
+    ports = tunnel_info.get("ports", [])
+    if ports:
+        console.print("\n[bold]Exposed Ports:[/bold]")
+        for p in ports:
+            console.print(f"  {p.get('label', '')}: port {p.get('port', '')} ({p.get('protocol', '')})")
+
+    console.print(f"\nTo stop this session: [bold]lab job stop {job_id}[/bold]")
+
+
 def info_job(job_id: str, experiment_id: str):
     """Get details of a specific job."""
     output_format = cli_state.output_format
@@ -504,13 +562,29 @@ def info_job(job_id: str, experiment_id: str):
         console.print(f"[error]Error:[/error] Job with ID {job_id} not found.")
         return
 
+    # For interactive jobs, fetch tunnel/connection info
+    tunnel_info = None
+    if _is_interactive_job(job):
+        if output_format != "json":
+            with console.status("[bold success]Fetching connection info...[/bold success]", spinner="dots"):
+                tunnel_info = _fetch_tunnel_info(experiment_id, job_id)
+        else:
+            tunnel_info = _fetch_tunnel_info(experiment_id, job_id)
+
     if output_format == "json":
         files = _fetch_job_files(experiment_id, job_id)
-        print(json.dumps({**job, "files": files, "discarded": _is_discarded(job.get("job_data", {}))}))
+        result = {**job, "files": files, "discarded": _is_discarded(job.get("job_data", {}))}
+        if tunnel_info is not None:
+            result["tunnel_info"] = tunnel_info
+        print(json.dumps(result))
         return
 
     console.print(f"[bold success]Job Details for ID {job_id}:[/bold success]")
     _render_job(job)
+
+    # For interactive jobs, show connection info
+    if tunnel_info is not None:
+        _render_tunnel_info(tunnel_info, job_id)
 
     # Fetch and display job files
     with console.status("[bold success]Fetching job files[/bold success]", spinner="dots"):
@@ -692,7 +766,7 @@ def command_job_metrics(
     """Show live training metrics for a job."""
     import time
 
-    experiment_id = _resolve_experiment_id(experiment)
+    experiment_id = resolve_experiment_id(experiment)
     key_list = [k.strip() for k in keys.split(",") if k.strip()] or None
 
     def _fetch(since: int = 0) -> dict:
@@ -745,7 +819,7 @@ def command_job_artifacts(
 ):
     """List artifacts for a job."""
     check_configs(output_format=cli_state.output_format)
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     list_artifacts(job_id, current_experiment, output_format=cli_state.output_format)
 
 
@@ -764,7 +838,7 @@ def command_job_download(
 ):
     """Download artifacts for a job. Use --file to download specific files."""
     check_configs(output_format=cli_state.output_format)
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     out = os.path.abspath(output_dir) if output_dir else os.getcwd()
     output_format = cli_state.output_format
 
@@ -981,7 +1055,7 @@ def command_job_machine_logs(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Fetch machine/provider logs for a job. Use --follow to stream continuously."""
-    experiment_id = _resolve_experiment_id(experiment)
+    experiment_id = resolve_experiment_id(experiment)
     output_format = cli_state.output_format
 
     if follow:
@@ -998,7 +1072,7 @@ def command_job_task_logs(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Fetch task (Lab SDK) output for a job. Use --follow to stream continuously."""
-    experiment_id = _resolve_experiment_id(experiment)
+    experiment_id = resolve_experiment_id(experiment)
     output_format = cli_state.output_format
 
     if follow:
@@ -1014,7 +1088,7 @@ def command_job_request_logs(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Fetch provider request/launch logs for a job (e.g. SkyPilot launch logs)."""
-    experiment_id = _resolve_experiment_id(experiment)
+    experiment_id = resolve_experiment_id(experiment)
     output_format = cli_state.output_format
 
     _print_logs(experiment_id, job_id, output_format, fetch_request_logs, "request logs")
@@ -1037,7 +1111,7 @@ def command_job_discard(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Toggle score.discard on a job."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     discard_value = not undo
     payload = json.dumps({"updates": {"discard": discard_value}}).encode("utf-8")
     response = api.put(
@@ -1097,7 +1171,7 @@ def command_job_list(
     if score_order_normalized not in {"desc", "asc"}:
         console.print("[error]Error:[/error] --score-order must be either 'desc' or 'asc'.")
         raise typer.Exit(1)
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     list_jobs(
         current_experiment,
         running_only=running,
@@ -1112,7 +1186,7 @@ def command_job_info(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Get job details."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     info_job(job_id, current_experiment)
 
 
@@ -1122,7 +1196,7 @@ def command_job_stop(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Stop a running job."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
 
     with console.status(f"[bold success]Stopping job {job_id}...[/bold success]", spinner="dots"):
         response = api.get(f"/experiment/{current_experiment}/jobs/{job_id}/stop")
@@ -1158,7 +1232,7 @@ def command_job_delete(
 ):
     """Delete a job."""
     check_configs(output_format=cli_state.output_format)
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     output_format = cli_state.output_format
 
     if not no_interactive:
@@ -1202,7 +1276,7 @@ def command_job_delete_all(
 ):
     """Delete all jobs in the current experiment."""
     check_configs(output_format=cli_state.output_format)
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     output_format = cli_state.output_format
 
     list_response = api.get(f"/experiment/{current_experiment}/jobs/list")
@@ -1268,7 +1342,7 @@ def command_job_publish_dataset(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Publish a dataset from a job to the registry. Version label is auto-generated (v1, v2, …)."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     if not dataset_name:
         if cli_state.output_format == "json":
             print(json.dumps({"error": "dataset_name is required in --format json mode", "status_code": 1}))
@@ -1312,7 +1386,7 @@ def command_job_publish_model(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Publish a model from a job to the registry. Version label is auto-generated (v1, v2, …)."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     if not model_name:
         if cli_state.output_format == "json":
             print(json.dumps({"error": "model_name is required in --format json mode", "status_code": 1}))

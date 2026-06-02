@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  useParams,
+  useNavigate,
+  useSearchParams,
+  useLocation,
+} from 'react-router-dom';
 import Box from '@mui/joy/Box';
 import CircularProgress from '@mui/joy/CircularProgress';
 import Typography from '@mui/joy/Typography';
@@ -28,6 +33,7 @@ import ArtifactsSection from './ArtifactsSection';
 import EvalResultsSection from './EvalResultsSection';
 import SweepResultsSection from './SweepResultsSection';
 import MetricsSection from './MetricsSection';
+import PerformanceSection from './PerformanceSection';
 
 const SECTION_LABELS: Record<SectionKey, string> = {
   overview: 'Overview',
@@ -37,6 +43,7 @@ const SECTION_LABELS: Record<SectionKey, string> = {
   evalResults: 'Eval Results',
   sweepResults: 'Sweep Results',
   metrics: 'Metrics',
+  performance: 'Performance',
 };
 
 const VALID_SECTIONS = new Set<SectionKey>([
@@ -47,6 +54,7 @@ const VALID_SECTIONS = new Set<SectionKey>([
   'evalResults',
   'sweepResults',
   'metrics',
+  'performance',
 ]);
 
 export default function JobDetailPage() {
@@ -55,6 +63,11 @@ export default function JobDetailPage() {
     jobId: string;
   }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromLocation =
+    typeof (location.state as any)?.from === 'string'
+      ? ((location.state as any).from as string)
+      : null;
   const [searchParams] = useSearchParams();
   const initialSectionFromUrl = (() => {
     const s = searchParams.get('section');
@@ -190,11 +203,11 @@ export default function JobDetailPage() {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Tooltip title={backLabel}>
+          <Tooltip title={fromLocation ? 'Back' : backLabel}>
             <IconButton
               size="sm"
               variant="plain"
-              onClick={() => navigate(backHref)}
+              onClick={() => navigate(fromLocation ?? backHref)}
             >
               <ArrowLeftIcon size={16} />
             </IconButton>
@@ -292,7 +305,15 @@ export default function JobDetailPage() {
         <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
           {effectiveSection === 'overview' && <OverviewSection job={job} />}
           {effectiveSection === 'logs' && (
-            <LogsSection jobId={jobId} jobStatus={job?.status ?? ''} />
+            <LogsSection
+              jobId={jobId}
+              jobStatus={job?.status ?? ''}
+              providerRequestId={
+                job?.job_data?.provider_launch_result?.request_id ||
+                job?.job_data?.orchestrator_request_id ||
+                ''
+              }
+            />
           )}
           {effectiveSection === 'checkpoints' && (
             <CheckpointsSection jobId={jobId} />
@@ -311,6 +332,9 @@ export default function JobDetailPage() {
           )}
           {effectiveSection === 'metrics' && job && (
             <MetricsSection job={job} />
+          )}
+          {effectiveSection === 'performance' && job && (
+            <PerformanceSection job={job} />
           )}
         </Box>
       </Box>

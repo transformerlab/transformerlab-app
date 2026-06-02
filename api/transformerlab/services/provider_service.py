@@ -11,11 +11,13 @@ from typing import Any, List, Optional
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from transformerlab.db import team as db_team
+from transformerlab.db import user as db_user
 from transformerlab.db.session import async_session
 from transformerlab.compute_providers.base import ComputeProvider
 from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
 from transformerlab.compute_providers.local import _check_amd_gpu, _check_nvidia_gpu
-from transformerlab.shared.models.models import AcceleratorType, ProviderType, Team, TeamComputeProvider, User, UserTeam
+from transformerlab.shared.models.models import AcceleratorType, ProviderType, TeamComputeProvider
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +74,7 @@ async def validate_team_exists(session: AsyncSession, team_id: str) -> None:
     Raises:
         HTTPException: If team does not exist
     """
-    stmt = select(Team).where(Team.id == team_id)
-    result = await session.execute(stmt)
-    team = result.scalar_one_or_none()
+    team = await db_team.get_team_by_id(session, team_id)
     if not team:
         raise HTTPException(status_code=404, detail=f"Team with id '{team_id}' not found")
 
@@ -90,10 +90,7 @@ async def validate_user_exists(session: AsyncSession, user_id: str) -> None:
     Raises:
         HTTPException: If user does not exist
     """
-    stmt = select(User).where(User.id == user_id)
-    result = await session.execute(stmt)
-    # The unique() is used to ensure that we only get one user back. The `lazy=joined` in the table definition makes sure it returns a collection and we need to pick a single user.
-    user = result.unique().scalar_one_or_none()
+    user = await db_user.get_user_by_id(session, user_id)
     if not user:
         raise HTTPException(status_code=404, detail=f"User with id '{user_id}' not found")
 
@@ -110,10 +107,8 @@ async def validate_user_team_membership(session: AsyncSession, user_id: str, tea
     Raises:
         HTTPException: If user is not a member of the team
     """
-    stmt = select(UserTeam).where(UserTeam.user_id == user_id, UserTeam.team_id == team_id)
-    result = await session.execute(stmt)
-    user_team = result.scalar_one_or_none()
-    if not user_team:
+    membership = await db_team.get_user_team_membership(session, user_id, team_id)
+    if not membership:
         raise HTTPException(status_code=403, detail=f"User '{user_id}' is not a member of team '{team_id}'")
 
 
@@ -295,6 +290,14 @@ def db_record_to_provider_config(
         credentials_path=config_dict.get("credentials_path"),
         service_account_json=config_dict.get("service_account_json"),
         service_account_email=config_dict.get("service_account_email"),
+        nebius_profile=config_dict.get("nebius_profile"),
+        nebius_config_path=config_dict.get("nebius_config_path"),
+        parent_id=config_dict.get("parent_id"),
+        subnet_id=config_dict.get("subnet_id"),
+        default_platform=config_dict.get("default_platform"),
+        default_preset=config_dict.get("default_preset"),
+        boot_image_family=config_dict.get("boot_image_family"),
+        disk_size_gib=config_dict.get("disk_size_gib"),
         extra_config=extra_config,
         # Azure-specific config
         azure_subscription_id=config_dict.get("azure_subscription_id"),
@@ -303,10 +306,16 @@ def db_record_to_provider_config(
         azure_client_secret=config_dict.get("azure_client_secret"),
         azure_location=config_dict.get("azure_location"),
         azure_resource_group=config_dict.get("azure_resource_group"),
-        # team_id: config value (or record fallback) for AWS/Azure; None otherwise.
+        # team_id: config value (or record fallback) for AWS/GCP/Azure/Nebius; None otherwise.
         team_id=(
             config_dict.get("team_id") or record.team_id
-            if record.type in {ProviderType.AWS.value, ProviderType.GCP.value, ProviderType.AZURE.value}
+            if record.type
+            in {
+                ProviderType.AWS.value,
+                ProviderType.GCP.value,
+                ProviderType.AZURE.value,
+                ProviderType.NEBIUS.value,
+            }
             else None
         ),
     )

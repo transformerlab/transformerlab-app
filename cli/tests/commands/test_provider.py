@@ -157,13 +157,37 @@ def test_provider_add_fails_when_provider_check_unhealthy(_mock_check, _mock_pos
     assert "Bad API key" in result.output
 
 
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, SAMPLE_PROVIDERS))
 @patch("transformerlab_cli.commands.provider.api.delete", return_value=_mock_response(200))
 @patch("transformerlab_cli.commands.provider.check_configs")
-def test_provider_delete(_mock_check, _mock_api):
-    """Test deleting a provider."""
+def test_provider_delete(_mock_check, mock_delete, _mock_get):
+    """Test deleting a provider by id."""
     result = runner.invoke(app, ["provider", "delete", "p1", "--no-interactive"])
     assert result.exit_code == 0
     assert "deleted" in result.output
+    mock_delete.assert_called_once_with("/compute_provider/providers/p1")
+
+
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, SAMPLE_PROVIDERS))
+@patch("transformerlab_cli.commands.provider.api.delete", return_value=_mock_response(200))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_delete_by_name(_mock_check, mock_delete, _mock_get):
+    """Test deleting a provider by name resolves to its id."""
+    result = runner.invoke(app, ["provider", "delete", "slurm-1", "--no-interactive"])
+    assert result.exit_code == 0
+    assert "deleted" in result.output
+    mock_delete.assert_called_once_with("/compute_provider/providers/p2")
+
+
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, SAMPLE_PROVIDERS))
+@patch("transformerlab_cli.commands.provider.api.delete", return_value=_mock_response(200))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_delete_not_found(_mock_check, mock_delete, _mock_get):
+    """Test deleting a nonexistent provider errors before confirming or calling delete."""
+    result = runner.invoke(app, ["provider", "delete", "nope"])
+    assert result.exit_code == 1
+    assert "not found" in result.output
+    mock_delete.assert_not_called()
 
 
 @patch("transformerlab_cli.commands.provider.api.patch", return_value=_mock_response(200))
@@ -195,6 +219,50 @@ def test_provider_check_shows_reason_and_fails(_mock_check, _mock_api):
     assert result.exit_code == 1
     assert "Provider check failed" in result.output
     assert "Bad API key" in result.output
+
+
+@patch(
+    "transformerlab_cli.commands.provider.api.get",
+    return_value=_mock_response(200, {"found": True, "path": "/ws/debug/storage-probe-7.txt"}),
+)
+@patch(
+    "transformerlab_cli.commands.provider.api.post_json",
+    return_value=_mock_response(200, {"job_id": 7, "experiment_id": "__storage_probe__"}),
+)
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_verify_lifecycle_passes(_mock_check, _mock_post, _mock_get):
+    """Lifecycle verification passes when the sentinel file is found."""
+    result = runner.invoke(app, ["provider", "verify-lifecycle", "p1"])
+    assert result.exit_code == 0
+    assert "Lifecycle verified" in result.output
+
+
+@patch(
+    "transformerlab_cli.commands.provider.api.get",
+    return_value=_mock_response(200, {"found": False, "path": "/ws/debug/storage-probe-7.txt"}),
+)
+@patch(
+    "transformerlab_cli.commands.provider.api.post_json",
+    return_value=_mock_response(200, {"job_id": 7, "experiment_id": "__storage_probe__"}),
+)
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_verify_lifecycle_fails_on_timeout(_mock_check, _mock_post, _mock_get):
+    """Lifecycle verification fails and exits non-zero when the sentinel never appears."""
+    result = runner.invoke(app, ["provider", "verify-lifecycle", "p1", "--max-polls", "1"])
+    assert result.exit_code == 1
+    assert "Lifecycle verification failed" in result.output
+
+
+@patch(
+    "transformerlab_cli.commands.provider.api.post_json",
+    return_value=_mock_response(200, {"job_id": 7, "experiment_id": "__storage_probe__"}),
+)
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_verify_lifecycle_no_wait(_mock_check, _mock_post):
+    """--no-wait launches the probe and reports the job ID without polling."""
+    result = runner.invoke(app, ["provider", "verify-lifecycle", "p1", "--no-wait"])
+    assert result.exit_code == 0
+    assert "7" in result.output
 
 
 @patch("transformerlab_cli.commands.provider.api.patch", return_value=_mock_response(200))
@@ -687,3 +755,132 @@ def test_provider_add_gcp_invalid_service_account_file(_mock_check, tmp_path):
     # Rich's console may wrap the long path across newlines; collapse whitespace before asserting.
     normalized_output = " ".join(result.output.split())
     assert "not valid JSON" in normalized_output
+
+
+@patch("transformerlab_cli.commands.provider.api.get", return_value=_mock_response(200, {"status": True}))
+@patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200, {"id": "pn1"}))
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_nebius_uploads_credentials(_mock_check, mock_post, _mock_get, tmp_path):
+    """`provider add --type nebius --credentials-file` posts the key pair to /nebius/credentials."""
+    creds_path = tmp_path / "nebius.json"
+    creds_path.write_text(
+        json.dumps(
+            {
+                "service_account_id": "serviceaccount-abc",
+                "public_key_id": "publickey-xyz",
+                "private_key": "-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----",
+            }
+        )
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-nebius",
+            "--type",
+            "nebius",
+            "--config",
+            '{"parent_id": "project-123"}',
+            "--credentials-file",
+            str(creds_path),
+        ],
+    )
+    assert result.exit_code == 0
+    assert len(mock_post.call_args_list) == 2
+    create_call, creds_call = mock_post.call_args_list
+    assert create_call.args[0] == "/compute_provider/providers/"
+    assert create_call.kwargs["json_data"]["type"] == "nebius"
+    # Secrets must not leak into the create payload's config.
+    assert "private_key" not in create_call.kwargs["json_data"]["config"]
+    assert create_call.kwargs["json_data"]["config"]["parent_id"] == "project-123"
+    assert creds_call.args[0] == "/compute_provider/providers/pn1/nebius/credentials"
+    assert creds_call.kwargs["json_data"]["service_account_id"] == "serviceaccount-abc"
+    assert creds_call.kwargs["json_data"]["public_key_id"] == "publickey-xyz"
+    assert "Nebius credentials saved" in result.output
+
+
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_nebius_requires_credentials_non_interactive(_mock_check):
+    """Non-interactive `provider add --type nebius` without credentials should fail before create."""
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-nebius",
+            "--type",
+            "nebius",
+            "--config",
+            '{"parent_id": "project-123"}',
+        ],
+    )
+    assert result.exit_code == 1
+    assert "Nebius providers require service-account credentials" in result.output
+
+
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_add_nebius_partial_credentials_rejected(_mock_check, tmp_path):
+    """A Nebius credentials file missing one of the key-pair fields should be rejected."""
+    creds_path = tmp_path / "nebius.json"
+    creds_path.write_text(json.dumps({"service_account_id": "serviceaccount-abc"}))
+
+    result = runner.invoke(
+        app,
+        [
+            "provider",
+            "add",
+            "--no-interactive",
+            "--name",
+            "my-nebius",
+            "--type",
+            "nebius",
+            "--config",
+            "{}",
+            "--credentials-file",
+            str(creds_path),
+        ],
+    )
+    assert result.exit_code == 1
+    normalized_output = " ".join(result.output.split())
+    assert "public_key_id" in normalized_output and "private_key" in normalized_output
+
+
+@patch("transformerlab_cli.commands.provider.api.post_json", return_value=_mock_response(200))
+@patch("transformerlab_cli.commands.provider.api.patch", return_value=_mock_response(200))
+@patch(
+    "transformerlab_cli.commands.provider.api.get",
+    return_value=_mock_response(200, {"id": "p1", "type": "nebius"}),
+)
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_update_credentials_file_nebius_routes_to_dedicated_endpoint(
+    _mock_check, _mock_get, mock_patch, mock_post, tmp_path
+):
+    """For nebius providers, --credentials-file uploads the key pair via /nebius/credentials."""
+    creds_path = tmp_path / "nebius.json"
+    creds_path.write_text(
+        json.dumps(
+            {
+                "service_account_id": "serviceaccount-abc",
+                "public_key_id": "publickey-xyz",
+                "private_key": "fake-key",
+            }
+        )
+    )
+
+    result = runner.invoke(app, ["provider", "update", "p1", "--credentials-file", str(creds_path)])
+    assert result.exit_code == 0
+    mock_patch.assert_not_called()
+    mock_post.assert_called_once()
+    call_args = mock_post.call_args
+    assert call_args.args[0] == "/compute_provider/providers/p1/nebius/credentials"
+    assert call_args.kwargs["json_data"] == {
+        "service_account_id": "serviceaccount-abc",
+        "public_key_id": "publickey-xyz",
+        "private_key": "fake-key",
+    }

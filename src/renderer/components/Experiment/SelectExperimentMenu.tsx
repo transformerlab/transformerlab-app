@@ -4,9 +4,9 @@ import MenuItem from '@mui/joy/MenuItem';
 import {
   CheckIcon,
   ChevronDownIcon,
+  FlaskConicalIcon,
   LayoutGridIcon,
   PlusCircleIcon,
-  SettingsIcon,
   StopCircleIcon,
 } from 'lucide-react';
 import {
@@ -41,66 +41,6 @@ import ExperimentsManagerModal from './ExperimentsManagerModal';
 interface ExperimentMenuItem {
   id: string;
   name: string;
-}
-
-function ExperimentSettingsMenu({
-  experimentInfo,
-  setExperimentId,
-  data,
-  mutate,
-}) {
-  return (
-    <Dropdown>
-      <MenuButton
-        variant="plain"
-        size="sm"
-        sx={{
-          background: 'transparent !important,',
-          padding: 0,
-          paddingInline: 0,
-          minHeight: '18px',
-          height: '18px',
-        }}
-      >
-        <SettingsIcon size="18px" color="var(--joy-palette-text-tertiary)" />
-      </MenuButton>
-      <Menu variant="soft" className="select-experiment-menu">
-        <MenuItem
-          variant="soft"
-          color="danger"
-          onClick={async () => {
-            if (
-              confirm(
-                'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.',
-              )
-            ) {
-              await chatAPI.authenticatedFetch(
-                chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id),
-                {},
-              );
-
-              // Find the next available experiment (first one in the list that's not the deleted one)
-              const remainingExperiments =
-                data?.filter((exp) => exp.id !== experimentInfo?.id) || [];
-
-              if (remainingExperiments.length > 0) {
-                // Set to the first experiment in the remaining list
-                setExperimentId(remainingExperiments[0].id);
-              } else {
-                // Only set to null if no experiments remain
-                setExperimentId(null);
-              }
-
-              // Refresh the experiments list
-              mutate();
-            }
-          }}
-        >
-          Delete {experimentInfo?.name}
-        </MenuItem>
-      </Menu>
-    </Dropdown>
-  );
 }
 
 export default function SelectExperimentMenu({ models }) {
@@ -278,16 +218,30 @@ export default function SelectExperimentMenu({ models }) {
                     whiteSpace: 'nowrap',
                   }}
                 >
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      display: 'inline-flex',
+                      marginRight: '6px',
+                    }}
+                  >
+                    <FlaskConicalIcon
+                      strokeWidth={1.5}
+                      style={{ width: '16px', height: '16px' }}
+                    />
+                  </span>
                   {experimentInfo?.name || 'Select'}
                   <span
                     style={{
                       flexGrow: 0,
                       justifyContent: 'right',
                       display: 'inline-flex',
-                      marginLeft: '8px',
+                      marginLeft: '4px',
                     }}
                   >
-                    <ChevronDownIcon size="18px" />
+                    <ChevronDownIcon
+                      style={{ width: '16px', height: '16px' }}
+                    />
                   </span>
                   <span
                     style={{
@@ -303,62 +257,52 @@ export default function SelectExperimentMenu({ models }) {
               </div>
             </Tooltip>
           ) : (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
+            <MenuButton
+              variant="plain"
+              size="sm"
+              sx={{
+                fontSize: '20px',
+                backgroundColor: 'transparent !important',
+                color: 'var(--joy-palette-neutral-plainColor)',
+                paddingLeft: 1,
+                paddingRight: 0,
+                marginRight: 0,
                 marginBottom: '4px',
+                minHeight: '22px',
+                height: '22px',
+                width: '100%',
+                overflow: 'hidden',
+                justifyContent: 'flex-start',
+                gap: '6px',
               }}
             >
-              <MenuButton
-                variant="plain"
-                size="sm"
-                sx={{
-                  fontSize: '20px',
-                  backgroundColor: 'transparent !important',
-                  color: 'var(--joy-palette-neutral-plainColor)',
-                  paddingLeft: 1,
-                  marginRight: 0.5,
-                  minHeight: '22px',
-                  height: '22px',
+              <FlaskConicalIcon
+                strokeWidth={1.5}
+                style={{ flexShrink: 0, width: '16px', height: '16px' }}
+              />
+              <span
+                style={{
+                  flex: 1,
+                  minWidth: 0,
                   overflow: 'hidden',
-                  justifyContent: 'flex-start',
                   whiteSpace: 'nowrap',
                   textOverflow: 'ellipsis',
                 }}
+                title={experimentInfo?.name || undefined}
               >
                 {experimentInfo?.name || 'Select'}
-                <span
-                  style={{
-                    flexGrow: 0,
-                    justifyContent: 'right',
-                    display: 'inline-flex',
-                    color: 'var(--joy-palette-neutral-plainColor)',
-                    marginLeft: '8px',
-                  }}
-                >
-                  <ChevronDownIcon size="18px" />
-                </span>
-                <span
-                  style={{
-                    flexGrow: 1,
-                    justifyContent: 'right',
-                    display: 'inline-flex',
-                    color: 'var(--joy-palette-neutral-plainColor)',
-                  }}
-                >
-                  &nbsp;
-                </span>
-              </MenuButton>
-              <ExperimentSettingsMenu
-                experimentInfo={experimentInfo}
-                setExperimentId={setExperimentId}
-                data={data}
-                mutate={mutate}
-              />
-            </div>
+              </span>
+              <span
+                style={{
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  color: 'var(--joy-palette-neutral-plainColor)',
+                  marginLeft: '4px',
+                }}
+              >
+                <ChevronDownIcon style={{ width: '16px', height: '16px' }} />
+              </span>
+            </MenuButton>
           )}
           <Menu
             className="select-experiment-menu"
@@ -402,6 +346,9 @@ export default function SelectExperimentMenu({ models }) {
                       whiteSpace: 'nowrap',
                     }}
                   >
+                    <ListItemDecorator>
+                      <FlaskConicalIcon strokeWidth={1} />
+                    </ListItemDecorator>
                     <span
                       style={{
                         overflow: 'hidden',
@@ -421,13 +368,13 @@ export default function SelectExperimentMenu({ models }) {
                 );
               })}
             </Box>
+            <Divider />
             <MenuItem onClick={() => setIsManagerOpen(true)}>
               <ListItemDecorator>
                 <LayoutGridIcon strokeWidth={1} />
               </ListItemDecorator>
-              See all experiments
+              Manage experiments
             </MenuItem>
-            <Divider />
             <MenuItem onClick={() => setModalOpen(true)} disabled={isLoading}>
               <ListItemDecorator>
                 <PlusCircleIcon strokeWidth={1} />

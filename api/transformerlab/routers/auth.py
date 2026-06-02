@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Request, Cookie, Query
 from fastapi_users import exceptions
-from transformerlab.shared.models.user_model import get_async_session, create_personal_team
-from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole
+from transformerlab.db.session import get_async_session
+from transformerlab.services.team_service import create_personal_team
+from transformerlab.shared.models.models import User, TeamRole
 from transformerlab.models.users import (
     fastapi_users,
     auth_backend,
@@ -24,7 +25,6 @@ from transformerlab.models.users import (
     REFRESH_LIFETIME,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
 import json
@@ -35,6 +35,7 @@ from transformerlab.services.api_key_auth import (
     get_user_personal_team_id,
     validate_api_key_and_get_user,
 )
+from transformerlab.db import team as db_team
 from transformerlab.schemas.auth import CurrentUserResponse
 from transformerlab.utils.api_key_utils import mask_key
 from lab.dirs import get_workspace_dir
@@ -164,7 +165,7 @@ async def _get_user_from_jwt_or_api_key(
 
         # Create user_db and user_manager directly using the existing session
         from transformerlab.shared.models.models import User, OAuthAccount
-        from transformerlab.shared.models.user_model import SQLAlchemyUserDatabaseWithOAuth
+        from transformerlab.db.user import SQLAlchemyUserDatabaseWithOAuth
         from transformerlab.models.users import UserManager
 
         try:
@@ -285,12 +286,7 @@ async def get_user_and_team(
         lab_set_org_id(team_id)
 
     # Verify user is associated with the provided team id
-    stmt = select(UserTeam).where(
-        UserTeam.user_id == str(user.id),
-        UserTeam.team_id == team_id,
-    )
-    result = await session.execute(stmt)
-    user_team = result.scalar_one_or_none()
+    user_team = await db_team.get_user_team_membership(session, str(user.id), team_id)
 
     if user_team is None:
         raise HTTPException(status_code=403, detail="User is not a member of the specified team")
@@ -313,12 +309,7 @@ async def require_team_owner(
         raise HTTPException(status_code=400, detail="X-Team-Id header or team cookie missing")
 
     # Verify user is an owner of the team
-    stmt = select(UserTeam).where(
-        UserTeam.user_id == str(user.id),
-        UserTeam.team_id == team_id,
-    )
-    result = await session.execute(stmt)
-    user_team = result.scalar_one_or_none()
+    user_team = await db_team.get_user_team_membership(session, str(user.id), team_id)
 
     if user_team is None:
         raise HTTPException(status_code=403, detail="User is not a member of the specified team")
@@ -327,9 +318,7 @@ async def require_team_owner(
         raise HTTPException(status_code=403, detail="Only team owners can perform this action")
 
     # Get the team object
-    stmt = select(Team).where(Team.id == x_team)
-    result = await session.execute(stmt)
-    team = result.scalar_one_or_none()
+    team = await db_team.get_team_by_id(session, x_team)
 
     if team is None:
         raise HTTPException(status_code=404, detail="Team not found")
@@ -535,18 +524,13 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
     Supports both JWT and API key authentication.
     """
     # Check if user has any team associations
-    stmt = select(UserTeam).where(UserTeam.user_id == str(user.id))
-    result = await session.execute(stmt)
-    user_teams = result.scalars().all()
+    user_teams = await db_team.get_user_teams(session, str(user.id))
 
     # If user has no team associations, create personal team as owner
     # (dont seed experiment as existing user may already have experiments from old workspace)
     if not user_teams:
         personal_team = await create_personal_team(session, user)
-        user_team = UserTeam(user_id=str(user.id), team_id=personal_team.id, role=TeamRole.OWNER.value)
-        session.add(user_team)
-        await session.commit()
-        await session.refresh(user_team)
+        await db_team.add_user_to_team(session, str(user.id), personal_team.id, TeamRole.OWNER.value)
         print(f"Created personal team '{personal_team.name}' for existing user {user.email}")
         return {
             "user_id": str(user.id),
@@ -555,9 +539,7 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
 
     # User has team associations, get the actual team objects
     team_ids = [ut.team_id for ut in user_teams]
-    stmt = select(Team).where(Team.id.in_(team_ids))
-    result = await session.execute(stmt)
-    teams = result.scalars().all()
+    teams = await db_team.get_teams_by_ids(session, team_ids)
 
     # Create a mapping of team_id to team
     teams_dict = {team.id: team for team in teams}
@@ -648,9 +630,19 @@ async def set_user_secrets(
         # Ensure workspace directory exists
         await storage.makedirs(workspace_dir, exist_ok=True)
 
+        # Special secrets live in the same file but are only mutable via the
+        # special secrets endpoint. Preserve them so a regular-secrets PUT
+        # (which overwrites the whole file) does not silently wipe them.
+        preserved_special = {}
+        if await storage.exists(secrets_path):
+            async with await storage.open(secrets_path, "r") as f:
+                existing = json.loads(await f.read())
+            preserved_special = {k: v for k, v in existing.items() if k in SPECIAL_SECRET_KEYS}
+        merged = {**secrets_data.secrets, **preserved_special}
+
         # Write secrets to file
         async with await storage.open(secrets_path, "w") as f:
-            await f.write(json.dumps(secrets_data.secrets, indent=2))
+            await f.write(json.dumps(merged, indent=2))
 
         return {
             "status": "success",

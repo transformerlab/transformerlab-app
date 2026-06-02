@@ -10,7 +10,7 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Union
 
-from .base import ComputeProvider
+from .base import ComputeProvider, format_status_snapshot
 from .models import ClusterConfig, ClusterState, ClusterStatus, JobConfig, JobInfo, ResourceInfo
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
@@ -438,7 +438,14 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         import base64
 
-        from transformerlab.services.ssh_key_service import get_org_ssh_public_key
+        from transformerlab.services.ssh_key_service import (
+            get_or_create_org_ssh_key_pair,
+            get_org_ssh_public_key,
+        )
+
+        async def _ensure_and_get_public_key() -> str:
+            await get_or_create_org_ssh_key_pair(self.team_id)
+            return await get_org_ssh_public_key(self.team_id)
 
         compute_client = self._get_compute_client()
         network_client = self._get_network_client()
@@ -446,7 +453,7 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
 
         vm_size = self._resolve_vm_size(config)
         subnet_id, nsg_id = self._ensure_networking(network_client, resource_client)
-        public_key_str = asyncio.run(get_org_ssh_public_key(self.team_id))
+        public_key_str = asyncio.run(_ensure_and_get_public_key())
 
         pip_name = f"transformerlab-pip-{cluster_name}"
         nic_name = f"transformerlab-nic-{cluster_name}"
@@ -575,6 +582,41 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             status_message=power_state,
             provider_data={"vm_id": vm.id, "vm_size": vm_size},
         )
+
+    def get_request_logs(self, request_id: str, tail_lines: Optional[int] = None) -> str:
+        """Return an orchestration snapshot for an Azure VM (instanceView statuses)."""
+        try:
+            compute_client = self._get_compute_client()
+            vm = compute_client.virtual_machines.get(self.resource_group, request_id, expand="instanceView")
+        except Exception as e:  # noqa: BLE001
+            return f"Failed to fetch Azure VM '{request_id}': {e}"
+
+        fields = {
+            "VM name": vm.name,
+            "VM ID": vm.id,
+            "Provisioning state": vm.provisioning_state,
+            "Power state": self._get_vm_power_state(vm),
+            "Location": vm.location,
+            "VM size": vm.hardware_profile.vm_size if vm.hardware_profile else None,
+        }
+
+        status_lines = []
+        instance_view = getattr(vm, "instance_view", None)
+        if instance_view and instance_view.statuses:
+            for s in instance_view.statuses:
+                parts = [s.code or ""]
+                if getattr(s, "display_status", None):
+                    parts.append(s.display_status)
+                if getattr(s, "time", None):
+                    parts.append(str(s.time))
+                if getattr(s, "message", None):
+                    parts.append(s.message)
+                status_lines.append(" | ".join(p for p in parts if p))
+        if status_lines and tail_lines:
+            status_lines = status_lines[-tail_lines:]
+        footer = ("--- Instance view statuses ---\n" + "\n".join(status_lines)) if status_lines else None
+
+        return format_status_snapshot(f"Azure VM {request_id}", fields, footer=footer)
 
     def list_clusters(self) -> List[ClusterStatus]:
         compute_client = self._get_compute_client()

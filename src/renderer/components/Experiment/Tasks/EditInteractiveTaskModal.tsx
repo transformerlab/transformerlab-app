@@ -25,10 +25,11 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { setTheme, getMonacoEditorOptions } from 'renderer/lib/monacoConfig';
-import ModelNameInput, {
+import ModelNameInput from 'renderer/components/Shared/ModelNameInput';
+import {
   getModelHistoryKey,
   saveModelToHistory,
-} from 'renderer/components/Shared/ModelNameInput';
+} from 'renderer/components/Shared/modelHistory';
 
 type ProviderOption = {
   id: string;
