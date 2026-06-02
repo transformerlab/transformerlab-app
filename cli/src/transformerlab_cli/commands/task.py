@@ -16,7 +16,7 @@ from rich.syntax import Syntax
 import transformerlab_cli.util.api as api
 from transformerlab_cli.util import chunked_upload
 from transformerlab_cli.state import cli_state
-from transformerlab_cli.util.config import require_current_experiment
+from transformerlab_cli.util.config import check_configs, require_current_experiment
 from transformerlab_cli.util.ui import console, render_object, render_table
 
 app = typer.Typer()
@@ -39,6 +39,10 @@ def _validate_subtype(value: str | None) -> str | None:
 def _resolve_experiment_id(experiment_id: str | None = None) -> str:
     """Resolve experiment from command override or configured default."""
     if experiment_id is not None and str(experiment_id).strip():
+        # check_configs() applies the configured server via set_base_url(); the
+        # default path gets this through require_current_experiment(). Without it
+        # the -e override would route to the stale module-default host.
+        check_configs(output_format=cli_state.output_format)
         return str(experiment_id).strip()
     return require_current_experiment()
 
