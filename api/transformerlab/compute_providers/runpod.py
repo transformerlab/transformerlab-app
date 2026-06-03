@@ -366,8 +366,15 @@ class RunpodProvider(ComputeProvider):
             # Use the RunPod base CPU image for CPU-only launches
             default_image = "runpod/base:1.0.2-ubuntu2204"
 
-        # Get image name from config or use default
-        image_name = config.provider_config.get("template_id") or self.default_template_id or default_image
+        # Get image name from config or use default.
+        # `image_name` is the current per-launch override key; `template_id` is kept
+        # for back-compat (it was historically used to carry the image name).
+        image_name = (
+            config.provider_config.get("image_name")
+            or config.provider_config.get("template_id")
+            or self.default_template_id
+            or default_image
+        )
 
         # Build pod creation payload
         pod_data = {

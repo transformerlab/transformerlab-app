@@ -119,6 +119,7 @@ export default function QueueTaskModal({
       region: '',
       useSpot: false,
     });
+  const [runpodImage, setRunpodImage] = React.useState('');
   const [jobDstackFleetName, setJobDstackFleetName] = React.useState('');
   const [useTrackio, setUseTrackio] = React.useState(false);
   const [useProfiling, setUseProfiling] = React.useState(false);
@@ -225,6 +226,7 @@ export default function QueueTaskModal({
   const isSlurmProvider = selectedProvider?.type === 'slurm';
   const isSkypilotProvider = selectedProvider?.type === 'skypilot';
   const isDstackProvider = selectedProvider?.type === 'dstack';
+  const isRunpodProvider = selectedProvider?.type === 'runpod';
   const isGalleryImported = Boolean((task as any)?.gallery_import);
 
   const providerResourceGroups = React.useMemo<ProviderResourceGroup[]>(() => {
@@ -619,6 +621,12 @@ export default function QueueTaskModal({
   }, [open, isSkypilotProvider, selectedProviderId, selectedProvider]);
 
   React.useEffect(() => {
+    if (!open || !isRunpodProvider || !selectedProvider) return;
+    const cfg = selectedProvider.config || {};
+    setRunpodImage(cfg.default_template_id || '');
+  }, [open, isRunpodProvider, selectedProviderId, selectedProvider]);
+
+  React.useEffect(() => {
     if (!open || !isDstackProvider || !selectedProvider) return;
     const providerCfg = selectedProvider.config || {};
     const taskCfg =
@@ -848,6 +856,10 @@ export default function QueueTaskModal({
       config.fleet_name = jobDstackFleetName.trim();
     }
 
+    if (provider?.type === 'runpod' && runpodImage.trim()) {
+      config.docker_image = runpodImage.trim();
+    }
+
     if (runSweeps) {
       config.run_sweeps = true;
       if (Object.keys(sweepConfig).length > 0) {
@@ -881,10 +893,16 @@ export default function QueueTaskModal({
     !isProviderCompatible(selectedProvider);
 
   const providerType = React.useMemo<
-    'local' | 'slurm' | 'skypilot' | 'dstack' | 'other' | null
+    'local' | 'slurm' | 'skypilot' | 'dstack' | 'runpod' | 'other' | null
   >(() => {
     const t = selectedProvider?.type;
-    if (t === 'local' || t === 'slurm' || t === 'skypilot' || t === 'dstack') {
+    if (
+      t === 'local' ||
+      t === 'slurm' ||
+      t === 'skypilot' ||
+      t === 'dstack' ||
+      t === 'runpod'
+    ) {
       return t;
     }
     return selectedProvider ? 'other' : null;
@@ -1105,6 +1123,8 @@ export default function QueueTaskModal({
               onSkypilotOverridesChange={setSkypilotOverrides}
               jobDstackFleetName={jobDstackFleetName}
               onJobDstackFleetNameChange={setJobDstackFleetName}
+              runpodImage={runpodImage}
+              onRunpodImageChange={setRunpodImage}
               incompatibilityAccelerators={incompatibilityAccelerators}
               resourceValidation={resourceValidation}
             />

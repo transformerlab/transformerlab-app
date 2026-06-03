@@ -560,6 +560,13 @@ async def launch_template_on_provider(
         if fleet_name:
             provider_config_dict["fleet_name"] = fleet_name
 
+    if provider.type == ProviderType.RUNPOD.value and request.config:
+        # Per-run custom RunPod pod image. Shares the SkyPilot `docker_image` key
+        # from the frontend; the RunPod provider reads it from provider_config.
+        runpod_image = request.config.get("docker_image")
+        if runpod_image and str(runpod_image).strip():
+            provider_config_dict["image_name"] = str(runpod_image).strip()
+
     # Copy task files (task.yaml and any attachments) into the job directory
     # so they are available to the running command on any provider.
     # index.json is excluded because the job system uses its own index.json
