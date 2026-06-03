@@ -201,7 +201,7 @@ class DstackProvider(ComputeProvider):
         except ConnectionError:
             # The dstack server being unreachable is an expected, transient condition
             # (e.g. the server is temporarily down). Callers such as check() handle this
-            # gracefully, so re-raise without logging at ERROR to avoid noisy Sentry alerts.
+            # gracefully, so re-raise without logging at ERROR.
             raise
         except Exception as exc:
             if hasattr(exc, "response") and exc.response.status_code not in [404, 405]:
