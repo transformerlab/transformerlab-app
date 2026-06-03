@@ -73,14 +73,10 @@ function HomepageHeader() {
         </div>
         <div className="col col--8">
           <h1 className={clsx('hero__title', styles.hero__title)}>
-            The <span style={{ color: '#666' }}>Agentic AI Research</span> Era
-            Has Arrived.
+            We're here for the <span style={{ color: '#666' }}>Era of Research</span>
           </h1>
           <h2 className={clsx('hero__subtitle', styles.hero__subtitle)}>
-            Transformer Lab is an open source research platform helping AI/ML
-            researchers accelerate progress. Use agentic research assistants,
-            armed with your research context graph, to run experiments, analyze
-            results and iterate on your behalf.
+            Transformer Lab is a Machine Learning Research Platform designed for frontier AI/ML workflows. Works seamlessly with agents. Local, on-prem, or in the cloud. Open source.
           </h2>
           <div
             className={styles.buttons}
@@ -114,7 +110,7 @@ function HomepageHeader() {
                   border: '2px solid var(--ifm-color-primary)',
                 }}
               >
-                Install Yourself &nbsp;
+                Self Install &nbsp;
                 <FaArrowRight />
               </a>
             </div>
