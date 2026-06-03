@@ -1,29 +1,23 @@
 ---
 title: About Us
-description: more information about the people behind Transformer Lab
+description: Transformer Lab is an open-source machine learning research platform. Our goal is to make the tools for serious AI research open and available to every researcher.
 hide_table_of_contents: false
 ---
 
-# This is so fun
+# Transformer Lab
 
-We want to build the very best tool for ML teams to build, train, and evaluate advanced AI models. We hope you love using it as much as we love working on it.
+Transformer Lab is an open-source research initiative. Our goal is to make the tools for advanced AI research open and accessible so that anyone can train, fine-tune and evaluate models with the same quality of tools that today exist only inside the largest frontier labs.
 
-# Who are the people behind Transformer Lab?
+The techniques for training capable models at scale are well understood. The platforms that make those techniques usable are not widely shared. The leading labs each built world-class research infrastructure for their own scientists. Everyone else rebuilds it from scratch using fragmented tools across their workflow: orchestration across schedulers and accelerators, distributed training, checkpointing and recovery, experiment tracking. Many researchers spend more time configuring systems than doing real research.
 
-Transformer Lab is being actively developed by a small team of engineers from Canada led by Tony, Ali, Deep, and Mina.
+Transformer Lab is a unified research platform for that work. A researcher requests compute, supplies a script, and the platform handles the orchestration, provisioning, recovery, and tracking across their own hardware, on-premise or in the cloud, with no part of their work leaving their environment. With our research harness, AI agents run experiments within it: reading a project's full context, requesting resources, launching runs, and tracking results, while the researcher directs and reviews the work.
 
-<img src={require('./img/tony.jpg').default} width={100} />
-<img src={require('./img/ali.jpg').default} width={100} />
-<img src={require('./img/deep.jpg').default} width={100} />
+Transformer Lab was founded by research team led by Ali Asaria and Tony Salomone alongside a global community of open-source contributors.
 
-We have also had some amazing interns and contributors help, including:
+Our hope is that AI progress will come from every walk of life: whether you're a scientist at a university, a founder in your garage or a team of non-researchers within a company. Diversifying where progress comes from will create more net benefit to society.
 
-<a href="https://github.com/mina-parham">mina-parham</a>, <a href="https://github.com/ParamThakkar123">ParamThakkar123</a>, <a href="https://github.com/greninja">greninja</a>, <a href="http://github.com/MashDevel">mashdevel</a>, <a href="https://github.com/aahaanmaini">aahaanmaini</a>, <a href="https://github.com/sanjaycal">sanjaycal</a>, <a href="https://github.com/safiyamak">safiyamak</a>, <a href="https://github.com/0xrohan10">0xrohan10</a>. And more!
+If this resonates with you, come build with us:
 
-# Join Us
-
-Are you passionate about building beautiful tools for other developers.
-
-Are you keen on making AI Development and Operations more accessible to the world?
-
-If so, we'd love to hear from you: please join our <a href="https://discord.gg/transformerlab">Discord</a> and message our team.
+- **Try Transformer Lab** → [Contact Us](/get-started)
+- **Review the repo** → [github.com/transformerlab](https://github.com/transformerlab)
+- **Join the community** → [Discord](https://discord.gg/transformerlab)
