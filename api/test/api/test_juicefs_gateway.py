@@ -141,6 +141,8 @@ def test_spawn_gateway_uses_minio_root_creds(juicefs_env, tmp_path, monkeypatch)
         "127.0.0.1:9000",
         "--multi-buckets",
         "--keep-etag",
+        "--umask",
+        "000",
     ]
     assert kwargs["env"]["MINIO_ROOT_USER"] == "gw-access"
     assert kwargs["env"]["MINIO_ROOT_PASSWORD"] == "gw-secret-123"

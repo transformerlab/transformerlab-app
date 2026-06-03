@@ -271,6 +271,9 @@ async def launch_template_on_provider(
     # (TFL_REMOTE_STORAGE_ENABLED guards cloud-bucket providers, not JuiceFS).
     if STORAGE_PROVIDER == "juicefs":
         juicefs_cred_cmds, juicefs_cred_env = await build_juicefs_backend_credentials_setup(provider.type)
+        # setup_commands.append(
+        #     "export current_dir=$(pwd); git clone https://github.com/transformerlab/transformerlab-app.git && cd $current_dir/transformerlab-app/lab-sdk && git checkout add/juicefs-mounting && pip install -e . && cd $current_dir;"
+        # )
         setup_commands.extend(juicefs_cred_cmds)
         env_vars.update(juicefs_cred_env)
 

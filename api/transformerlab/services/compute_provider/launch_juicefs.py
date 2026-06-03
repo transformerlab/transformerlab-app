@@ -79,7 +79,10 @@ def build_juicefs_pod_config(team_id: str) -> tuple[dict[str, str], str, str]:
         'MINIO_ROOT_USER="$TFL_JUICEFS_GATEWAY_ACCESS_KEY" '
         'MINIO_ROOT_PASSWORD="$TFL_JUICEFS_GATEWAY_SECRET_KEY" '
         f"juicefs gateway {shlex.quote(volume_name)} 127.0.0.1:{GATEWAY_PORT} "
-        "--multi-buckets --keep-etag "
+        # umask 000: gateways run under different uids on different nodes (API server
+        # vs pods); JuiceFS enforces POSIX perms volume-wide, so files must be
+        # world-writable for another node's gateway uid to update them.
+        "--multi-buckets --keep-etag --umask 000 "
         "> /tmp/juicefs-gateway.log 2>&1 &)"
     )
     readiness_cmd = (

@@ -42,7 +42,7 @@ def test_build_juicefs_pod_config_gateway_command(juicefs_env):
     # gateway runs backgrounded with MinIO root creds from the shipped env vars
     assert 'MINIO_ROOT_USER="$TFL_JUICEFS_GATEWAY_ACCESS_KEY"' in setup_cmd
     assert 'MINIO_ROOT_PASSWORD="$TFL_JUICEFS_GATEWAY_SECRET_KEY"' in setup_cmd
-    assert "juicefs gateway myvol 127.0.0.1:9000 --multi-buckets --keep-etag" in setup_cmd
+    assert "juicefs gateway myvol 127.0.0.1:9000 --multi-buckets --keep-etag --umask 000" in setup_cmd
     assert "/tmp/juicefs-gateway.log" in setup_cmd
     # readiness wait fails the setup if the gateway never comes up
     assert "/minio/health/ready" in setup_cmd

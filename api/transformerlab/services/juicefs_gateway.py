@@ -84,6 +84,12 @@ def _spawn_gateway() -> subprocess.Popen:
                 _gateway_listen_address(),
                 "--multi-buckets",
                 "--keep-etag",
+                # umask 000: gateways run under different uids on different nodes
+                # (API server vs pods); JuiceFS enforces POSIX perms volume-wide, so
+                # files must be world-writable for another node's gateway uid to
+                # update them.
+                "--umask",
+                "000",
             ],
             env=env,
             stdout=log_file,
