@@ -1,4 +1,5 @@
 import {
+  Alert,
   Box,
   Button,
   FormControl,
@@ -26,22 +27,27 @@ export default function NewTeamModal({
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   function resetAndClose() {
     setName('');
     setLogoFile(null);
     setLogoPreview(null);
+    setError(null);
     onClose();
   }
 
   async function handleSubmit() {
     setSubmitting(true);
+    setError(null);
     try {
       await onCreate(name, logoFile);
       setName('');
       setLogoFile(null);
       setLogoPreview(null);
       onClose();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to create team. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -61,6 +67,12 @@ export default function NewTeamModal({
         <Typography id="new-team-title" level="h4">
           New Team
         </Typography>
+
+        {error && (
+          <Alert color="danger" variant="soft" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
 
         <Box sx={{ mt: 2 }}>
           <FormControl>
