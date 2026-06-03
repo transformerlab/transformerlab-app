@@ -193,6 +193,7 @@ Queue a task on a compute provider.
 |---|---|
 | `--no-interactive` | Skip prompts. Uses the task's configured provider or first available. Parameters use defaults. **Always use this in automated workflows.** |
 | `-m`, `--description <text>` | Markdown note describing what this run is trying to accomplish (stored on the job, shown in `lab job info`). Pass `-` to read from stdin. **Agents: required per SKILL.md rule 13.** |
+| `--image <image>` | Custom image for this run. RunPod: a pod image (e.g. `runpod/pytorch:...`). SkyPilot: prefix with `docker:` to run in a container. Falls back to the provider's image when omitted; ignored by providers that don't support image overrides. |
 
 **JSON output:** Returns the created job object with `id` and `status`.
 

@@ -367,7 +367,16 @@ export default function UserLoginTest(): JSX.Element {
       });
 
       if (!res.ok) {
-        return;
+        let detail = 'Failed to create team. Please try again.';
+        try {
+          const errBody = await res.json();
+          if (errBody?.detail) {
+            detail = errBody.detail;
+          }
+        } catch {
+          // Response body was not JSON; fall back to the default message.
+        }
+        throw new Error(detail);
       }
 
       const data = await res.json();
@@ -393,6 +402,9 @@ export default function UserLoginTest(): JSX.Element {
       }
     } catch (e: any) {
       console.error('Error creating team:', e);
+      // Re-throw so NewTeamModal can surface the error to the user instead of
+      // silently closing as if the team was created.
+      throw e;
     } finally {
       setLoading(false);
     }

@@ -904,10 +904,15 @@ def build_launch_payload(
     description: str | None = None,
     enable_profiling: bool = False,
     enable_profiling_torch: bool = False,
+    image: str | None = None,
 ) -> dict:
     """Build the payload for launching a task on a provider."""
     cfg = task.get("config") or {}
     overrides = resource_overrides or {}
+
+    launch_config = dict(param_values or {})
+    if image and image.strip():
+        launch_config["docker_image"] = image.strip()
 
     def pick(field: str):
         if field in overrides and overrides[field] not in (None, ""):
@@ -935,7 +940,7 @@ def build_launch_payload(
         "enable_profiling_torch": enable_profiling_torch,
         "env_vars": task.get("env_vars", {}),
         "parameters": task.get("parameters", {}),
-        "config": param_values if param_values else None,
+        "config": launch_config or None,
         "file_mounts": cfg.get("file_mounts") or task.get("file_mounts"),
         "provider_name": provider_name,
         "github_repo_url": task.get("github_repo_url"),
@@ -1099,6 +1104,7 @@ def queue_task(
     param_overrides: dict | None = None,
     enable_profiling: bool = False,
     enable_profiling_torch: bool = False,
+    image: str | None = None,
 ) -> None:
     """Queue a task on a compute provider."""
     with console.status("[bold success]Fetching task...[/bold success]", spinner="dots"):
@@ -1161,6 +1167,7 @@ def queue_task(
         description=description,
         enable_profiling=enable_profiling,
         enable_profiling_torch=enable_profiling_torch,
+        image=image,
     )
     provider_id = provider.get("id")
 
@@ -1207,6 +1214,15 @@ def command_task_queue(
         "--enable-profiling-torch",
         help="Enable torch profiler trace export for this run (requires --enable-profiling).",
     ),
+    image: str | None = typer.Option(
+        None,
+        "--image",
+        help=(
+            "Custom image for this run. RunPod: a pod image (e.g. runpod/pytorch:...). "
+            "SkyPilot: prefix with 'docker:' to run in a container. Ignored by providers "
+            "that don't support image overrides."
+        ),
+    ),
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Queue a task on a compute provider."""
@@ -1225,6 +1241,7 @@ def command_task_queue(
         param_overrides=param_overrides,
         enable_profiling=enable_profiling,
         enable_profiling_torch=enable_profiling_torch,
+        image=image,
     )
 
 
