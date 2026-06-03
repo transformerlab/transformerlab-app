@@ -402,6 +402,9 @@ export default function UserLoginTest(): JSX.Element {
       }
     } catch (e: any) {
       console.error('Error creating team:', e);
+      // Re-throw so NewTeamModal can surface the error to the user instead of
+      // silently closing as if the team was created.
+      throw e;
     } finally {
       setLoading(false);
     }
