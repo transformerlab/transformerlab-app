@@ -278,10 +278,6 @@ async def launch_template_on_provider(
     # This runs after AWS credentials are configured so we have access to any remote storage if needed.
     if provider.type != ProviderType.LOCAL.value:
         setup_commands.append("pip install -q transformerlab")
-        # setup_commands.insert(
-        #     0,
-        #     "export CURRENT_DIR=$(pwd); git clone https://github.com/transformerlab/transformerlab-app; cd transformerlab-app/lab-sdk; git checkout add/juicefs-mounting; uv pip install -e .; cd $CURRENT_DIR",
-        # )
 
         # Install torch as well if torch profiler is enabled
         if request.enable_profiling_torch:
@@ -402,16 +398,12 @@ async def launch_template_on_provider(
     # resolve storage without relying on contextvar propagation.
     tfl_storage_uri = None
     if STORAGE_PROVIDER == "juicefs" and team_id:
-        # Use a dedicated remote-pod mount path; do not reuse API host mount paths.
-        juicefs_mount_point = os.getenv("TFL_JUICEFS_REMOTE_MOUNT_POINT", "/tmp/tlab-juicefs")
-        juicefs_env, juicefs_mount_cmd, tfl_storage_uri = build_juicefs_pod_config(
-            team_id=str(team_id), mount_point=juicefs_mount_point
-        )
+        juicefs_env, juicefs_gateway_cmd, tfl_storage_uri = build_juicefs_pod_config(team_id=str(team_id))
         env_vars.update(juicefs_env)  # sets TFL_REMOTE_STORAGE_ENABLED=true for pod
 
-        # Keep mount setup after credential materialization so JuiceFS can authenticate.
+        # Gateway setup runs after credential materialization so juicefs auth can use ACCESS_KEY/SECRET_KEY.
         setup_commands.append(build_juicefs_install_command())
-        setup_commands.append(juicefs_mount_cmd)
+        setup_commands.append(juicefs_gateway_cmd)
     elif STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
         tfl_storage_uri = storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", str(team_id), "workspace")
     else:

@@ -1,7 +1,8 @@
-"""JuiceFS helpers for remote pod launch: install, auth/mount, and backing-storage credentials."""
+"""JuiceFS helpers for remote pod launch: install, auth, localhost S3 gateway, and backing-storage credentials."""
 
 import asyncio
 import os
+import secrets
 import shlex
 
 from transformerlab.shared.models.models import ProviderType
@@ -12,6 +13,9 @@ from transformerlab.services.compute_provider.launch_credentials import (
     generate_gcp_credentials_setup,
     get_aws_credentials_from_file,
 )
+
+GATEWAY_PORT = 9000
+GATEWAY_ENDPOINT = f"http://127.0.0.1:{GATEWAY_PORT}"
 
 
 def build_juicefs_install_command() -> str:
@@ -28,51 +32,68 @@ def build_juicefs_install_command() -> str:
     )
 
 
-def build_juicefs_pod_config(
-    team_id: str,
-    mount_point: str,
-) -> tuple[dict[str, str], str, str]:
-    """Return (env_vars, mount_command, tfl_storage_uri) for a JuiceFS pod launch.
+def build_juicefs_pod_config(team_id: str) -> tuple[dict[str, str], str, str]:
+    """Return (env_vars, gateway_setup_command, tfl_storage_uri) for a JuiceFS pod launch.
 
-    Mounts only this org's subdir so the pod cannot access other orgs' data.
-    tfl_storage_uri equals mount_point (already org-scoped).
+    The pod runs its own localhost-bound JuiceFS S3 gateway (no FUSE needed);
+    the SDK accesses the org workspace as s3://workspace-<team_id> through it.
+    The gateway runs with --multi-buckets so the top-level workspace-<team_id>
+    directory of the volume appears as that bucket.
     """
     volume_name = os.getenv("TFL_JUICEFS_VOLUME_NAME", "")
     if not volume_name:
         raise ValueError("TFL_JUICEFS_VOLUME_NAME must be set when TFL_STORAGE_PROVIDER=juicefs")
+    juicefs_token = os.getenv("TFL_JUICEFS_TOKEN", "")
+    if not juicefs_token:
+        raise ValueError("TFL_JUICEFS_TOKEN must be set when TFL_STORAGE_PROVIDER=juicefs")
+
+    # Per-pod gateway credentials: the gateway only listens on 127.0.0.1, so these
+    # just guard against other processes on the same pod.
+    gateway_access_key = secrets.token_urlsafe(12)
+    gateway_secret_key = secrets.token_urlsafe(24)
 
     env_vars: dict[str, str] = {
         "TFL_JUICEFS_METADATA_URL": os.getenv("TFL_JUICEFS_METADATA_URL", ""),
         "TFL_JUICEFS_VOLUME_NAME": volume_name,
-        "TFL_JUICEFS_MOUNT_POINT": mount_point,
+        "TFL_JUICEFS_TOKEN": juicefs_token,
+        "TFL_JUICEFS_GATEWAY_ENDPOINT": GATEWAY_ENDPOINT,
+        "TFL_JUICEFS_GATEWAY_ACCESS_KEY": gateway_access_key,
+        "TFL_JUICEFS_GATEWAY_SECRET_KEY": gateway_secret_key,
         "TFL_REMOTE_STORAGE_ENABLED": "true",
     }
-
-    juicefs_token = os.getenv("TFL_JUICEFS_TOKEN", "")
-    if juicefs_token:
-        env_vars["TFL_JUICEFS_TOKEN"] = juicefs_token
     juicefs_console_url = os.getenv("TFL_JUICEFS_CONSOLE_URL", "")
     if juicefs_console_url:
         env_vars["TFL_JUICEFS_CONSOLE_URL"] = juicefs_console_url
 
-    mount_cmd = (
-        f"mkdir -p {shlex.quote(mount_point)} && "
-        f"juicefs mount {shlex.quote(volume_name)} {shlex.quote(mount_point)}"
-        f" --subdir {shlex.quote(f'orgs/{team_id}')} --background"
+    console_flag = ' --console-url "$TFL_JUICEFS_CONSOLE_URL"' if juicefs_console_url else ""
+    auth_cmd = (
+        'if [ -n "$ACCESS_KEY" ] && [ -n "$SECRET_KEY" ]; then '
+        f'juicefs auth {shlex.quote(volume_name)} --token "$TFL_JUICEFS_TOKEN"{console_flag} '
+        '--access-key "$ACCESS_KEY" --secret-key "$SECRET_KEY"; '
+        "else "
+        f'juicefs auth {shlex.quote(volume_name)} --token "$TFL_JUICEFS_TOKEN"{console_flag}; '
+        "fi"
     )
-    if juicefs_token:
-        console_flag = ' --console-url "$TFL_JUICEFS_CONSOLE_URL"' if juicefs_console_url else ""
-        auth_cmd = (
-            'if [ -n "$ACCESS_KEY" ] && [ -n "$SECRET_KEY" ]; then '
-            f'juicefs auth {shlex.quote(volume_name)} --token "$TFL_JUICEFS_TOKEN"{console_flag} '
-            '--access-key "$ACCESS_KEY" --secret-key "$SECRET_KEY"; '
-            "else "
-            f'juicefs auth {shlex.quote(volume_name)} --token "$TFL_JUICEFS_TOKEN"{console_flag}; '
-            "fi"
-        )
-        mount_cmd = f"{auth_cmd} && {mount_cmd}"
-
-    return env_vars, mount_cmd, mount_point
+    gateway_cmd = (
+        "(nohup env "
+        'MINIO_ROOT_USER="$TFL_JUICEFS_GATEWAY_ACCESS_KEY" '
+        'MINIO_ROOT_PASSWORD="$TFL_JUICEFS_GATEWAY_SECRET_KEY" '
+        f"juicefs gateway {shlex.quote(volume_name)} 127.0.0.1:{GATEWAY_PORT} "
+        "--multi-buckets --keep-etag "
+        "> /tmp/juicefs-gateway.log 2>&1 &)"
+    )
+    readiness_cmd = (
+        "jfs_gw_ready=0; "
+        "for i in $(seq 1 30); do "
+        f"if curl -sf {GATEWAY_ENDPOINT}/minio/health/ready >/dev/null 2>&1; then jfs_gw_ready=1; break; fi; "
+        "sleep 1; "
+        "done; "
+        '[ "$jfs_gw_ready" = "1" ] || '
+        '{ echo "JuiceFS gateway failed to start" >&2; cat /tmp/juicefs-gateway.log >&2; exit 1; }'
+    )
+    setup_cmd = f"{auth_cmd} && {gateway_cmd} && {readiness_cmd}"
+    tfl_storage_uri = f"s3://workspace-{team_id}"
+    return env_vars, setup_cmd, tfl_storage_uri
 
 
 async def build_juicefs_backend_credentials_setup(

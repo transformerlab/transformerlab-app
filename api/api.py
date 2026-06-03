@@ -99,6 +99,12 @@ async def lifespan(app: FastAPI):
     # Do the following at API Startup:
     print_launch_message()
     _print_storage_banner()
+    # Start the local JuiceFS S3 gateway before any storage access
+    # (no-op unless TFL_STORAGE_PROVIDER=juicefs). Blocking subprocess/HTTP
+    # work runs off the event loop.
+    from transformerlab.services.juicefs_gateway import ensure_juicefs_gateway, stop_juicefs_gateway
+
+    await asyncio.to_thread(ensure_juicefs_gateway)
     # Initialize directories early
     from transformerlab.shared import dirs as shared_dirs
 
@@ -174,6 +180,7 @@ async def lifespan(app: FastAPI):
     from transformerlab.services.process_registry import get_registry
 
     get_registry().kill_all()
+    stop_juicefs_gateway()
     await db.close()
     # Run the clean up function
     cleanup_at_exit()

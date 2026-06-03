@@ -216,11 +216,10 @@ async def launch_sweep_jobs(
                     )
 
                 tfl_storage_uri = None
-                juicefs_mount_cmd_for_setup: str | None = None
+                juicefs_gateway_cmd_for_setup: str | None = None
                 if STORAGE_PROVIDER == "juicefs" and team_id:
-                    juicefs_mount_point = os.getenv("TFL_JUICEFS_REMOTE_MOUNT_POINT", "/tmp/tlab-juicefs")
-                    juicefs_env, juicefs_mount_cmd_for_setup, tfl_storage_uri = build_juicefs_pod_config(
-                        team_id=str(team_id), mount_point=juicefs_mount_point
+                    juicefs_env, juicefs_gateway_cmd_for_setup, tfl_storage_uri = build_juicefs_pod_config(
+                        team_id=str(team_id)
                     )
                     env_vars.update(juicefs_env)
                 elif STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
@@ -340,11 +339,11 @@ async def launch_sweep_jobs(
                     )
                     setup_commands.append(setup_with_secrets)
 
-                # JuiceFS: install binary then auth+mount — must come after backend
-                # credentials are materialized so juicefs auth can use ACCESS_KEY/SECRET_KEY.
-                if juicefs_mount_cmd_for_setup is not None:
+                # JuiceFS: install binary then auth + localhost S3 gateway — must come after
+                # backend credentials are materialized so juicefs auth can use ACCESS_KEY/SECRET_KEY.
+                if juicefs_gateway_cmd_for_setup is not None:
                     setup_commands.append(build_juicefs_install_command())
-                    setup_commands.append(juicefs_mount_cmd_for_setup)
+                    setup_commands.append(juicefs_gateway_cmd_for_setup)
 
                 final_setup = ";".join(setup_commands) if setup_commands else None
 

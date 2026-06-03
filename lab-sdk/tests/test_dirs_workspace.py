@@ -120,13 +120,13 @@ async def test_localfs_mode_uses_storage_uri_as_home_per_org(monkeypatch, tmp_pa
 
 
 @pytest.mark.asyncio
-async def test_juicefs_mode_scopes_org_to_mount_point_subdir(monkeypatch, tmp_path):
-    """On the API server, root_uri() = TFL_JUICEFS_MOUNT_POINT/orgs/<org_id>."""
+async def test_juicefs_mode_scopes_org_to_workspace_bucket(monkeypatch):
+    """On the API server, root_uri() = s3://workspace-<org_id> served by the local gateway."""
     monkeypatch.delenv("TFL_HOME_DIR", raising=False)
     monkeypatch.delenv("TFL_WORKSPACE_DIR", raising=False)
     monkeypatch.delenv("TFL_REMOTE_STORAGE_ENABLED", raising=False)
+    monkeypatch.delenv("TFL_STORAGE_URI", raising=False)
     monkeypatch.setenv("TFL_STORAGE_PROVIDER", "juicefs")
-    monkeypatch.setenv("TFL_JUICEFS_MOUNT_POINT", str(tmp_path))
 
     if "lab.dirs" in importlib.sys.modules:
         importlib.sys.modules.pop("lab.dirs")
@@ -138,35 +138,53 @@ async def test_juicefs_mode_scopes_org_to_mount_point_subdir(monkeypatch, tmp_pa
 
     dirs_module.set_organization_id("team1")
     root = await lab_storage.root_uri()
-    assert root == os.path.join(str(tmp_path), "orgs", "team1")
+    assert root == "s3://workspace-team1"
 
     dirs_module.set_organization_id("team2")
     root2 = await lab_storage.root_uri()
-    assert root2 == os.path.join(str(tmp_path), "orgs", "team2")
+    assert root2 == "s3://workspace-team2"
 
     dirs_module.set_organization_id(None)
 
 
 @pytest.mark.asyncio
-async def test_juicefs_remote_pod_uses_storage_uri_directly(monkeypatch, tmp_path):
-    """On a remote pod (TFL_REMOTE_STORAGE_ENABLED=true), root_uri() = TFL_STORAGE_URI
-    because the subdir mount already scopes to this org."""
+async def test_juicefs_remote_pod_uses_storage_uri_directly(monkeypatch):
+    """On a remote pod, TFL_STORAGE_URI=s3://workspace-<team> is used directly
+    (matches the remote team-workspace pattern; no contextvar needed)."""
     monkeypatch.delenv("TFL_HOME_DIR", raising=False)
     monkeypatch.delenv("TFL_WORKSPACE_DIR", raising=False)
     monkeypatch.setenv("TFL_STORAGE_PROVIDER", "juicefs")
     monkeypatch.setenv("TFL_REMOTE_STORAGE_ENABLED", "true")
-    monkeypatch.setenv("TFL_STORAGE_URI", str(tmp_path))
+    monkeypatch.setenv("TFL_STORAGE_URI", "s3://workspace-team1")
 
     if "lab.dirs" in importlib.sys.modules:
         importlib.sys.modules.pop("lab.dirs")
     if "lab.storage" in importlib.sys.modules:
         importlib.sys.modules.pop("lab.storage")
 
-    from lab import dirs as dirs_module
     from lab import storage as lab_storage
 
-    dirs_module.set_organization_id("team1")
+    # No set_organization_id() call — pod subprocesses rely on the env URI alone.
     root = await lab_storage.root_uri()
-    assert root == str(tmp_path)
+    assert root == "s3://workspace-team1"
 
-    dirs_module.set_organization_id(None)
+
+@pytest.mark.asyncio
+async def test_juicefs_mode_requires_org_context_on_api_server(monkeypatch):
+    """Without org context (and without a pod-style env URI), juicefs mode must
+    fail loudly instead of silently falling back to the local home dir."""
+    monkeypatch.delenv("TFL_HOME_DIR", raising=False)
+    monkeypatch.delenv("TFL_WORKSPACE_DIR", raising=False)
+    monkeypatch.delenv("TFL_REMOTE_STORAGE_ENABLED", raising=False)
+    monkeypatch.delenv("TFL_STORAGE_URI", raising=False)
+    monkeypatch.setenv("TFL_STORAGE_PROVIDER", "juicefs")
+
+    if "lab.dirs" in importlib.sys.modules:
+        importlib.sys.modules.pop("lab.dirs")
+    if "lab.storage" in importlib.sys.modules:
+        importlib.sys.modules.pop("lab.storage")
+
+    from lab import storage as lab_storage
+
+    with pytest.raises(RuntimeError, match="Organization context is required"):
+        await lab_storage.root_uri()

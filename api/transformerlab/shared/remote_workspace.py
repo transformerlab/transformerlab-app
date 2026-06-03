@@ -178,12 +178,22 @@ def _validate_gcp_credentials() -> None:
 
 def _validate_juicefs_config() -> None:
     """
-    Validate that JuiceFS configuration is present and the volume is mounted.
+    Validate that JuiceFS gateway configuration is present.
+
+    Gateway readiness itself is validated by juicefs_gateway.ensure_juicefs_gateway()
+    at API startup, which starts the local S3 gateway and polls its health endpoint.
 
     Raises:
-        SystemExit: If any required env var is missing or the mount point is not active.
+        SystemExit: If any required env var is missing or invalid.
     """
-    for required in ("TFL_JUICEFS_METADATA_URL", "TFL_JUICEFS_VOLUME_NAME", "TFL_JUICEFS_STORAGE_BACKEND"):
+    for required in (
+        "TFL_JUICEFS_METADATA_URL",
+        "TFL_JUICEFS_VOLUME_NAME",
+        "TFL_JUICEFS_STORAGE_BACKEND",
+        "TFL_JUICEFS_TOKEN",
+        "TFL_JUICEFS_GATEWAY_ACCESS_KEY",
+        "TFL_JUICEFS_GATEWAY_SECRET_KEY",
+    ):
         if not os.getenv(required):
             print(f"❌ ERROR: {required} is required when TFL_STORAGE_PROVIDER=juicefs", file=sys.stderr)
             sys.exit(1)
@@ -191,14 +201,6 @@ def _validate_juicefs_config() -> None:
     if backend not in ("aws", "gcp", "azure"):
         print(
             f"❌ ERROR: Invalid TFL_JUICEFS_STORAGE_BACKEND. Expected one of: aws, gcp, azure; got {backend!r}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    mount_point = os.getenv("TFL_JUICEFS_MOUNT_POINT", "/mnt/juicefs")
-    if not os.path.ismount(mount_point):
-        print(
-            f"❌ ERROR: JuiceFS mount point {mount_point} is not mounted. "
-            "Ensure the JuiceFS volume is mounted before starting the API server.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -305,7 +307,7 @@ def create_bucket_for_team(team_id: str, profile_name: Optional[str] = None) -> 
             return False
 
     if STORAGE_PROVIDER == "juicefs":
-        return _create_juicefs_directory(team_id)
+        return _create_juicefs_workspace(team_id)
 
     # Check if TFL_REMOTE_STORAGE_ENABLED is enabled
     tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
@@ -508,32 +510,47 @@ def _create_azure_container(container_name: str, team_id: str) -> bool:
         return False
 
 
-def _create_juicefs_directory(team_id: str) -> bool:
-    mount_point = os.getenv("TFL_JUICEFS_MOUNT_POINT", "/mnt/juicefs")
+def _create_juicefs_workspace(team_id: str) -> bool:
+    """Create the workspace-<team_id> bucket through the local JuiceFS S3 gateway and set its quota.
+
+    In multi-bucket gateway mode, creating a bucket creates the matching
+    top-level directory on the JuiceFS volume. The quota is set via the
+    juicefs CLI, which talks to the metadata service directly (no mount needed).
+    """
     volume_name = os.getenv("TFL_JUICEFS_VOLUME_NAME", "")
-    quota_gb = int(os.getenv("TFL_JUICEFS_QUOTA_GB", "100"))
-    org_path = os.path.join(mount_point, "orgs", team_id)
-    subdir_path = f"/orgs/{team_id}"
-    try:
-        os.makedirs(org_path, exist_ok=True)
-    except OSError as e:
-        print(f"❌ Failed to create JuiceFS directory {org_path}: {e}")
-        return False
     if not volume_name:
-        print("❌ TFL_JUICEFS_VOLUME_NAME is not set, cannot set JuiceFS quota")
+        print("❌ TFL_JUICEFS_VOLUME_NAME is not set, cannot create JuiceFS workspace")
+        return False
+    quota_gb = int(os.getenv("TFL_JUICEFS_QUOTA_GB", "100"))
+    bucket_name = f"workspace-{team_id}"
+    endpoint = os.getenv("TFL_JUICEFS_GATEWAY_ENDPOINT", "http://127.0.0.1:9000")
+    try:
+        import fsspec
+
+        fs = fsspec.filesystem(
+            "s3",
+            key=os.getenv("TFL_JUICEFS_GATEWAY_ACCESS_KEY", ""),
+            secret=os.getenv("TFL_JUICEFS_GATEWAY_SECRET_KEY", ""),
+            client_kwargs={"endpoint_url": endpoint},
+            skip_instance_cache=True,
+        )
+        if not fs.exists(bucket_name):
+            fs.mkdir(bucket_name)
+    except Exception as e:
+        print(f"❌ Failed to create JuiceFS workspace bucket {bucket_name}: {e}")
         return False
     try:
         subprocess.run(
-            ["juicefs", "quota", "set", volume_name, "--path", subdir_path, "--capacity", str(quota_gb)],
+            ["juicefs", "quota", "set", volume_name, "--path", f"/{bucket_name}", "--capacity", str(quota_gb)],
             check=True,
             capture_output=True,
             text=True,
         )
     except Exception as e:
         stderr_output = e.stderr if hasattr(e, "stderr") else ""
-        print(f"❌ Failed to set JuiceFS quota on {org_path}: {e}\n{stderr_output}".rstrip())
+        print(f"❌ Failed to set JuiceFS quota on /{bucket_name}: {e}\n{stderr_output}".rstrip())
         return False
-    print(f"✅ Created JuiceFS directory for team {team_id}: {org_path} (quota: {quota_gb} GB)")
+    print(f"✅ Created JuiceFS workspace for team {team_id}: s3://{bucket_name} (quota: {quota_gb} GB)")
     return True
 
 

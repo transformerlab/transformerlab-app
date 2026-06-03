@@ -129,7 +129,9 @@ _AZURE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 _AZURE_ACCOUNT_NAME = os.getenv("AZURE_STORAGE_ACCOUNT")
 _AZURE_ACCOUNT_KEY = os.getenv("AZURE_STORAGE_KEY")
 _AZURE_SAS_TOKEN = os.getenv("AZURE_STORAGE_SAS_TOKEN")
-_JUICEFS_MOUNT_POINT = os.getenv("TFL_JUICEFS_MOUNT_POINT", "/mnt/juicefs")
+_JUICEFS_GATEWAY_ENDPOINT = os.getenv("TFL_JUICEFS_GATEWAY_ENDPOINT", "http://127.0.0.1:9000")
+_JUICEFS_GATEWAY_ACCESS_KEY = os.getenv("TFL_JUICEFS_GATEWAY_ACCESS_KEY", "")
+_JUICEFS_GATEWAY_SECRET_KEY = os.getenv("TFL_JUICEFS_GATEWAY_SECRET_KEY", "")
 
 # Common prefixes that represent remote storage locations handled by this module
 _REMOTE_PATH_PREFIXES: tuple[str, ...] = ("s3://", "gs://", "gcs://", "abfs://")
@@ -219,7 +221,19 @@ def _get_storage_options() -> dict:
         if _AZURE_SAS_TOKEN:
             options["sas_token"] = _AZURE_SAS_TOKEN
         return options
+    if STORAGE_PROVIDER == "juicefs":
+        return _juicefs_gateway_s3_kwargs()
     return {}
+
+
+def _juicefs_gateway_s3_kwargs() -> dict:
+    """s3fs kwargs for talking to the local JuiceFS S3 gateway."""
+    kwargs: dict = {"client_kwargs": {"endpoint_url": _JUICEFS_GATEWAY_ENDPOINT}}
+    if _JUICEFS_GATEWAY_ACCESS_KEY:
+        kwargs["key"] = _JUICEFS_GATEWAY_ACCESS_KEY
+    if _JUICEFS_GATEWAY_SECRET_KEY:
+        kwargs["secret"] = _JUICEFS_GATEWAY_SECRET_KEY
+    return kwargs
 
 
 def _get_fs_for_uri(uri: str):
@@ -259,7 +273,10 @@ def _get_fs_for_uri(uri: str):
         # Do NOT pass `asynchronous` to s3fs: older s3fs forwards it to botocore.session.Session,
         # which raises TypeError. Sync S3FileSystem is the default without this kwarg.
         fs_kwargs = {}
-        if _AWS_PROFILE:
+        if STORAGE_PROVIDER == "juicefs":
+            # s3:// URIs are served by the local JuiceFS S3 gateway, not AWS.
+            fs_kwargs.update(_juicefs_gateway_s3_kwargs())
+        elif _AWS_PROFILE:
             fs_kwargs["profile"] = _AWS_PROFILE
         fs_kwargs["default_fill_cache"] = False
         fs_kwargs["use_listings_cache"] = False
@@ -293,23 +310,19 @@ def _get_fs_and_root():
     # Check context variable first, then fall back to environment variable
     tfl_uri = _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")
 
-    # When org-scoped storage is enabled, the context var MUST be set so that
-    # the resolved root is scoped to the correct organization.  If it isn't,
-    # we'd silently fall back to the unscoped TFL_STORAGE_URI, causing
-    # "not found" errors for org-specific resources (jobs, models, etc.).
     tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
     uses_localfs_multi_org = STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI")
+    uses_juicefs = STORAGE_PROVIDER == "juicefs"
     env_scoped_localfs = uses_localfs_multi_org and _is_localfs_org_scoped_uri(tfl_uri)
-    env_scoped_remote = tfl_remote_storage_enabled and _is_remote_team_workspace_uri(tfl_uri)
-    # JuiceFS pod subprocesses: mount is already org-scoped via --subdir, so TFL_STORAGE_URI
-    # is the org workspace root and no context var is needed.
-    env_scoped_juicefs = (
-        STORAGE_PROVIDER == "juicefs" and tfl_remote_storage_enabled and bool(os.getenv("TFL_STORAGE_URI"))
-    )
-    if (tfl_remote_storage_enabled or uses_localfs_multi_org) and _current_tfl_storage_uri.get() is None:
+    # JuiceFS pods ship TFL_STORAGE_URI=s3://workspace-<team>, which matches the
+    # remote team-workspace pattern, so env_scoped_remote covers them too.
+    env_scoped_remote = (tfl_remote_storage_enabled or uses_juicefs) and _is_remote_team_workspace_uri(tfl_uri)
+    if (
+        tfl_remote_storage_enabled or uses_localfs_multi_org or uses_juicefs
+    ) and _current_tfl_storage_uri.get() is None:
         # Subprocesses may get an explicit org-scoped URI without contextvars: localfs
-        # .../orgs/<id>/workspace, remote s3|gs|abfs://workspace-<team_id>/..., or juicefs pod mount.
-        if not env_scoped_localfs and not env_scoped_remote and not env_scoped_juicefs:
+        # .../orgs/<id>/workspace or remote s3|gs|abfs://workspace-<team_id>/...
+        if not env_scoped_localfs and not env_scoped_remote:
             raise RuntimeError(
                 "Organization context is required but not set. "
                 "Ensure set_organization_id() is called before accessing storage "
@@ -461,7 +474,7 @@ async def ls(path: str, detail: bool = False, fs=None):
 
 
 async def find(path: str) -> list[str]:
-    fs = await filesystem()
+    fs, _ = _get_fs_for_path(path)
     try:
         return await asyncio.to_thread(fs.find, path)
     finally:
@@ -482,7 +495,7 @@ async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
     Returns:
         List of (root, dirs, files) tuples similar to os.walk()
     """
-    fs = await filesystem()
+    fs, _ = _get_fs_for_path(path)
     try:
         # Materialise the generator in a thread so the blocking filesystem
         # traversal never stalls the event loop.
@@ -496,7 +509,7 @@ async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
 
 async def rm(path: str) -> None:
     if await exists(path):
-        fs = await filesystem()
+        fs, _ = _get_fs_for_path(path)
         try:
             await asyncio.to_thread(fs.rm, path)
         finally:
@@ -506,7 +519,7 @@ async def rm(path: str) -> None:
 
 async def rm_tree(path: str) -> None:
     if await exists(path):
-        fs = await filesystem()
+        fs, _ = _get_fs_for_path(path)
         try:
             await asyncio.to_thread(fs.rm, path, recursive=True)
         except TypeError:
@@ -544,7 +557,12 @@ async def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kw
         # If fs is provided, use it to infer protocol/storage options, otherwise infer from path
         filesys = await _get_uncached_filesystem(path, fs=fs)
     else:
-        filesys = fs if fs is not None else await filesystem()
+        if fs is not None:
+            filesys = fs
+        else:
+            # Use path-based filesystem selection (consistent with exists/makedirs/ls)
+            # so that callers with a known path don't trigger the global org-context guard.
+            filesys, _ = _get_fs_for_path(path)
 
     # Check if this is a local filesystem
     is_local = isinstance(filesys, fsspec.implementations.local.LocalFileSystem)
@@ -603,6 +621,8 @@ def _extract_storage_options(protocol: str, fs=None) -> dict:
     """
     storage_options: dict = {}
     if protocol == "s3":
+        if STORAGE_PROVIDER == "juicefs":
+            return _juicefs_gateway_s3_kwargs()
         if fs is not None:
             # Try to reuse explicit settings from filesystem config first.
             if hasattr(fs, "config_kwargs") and fs.config_kwargs:
@@ -681,8 +701,9 @@ async def _get_uncached_filesystem(path: str, fs=None):
     """
     protocol = _resolve_protocol(path, fs=fs)
     if protocol is None:
-        # Local filesystem — just return the regular cached instance.
-        return await filesystem()
+        # Local filesystem — return a path-based instance to avoid the org-context guard.
+        fs_local, _ = _get_fs_for_path(path)
+        return fs_local
 
     storage_options = _extract_storage_options(protocol, fs=fs)
     cache_key = (protocol, _normalize_options_for_cache_key(storage_options))
