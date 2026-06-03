@@ -114,6 +114,35 @@ def _is_personal_team(user: User, team: Team) -> bool:
     return team.name == expected
 
 
+def _get_max_teams_per_user() -> Optional[int]:
+    """Read the per-user team-creation cap from TFL_MAX_TEAMS_PER_USER.
+
+    Returns None (unlimited) when the env var is unset, empty, non-positive, or
+    not parseable as an integer. A malformed value is logged as a warning.
+    """
+    raw = getenv("TFL_MAX_TEAMS_PER_USER")
+    if raw is None or not raw.strip():
+        return None
+    try:
+        limit = int(raw.strip())
+    except ValueError:
+        logger.warning("Ignoring invalid TFL_MAX_TEAMS_PER_USER value %r; treating as unlimited", raw)
+        return None
+    if limit <= 0:
+        return None
+    return limit
+
+
+async def _count_owned_non_personal_teams(session: AsyncSession, user: User) -> int:
+    """Count teams the user owns, excluding their personal team."""
+    user_teams = await db_team.get_user_teams(session, str(user.id))
+    owned_team_ids = [ut.team_id for ut in user_teams if ut.role == TeamRole.OWNER.value]
+    if not owned_team_ids:
+        return 0
+    teams = await db_team.get_teams_by_ids(session, owned_team_ids)
+    return sum(1 for team in teams if not _is_personal_team(user, team))
+
+
 async def get_all_team_ids() -> List[str]:
     """Return the IDs of all teams in the database."""
     async with async_session() as session:
@@ -129,6 +158,15 @@ async def create_team(
     logo_filename: Optional[str] = None,
 ) -> dict:
     """Create a team, add the creator as owner, provision storage and default experiment."""
+
+    limit = _get_max_teams_per_user()
+    if limit is not None:
+        owned_count = await _count_owned_non_personal_teams(session, user)
+        if owned_count >= limit:
+            raise HTTPException(
+                status_code=403,
+                detail=f"You have reached the maximum number of teams you can create ({limit}).",
+            )
 
     team = await db_team.insert_team(session, name)
 
