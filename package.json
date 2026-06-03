@@ -68,7 +68,7 @@
     "@nivo/line": "^0.88.0",
     "@nivo/radar": "^0.88.0",
     "@segment/analytics-next": "^1.84.0",
-    "@sentry/react": "^10.54.0",
+    "@sentry/react": "^10.55.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "dayjs": "^1.11.21",
@@ -80,7 +80,7 @@
     "react-dom": "^18.2.0",
     "react-dropzone": "^15.0.0",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.15.1",
+    "react-router-dom": "^7.16.0",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "swr": "^2.4.1",
@@ -124,7 +124,7 @@
     "webpack-cli": "^5.1.1",
     "webpack-dev-server": "^5.2.4",
     "webpack-merge": "^6.0.1",
-    "react-doctor": "^0.2.6"
+    "react-doctor": "^0.2.14"
   },
   "overrides": {
     "serialize-javascript": "^7.0.3",
