@@ -850,7 +850,9 @@ export default function QueueTaskModal({
         config.region = skypilotOverrides.region.trim();
     }
 
-    if (supportsSpot && useSpot) config.use_spot = true;
+    // Always send an explicit value so unchecking the box overrides a
+    // provider-level use_spot default on the backend.
+    if (supportsSpot) config.use_spot = useSpot;
 
     if (provider?.type === 'dstack' && jobDstackFleetName.trim()) {
       config.fleet_name = jobDstackFleetName.trim();
