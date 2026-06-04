@@ -339,26 +339,35 @@ Download job artifacts.
 
 ### `job chart`
 
-Export the experiment's job runs chart as a PNG image (each run's metric score over time, best-so-far runs highlighted, discarded runs grayed out, best-so-far step line). Rendered server-side via `GET /experiment/{id}/jobs/chart.png` — requires a server new enough to have that endpoint.
+Export the experiment's job runs chart as a PNG image (each run's metric score over time, best-so-far runs highlighted, discarded runs grayed out, best-so-far step line), and/or enable public sharing of the live chart. The PNG is rendered server-side via `GET /experiment/{id}/jobs/chart.png`; sharing uses the `/experiment/{id}/share/chart` endpoints — both require a server new enough to have them.
 
 | Option | Description |
 |---|---|
-| `--output` / `-o <path>` | **Required.** Path to write the PNG file. |
-| `--metric <key>` | Metric key to plot (default: auto-detected primary metric — prefers a key named `score`, else the first metric key). |
-| `--lower-is-better` / `--higher-is-better` | Direction for "best" run highlighting (default: majority vote over each job's `job_data.lower_is_better`). |
+| `--output` / `-o <path>` | Path to write the PNG file. Required unless `--share` is given. |
+| `--share` | Enable public sharing for the jobs chart and print the public link (anyone with the link can view the live chart, no login). Reuses the existing active link; only mints a new one when sharing is off, with a confirmation prompt unless `--no-interactive` / `--format json` is set. |
+| `--metric <key>` | Metric key to plot (default: auto-detected primary metric — prefers a key named `score`, else the first metric key). PNG only. |
+| `--lower-is-better` / `--higher-is-better` | Direction for "best" run highlighting (default: majority vote over each job's `job_data.lower_is_better`). PNG only. |
 | `--experiment` / `-e <id>` | Per-command experiment override. |
 
 ```bash
 lab job chart -o runs.png
 lab job chart -o runs.png --metric eval/loss --lower-is-better
+lab job chart --share                  # public link only, no PNG
+lab job chart --share -o runs.png      # both
 ```
 
-Errors: exits 1 with the server's message when the experiment has no scored jobs or `--metric` is unknown; on older servers without the endpoint it reports that chart export is unsupported.
+At least one of `-o`/`--share` is required. Errors: exits 1 with the server's message when the experiment has no scored jobs or `--metric` is unknown; on older servers without the endpoints it reports that chart export (or public sharing) is unsupported.
 
 **JSON output (success):**
 ```json
 {"saved": "/absolute/path/to/runs.png"}
 ```
+With `--share` (printed as its own JSON object before the `saved` line when `-o` is also given):
+```json
+{"url": "https://.../#/public/share/<token>", "token": "<token>", "created_at": "..."}
+```
+
+Related: `lab notes show --share` works the same way for the experiment notes (`/experiment/{id}/share/notes`).
 
 ### `job stop <job_id>`
 

@@ -86,6 +86,7 @@ cli/src/transformerlab_cli/
     ├── auth.py                 # API key validation, user/team fetching
     ├── browser_login.py        # loopback browser login flow used by `lab login`
     ├── config.py               # ~/.lab/config.json management
+    ├── share.py                # Public share link helpers (`job chart --share`, `notes show --share`)
     ├── shared.py               # Constants (BASE_URL, credential paths)
     ├── ui.py                   # Rich console, themes, render_table()
     ├── logo.py                 # ASCII logo printed by the root help
