@@ -995,3 +995,93 @@ def test_job_metrics_keys_filter(_mock_require, _mock_api):
     assert "loss" in out
     assert "acc" in out
     assert "lr" not in out
+
+
+# A minimal valid PNG header is enough for the CLI, which writes bytes verbatim.
+FAKE_PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"fake-png-body"
+
+
+def _mock_png_response():
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.content = FAKE_PNG_BYTES
+    return mock_resp
+
+
+def _mock_error_response(status_code, detail):
+    mock_resp = MagicMock()
+    mock_resp.status_code = status_code
+    mock_resp.json.return_value = {"detail": detail}
+    mock_resp.text = json.dumps({"detail": detail})
+    return mock_resp
+
+
+@patch("transformerlab_cli.commands.job.api.get", return_value=_mock_png_response())
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_writes_png(_mock_check, _mock_require, mock_api, tmp_path):
+    """`job chart -o file.png` downloads the chart PNG and writes it to disk."""
+    output_path = tmp_path / "runs.png"
+    result = runner.invoke(app, ["job", "chart", "-o", str(output_path)])
+    assert result.exit_code == 0
+    assert output_path.read_bytes() == FAKE_PNG_BYTES
+    assert "Job runs chart saved to" in strip_ansi(result.output)
+    called_path = mock_api.call_args[0][0]
+    assert called_path == "/experiment/exp1/jobs/chart.png"
+
+
+@patch("transformerlab_cli.commands.job.api.get", return_value=_mock_png_response())
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_metric_and_lower_is_better_params(_mock_check, _mock_require, mock_api, tmp_path):
+    """--metric and --lower-is-better are forwarded as query params."""
+    output_path = tmp_path / "runs.png"
+    result = runner.invoke(
+        app,
+        ["job", "chart", "-o", str(output_path), "--metric", "eval/loss", "--lower-is-better"],
+    )
+    assert result.exit_code == 0
+    called_path = mock_api.call_args[0][0]
+    assert called_path.startswith("/experiment/exp1/jobs/chart.png?")
+    assert "metric=eval%2Floss" in called_path
+    assert "lower_is_better=true" in called_path
+
+
+@patch("transformerlab_cli.commands.job.api.get", return_value=_mock_png_response())
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_higher_is_better_param(_mock_check, _mock_require, mock_api, tmp_path):
+    """--higher-is-better sends lower_is_better=false."""
+    output_path = tmp_path / "runs.png"
+    result = runner.invoke(app, ["job", "chart", "-o", str(output_path), "--higher-is-better"])
+    assert result.exit_code == 0
+    assert "lower_is_better=false" in mock_api.call_args[0][0]
+
+
+@patch(
+    "transformerlab_cli.commands.job.api.get",
+    return_value=_mock_error_response(404, "No scored jobs to chart for experiment exp1."),
+)
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_no_scored_jobs(_mock_check, _mock_require, _mock_api, tmp_path):
+    """Server-side 'no data' errors surface their detail message."""
+    output_path = tmp_path / "runs.png"
+    result = runner.invoke(app, ["job", "chart", "-o", str(output_path)])
+    assert result.exit_code == 1
+    assert "No scored jobs to chart" in strip_ansi(result.output)
+    assert not output_path.exists()
+
+
+@patch(
+    "transformerlab_cli.commands.job.api.get",
+    return_value=_mock_error_response(404, "Not Found"),
+)
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_endpoint_missing_on_old_server(_mock_check, _mock_require, _mock_api, tmp_path):
+    """A FastAPI default 404 means the server predates the chart endpoint."""
+    output_path = tmp_path / "runs.png"
+    result = runner.invoke(app, ["job", "chart", "-o", str(output_path)])
+    assert result.exit_code == 1
+    assert "does not support chart export" in strip_ansi(result.output)

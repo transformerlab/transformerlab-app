@@ -21,6 +21,7 @@ from transformerlab.compute_providers.runpod import fetch_runpod_provider_logs
 from transformerlab.routers.auth import get_user_and_team
 from transformerlab.routers.serverinfo import watch_file
 from transformerlab.services.job_service import get_artifacts_from_directory, job_update_status
+import transformerlab.services.job_chart_service as job_chart_service
 import transformerlab.services.job_service as job_service
 from transformerlab.services.permission_service import require_permission
 from transformerlab.services.provider_service import get_team_provider, get_provider_instance
@@ -167,6 +168,32 @@ async def jobs_get_all(
         jobs = [_slim_job(job) for job in jobs]
 
     return jobs
+
+
+@router.get("/chart.png")
+async def jobs_chart_png(
+    experimentId: str,
+    metric: str = "",
+    lower_is_better: Optional[bool] = None,
+):
+    """
+    Render the experiment's job runs chart (metric score over time, with
+    best-so-far runs highlighted) as a PNG image.
+
+    ``metric`` defaults to the auto-detected primary metric; ``lower_is_better``
+    defaults to a majority vote over each job's ``job_data.lower_is_better``.
+    """
+    try:
+        png = await job_chart_service.generate_experiment_chart_png(
+            experiment_id=experimentId,
+            metric=metric or None,
+            lower_is_better=lower_is_better,
+        )
+    except job_chart_service.MetricNotFoundError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except job_chart_service.ChartDataError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return Response(content=png, media_type="image/png")
 
 
 async def _job_delete_handler(job_id: str, experimentId: str) -> dict:

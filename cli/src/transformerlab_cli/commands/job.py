@@ -718,6 +718,66 @@ def download_artifacts(job_id: str, experiment_id: str, output_dir: str | None =
         console.print(f"[error]Error:[/error] Failed to download artifacts: {e}")
 
 
+def export_job_chart(
+    experiment_id: str,
+    output_path: str,
+    metric: str | None = None,
+    lower_is_better: bool | None = None,
+) -> None:
+    """Download the experiment's job runs chart from the server as a PNG file."""
+    output_format = cli_state.output_format
+
+    params: dict[str, str] = {}
+    if metric:
+        params["metric"] = metric
+    if lower_is_better is not None:
+        params["lower_is_better"] = "true" if lower_is_better else "false"
+    chart_url = f"/experiment/{experiment_id}/jobs/chart.png"
+    if params:
+        chart_url = f"{chart_url}?{urlencode(params)}"
+
+    if output_format != "json":
+        with console.status("[bold success]Rendering job runs chart...[/bold success]", spinner="dots"):
+            response = api.get(chart_url, timeout=60.0)
+    else:
+        response = api.get(chart_url, timeout=60.0)
+
+    if response.status_code == 200:
+        resolved_path = os.path.abspath(output_path)
+        out_dir = os.path.dirname(resolved_path)
+        try:
+            if out_dir:
+                os.makedirs(out_dir, exist_ok=True)
+            with open(resolved_path, "wb") as f:
+                f.write(response.content)
+        except OSError as e:
+            if output_format == "json":
+                print(json.dumps({"error": f"Failed to write chart file: {e}"}))
+            else:
+                console.print(f"[error]Error:[/error] Failed to write chart file: {e}")
+            raise typer.Exit(1)
+        if output_format == "json":
+            print(json.dumps({"saved": resolved_path}))
+        else:
+            console.print(f"[success]✓[/success] Job runs chart saved to: {resolved_path}")
+        return
+
+    detail = _extract_error_detail(response)
+    if response.status_code == 404 and detail.strip() == "Not Found":
+        # FastAPI's default 404 body — the endpoint itself is missing on this server.
+        message = (
+            "This server does not support chart export (missing /jobs/chart.png endpoint). "
+            "Update the Transformer Lab server and try again."
+        )
+    else:
+        message = detail or f"Failed to export chart. Status code: {response.status_code}"
+    if output_format == "json":
+        print(json.dumps({"error": message, "status_code": response.status_code}))
+    else:
+        console.print(f"[error]Error:[/error] {message}")
+    raise typer.Exit(1)
+
+
 def fetch_metrics(experiment_id: str, job_id: str, since: int = 0):
     """Fetch live training metrics for a job."""
     return api.get(f"/experiment/{experiment_id}/jobs/{job_id}/metrics?since={since}", timeout=15.0)
@@ -1046,6 +1106,23 @@ def _print_logs(experiment_id: str, job_id: str, output_format: str, fetch_fn, l
         print(json.dumps({"job_id": job_id, "logs": logs_text, "line_count": len(lines)}))
     else:
         console.print(logs_text)
+
+
+@app.command("chart")
+def command_job_chart(
+    output: str = typer.Option(..., "--output", "-o", help="Path to write the chart PNG (e.g. runs.png)"),
+    metric: str = typer.Option(None, "--metric", help="Metric key to plot (default: auto-detected primary metric)"),
+    lower_is_better: bool | None = typer.Option(
+        None,
+        "--lower-is-better/--higher-is-better",
+        help="Mark best runs assuming lower (or higher) metric values are better (default: auto-detect from job data)",
+    ),
+    experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
+):
+    """Export the experiment's job runs chart as a PNG image."""
+    check_configs(output_format=cli_state.output_format)
+    current_experiment = resolve_experiment_id(experiment)
+    export_job_chart(current_experiment, output, metric=metric, lower_is_better=lower_is_better)
 
 
 @app.command("machine-logs")
