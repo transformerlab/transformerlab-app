@@ -252,7 +252,13 @@ class LambdaProvider(ComputeProvider):
                     "Lambda provider requires an instance type. Specify accelerators "
                     "(e.g. 'A100:1') or configure default_instance_type."
                 )
-            return self.default_instance_type
+            # The default comes from the generic `default_gpu_type` provider config
+            # field, which holds a GPU type like "A100" rather than a Lambda
+            # instance type. Accept a native instance type ("gpu_1x_a10") as-is
+            # and resolve anything else through the accelerator map below.
+            if self.default_instance_type.lower().startswith("gpu_"):
+                return self.default_instance_type
+            accelerators = self.default_instance_type
 
         parts = accelerators.strip().split(":")
         accel_type = parts[0].strip().upper()
@@ -417,23 +423,49 @@ exit $?
         )
         return key_name
 
-    def _regions_with_capacity(self, instance_type: str) -> List[str]:
+    def _regions_with_capacity(self, instance_type: str) -> Optional[List[str]]:
         """Return region names that currently have capacity for an instance type.
 
         Lambda's /instance-types response is keyed by instance type name and
-        carries a `regions_with_capacity_available` list per type. Returns [] if
-        the type is unknown or the call fails (caller decides how to handle).
+        carries a `regions_with_capacity_available` list per type. Returns None
+        when capacity can't be determined (the call failed or the type is
+        unknown), and [] when the API affirmatively reports no capacity in any
+        region — callers treat those differently.
         """
         try:
             types = self._unwrap(self._make_request("GET", "/instance-types").json()) or {}
         except Exception as exc:  # pragma: no cover - network failures
             logger.warning("Failed to query Lambda instance-types for capacity: %s", exc)
-            return []
+            return None
         entry = types.get(instance_type) if isinstance(types, dict) else None
         if not entry:
-            return []
+            return None
         regions = entry.get("regions_with_capacity_available") or []
         return [r.get("name") for r in regions if r.get("name")]
+
+    def _file_system_region(self, file_system_names: List[str]) -> Optional[str]:
+        """Return the region the named Lambda file systems live in, if known.
+
+        Lambda file systems are bound to a single region and an instance can
+        only attach file systems from its own region. Raises ValueError if the
+        named file systems span multiple regions (no single region can satisfy
+        the launch). Returns None when the region can't be determined (call
+        failed or names not found) so the caller can fall back and let the
+        launch surface any error.
+        """
+        try:
+            fs_list = self._unwrap(self._make_request("GET", "/file-systems").json()) or []
+        except Exception as exc:  # pragma: no cover - network failures
+            logger.warning("Failed to query Lambda file systems: %s", exc)
+            return None
+        by_name = {fs.get("name"): (fs.get("region") or {}).get("name") for fs in fs_list if isinstance(fs, dict)}
+        regions = {by_name[name] for name in file_system_names if by_name.get(name)}
+        if len(regions) > 1:
+            raise ValueError(
+                f"Lambda file systems {file_system_names} live in different regions ({sorted(regions)}); "
+                "an instance can only attach file systems from a single region."
+            )
+        return next(iter(regions), None)
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         instance_type = config.provider_config.get("instance_type_name") or self._resolve_instance_type(
@@ -446,27 +478,53 @@ exit $?
         # "insufficient-capacity" even when the type is available elsewhere).
         requested_region = config.region or self.default_region
         available_regions = self._regions_with_capacity(instance_type)
-        if available_regions:
-            if requested_region in available_regions:
-                region = requested_region
-            else:
-                region = available_regions[0]
-                if requested_region:
-                    logger.info(
-                        "Lambda instance type %s has no capacity in %s; using %s instead.",
-                        instance_type,
-                        requested_region,
-                        region,
-                    )
-        elif requested_region:
+
+        # File systems are region-bound on Lambda: if any are attached, the
+        # instance must launch in the region they live in, so the capacity
+        # fallback above must not move the launch away from it.
+        file_system_names = config.provider_config.get("file_system_names") or self.default_file_system_names
+        fs_region = self._file_system_region(file_system_names) if file_system_names else None
+
+        if fs_region:
+            if available_regions is not None and fs_region not in available_regions:
+                raise ValueError(
+                    f"Lambda instance type '{instance_type}' has no capacity in region '{fs_region}', "
+                    f"where the configured file system(s) {file_system_names} live. "
+                    "Try again later or launch without the file system(s)."
+                )
+            if requested_region and requested_region != fs_region:
+                logger.info(
+                    "Lambda file system(s) %s pin the launch region to %s (requested %s).",
+                    file_system_names,
+                    fs_region,
+                    requested_region,
+                )
+            region = fs_region
+        elif available_regions is None:
             # Couldn't determine capacity (e.g. instance-types call failed); fall
             # back to the requested region and let the launch surface any error.
+            if not requested_region:
+                raise ValueError(
+                    f"Could not determine capacity for Lambda instance type '{instance_type}' and no "
+                    "region was specified. Specify a region or configure default_region."
+                )
             region = requested_region
-        else:
+        elif not available_regions:
             raise ValueError(
                 f"Lambda has no available capacity for instance type '{instance_type}' in any region. "
                 "Try a different accelerator/instance type or try again later."
             )
+        elif requested_region in available_regions:
+            region = requested_region
+        else:
+            region = available_regions[0]
+            if requested_region:
+                logger.info(
+                    "Lambda instance type %s has no capacity in %s; using %s instead.",
+                    instance_type,
+                    requested_region,
+                    region,
+                )
 
         # Start from any per-launch keys (for the user's own access), then always
         # add the org key so the API server can read run logs over SSH.
@@ -480,8 +538,6 @@ exit $?
                 "Lambda Cloud requires at least one ssh_key_name. Provide team_id so the "
                 "org key can be used, or configure default_ssh_key_names."
             )
-
-        file_system_names = config.provider_config.get("file_system_names") or self.default_file_system_names
 
         payload: Dict[str, Any] = {
             "region_name": region,

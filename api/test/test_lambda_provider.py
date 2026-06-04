@@ -158,6 +158,107 @@ class TestRegionCapacity:
         ):
             provider.launch_cluster("my-cluster", config)
 
+    def test_raises_when_no_capacity_anywhere_even_with_requested_region(self, provider):
+        # The API affirmatively reports zero capacity -> fail fast instead of
+        # launching into the requested region and getting a 400.
+        config = ClusterConfig(accelerators="A10:1", region="us-east-1")
+        config.provider_config = {}
+
+        def fake_request(method, endpoint, **kwargs):
+            if endpoint == "/instance-types":
+                return _json_response({"data": {"gpu_1x_a10": {"regions_with_capacity_available": []}}})
+            return _json_response({"data": {"instance_ids": ["i-1"]}})
+
+        with (
+            patch.object(provider, "_ensure_org_ssh_key", return_value="org-key"),
+            patch.object(provider, "_make_request", side_effect=fake_request),
+            pytest.raises(ValueError, match="no available capacity"),
+        ):
+            provider.launch_cluster("my-cluster", config)
+
+    def test_falls_back_to_requested_region_when_capacity_unknown(self, provider):
+        # Instance type missing from the response -> capacity unknown -> use the
+        # requested region and let the launch surface any error.
+        launch_payload = self._launch_with_capacity(provider, {}, "us-east-1")
+        assert launch_payload["region_name"] == "us-east-1"
+
+
+class TestFileSystemRegion:
+    def _launch(self, provider, instance_types_payload, file_systems_payload, requested_region, fs_names):
+        config = ClusterConfig(accelerators="A10:1", region=requested_region)
+        config.provider_config = {"file_system_names": fs_names}
+
+        def fake_request(method, endpoint, **kwargs):
+            if endpoint == "/instance-types":
+                return _json_response({"data": instance_types_payload})
+            if endpoint == "/file-systems":
+                return _json_response({"data": file_systems_payload})
+            return _json_response({"data": {"instance_ids": ["i-1"]}})
+
+        with (
+            patch.object(provider, "_ensure_org_ssh_key", return_value="org-key"),
+            patch.object(provider, "_make_request", side_effect=fake_request) as mock_req,
+        ):
+            provider.launch_cluster("my-cluster", config)
+
+        launch_call = [c for c in mock_req.call_args_list if c.args[1] == "/instance-operations/launch"][0]
+        return launch_call.kwargs["json_data"]
+
+    def test_file_system_pins_region(self, provider):
+        # Requested us-east-1, but the filesystem lives in us-west-3 -> launch there.
+        types = {"gpu_1x_a10": {"regions_with_capacity_available": [{"name": "us-east-1"}, {"name": "us-west-3"}]}}
+        file_systems = [{"name": "my-fs", "region": {"name": "us-west-3"}}]
+        payload = self._launch(provider, types, file_systems, "us-east-1", ["my-fs"])
+        assert payload["region_name"] == "us-west-3"
+        assert payload["file_system_names"] == ["my-fs"]
+
+    def test_raises_when_no_capacity_in_file_system_region(self, provider):
+        types = {"gpu_1x_a10": {"regions_with_capacity_available": [{"name": "us-east-1"}]}}
+        file_systems = [{"name": "my-fs", "region": {"name": "us-west-3"}}]
+        with pytest.raises(ValueError, match="no capacity in region 'us-west-3'"):
+            self._launch(provider, types, file_systems, "us-east-1", ["my-fs"])
+
+    def test_raises_when_file_systems_span_regions(self, provider):
+        types = {"gpu_1x_a10": {"regions_with_capacity_available": [{"name": "us-east-1"}]}}
+        file_systems = [
+            {"name": "fs-east", "region": {"name": "us-east-1"}},
+            {"name": "fs-west", "region": {"name": "us-west-3"}},
+        ]
+        with pytest.raises(ValueError, match="different regions"):
+            self._launch(provider, types, file_systems, "us-east-1", ["fs-east", "fs-west"])
+
+    def test_unknown_file_system_falls_back_to_capacity_logic(self, provider):
+        # Filesystem name not found -> region unknown -> normal capacity-based pick.
+        types = {"gpu_1x_a10": {"regions_with_capacity_available": [{"name": "us-east-1"}]}}
+        payload = self._launch(provider, types, [], "us-east-1", ["ghost-fs"])
+        assert payload["region_name"] == "us-east-1"
+        assert payload["file_system_names"] == ["ghost-fs"]
+
+
+class TestResolveInstanceType:
+    def test_accepts_native_instance_type_default(self):
+        provider = LambdaProvider(api_key="k", default_instance_type="gpu_1x_a10")
+        assert provider._resolve_instance_type(None) == "gpu_1x_a10"
+
+    def test_resolves_gpu_type_default(self):
+        # default_instance_type is fed from the generic default_gpu_type config
+        # field, which holds values like "A100" rather than Lambda names.
+        provider = LambdaProvider(api_key="k", default_instance_type="A100")
+        assert provider._resolve_instance_type(None) == "gpu_1x_a100"
+
+    def test_resolves_gpu_spec_default(self):
+        provider = LambdaProvider(api_key="k", default_instance_type="A100:8")
+        assert provider._resolve_instance_type(None) == "gpu_8x_a100"
+
+    def test_raises_for_unknown_gpu_type_default(self):
+        provider = LambdaProvider(api_key="k", default_instance_type="RTX 3090")
+        with pytest.raises(ValueError, match="Unsupported accelerator spec"):
+            provider._resolve_instance_type(None)
+
+    def test_explicit_accelerators_take_precedence(self):
+        provider = LambdaProvider(api_key="k", default_instance_type="gpu_1x_a10")
+        assert provider._resolve_instance_type("H100:8") == "gpu_8x_h100_sxm5"
+
 
 class TestGetJobLogs:
     def test_ssh_reads_run_log(self, provider):

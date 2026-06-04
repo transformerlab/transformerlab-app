@@ -310,6 +310,9 @@ def create_compute_provider(config: ComputeProviderConfig) -> "ComputeProvider":
             api_key=config.api_key,
             api_base_url=config.api_base_url,
             default_region=config.default_region or config.region,
+            # default_gpu_type holds a GPU type (e.g. "A100" or "A100:1"); the
+            # provider resolves it to a Lambda instance type (e.g. "gpu_1x_a100")
+            # and also accepts a native instance type name as-is.
             default_instance_type=config.default_gpu_type,
             default_file_system_names=config.lambda_file_system_names,
             team_id=config.team_id,
