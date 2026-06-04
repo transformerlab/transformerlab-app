@@ -73,13 +73,13 @@ function HomepageHeader() {
         </div>
         <div className="col col--8">
           <h1 className={clsx('hero__title', styles.hero__title)}>
-            We&rsquo;re here for the{' '}
-            <span style={{ color: '#666' }}>Era of Research.</span>
+            We're here for the{' '}
+            <span style={{ color: '#666' }}>Era of Research</span>
           </h1>
           <h2 className={clsx('hero__subtitle', styles.hero__subtitle)}>
             Transformer Lab is a Machine Learning Research Platform designed for
-            frontier AI/ML workflows. Local, on-prem, or in the cloud. Open
-            source.
+            frontier AI/ML workflows. Works seamlessly with agents. Local,
+            on-prem, or in the cloud. Open source.
           </h2>
           <div
             className={styles.buttons}
@@ -87,7 +87,7 @@ function HomepageHeader() {
           >
             <div className="block">
               <a
-                href="/for-teams/install"
+                href="/get-started"
                 className="button button--primary button--lg"
                 style={{
                   display: 'flex',
@@ -98,6 +98,22 @@ function HomepageHeader() {
                 }}
               >
                 Get Started &nbsp;
+                <FaArrowRight />
+              </a>
+            </div>
+            <div className="block">
+              <a
+                href="/for-teams/install"
+                className="button button--secondary button--lg"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  width: 'fit-content',
+                  border: '2px solid var(--ifm-color-primary)',
+                }}
+              >
+                Self Install &nbsp;
                 <FaArrowRight />
               </a>
             </div>
