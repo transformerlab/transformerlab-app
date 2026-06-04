@@ -39,7 +39,7 @@ from transformerlab.shared import galleries
 from transformerlab.shared.github_utils import generate_github_clone_setup, read_github_pat_from_workspace
 from transformerlab.shared.interactive_gallery_utils import find_interactive_gallery_entry, resolve_interactive_command
 from transformerlab.shared.disk_space_utils import parse_disk_space_gb
-from transformerlab.services.compute_provider.spot_utils import _resolve_use_spot
+from transformerlab.services.compute_provider.spot_utils import resolve_use_spot
 from transformerlab.shared.models.models import ProviderType
 from transformerlab.shared.secret_utils import load_team_secrets, replace_secrets_in_dict, replace_secret_placeholders
 from lab import storage
@@ -518,7 +518,7 @@ async def launch_template_on_provider(
                 skypilot_region = str(request.config["region"]).strip()
 
     # Spot/preemptible applies to all spot-capable providers (not just SkyPilot).
-    resolved_use_spot = _resolve_use_spot(provider.type, provider.config, request.config)
+    resolved_use_spot = resolve_use_spot(provider.type, provider.config, request.config)
 
     # Build provider_config for cluster_config (and job_data for local provider)
     provider_config_dict = {"requested_disk_space": request.disk_space}

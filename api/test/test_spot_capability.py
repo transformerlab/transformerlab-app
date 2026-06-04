@@ -47,29 +47,29 @@ def test_supports_spot_false_for_vastai():
     assert read.supports_spot is False
 
 
-def test_resolve_use_spot_helper_for_non_skypilot():
-    from transformerlab.services.compute_provider.launch_template import _resolve_use_spot
+def testresolve_use_spot_helper_for_non_skypilot():
+    from transformerlab.services.compute_provider.launch_template import resolve_use_spot
 
     # provider default off, per-job override on -> True
-    assert _resolve_use_spot("aws", provider_config={}, request_config={"use_spot": True}) is True
+    assert resolve_use_spot("aws", provider_config={}, request_config={"use_spot": True}) is True
     # provider default on, no override -> True
-    assert _resolve_use_spot("aws", provider_config={"use_spot": True}, request_config=None) is True
+    assert resolve_use_spot("aws", provider_config={"use_spot": True}, request_config=None) is True
     # capable provider, nothing set -> False
-    assert _resolve_use_spot("aws", provider_config={}, request_config={}) is False
+    assert resolve_use_spot("aws", provider_config={}, request_config={}) is False
     # NOT capable -> always False even if requested
-    assert _resolve_use_spot("vastai", provider_config={"use_spot": True}, request_config={"use_spot": True}) is False
+    assert resolve_use_spot("vastai", provider_config={"use_spot": True}, request_config={"use_spot": True}) is False
 
 
-def test_resolve_use_spot_recovers_persisted_value_on_resume():
+def testresolve_use_spot_recovers_persisted_value_on_resume():
     """Checkpoint-resume reuses the persisted cluster_config.use_spot through the same helper.
 
     Mirrors the call shape in resume_remote_job_from_checkpoint, which passes the
     original run's persisted use_spot as the per-job override.
     """
-    from transformerlab.services.compute_provider.spot_utils import _resolve_use_spot
+    from transformerlab.services.compute_provider.spot_utils import resolve_use_spot
 
     def recover(provider_type: str, provider_config: dict, persisted_cluster_config: dict) -> bool:
-        return _resolve_use_spot(
+        return resolve_use_spot(
             provider_type,
             provider_config,
             {"use_spot": persisted_cluster_config.get("use_spot")},

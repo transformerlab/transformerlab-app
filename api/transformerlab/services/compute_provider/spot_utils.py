@@ -3,7 +3,7 @@
 from transformerlab.compute_providers.base import SPOT_CAPABLE_PROVIDER_TYPES
 
 
-def _resolve_use_spot(provider_type: str, provider_config: dict | None, request_config: dict | None) -> bool:
+def resolve_use_spot(provider_type: str, provider_config: dict | None, request_config: dict | None) -> bool:
     """Resolve whether to launch on spot for any spot-capable provider.
 
     Provider-level default (provider_config["use_spot"]) is overridden by a

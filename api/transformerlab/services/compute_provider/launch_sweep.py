@@ -21,7 +21,7 @@ from transformerlab.services.compute_provider.launch_credentials import (
     generate_gcp_credentials_setup,
     get_aws_credentials_from_file,
 )
-from transformerlab.services.compute_provider.spot_utils import _resolve_use_spot
+from transformerlab.services.compute_provider.spot_utils import resolve_use_spot
 from transformerlab.services.compute_provider.trackio_launch import (
     apply_trackio_launch_env,
     build_trackio_run_name,
@@ -411,7 +411,7 @@ async def launch_sweep_jobs(
                         if request.config.get("region"):
                             sweep_region = str(request.config["region"]).strip()
 
-                sweep_use_spot = _resolve_use_spot(provider.type, provider.config, request.config)
+                sweep_use_spot = resolve_use_spot(provider.type, provider.config, request.config)
 
                 cluster_config = ClusterConfig(
                     cluster_name=formatted_cluster_name,
