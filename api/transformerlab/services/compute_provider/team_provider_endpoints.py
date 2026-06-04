@@ -95,6 +95,7 @@ async def create_provider_for_team(
         ProviderType.NEBIUS,
         ProviderType.VASTAI,
         ProviderType.GCP,
+        ProviderType.LAMBDA,
     ]
     if provider_data.type not in allowed_provider_types:
         allowed_values = ", ".join(provider_type.value for provider_type in allowed_provider_types)
