@@ -656,6 +656,10 @@ exit $?
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         instance = self._find_instance_by_name(cluster_name)
+        return self._resources_from_instance(cluster_name, instance)
+
+    def _resources_from_instance(self, cluster_name: str, instance: Optional[Dict[str, Any]]) -> ResourceInfo:
+        """Build ResourceInfo from an instance dict (as returned by both the list and get endpoints)."""
         if not instance:
             return ResourceInfo(
                 cluster_name=cluster_name,
@@ -689,7 +693,9 @@ exit $?
         detailed: List[Dict[str, Any]] = []
         for cluster_status in self.list_clusters():
             cluster_name = cluster_status.cluster_name
-            resources = self.get_cluster_resources(cluster_name)
+            # The list endpoint returns the same full Instance payload as the per-instance
+            # endpoint, so reuse provider_data instead of re-fetching each instance.
+            resources = self._resources_from_instance(cluster_name, cluster_status.provider_data)
 
             gpus_dict: Dict[str, int] = {}
             for gpu in resources.gpus or []:
