@@ -260,8 +260,9 @@ async def _check_job_via_provider(
         ProviderType.AZURE.value,
         ProviderType.GCP.value,
         ProviderType.VASTAI.value,
+        ProviderType.LAMBDA.value,
     ):
-        # LOCAL/RUNPOD/AWS/GCP/Azure/Nebius/Vast.ai: cluster state directly represents job lifecycle.
+        # LOCAL/RUNPOD/AWS/GCP/Azure/Nebius/Vast.ai/Lambda: cluster state directly represents job lifecycle.
         if provider_type == ProviderType.LOCAL.value and job_data.get("workspace_dir"):
             if hasattr(provider_instance, "extra_config"):
                 provider_instance.extra_config["workspace_dir"] = job_data["workspace_dir"]
@@ -332,6 +333,13 @@ async def _check_job_via_provider(
             and job_status == JobStatus.STOPPING.value
             and (cluster_state == ClusterState.UNKNOWN or status_message == "Instance not found")
         ):
+            cluster_state = ClusterState.STOPPED
+        elif (
+            provider_type == ProviderType.LAMBDA.value
+            and job_status == JobStatus.STOPPING.value
+            and (cluster_state == ClusterState.UNKNOWN or status_message == "Instance not found")
+        ):
+            # Lambda: terminated instances disappear from /instances quickly. Mirror Nebius.
             cluster_state = ClusterState.STOPPED
         elif (
             provider_type == ProviderType.VASTAI.value

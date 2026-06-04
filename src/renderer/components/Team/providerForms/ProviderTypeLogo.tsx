@@ -11,6 +11,7 @@ import RunpodLogo from './img/runpod.png';
 import DstackLogo from './img/dstack.png';
 import VastaiLogo from './img/vastai.png';
 import NebiusLogo from './img/nebius.svg';
+import LambdaLogo from './img/lambda.svg';
 
 type SvgComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
 type LogoAsset = string | SvgComponent;
@@ -25,6 +26,7 @@ const PROVIDER_LOGOS: Record<string, LogoAsset> = {
   dstack: DstackLogo,
   vastai: VastaiLogo,
   nebius: NebiusLogo,
+  lambda: LambdaLogo,
 };
 
 export interface ProviderTypeLogoProps {

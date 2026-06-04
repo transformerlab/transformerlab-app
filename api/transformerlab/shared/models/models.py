@@ -137,6 +137,7 @@ class ProviderType(str, enum.Enum):
     NEBIUS = "nebius"
     VASTAI = "vastai"
     GCP = "gcp"
+    LAMBDA = "lambda"
 
 
 class AcceleratorType(str, enum.Enum):
