@@ -278,6 +278,8 @@ class RunpodProvider(ComputeProvider):
             "H100-NVL": "NVIDIA H100 NVL",
             "H200": "NVIDIA H200",
             "H200-NVL": "NVIDIA H200 NVL",
+            "B200": "NVIDIA B200",
+            "B300": "NVIDIA B300",
             "V100": "Tesla V100-PCIE-16GB",  # Default to PCIE-16GB
             "V100-16GB": "Tesla V100-PCIE-16GB",
             "V100-32GB": "Tesla V100-PCIE-32GB",
@@ -365,8 +367,15 @@ class RunpodProvider(ComputeProvider):
             # Use the RunPod base CPU image for CPU-only launches
             default_image = "runpod/base:1.0.2-ubuntu2204"
 
-        # Get image name from config or use default
-        image_name = config.provider_config.get("template_id") or self.default_template_id or default_image
+        # Get image name from config or use default.
+        # `image_name` is the current per-launch override key; `template_id` is kept
+        # for back-compat (it was historically used to carry the image name).
+        image_name = (
+            config.provider_config.get("image_name")
+            or config.provider_config.get("template_id")
+            or self.default_template_id
+            or default_image
+        )
 
         # Build pod creation payload
         pod_data = {
@@ -374,6 +383,11 @@ class RunpodProvider(ComputeProvider):
             "imageName": image_name,
             "computeType": compute_type,
         }
+
+        # Spot pod: interruptible pods are cheaper but can be reclaimed at any time.
+        # RunPod determines pricing automatically; no bid price is required.
+        if config.use_spot:
+            pod_data["interruptible"] = True
 
         # Add GPU-specific fields if GPU pod
         if compute_type == "GPU":

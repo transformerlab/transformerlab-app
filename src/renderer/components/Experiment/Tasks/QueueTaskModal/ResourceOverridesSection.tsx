@@ -27,7 +27,6 @@ type ResourceField = keyof ResourceInputs;
 export type SkypilotOverrides = {
   dockerImage: string;
   region: string;
-  useSpot: boolean;
 };
 
 type ResourceValidation = {
@@ -60,11 +59,23 @@ interface ResourceOverridesSectionProps {
   resourceGroupCustomized: boolean;
 
   // Provider-specific config
-  providerType: 'local' | 'slurm' | 'skypilot' | 'dstack' | 'other' | null;
+  providerType:
+    | 'local'
+    | 'slurm'
+    | 'skypilot'
+    | 'dstack'
+    | 'runpod'
+    | 'other'
+    | null;
   skypilotOverrides: SkypilotOverrides;
   onSkypilotOverridesChange: (next: SkypilotOverrides) => void;
+  supportsSpot: boolean;
+  useSpot: boolean;
+  onUseSpotChange: (next: boolean) => void;
   jobDstackFleetName: string;
   onJobDstackFleetNameChange: (value: string) => void;
+  runpodImage: string;
+  onRunpodImageChange: (value: string) => void;
 
   // Incompatibility warning (null when compatible or not applicable)
   incompatibilityAccelerators: string | null;
@@ -87,14 +98,20 @@ export default function ResourceOverridesSection({
   providerType,
   skypilotOverrides,
   onSkypilotOverridesChange,
+  supportsSpot,
+  useSpot,
+  onUseSpotChange,
   jobDstackFleetName,
   onJobDstackFleetNameChange,
+  runpodImage,
+  onRunpodImageChange,
   incompatibilityAccelerators,
   resourceValidation,
 }: ResourceOverridesSectionProps) {
   const isSkypilotProvider = providerType === 'skypilot';
   const isDstackProvider = providerType === 'dstack';
   const isLocalProvider = providerType === 'local';
+  const isRunpodProvider = providerType === 'runpod';
   return (
     <Stack spacing={1}>
       <Stack
@@ -283,25 +300,21 @@ export default function ResourceOverridesSection({
                     disabled={isSubmitting}
                   />
                 </FormControl>
-                <FormControl
-                  sx={{ flexDirection: 'row', alignItems: 'center' }}
-                >
-                  <Switch
-                    checked={skypilotOverrides.useSpot}
-                    onChange={(e) =>
-                      onSkypilotOverridesChange({
-                        ...skypilotOverrides,
-                        useSpot: e.target.checked,
-                      })
-                    }
-                    disabled={isSubmitting}
-                    sx={{ mr: 1 }}
-                  />
-                  <FormLabel sx={{ m: 0 }}>
-                    Use Spot / Preemptible Instances
-                  </FormLabel>
-                </FormControl>
               </>
+            )}
+
+            {supportsSpot && (
+              <FormControl sx={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Switch
+                  checked={useSpot}
+                  onChange={(e) => onUseSpotChange(e.target.checked)}
+                  disabled={isSubmitting}
+                  sx={{ mr: 1 }}
+                />
+                <FormLabel sx={{ m: 0 }}>
+                  Use Spot / Preemptible Instances
+                </FormLabel>
+              </FormControl>
             )}
 
             {isDstackProvider && (
@@ -319,6 +332,27 @@ export default function ResourceOverridesSection({
                   <FormHelperText>
                     If set, this run is scheduled on the specified dstack fleet.
                     Leave empty to use resource-based scheduling.
+                  </FormHelperText>
+                </FormControl>
+              </>
+            )}
+
+            {isRunpodProvider && (
+              <>
+                <Divider />
+                <Typography level="title-sm">RunPod Job Overrides</Typography>
+                <FormControl>
+                  <FormLabel>Docker Image (optional)</FormLabel>
+                  <Input
+                    value={runpodImage}
+                    onChange={(e) => onRunpodImageChange(e.target.value)}
+                    placeholder="runpod/pytorch:1.0.3-cu1281-torch290-ubuntu2204"
+                    sx={{ fontFamily: 'monospace', fontSize: 'sm' }}
+                    disabled={isSubmitting}
+                  />
+                  <FormHelperText>
+                    Custom RunPod pod image for this run. Leave blank to use the
+                    provider&apos;s image or the default RunPod base image.
                   </FormHelperText>
                 </FormControl>
               </>

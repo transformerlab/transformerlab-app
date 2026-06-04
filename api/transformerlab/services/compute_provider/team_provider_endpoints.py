@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from transformerlab.compute_providers.base import SPOT_CAPABLE_PROVIDER_TYPES
 from transformerlab.schemas.compute_providers import ProviderCreate, ProviderRead, ProviderUpdate, mask_sensitive_config
 from transformerlab.services.cache_service import cache
 from transformerlab.services.compute_provider.local_setup_service import (
@@ -56,6 +57,7 @@ def _provider_to_read(provider: Any) -> ProviderRead:
         updated_at=provider.updated_at,
         disabled=provider.disabled,
         is_default=provider.is_default,
+        supports_spot=provider.type in SPOT_CAPABLE_PROVIDER_TYPES,
     )
 
 

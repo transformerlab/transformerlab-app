@@ -16,7 +16,7 @@ from rich.syntax import Syntax
 import transformerlab_cli.util.api as api
 from transformerlab_cli.util import chunked_upload
 from transformerlab_cli.state import cli_state
-from transformerlab_cli.util.config import require_current_experiment
+from transformerlab_cli.util.config import resolve_experiment_id
 from transformerlab_cli.util.ui import console, render_object, render_table
 
 app = typer.Typer()
@@ -34,13 +34,6 @@ def _validate_subtype(value: str | None) -> str | None:
     if normalized not in KNOWN_TASK_SUBTYPES:
         raise typer.BadParameter(f"Allowed: {', '.join(KNOWN_TASK_SUBTYPES)}")
     return normalized
-
-
-def _resolve_experiment_id(experiment_id: str | None = None) -> str:
-    """Resolve experiment from command override or configured default."""
-    if experiment_id is not None and str(experiment_id).strip():
-        return str(experiment_id).strip()
-    return require_current_experiment()
 
 
 def _ensure_experiment_exists(experiment_id: str) -> None:
@@ -598,7 +591,7 @@ def command_task_list(
     ),
 ):
     """List all tasks."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     list_tasks(output_format=cli_state.output_format, experiment_id=current_experiment, subtype=subtype)
 
 
@@ -765,7 +758,7 @@ def command_task_add(
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Add a new task. Provide a directory path directly, or use --from-git to fetch from a Git repository."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
 
     if from_git:
         add_task_from_github(from_git, experiment_id=current_experiment, interactive=not no_interactive)
@@ -785,7 +778,7 @@ def command_task_validate(
     timeout: int = typer.Option(300, "--timeout", help="Request timeout in seconds for validation"),
 ):
     """Validate a task.yaml file against the server schema."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     resolved_path = os.path.realpath(task_yaml_path)
     output_format = cli_state.output_format
     _validate_task_yaml_file(
@@ -829,7 +822,7 @@ def command_task_edit(
     if dry_run and not from_dir:
         console.print("[warning]Warning:[/warning] --dry-run only applies with --from-dir; ignoring.")
 
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
 
     if from_dir:
         edit_task_from_directory(
@@ -858,7 +851,7 @@ def command_task_upload(
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Upload additional files into an existing task."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     upload_files_to_task(
         task_id=task_id,
         path_to_upload=path,
@@ -874,7 +867,7 @@ def command_task_delete(
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip confirmation prompt"),
 ):
     """Delete a task."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
 
     if not no_interactive:
         typer.confirm(f"Delete task {task_id}?", abort=True)
@@ -888,7 +881,7 @@ def command_task_info(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Get task details."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     info_task(task_id, current_experiment)
 
 
@@ -911,10 +904,21 @@ def build_launch_payload(
     description: str | None = None,
     enable_profiling: bool = False,
     enable_profiling_torch: bool = False,
+    use_spot: bool = False,
+    image: str | None = None,
 ) -> dict:
     """Build the payload for launching a task on a provider."""
     cfg = task.get("config") or {}
     overrides = resource_overrides or {}
+
+    # The backend reads spot/preemptible selection and image overrides from the
+    # per-job `config` payload (same channel the frontend uses), so merge them
+    # alongside any parameter overrides.
+    launch_config: dict = dict(param_values or {})
+    if image and image.strip():
+        launch_config["docker_image"] = image.strip()
+    if use_spot:
+        launch_config["use_spot"] = True
 
     def pick(field: str):
         if field in overrides and overrides[field] not in (None, ""):
@@ -942,7 +946,7 @@ def build_launch_payload(
         "enable_profiling_torch": enable_profiling_torch,
         "env_vars": task.get("env_vars", {}),
         "parameters": task.get("parameters", {}),
-        "config": param_values if param_values else None,
+        "config": launch_config or None,
         "file_mounts": cfg.get("file_mounts") or task.get("file_mounts"),
         "provider_name": provider_name,
         "github_repo_url": task.get("github_repo_url"),
@@ -1106,6 +1110,8 @@ def queue_task(
     param_overrides: dict | None = None,
     enable_profiling: bool = False,
     enable_profiling_torch: bool = False,
+    use_spot: bool = False,
+    image: str | None = None,
 ) -> None:
     """Queue a task on a compute provider."""
     with console.status("[bold success]Fetching task...[/bold success]", spinner="dots"):
@@ -1140,6 +1146,12 @@ def queue_task(
             provider = next((p for p in providers if p.get("is_default")), providers[0])
         console.print(f"[dim]Using provider: {provider.get('name')}[/dim]")
 
+    if use_spot and not provider.get("supports_spot"):
+        console.print(
+            f"[warning]Warning:[/warning] Provider '{provider.get('name')}' does not support spot/preemptible "
+            "instances; --spot will be ignored and the job will run on-demand."
+        )
+
     parameters = task.get("parameters", {})
     overrides = param_overrides or {}
     if overrides:
@@ -1168,6 +1180,8 @@ def queue_task(
         description=description,
         enable_profiling=enable_profiling,
         enable_profiling_torch=enable_profiling_torch,
+        use_spot=use_spot,
+        image=image,
     )
     provider_id = provider.get("id")
 
@@ -1214,10 +1228,27 @@ def command_task_queue(
         "--enable-profiling-torch",
         help="Enable torch profiler trace export for this run (requires --enable-profiling).",
     ),
+    spot: bool = typer.Option(
+        False,
+        "--spot",
+        help=(
+            "Request a spot/preemptible instance for this run. Only honored by spot-capable "
+            "providers (AWS, GCP, Azure, RunPod, dstack, Nebius, SkyPilot); ignored otherwise."
+        ),
+    ),
+    image: str | None = typer.Option(
+        None,
+        "--image",
+        help=(
+            "Custom image for this run. RunPod: a pod image (e.g. runpod/pytorch:...). "
+            "SkyPilot: prefix with 'docker:' to run in a container. Ignored by providers "
+            "that don't support image overrides."
+        ),
+    ),
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Queue a task on a compute provider."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     _ensure_experiment_exists(current_experiment)
     if description == "-":
         if sys.stdin.isatty():
@@ -1232,6 +1263,8 @@ def command_task_queue(
         param_overrides=param_overrides,
         enable_profiling=enable_profiling,
         enable_profiling_torch=enable_profiling_torch,
+        use_spot=spot,
+        image=image,
     )
 
 
@@ -1341,7 +1374,7 @@ def command_task_gallery(
     experiment: str | None = typer.Option(None, "--experiment", "-e", help="Override experiment for this command"),
 ):
     """Browse the task gallery. Use --import <id> to add a task to the current experiment."""
-    current_experiment = _resolve_experiment_id(experiment)
+    current_experiment = resolve_experiment_id(experiment)
     output_format = cli_state.output_format
     is_interactive = gallery_type == "interactive"
 

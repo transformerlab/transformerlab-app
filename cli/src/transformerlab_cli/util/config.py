@@ -289,8 +289,17 @@ def require_current_experiment() -> str:
 
 
 def resolve_experiment_id(experiment_id: str | None = None) -> str:
-    """Resolve experiment from CLI override or configured default."""
+    """Resolve experiment from CLI override or configured default.
+
+    Single source of truth for the ``-e/--experiment`` override shared by the
+    task, job, and notes command groups. The override branch must run
+    ``check_configs()`` so ``set_base_url()`` applies the configured server;
+    the default branch gets that for free via ``require_current_experiment()``.
+    Without it, ``-e`` requests route to the stale module-default host.
+    """
+    from transformerlab_cli.state import cli_state
+
     if experiment_id is not None and str(experiment_id).strip():
-        check_configs(output_format="json")
+        check_configs(output_format=cli_state.output_format)
         return str(experiment_id).strip()
     return require_current_experiment()

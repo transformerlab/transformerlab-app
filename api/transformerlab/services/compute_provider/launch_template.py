@@ -39,6 +39,7 @@ from transformerlab.shared import galleries
 from transformerlab.shared.github_utils import generate_github_clone_setup, read_github_pat_from_workspace
 from transformerlab.shared.interactive_gallery_utils import find_interactive_gallery_entry, resolve_interactive_command
 from transformerlab.shared.disk_space_utils import parse_disk_space_gb
+from transformerlab.services.compute_provider.spot_utils import resolve_use_spot
 from transformerlab.shared.models.models import ProviderType
 from transformerlab.shared.secret_utils import load_team_secrets, replace_secrets_in_dict, replace_secret_placeholders
 from lab import storage
@@ -500,27 +501,24 @@ async def launch_template_on_provider(
     else:
         parameters_with_secrets = merged_parameters if merged_parameters else None
 
-    # For SkyPilot providers, resolve docker_image / region / use_spot.
+    # For SkyPilot providers, resolve docker_image / region / zone.
     # Per-job overrides (from request.config) take precedence over provider-level defaults.
     skypilot_image_id: str | None = None
     skypilot_region: str | None = None
     skypilot_zone: str | None = None
-    skypilot_use_spot: bool = False
     if provider.type == ProviderType.SKYPILOT.value:
         prov_cfg = provider.config or {}
-        # Provider-level defaults
         skypilot_image_id = prov_cfg.get("docker_image") or None
         skypilot_region = prov_cfg.get("default_region") or None
         skypilot_zone = prov_cfg.get("default_zone") or None
-        skypilot_use_spot = prov_cfg.get("use_spot", False) is True
-        # Per-job overrides from the frontend config dict
         if request.config:
             if request.config.get("docker_image"):
                 skypilot_image_id = str(request.config["docker_image"]).strip()
             if request.config.get("region"):
                 skypilot_region = str(request.config["region"]).strip()
-            if request.config.get("use_spot"):
-                skypilot_use_spot = True
+
+    # Spot/preemptible applies to all spot-capable providers (not just SkyPilot).
+    resolved_use_spot = resolve_use_spot(provider.type, provider.config, request.config)
 
     # Build provider_config for cluster_config (and job_data for local provider)
     provider_config_dict = {"requested_disk_space": request.disk_space}
@@ -559,6 +557,13 @@ async def launch_template_on_provider(
         fleet_name = per_run_fleet_name or provider_level_fleet_name
         if fleet_name:
             provider_config_dict["fleet_name"] = fleet_name
+
+    if provider.type == ProviderType.RUNPOD.value and request.config:
+        # Per-run custom RunPod pod image. Shares the SkyPilot `docker_image` key
+        # from the frontend; the RunPod provider reads it from provider_config.
+        runpod_image = request.config.get("docker_image")
+        if runpod_image and str(runpod_image).strip():
+            provider_config_dict["image_name"] = str(runpod_image).strip()
 
     # Copy task files (task.yaml and any attachments) into the job directory
     # so they are available to the running command on any provider.
@@ -693,7 +698,7 @@ async def launch_template_on_provider(
         image_id=skypilot_image_id,
         region=skypilot_region,
         zone=skypilot_zone,
-        use_spot=skypilot_use_spot,
+        use_spot=resolved_use_spot,
     )
 
     # Persist cluster_config into job_data so the DB-backed queue workers

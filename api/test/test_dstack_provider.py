@@ -44,13 +44,19 @@ class TestCheck:
         assert call_kwargs[1]["json"] == {"project_name": "test-project", "only_active": False, "limit": 1}
 
     @patch("transformerlab.compute_providers.dstack.requests.request")
-    def test_returns_false_on_connection_error(self, mock_request, provider):
+    def test_returns_false_on_connection_error(self, mock_request, provider, caplog):
+        import logging
         import requests as req_lib
 
         mock_request.side_effect = req_lib.exceptions.ConnectionError("unreachable")
-        status, reason = provider.check()
+        with caplog.at_level(logging.WARNING, logger="transformerlab.compute_providers.dstack"):
+            status, reason = provider.check()
         assert status is False
-        assert "Unable to list dstack runs" in reason
+        assert "unreachable" in reason
+        # A dstack server being down is an expected health-check outcome,
+        # so it should not be logged at ERROR level
+        error_logs = [r for r in caplog.records if r.levelno >= logging.ERROR]
+        assert error_logs == []
 
 
 # --- _parse_accelerators() ---
@@ -142,6 +148,22 @@ class TestBuildRunSpec:
         config = ClusterConfig(run="train.py", env_vars={"KEY": "new"})
         spec = p._build_run_spec("override-run", config)
         assert spec["configuration"]["env"]["KEY"] == "new"
+
+    def test_spot_policy_set_when_use_spot(self, provider):
+        config = ClusterConfig(run="train.py", use_spot=True)
+        spec = provider._build_run_spec("spot-run", config)
+        assert spec["configuration"]["spot_policy"] == "spot"
+
+    def test_no_spot_policy_when_on_demand(self, provider):
+        config = ClusterConfig(run="train.py")
+        spec = provider._build_run_spec("ondemand-run", config)
+        assert "spot_policy" not in spec["configuration"]
+
+    def test_no_spot_policy_with_fleet(self, provider):
+        config = ClusterConfig(run="train.py", use_spot=True, provider_config={"fleet_name": "my-fleet"})
+        spec = provider._build_run_spec("fleet-run", config)
+        # Fleet capacity is pre-provisioned; spot_policy does not apply.
+        assert "spot_policy" not in spec["configuration"]
 
 
 # --- _map_status() ---

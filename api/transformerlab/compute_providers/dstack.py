@@ -154,6 +154,11 @@ class DstackProvider(ComputeProvider):
         if fleet_name:
             configuration["fleets"] = [fleet_name]
 
+        # spot_policy is a top-level run-configuration property (spot|on-demand|auto).
+        # Only meaningful when provisioning new instances; skip for pre-provisioned fleets.
+        if config.use_spot and not fleet_name:
+            configuration["spot_policy"] = "spot"
+
         ssh_key_pub = config.provider_config.get("ssh_key_pub", self.extra_config.get("ssh_key_pub", ""))
 
         return {
@@ -198,6 +203,11 @@ class DstackProvider(ComputeProvider):
                 json_data={"project_name": self.project_name, "only_active": False, "limit": limit},
                 timeout=timeout,
             )
+        except ConnectionError:
+            # The dstack server being unreachable is an expected, transient condition
+            # (e.g. the server is temporarily down). Callers such as check() handle this
+            # gracefully, so re-raise without logging at ERROR.
+            raise
         except Exception as exc:
             if hasattr(exc, "response") and exc.response.status_code not in [404, 405]:
                 raise
