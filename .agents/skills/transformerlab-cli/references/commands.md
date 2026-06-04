@@ -337,6 +337,29 @@ Download job artifacts.
 | `--file <pattern>` | Glob pattern for specific files (repeatable). Omit to download all as a zip. |
 | `--output` / `-o <dir>` | Output directory (default: current directory) |
 
+### `job chart`
+
+Export the experiment's job runs chart as a PNG image (each run's metric score over time, best-so-far runs highlighted, discarded runs grayed out, best-so-far step line). Rendered server-side via `GET /experiment/{id}/jobs/chart.png` — requires a server new enough to have that endpoint.
+
+| Option | Description |
+|---|---|
+| `--output` / `-o <path>` | **Required.** Path to write the PNG file. |
+| `--metric <key>` | Metric key to plot (default: auto-detected primary metric — prefers a key named `score`, else the first metric key). |
+| `--lower-is-better` / `--higher-is-better` | Direction for "best" run highlighting (default: majority vote over each job's `job_data.lower_is_better`). |
+| `--experiment` / `-e <id>` | Per-command experiment override. |
+
+```bash
+lab job chart -o runs.png
+lab job chart -o runs.png --metric eval/loss --lower-is-better
+```
+
+Errors: exits 1 with the server's message when the experiment has no scored jobs or `--metric` is unknown; on older servers without the endpoint it reports that chart export is unsupported.
+
+**JSON output (success):**
+```json
+{"saved": "/absolute/path/to/runs.png"}
+```
+
 ### `job stop <job_id>`
 
 Stop a running job.

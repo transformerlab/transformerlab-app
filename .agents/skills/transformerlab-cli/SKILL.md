@@ -113,6 +113,9 @@ lab job request-logs JOB_ID --follow   # Provider launch/provisioning logs (e.g.
 # 5. Download results
 lab job artifacts JOB_ID
 lab job download JOB_ID --file "*.csv" -o ./results
+
+# 6. (Optional) Export the experiment's job runs chart as a PNG
+lab job chart -o runs.png
 ```
 
 ## Creating Tasks
@@ -791,6 +794,27 @@ Run `lab provider list` first to confirm the numbering before piping.
 
 All three accept `--follow` to stream continuously. Start with `task-logs`; escalate to `machine-logs` for crashes outside the SDK, and `request-logs` for cluster/provisioning issues.
 
+### Exporting the job runs chart as a PNG
+
+`lab job chart` exports the experiment's job runs chart (the same one shown in the web UI's Jobs Chart view: each run's metric score over time, best-so-far runs highlighted, discarded runs grayed out, with a best-so-far step line) as a PNG image. The PNG is rendered server-side, so this requires a server new enough to have the `/experiment/{id}/jobs/chart.png` endpoint — on older servers the CLI reports "This server does not support chart export".
+
+```bash
+# Chart the current experiment's runs (auto-detects the primary metric)
+lab job chart -o runs.png
+
+# Pick a specific metric and direction; scope to another experiment
+lab job chart -o runs.png --metric eval/loss --lower-is-better -e exp-a
+```
+
+| Option | Description |
+|---|---|
+| `--output` / `-o <path>` | **Required.** Path to write the PNG file. |
+| `--metric <key>` | Metric key to plot. Default: auto-detected primary metric (prefers a key named `score`, else the first metric key found). |
+| `--lower-is-better` / `--higher-is-better` | Which direction counts as "best" when highlighting best-so-far runs. Default: majority vote over each job's `job_data.lower_is_better`. |
+| `--experiment` / `-e <id>` | Per-command experiment override. |
+
+The command exits non-zero with a clear message when the experiment has no scored jobs (404) or the requested `--metric` doesn't exist in any job's scores (400). With `--format json` it prints `{"saved": "<path>"}` on success.
+
 ## Debugging Failed Jobs
 
 **Job COMPLETE does not mean the task succeeded.** Always check `completion_status` and `completion_details`:
@@ -943,6 +967,7 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab job request-logs <id>` | Fetch provider launch/provisioning logs | Yes |
 | `lab job artifacts <id>` | List job artifacts | Yes |
 | `lab job download <id>` | Download artifacts (`--file` for glob) | Yes |
+| `lab job chart` | Export the experiment's job runs chart as a PNG (`-o <path>` required; `--metric`, `--lower-is-better`/`--higher-is-better`) | Yes |
 | `lab job stop <id>` | Stop a running job | Yes |
 | `lab job delete <id>` | Delete a job (`--no-interactive` to skip prompt) | Yes |
 | `lab job delete-all` | Delete all jobs in the current experiment (`--no-interactive` to skip prompt) | Yes |
