@@ -499,6 +499,11 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
                 }
             ]
 
+        # Spot instances: MarketType "spot" with default (one-time, terminate) behavior,
+        # which suits ephemeral job VMs. No SpotOptions => no max price (pay up to on-demand).
+        if config.use_spot:
+            launch_params["InstanceMarketOptions"] = {"MarketType": "spot"}
+
         # IAM instance profiles are eventually consistent. Retry on the specific
         # propagation error so freshly-created profiles don't cause launch failures.
         _IAM_PROPAGATION_RETRIES = 5

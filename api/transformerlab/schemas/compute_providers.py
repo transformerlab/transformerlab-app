@@ -109,6 +109,7 @@ class ProviderRead(BaseModel):
     updated_at: Optional[datetime] = None
     disabled: bool
     is_default: bool
+    supports_spot: bool = False  # Derived: provider type can run spot/preemptible instances
 
     class Config:
         from_attributes = True

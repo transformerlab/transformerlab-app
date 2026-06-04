@@ -12,6 +12,7 @@ from transformerlab.compute_providers.models import ClusterConfig
 from transformerlab.schemas.compute_providers import ResumeFromCheckpointRequest
 from transformerlab.services import job_service, quota_service
 from transformerlab.services.compute_provider.cluster_naming import sanitize_cluster_basename
+from transformerlab.services.compute_provider.spot_utils import resolve_use_spot
 from transformerlab.services.compute_provider.trackio_launch import (
     apply_trackio_launch_env,
     build_trackio_run_name,
@@ -309,6 +310,17 @@ async def resume_remote_job_from_checkpoint(
 
     disk_size = parse_disk_space_gb(job_data.get("disk_space"))
 
+    # Preserve the original run's spot/preemptible selection. The launch flow
+    # persisted the resolved ClusterConfig under job_data["cluster_config"], so
+    # we re-resolve from that value (gated by provider capability and any
+    # provider-level default) instead of silently dropping it on resume.
+    original_cluster_config = job_data.get("cluster_config") or {}
+    resumed_use_spot = resolve_use_spot(
+        provider.type,
+        provider.config,
+        {"use_spot": original_cluster_config.get("use_spot")},
+    )
+
     cluster_config = ClusterConfig(
         cluster_name=formatted_cluster_name,
         provider_name=provider_display_name,
@@ -323,6 +335,7 @@ async def resume_remote_job_from_checkpoint(
         disk_size=disk_size,
         file_mounts=job_data.get("file_mounts") or {},
         provider_config={"requested_disk_space": job_data.get("disk_space")},
+        use_spot=resumed_use_spot,
     )
 
     try:

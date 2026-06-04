@@ -154,6 +154,11 @@ class DstackProvider(ComputeProvider):
         if fleet_name:
             configuration["fleets"] = [fleet_name]
 
+        # spot_policy is a top-level run-configuration property (spot|on-demand|auto).
+        # Only meaningful when provisioning new instances; skip for pre-provisioned fleets.
+        if config.use_spot and not fleet_name:
+            configuration["spot_policy"] = "spot"
+
         ssh_key_pub = config.provider_config.get("ssh_key_pub", self.extra_config.get("ssh_key_pub", ""))
 
         return {

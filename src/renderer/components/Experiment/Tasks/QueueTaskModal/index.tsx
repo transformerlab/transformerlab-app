@@ -117,8 +117,8 @@ export default function QueueTaskModal({
     React.useState<SkypilotOverrides>({
       dockerImage: '',
       region: '',
-      useSpot: false,
     });
+  const [useSpot, setUseSpot] = React.useState(false);
   const [runpodImage, setRunpodImage] = React.useState('');
   const [jobDstackFleetName, setJobDstackFleetName] = React.useState('');
   const [useTrackio, setUseTrackio] = React.useState(false);
@@ -226,6 +226,7 @@ export default function QueueTaskModal({
   const isSlurmProvider = selectedProvider?.type === 'slurm';
   const isSkypilotProvider = selectedProvider?.type === 'skypilot';
   const isDstackProvider = selectedProvider?.type === 'dstack';
+  const supportsSpot = selectedProvider?.supports_spot === true;
   const isRunpodProvider = selectedProvider?.type === 'runpod';
   const isGalleryImported = Boolean((task as any)?.gallery_import);
 
@@ -616,9 +617,15 @@ export default function QueueTaskModal({
     setSkypilotOverrides({
       dockerImage: cfg.docker_image || '',
       region: cfg.default_region || '',
-      useSpot: cfg.use_spot === true,
     });
+    setUseSpot(cfg.use_spot === true);
   }, [open, isSkypilotProvider, selectedProviderId, selectedProvider]);
+
+  React.useEffect(() => {
+    if (!open || !selectedProvider || isSkypilotProvider) return;
+    const cfg = selectedProvider.config || {};
+    setUseSpot(supportsSpot ? cfg.use_spot === true : false);
+  }, [open, selectedProvider, isSkypilotProvider, supportsSpot]);
 
   React.useEffect(() => {
     if (!open || !isRunpodProvider || !selectedProvider) return;
@@ -849,8 +856,11 @@ export default function QueueTaskModal({
         config.docker_image = skypilotOverrides.dockerImage.trim();
       if (skypilotOverrides.region.trim())
         config.region = skypilotOverrides.region.trim();
-      if (skypilotOverrides.useSpot) config.use_spot = true;
     }
+
+    // Always send an explicit value so unchecking the box overrides a
+    // provider-level use_spot default on the backend.
+    if (supportsSpot) config.use_spot = useSpot;
 
     if (provider?.type === 'dstack' && jobDstackFleetName.trim()) {
       config.fleet_name = jobDstackFleetName.trim();
@@ -1121,6 +1131,9 @@ export default function QueueTaskModal({
               providerType={providerType}
               skypilotOverrides={skypilotOverrides}
               onSkypilotOverridesChange={setSkypilotOverrides}
+              supportsSpot={supportsSpot}
+              useSpot={useSpot}
+              onUseSpotChange={setUseSpot}
               jobDstackFleetName={jobDstackFleetName}
               onJobDstackFleetNameChange={setJobDstackFleetName}
               runpodImage={runpodImage}

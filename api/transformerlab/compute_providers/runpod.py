@@ -383,6 +383,11 @@ class RunpodProvider(ComputeProvider):
             "computeType": compute_type,
         }
 
+        # Spot pod: interruptible pods are cheaper but can be reclaimed at any time.
+        # RunPod determines pricing automatically; no bid price is required.
+        if config.use_spot:
+            pod_data["interruptible"] = True
+
         # Add GPU-specific fields if GPU pod
         if compute_type == "GPU":
             pod_data["gpuTypeIds"] = [gpu_type_id]

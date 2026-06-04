@@ -516,6 +516,14 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             }
             vm_params["storage_profile"]["os_disk"]["delete_option"] = "Delete"
 
+            # Azure Spot VM: priority "Spot". eviction_policy "Delete" matches TFL's
+            # ephemeral/self-deleting VM model (disk/NIC already use delete_option=Delete).
+            # max_price -1 => never evicted for price (only for capacity).
+            if config.use_spot:
+                vm_params["priority"] = "Spot"
+                vm_params["eviction_policy"] = "Delete"
+                vm_params["billing_profile"] = {"max_price": -1.0}
+
             image_refs = self._get_image_references(config)
             last_error: Optional[Exception] = None
             for image_ref in image_refs:
