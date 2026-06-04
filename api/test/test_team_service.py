@@ -160,6 +160,170 @@ def test_is_personal_team_falls_back_to_email_prefix():
     assert _is_personal_team(user, team) is True
 
 
+# ==================== Team creation limit ====================
+
+
+def test_max_teams_per_user_unset_is_unlimited(monkeypatch):
+    from transformerlab.services.team_service import _get_max_teams_per_user
+
+    monkeypatch.delenv("TFL_MAX_TEAMS_PER_USER", raising=False)
+    assert _get_max_teams_per_user() is None
+
+
+def test_max_teams_per_user_valid_int(monkeypatch):
+    from transformerlab.services.team_service import _get_max_teams_per_user
+
+    monkeypatch.setenv("TFL_MAX_TEAMS_PER_USER", "3")
+    assert _get_max_teams_per_user() == 3
+
+
+def test_max_teams_per_user_invalid_value_is_unlimited(monkeypatch):
+    from transformerlab.services.team_service import _get_max_teams_per_user
+
+    monkeypatch.setenv("TFL_MAX_TEAMS_PER_USER", "not-a-number")
+    assert _get_max_teams_per_user() is None
+
+
+def test_max_teams_per_user_non_positive_is_unlimited(monkeypatch):
+    from transformerlab.services.team_service import _get_max_teams_per_user
+
+    monkeypatch.setenv("TFL_MAX_TEAMS_PER_USER", "0")
+    assert _get_max_teams_per_user() is None
+    monkeypatch.setenv("TFL_MAX_TEAMS_PER_USER", "-2")
+    assert _get_max_teams_per_user() is None
+
+
+def test_max_teams_per_user_empty_is_unlimited(monkeypatch):
+    from transformerlab.services.team_service import _get_max_teams_per_user
+
+    monkeypatch.setenv("TFL_MAX_TEAMS_PER_USER", "   ")
+    assert _get_max_teams_per_user() is None
+
+
+def _make_user(first_name="Alice", email="alice@example.com", user_id="user-1"):
+    user = MagicMock()
+    user.first_name = first_name
+    user.email = email
+    user.id = user_id
+    return user
+
+
+def _make_user_team(team_id, role):
+    ut = MagicMock()
+    ut.team_id = team_id
+    ut.role = role
+    return ut
+
+
+def _make_team(team_id, name):
+    team = MagicMock()
+    team.id = team_id
+    team.name = name
+    return team
+
+
+async def test_count_owned_non_personal_teams_excludes_personal_and_member(monkeypatch):
+    from transformerlab.services import team_service
+    from transformerlab.shared.models.models import TeamRole
+
+    user = _make_user()
+    session = _make_mock_session()
+
+    user_teams = [
+        _make_user_team("t-personal", TeamRole.OWNER.value),
+        _make_user_team("t-owned-1", TeamRole.OWNER.value),
+        _make_user_team("t-owned-2", TeamRole.OWNER.value),
+        _make_user_team("t-member", TeamRole.MEMBER.value),
+    ]
+    teams = [
+        _make_team("t-personal", "Alice's Team"),
+        _make_team("t-owned-1", "Research Group"),
+        _make_team("t-owned-2", "Side Project"),
+    ]
+
+    monkeypatch.setattr(team_service.db_team, "get_user_teams", AsyncMock(return_value=user_teams))
+    monkeypatch.setattr(team_service.db_team, "get_teams_by_ids", AsyncMock(return_value=teams))
+
+    count = await team_service._count_owned_non_personal_teams(session, user)
+    assert count == 2
+
+
+async def test_count_owned_non_personal_teams_zero_when_only_personal(monkeypatch):
+    from transformerlab.services import team_service
+    from transformerlab.shared.models.models import TeamRole
+
+    user = _make_user()
+    session = _make_mock_session()
+
+    user_teams = [_make_user_team("t-personal", TeamRole.OWNER.value)]
+    teams = [_make_team("t-personal", "Alice's Team")]
+
+    monkeypatch.setattr(team_service.db_team, "get_user_teams", AsyncMock(return_value=user_teams))
+    monkeypatch.setattr(team_service.db_team, "get_teams_by_ids", AsyncMock(return_value=teams))
+
+    assert await team_service._count_owned_non_personal_teams(session, user) == 0
+
+
+async def test_create_team_raises_when_at_limit(monkeypatch):
+    from transformerlab.services import team_service
+
+    monkeypatch.setenv("TFL_MAX_TEAMS_PER_USER", "2")
+    monkeypatch.setattr(team_service, "_count_owned_non_personal_teams", AsyncMock(return_value=2))
+    insert_mock = AsyncMock()
+    monkeypatch.setattr(team_service.db_team, "insert_team", insert_mock)
+
+    user = _make_user()
+    session = _make_mock_session()
+
+    with pytest.raises(HTTPException) as exc:
+        await team_service.create_team(session, "New Team", user)
+    assert exc.value.status_code == 403
+    assert "maximum number of teams" in exc.value.detail
+    insert_mock.assert_not_called()
+
+
+async def test_create_team_allows_when_under_limit(monkeypatch):
+    from transformerlab.services import team_service
+
+    monkeypatch.setenv("TFL_MAX_TEAMS_PER_USER", "5")
+    monkeypatch.setattr(team_service, "_count_owned_non_personal_teams", AsyncMock(return_value=1))
+    monkeypatch.setattr(team_service.db_team, "insert_team", AsyncMock(return_value=_make_team("t-new", "New Team")))
+    monkeypatch.setattr(team_service.db_team, "add_user_to_team", AsyncMock())
+    # Skip storage provisioning and default-experiment creation side effects.
+    monkeypatch.delenv("TFL_REMOTE_STORAGE_ENABLED", raising=False)
+    monkeypatch.delenv("TFL_STORAGE_PROVIDER", raising=False)
+    monkeypatch.setattr(team_service, "set_organization_id", lambda _id: None)
+    monkeypatch.setattr(team_service.Experiment, "create_or_get", AsyncMock())
+
+    user = _make_user()
+    session = _make_mock_session()
+
+    result = await team_service.create_team(session, "New Team", user)
+    assert result == {"id": "t-new", "name": "New Team"}
+
+
+async def test_create_team_unlimited_when_env_unset(monkeypatch):
+    from transformerlab.services import team_service
+
+    monkeypatch.delenv("TFL_MAX_TEAMS_PER_USER", raising=False)
+    count_mock = AsyncMock(return_value=99)
+    monkeypatch.setattr(team_service, "_count_owned_non_personal_teams", count_mock)
+    monkeypatch.setattr(team_service.db_team, "insert_team", AsyncMock(return_value=_make_team("t-new", "New Team")))
+    monkeypatch.setattr(team_service.db_team, "add_user_to_team", AsyncMock())
+    monkeypatch.delenv("TFL_REMOTE_STORAGE_ENABLED", raising=False)
+    monkeypatch.delenv("TFL_STORAGE_PROVIDER", raising=False)
+    monkeypatch.setattr(team_service, "set_organization_id", lambda _id: None)
+    monkeypatch.setattr(team_service.Experiment, "create_or_get", AsyncMock())
+
+    user = _make_user()
+    session = _make_mock_session()
+
+    result = await team_service.create_team(session, "New Team", user)
+    assert result == {"id": "t-new", "name": "New Team"}
+    # Count is never consulted when the limit is unset.
+    count_mock.assert_not_called()
+
+
 # ==================== Member management ====================
 
 

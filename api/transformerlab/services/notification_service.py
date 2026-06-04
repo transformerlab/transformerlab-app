@@ -135,16 +135,18 @@ def build_notification_request_body(webhook_url: str, payload: Dict[str, Any]) -
         f"({payload.get('job_type')}) in {payload.get('experiment_name')}"
     )
 
-    # Discord webhooks
+    # Discord webhooks. Discord rejects the whole request with 400 Bad Request
+    # if any embed field `value` is empty or longer than 1024 chars, or if
+    # `content` exceeds 2000 chars — so guard empties with "-"/"None" and slice.
     if host == "discord.com" and path.startswith("/api/webhooks"):
         return {
-            "content": summary,
+            "content": summary[:2000],
             "embeds": [
                 {
                     "title": "Job notification",
                     "fields": [
-                        {"name": "Status", "value": str(payload.get("status")), "inline": True},
-                        {"name": "Type", "value": str(payload.get("job_type")), "inline": True},
+                        {"name": "Status", "value": str(payload.get("status")) or "-", "inline": True},
+                        {"name": "Type", "value": str(payload.get("job_type")) or "-", "inline": True},
                         {"name": "Experiment", "value": str(payload.get("experiment_name")) or "-"},
                         {
                             "name": "Duration (s)",
@@ -155,7 +157,9 @@ def build_notification_request_body(webhook_url: str, payload: Dict[str, Any]) -
                         },
                         {
                             "name": "Error",
-                            "value": str(payload.get("error_message")) if payload.get("error_message") else "None",
+                            "value": str(payload.get("error_message"))[:1024]
+                            if payload.get("error_message")
+                            else "None",
                         },
                     ],
                 },

@@ -44,13 +44,19 @@ class TestCheck:
         assert call_kwargs[1]["json"] == {"project_name": "test-project", "only_active": False, "limit": 1}
 
     @patch("transformerlab.compute_providers.dstack.requests.request")
-    def test_returns_false_on_connection_error(self, mock_request, provider):
+    def test_returns_false_on_connection_error(self, mock_request, provider, caplog):
+        import logging
         import requests as req_lib
 
         mock_request.side_effect = req_lib.exceptions.ConnectionError("unreachable")
-        status, reason = provider.check()
+        with caplog.at_level(logging.WARNING, logger="transformerlab.compute_providers.dstack"):
+            status, reason = provider.check()
         assert status is False
-        assert "Unable to list dstack runs" in reason
+        assert "unreachable" in reason
+        # A dstack server being down is an expected health-check outcome,
+        # so it should not be logged at ERROR level
+        error_logs = [r for r in caplog.records if r.levelno >= logging.ERROR]
+        assert error_logs == []
 
 
 # --- _parse_accelerators() ---
