@@ -298,19 +298,11 @@ def create_bucket_for_team(team_id: str, profile_name: Optional[str] = None) -> 
         print("TFL_REMOTE_STORAGE_ENABLED is not set, skipping bucket creation")
         return False
 
-    # Validate bucket name (common rules for S3 and GCS)
-    # Bucket names must be 3-63 characters, lowercase, and can contain only letters, numbers, dots, and hyphens
-    # Add workspace- prefix to bucket name
-    raw_bucket_name = f"workspace-{team_id}".lower()
-    if len(raw_bucket_name) < 3 or len(raw_bucket_name) > 63:
-        print(f"Team ID '{team_id}' is not a valid bucket name (must be 3-63 characters)")
-        return False
-
-    # Sanitize to a valid S3/GCS bucket name (single source of truth)
+    # Derive the canonical bucket name, then validate the final result.
+    # Common S3/GCS rules: 3-63 chars, lowercase, letters/numbers/dots/hyphens only.
     bucket_name = bucket_name_for_team(team_id)
-
-    if len(bucket_name) < 3:
-        print(f"Team ID '{team_id}' cannot be converted to a valid bucket name")
+    if len(bucket_name) < 3 or len(bucket_name) > 63:
+        print(f"Team ID '{team_id}' cannot be converted to a valid bucket name (must be 3-63 characters)")
         return False
 
     if STORAGE_PROVIDER == "aws":
