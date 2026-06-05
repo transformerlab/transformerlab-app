@@ -439,6 +439,15 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
         elif has_gpu:
             body["scheduling"] = {"onHostMaintenance": "TERMINATE", "automaticRestart": False}
 
+        # Spot VMs: set provisioningModel SPOT. Spot VMs can't auto-restart, so
+        # automaticRestart must be False. Merge into any existing scheduling dict
+        # (also handles CPU-only spot launches, which otherwise have no scheduling).
+        if config.use_spot:
+            scheduling = body.get("scheduling", {})
+            scheduling["provisioningModel"] = "SPOT"
+            scheduling["automaticRestart"] = False
+            body["scheduling"] = scheduling
+
         last_error: Exception | None = None
         for image in image_candidates:
             body["disks"][0]["initializeParams"]["sourceImage"] = image

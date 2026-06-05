@@ -139,6 +139,27 @@ def test_build_launch_payload_includes_profiling_flags():
     assert payload["enable_profiling_torch"] is True
 
 
+def test_build_launch_payload_includes_use_spot():
+    """build_launch_payload forwards the spot request via the config payload."""
+    task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
+    payload = build_launch_payload(task, "AWS", use_spot=True)
+    assert payload["config"]["use_spot"] is True
+
+
+def test_build_launch_payload_use_spot_coexists_with_params():
+    """use_spot is merged alongside parameter overrides without clobbering them."""
+    task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
+    payload = build_launch_payload(task, "AWS", param_values={"lr": 3e-5}, use_spot=True)
+    assert payload["config"] == {"lr": 3e-5, "use_spot": True}
+
+
+def test_build_launch_payload_omits_use_spot_by_default():
+    """Without use_spot, the config carries no spot key (default on-demand)."""
+    task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
+    payload = build_launch_payload(task, "AWS")
+    assert payload["config"] is None
+
+
 def test_build_launch_payload_includes_image():
     """build_launch_payload puts --image into the launch body's config.docker_image."""
     task = {"id": "t1", "name": "finetune", "experiment_id": "exp1", "run": "python main.py"}
@@ -392,6 +413,44 @@ def test_task_queue_enable_profiling_flags(_mock_exp, _mock_get, _mock_providers
     _path, body = mock_post.call_args.args
     assert body["enable_profiling"] is True
     assert body["enable_profiling_torch"] is True
+
+
+SAMPLE_PROVIDERS_SPOT = [{"id": "p_aws", "name": "AWS", "is_default": True, "supports_spot": True}]
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS_SPOT)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+def test_task_queue_spot_flag_sends_use_spot(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """`lab task queue --spot` sends config.use_spot=True for a spot-capable provider."""
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "--spot"])
+    assert result.exit_code == 0, result.output
+    _path, body = mock_post.call_args.args
+    assert body["config"]["use_spot"] is True
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+def test_task_queue_spot_warns_for_incapable_provider(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """--spot on a provider that lacks spot support warns the user and still launches."""
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "--spot"])
+    assert result.exit_code == 0, result.output
+    assert "does not support spot" in result.output
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS_SPOT)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+def test_task_queue_without_spot_omits_use_spot(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """Without --spot, no use_spot is sent even for a spot-capable provider."""
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive"])
+    assert result.exit_code == 0, result.output
+    _path, body = mock_post.call_args.args
+    assert body["config"] is None or "use_spot" not in body["config"]
 
 
 @patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))

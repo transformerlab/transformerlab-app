@@ -2,12 +2,30 @@
 
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Union
+
+from transformerlab.shared.models.models import ProviderType
+
 from .models import (
     ClusterConfig,
     JobConfig,
     ClusterStatus,
     JobInfo,
     ResourceInfo,
+)
+
+# Provider types whose launch_cluster honors ClusterConfig.use_spot.
+# This is the single source of truth for the "supports spot" capability.
+# Keep in sync with each provider's launch_cluster implementation.
+SPOT_CAPABLE_PROVIDER_TYPES: frozenset[str] = frozenset(
+    {
+        ProviderType.SKYPILOT.value,
+        ProviderType.NEBIUS.value,
+        ProviderType.AWS.value,
+        ProviderType.GCP.value,
+        ProviderType.AZURE.value,
+        ProviderType.DSTACK.value,
+        ProviderType.RUNPOD.value,
+    }
 )
 
 

@@ -26,6 +26,7 @@ from transformerlab.services.compute_provider.launch_juicefs import (
     build_juicefs_install_command,
     build_juicefs_pod_config,
 )
+from transformerlab.services.compute_provider.spot_utils import resolve_use_spot
 from transformerlab.services.compute_provider.trackio_launch import (
     apply_trackio_launch_env,
     build_trackio_run_name,
@@ -423,20 +424,18 @@ async def launch_sweep_jobs(
                 sweep_image_id: str | None = None
                 sweep_region: str | None = None
                 sweep_zone: str | None = None
-                sweep_use_spot: bool = False
                 if provider.type == ProviderType.SKYPILOT.value:
                     prov_cfg = provider.config or {}
                     sweep_image_id = prov_cfg.get("docker_image") or None
                     sweep_region = prov_cfg.get("default_region") or None
                     sweep_zone = prov_cfg.get("default_zone") or None
-                    sweep_use_spot = prov_cfg.get("use_spot", False) is True
                     if request.config:
                         if request.config.get("docker_image"):
                             sweep_image_id = str(request.config["docker_image"]).strip()
                         if request.config.get("region"):
                             sweep_region = str(request.config["region"]).strip()
-                        if request.config.get("use_spot"):
-                            sweep_use_spot = True
+
+                sweep_use_spot = resolve_use_spot(provider.type, provider.config, request.config)
 
                 cluster_config = ClusterConfig(
                     cluster_name=formatted_cluster_name,
