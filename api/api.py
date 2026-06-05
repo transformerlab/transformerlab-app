@@ -145,6 +145,12 @@ async def lifespan(app: FastAPI):
 
         await start_remote_job_status_worker()
         await start_notification_worker()
+        from transformerlab.services.storage_scan_worker import (
+            start_storage_scan_worker,
+            stop_storage_scan_worker,
+        )
+
+        await start_storage_scan_worker()
         # Start background remote job queue worker (dispatches PENDING remote launch jobs).
         from transformerlab.services.remote_provider_queue import (
             start_remote_job_queue_worker,
@@ -168,6 +174,7 @@ async def lifespan(app: FastAPI):
         await stop_sweep_status_worker()
         await stop_remote_job_status_worker()
         await stop_notification_worker()
+        await stop_storage_scan_worker()
         await stop_remote_job_queue_worker()
         await stop_tasks_migration_worker()
         await stop_jobs_migration_worker()

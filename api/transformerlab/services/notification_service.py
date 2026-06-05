@@ -197,6 +197,112 @@ def build_notification_request_body(webhook_url: str, payload: Dict[str, Any]) -
 
 
 # ---------------------------------------------------------------------------
+# Webhook delivery
+# ---------------------------------------------------------------------------
+
+
+async def _post_webhook(webhook_url: str, request_body: Dict[str, Any]) -> None:
+    """POST a provider-formatted body to the webhook URL (10s timeout)."""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(webhook_url, json=request_body)
+        response.raise_for_status()
+
+
+# ---------------------------------------------------------------------------
+# Storage alerts
+# ---------------------------------------------------------------------------
+
+
+async def send_storage_alert(
+    *,
+    team_id: str,
+    scope: str,
+    subject: str,
+    used_gb: float,
+    limit_gb: float,
+) -> None:
+    """Send a storage-threshold alert to the team's configured webhook.
+
+    Reuses the same enabled/url checks and provider payload formatting as the
+    job-completion notifications. No-ops when notifications are disabled or no
+    webhook URL is configured.
+    """
+    enabled = await db.config_get("notification_enabled", team_id=team_id)
+    if enabled != "true":
+        return
+
+    webhook_url = await db.config_get("notification_webhook_url", team_id=team_id)
+    if not webhook_url:
+        return
+
+    message = f"Storage alert ({scope}): {subject} is using {used_gb} GB, over the {limit_gb} GB threshold."
+
+    payload: Dict[str, Any] = {
+        "alert_type": "storage",
+        "scope": scope,
+        "subject": subject,
+        "used_gb": used_gb,
+        "limit_gb": limit_gb,
+        "message": message,
+    }
+
+    request_body = _build_storage_alert_request_body(webhook_url, message, payload)
+    try:
+        await _post_webhook(webhook_url, request_body)
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"Notification: storage alert delivery failed for team {team_id}: {exc}")
+
+
+def _build_storage_alert_request_body(
+    webhook_url: str,
+    message: str,
+    payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Wrap a storage alert message for common webhook providers.
+
+    Mirrors build_notification_request_body so Discord/Slack/Teams/Zapier and
+    generic webhooks all render correctly.
+    """
+    parsed = urlparse(webhook_url)
+    host = (parsed.hostname or "").lower()
+    path = parsed.path or ""
+
+    # Discord webhooks
+    if host == "discord.com" and path.startswith("/api/webhooks"):
+        return {
+            "content": message,
+            "embeds": [
+                {
+                    "title": "Storage alert",
+                    "fields": [
+                        {"name": "Scope", "value": str(payload.get("scope")), "inline": True},
+                        {"name": "Subject", "value": str(payload.get("subject")), "inline": True},
+                        {"name": "Used (GB)", "value": str(payload.get("used_gb")), "inline": True},
+                        {"name": "Limit (GB)", "value": str(payload.get("limit_gb")), "inline": True},
+                    ],
+                },
+            ],
+        }
+
+    # Slack incoming webhooks
+    if host == "hooks.slack.com":
+        return {"text": message}
+
+    # Microsoft Teams incoming webhooks (and similar connectors)
+    if host in {"outlook.office.com", "outlook.office365.com", "office.com"} and "/webhook" in path:
+        return {"text": message}
+
+    # Zapier: include both the human summary and the raw payload.
+    if host == "hooks.zapier.com":
+        body: Dict[str, Any] = {"summary": message}
+        body.update(payload)
+        return body
+
+    # Default: send the payload as-is.
+    return payload
+
+
+# ---------------------------------------------------------------------------
 # Notification processor
 # ---------------------------------------------------------------------------
 
@@ -228,9 +334,7 @@ async def _process_notification(job: Dict[str, Any], experiment_id: str, org_id:
     # 5. POST to webhook (10s timeout)
     request_body = build_notification_request_body(webhook_url, payload)
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(webhook_url, json=request_body)
-            response.raise_for_status()
+        await _post_webhook(webhook_url, request_body)
     except Exception as exc:  # noqa: BLE001
         logger.error(f"Notification worker: webhook delivery failed for job {job_id}: {exc}")
 

@@ -34,6 +34,7 @@ import ProviderDetailsModal from './ProviderDetailsModal';
 import ProviderResourceGroupsModal from './ProviderResourceGroupsModal';
 import LocalProviderRefreshModal from './LocalProviderRefreshModal';
 import QuotaSettingsSection from './QuotaSettingsSection';
+import StorageReportSection from './StorageReportSection';
 import TeamSecretsSection from './TeamSecretsSection';
 import SshKeySection from './SshKeySection';
 import PermissionsSection from './PermissionsSection';
@@ -1330,6 +1331,7 @@ export default function UserLoginTest(): JSX.Element {
                 <Tab>Quota Settings</Tab>
                 <Tab>Organization SSH Key</Tab>
                 <Tab>Permissions</Tab>
+                <Tab>Storage</Tab>
               </TabList>
 
               {/* Team Secrets Tab */}
@@ -1377,6 +1379,17 @@ export default function UserLoginTest(): JSX.Element {
                   teamId={authContext.team?.id || ''}
                   members={members?.members || []}
                 />
+              </TabPanel>
+
+              {/* Storage Tab */}
+              <TabPanel
+                value={4}
+                sx={{
+                  p: 2,
+                  overflowY: 'auto',
+                }}
+              >
+                <StorageReportSection teamId={authContext.team?.id || ''} />
               </TabPanel>
             </Tabs>
           </Box>

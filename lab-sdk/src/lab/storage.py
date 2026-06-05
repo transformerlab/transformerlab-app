@@ -488,6 +488,30 @@ async def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
         await _close_filesystem(fs)
 
 
+async def du(path: str) -> int:
+    """Total bytes under ``path`` across local + remote (S3/GCS/Azure) backends.
+
+    Uses fsspec's native ``du(total=True)``. Falls back to summing file sizes
+    via ``walk()``/``info()`` for backends that don't implement ``du``.
+    Returns 0 if the path does not exist.
+    """
+    if not await exists(path):
+        return 0
+    fs, _ = _get_fs_for_path(path)
+    try:
+        try:
+            return int(await asyncio.to_thread(fs.du, path, total=True))
+        except (NotImplementedError, TypeError):
+            total = 0
+            for root, _dirs, files in await asyncio.to_thread(lambda: list(fs.walk(path))):
+                for f in files:
+                    info = await asyncio.to_thread(fs.info, join(root, f))
+                    total += int(info.get("size", 0) or 0)
+            return total
+    finally:
+        await _close_filesystem(fs)
+
+
 async def rm(path: str) -> None:
     if await exists(path):
         fs = await filesystem()

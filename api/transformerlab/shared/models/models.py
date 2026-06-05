@@ -1,5 +1,18 @@
 from typing import Optional
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID, Date, Float, UniqueConstraint, Boolean
+from sqlalchemy import (
+    String,
+    JSON,
+    DateTime,
+    func,
+    Integer,
+    BigInteger,
+    Index,
+    UUID,
+    Date,
+    Float,
+    UniqueConstraint,
+    Boolean,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID
 import uuid
@@ -270,6 +283,21 @@ class QuotaUsage(Base):
         Index("idx_quota_usage_user_team_period", "user_id", "team_id", "period_start"),
         Index("idx_quota_usage_job_id_team_id_unique", "job_id", "team_id", unique=True),
     )
+
+
+class OrgStorageSnapshot(Base):
+    """Cached snapshot of an org's on-disk storage usage (workspace + local provider runs)."""
+
+    __tablename__ = "org_storage_snapshot"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    team_id: Mapped[str] = mapped_column(String, nullable=False)
+    total_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    breakdown_json: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    per_user_json: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    scanned_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    __table_args__ = (Index("idx_org_storage_snapshot_team_scanned", "team_id", "scanned_at"),)
 
 
 class QuotaHold(Base):
