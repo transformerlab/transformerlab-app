@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
@@ -41,6 +42,74 @@ def test_notes_show_raw_flag(_mock_exp, _mock_api):
 def test_notes_show_api_error(_mock_exp, _mock_api):
     result = runner.invoke(app, ["notes", "show"])
     assert result.exit_code != 0
+
+
+# ── show --share ──────────────────────────────────────────────────────────────
+
+
+SHARE_LINK = {
+    "token": "tok123",
+    "url": "https://lab.cloud/#/public/share/tok123",
+    "created_at": "2026-06-04T00:00:00",
+}
+
+
+def _mock_json_resp(payload, status: int = 200):
+    m = MagicMock()
+    m.status_code = status
+    m.json.return_value = payload
+    m.text = ""
+    return m
+
+
+@patch("transformerlab_cli.util.share.api.post_json", return_value=_mock_json_resp(SHARE_LINK))
+@patch("transformerlab_cli.util.share.api.get", return_value=_mock_json_resp(None))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+def test_notes_show_share_mints_link(_mock_exp, mock_get, mock_post):
+    result = runner.invoke(app, ["--no-interactive", "notes", "show", "--share"])
+    assert result.exit_code == 0
+    assert SHARE_LINK["url"] in strip_ansi(result.output)
+    assert mock_get.call_args[0][0] == "/experiment/exp1/share/notes"
+    assert mock_post.call_args[0][0] == "/experiment/exp1/share/notes"
+
+
+@patch("transformerlab_cli.util.share.api.post_json", return_value=_mock_json_resp(SHARE_LINK))
+@patch("transformerlab_cli.util.share.api.get", return_value=_mock_json_resp(None))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+def test_notes_show_share_prompts_before_minting(_mock_exp, _mock_get, mock_post):
+    """Minting a new public link asks for confirmation; declining aborts without minting."""
+    result = runner.invoke(app, ["notes", "show", "--share"], input="n\n")
+    assert result.exit_code == 1
+    mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.util.share.api.post_json", return_value=_mock_json_resp(SHARE_LINK))
+@patch("transformerlab_cli.util.share.api.get", return_value=_mock_json_resp(None))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+def test_notes_show_share_json_format(_mock_exp, _mock_get, _mock_post):
+    """`--format json` emits the link as JSON and never prompts (json implies --no-interactive)."""
+    result = runner.invoke(app, ["--format", "json", "notes", "show", "--share"])
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload == SHARE_LINK
+
+
+@patch("transformerlab_cli.util.share.api.post_json")
+@patch("transformerlab_cli.util.share.api.get", return_value=_mock_json_resp(SHARE_LINK))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+def test_notes_show_share_reuses_existing_link(_mock_exp, _mock_get, mock_post):
+    result = runner.invoke(app, ["notes", "show", "--share"])
+    assert result.exit_code == 0
+    assert SHARE_LINK["url"] in strip_ansi(result.output)
+    mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.util.share.api.get", return_value=_mock_json_resp({"detail": "boom"}, status=500))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+def test_notes_show_share_api_error(_mock_exp, _mock_get):
+    result = runner.invoke(app, ["notes", "show", "--share"])
+    assert result.exit_code != 0
+    assert "boom" in strip_ansi(result.output)
 
 
 # ── append ────────────────────────────────────────────────────────────────────

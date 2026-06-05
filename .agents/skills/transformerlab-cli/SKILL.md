@@ -113,6 +113,10 @@ lab job request-logs JOB_ID --follow   # Provider launch/provisioning logs (e.g.
 # 5. Download results
 lab job artifacts JOB_ID
 lab job download JOB_ID --file "*.csv" -o ./results
+
+# 6. (Optional) Export the experiment's job runs chart as a PNG, or share it publicly
+lab job chart -o runs.png
+lab job chart --share          # enable public sharing and print the public link
 ```
 
 ## Creating Tasks
@@ -385,9 +389,14 @@ lab notes edit
 
 # Append a single line, non-interactive — best for agents
 lab notes append "2026-05-05: switched provider from local to skypilot; queue depth was >12"
+
+# Enable public sharing for the notes and print the public link (instead of the notes)
+lab notes show --share
 ```
 
-All three commands operate on the **current experiment** (`require_current_experiment` — set it first via `lab experiment set-default`). There is no `--format json` output; `show` returns the raw string and `append`/`edit` write it back.
+All commands operate on the **current experiment** (`require_current_experiment` — set it first via `lab experiment set-default`). There is no `--format json` output for the notes content itself; `show` returns the raw string and `append`/`edit` write it back.
+
+`lab notes show --share` enables **public sharing** for the experiment notes and prints the public link instead of the notes. Anyone with the link can view the live notes (no login). It reuses the experiment's existing active link if one exists; only when sharing is off does it mint a new one, asking for confirmation first unless `--no-interactive` / `--format json` is set. With `--format json` it prints `{"url": ..., "token": ..., "created_at": ...}`. Requires the `/experiment/{id}/share/notes` endpoints — on older servers the CLI reports "This server does not support public sharing".
 
 ### When agents should use it
 
@@ -791,6 +800,34 @@ Run `lab provider list` first to confirm the numbering before piping.
 
 All three accept `--follow` to stream continuously. Start with `task-logs`; escalate to `machine-logs` for crashes outside the SDK, and `request-logs` for cluster/provisioning issues.
 
+### Exporting or publicly sharing the job runs chart
+
+`lab job chart` exports the experiment's job runs chart (the same one shown in the web UI's Jobs Chart view: each run's metric score over time, best-so-far runs highlighted, discarded runs grayed out, with a best-so-far step line) as a PNG image, and/or enables **public sharing** of the live chart. The PNG is rendered server-side, so this requires a server new enough to have the `/experiment/{id}/jobs/chart.png` endpoint — on older servers the CLI reports "This server does not support chart export". Public sharing requires the `/experiment/{id}/share/chart` endpoints — on older servers the CLI reports "This server does not support public sharing".
+
+```bash
+# Chart the current experiment's runs (auto-detects the primary metric)
+lab job chart -o runs.png
+
+# Pick a specific metric and direction; scope to another experiment
+lab job chart -o runs.png --metric eval/loss --lower-is-better -e exp-a
+
+# Enable public sharing and print the public link (no PNG written)
+lab job chart --share
+
+# Both: write the PNG and print the public link
+lab job chart --share -o runs.png
+```
+
+| Option | Description |
+|---|---|
+| `--output` / `-o <path>` | Path to write the PNG file. Required unless `--share` is given. |
+| `--share` | Enable public sharing for the jobs chart and print the public link. Anyone with the link can view the live chart (no login). Reuses the experiment's existing active link if one exists; only mints a new one when sharing is off. Minting asks for confirmation unless `--no-interactive` / `--format json` is set. |
+| `--metric <key>` | Metric key to plot. Default: auto-detected primary metric (prefers a key named `score`, else the first metric key found). Only affects the PNG, not the share link. |
+| `--lower-is-better` / `--higher-is-better` | Which direction counts as "best" when highlighting best-so-far runs. Default: majority vote over each job's `job_data.lower_is_better`. Only affects the PNG. |
+| `--experiment` / `-e <id>` | Per-command experiment override. |
+
+At least one of `-o` or `--share` is required. The command exits non-zero with a clear message when the experiment has no scored jobs (404) or the requested `--metric` doesn't exist in any job's scores (400). With `--format json` it prints `{"saved": "<path>"}` for the PNG and `{"url": ..., "token": ..., "created_at": ...}` for the share link.
+
 ## Debugging Failed Jobs
 
 **Job COMPLETE does not mean the task succeeded.** Always check `completion_status` and `completion_details`:
@@ -923,7 +960,7 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab experiment tag add <experiment> <tags...>` | Add one or more tags to an experiment (by name or id) | No |
 | `lab experiment tag remove <experiment> <tags...>` | Remove one or more tags from an experiment | No |
 | `lab experiment tags` | List all distinct tags across experiments you can read | No |
-| `lab notes show` | Render the current experiment's shared markdown notes (`--raw` for plain markdown) | Yes |
+| `lab notes show` | Render the current experiment's shared markdown notes (`--raw` for plain markdown; `--share` enables public sharing and prints the public link instead) | Yes |
 | `lab notes edit` | Open the current experiment's notes in `$EDITOR` (defaults to nano) | Yes |
 | `lab notes append <text>` | Append a line to the current experiment's notes non-interactively — preferred for agents | Yes |
 | `lab task list` | List tasks in current experiment | Yes |
@@ -943,6 +980,7 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab job request-logs <id>` | Fetch provider launch/provisioning logs | Yes |
 | `lab job artifacts <id>` | List job artifacts | Yes |
 | `lab job download <id>` | Download artifacts (`--file` for glob) | Yes |
+| `lab job chart` | Export the experiment's job runs chart as a PNG (`-o <path>`) and/or enable public sharing and print the public link (`--share`); at least one of `-o`/`--share` required (`--metric`, `--lower-is-better`/`--higher-is-better` affect the PNG) | Yes |
 | `lab job stop <id>` | Stop a running job | Yes |
 | `lab job delete <id>` | Delete a job (`--no-interactive` to skip prompt) | Yes |
 | `lab job delete-all` | Delete all jobs in the current experiment (`--no-interactive` to skip prompt) | Yes |

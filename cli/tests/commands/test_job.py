@@ -995,3 +995,211 @@ def test_job_metrics_keys_filter(_mock_require, _mock_api):
     assert "loss" in out
     assert "acc" in out
     assert "lr" not in out
+
+
+# A minimal valid PNG header is enough for the CLI, which writes bytes verbatim.
+FAKE_PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"fake-png-body"
+
+
+def _mock_png_response():
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.content = FAKE_PNG_BYTES
+    return mock_resp
+
+
+def _mock_error_response(status_code, detail):
+    mock_resp = MagicMock()
+    mock_resp.status_code = status_code
+    mock_resp.json.return_value = {"detail": detail}
+    mock_resp.text = json.dumps({"detail": detail})
+    return mock_resp
+
+
+@patch("transformerlab_cli.commands.job.api.get", return_value=_mock_png_response())
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_writes_png(_mock_check, _mock_require, mock_api, tmp_path):
+    """`job chart -o file.png` downloads the chart PNG and writes it to disk."""
+    output_path = tmp_path / "runs.png"
+    result = runner.invoke(app, ["job", "chart", "-o", str(output_path)])
+    assert result.exit_code == 0
+    assert output_path.read_bytes() == FAKE_PNG_BYTES
+    assert "Job runs chart saved to" in strip_ansi(result.output)
+    called_path = mock_api.call_args[0][0]
+    assert called_path == "/experiment/exp1/jobs/chart.png"
+
+
+@patch("transformerlab_cli.commands.job.api.get", return_value=_mock_png_response())
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_metric_and_lower_is_better_params(_mock_check, _mock_require, mock_api, tmp_path):
+    """--metric and --lower-is-better are forwarded as query params."""
+    output_path = tmp_path / "runs.png"
+    result = runner.invoke(
+        app,
+        ["job", "chart", "-o", str(output_path), "--metric", "eval/loss", "--lower-is-better"],
+    )
+    assert result.exit_code == 0
+    called_path = mock_api.call_args[0][0]
+    assert called_path.startswith("/experiment/exp1/jobs/chart.png?")
+    assert "metric=eval%2Floss" in called_path
+    assert "lower_is_better=true" in called_path
+
+
+@patch("transformerlab_cli.commands.job.api.get", return_value=_mock_png_response())
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_higher_is_better_param(_mock_check, _mock_require, mock_api, tmp_path):
+    """--higher-is-better sends lower_is_better=false."""
+    output_path = tmp_path / "runs.png"
+    result = runner.invoke(app, ["job", "chart", "-o", str(output_path), "--higher-is-better"])
+    assert result.exit_code == 0
+    assert "lower_is_better=false" in mock_api.call_args[0][0]
+
+
+@patch(
+    "transformerlab_cli.commands.job.api.get",
+    return_value=_mock_error_response(404, "No scored jobs to chart for experiment exp1."),
+)
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_no_scored_jobs(_mock_check, _mock_require, _mock_api, tmp_path):
+    """Server-side 'no data' errors surface their detail message."""
+    output_path = tmp_path / "runs.png"
+    result = runner.invoke(app, ["job", "chart", "-o", str(output_path)])
+    assert result.exit_code == 1
+    assert "No scored jobs to chart" in strip_ansi(result.output)
+    assert not output_path.exists()
+
+
+@patch(
+    "transformerlab_cli.commands.job.api.get",
+    return_value=_mock_error_response(404, "Not Found"),
+)
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_endpoint_missing_on_old_server(_mock_check, _mock_require, _mock_api, tmp_path):
+    """A FastAPI default 404 means the server predates the chart endpoint."""
+    output_path = tmp_path / "runs.png"
+    result = runner.invoke(app, ["job", "chart", "-o", str(output_path)])
+    assert result.exit_code == 1
+    assert "does not support chart export" in strip_ansi(result.output)
+
+
+SHARE_LINK = {
+    "token": "tok123",
+    "url": "https://lab.cloud/#/public/share/tok123",
+    "created_at": "2026-06-04T00:00:00",
+}
+
+
+def _mock_json_response(payload, status_code=200):
+    mock_resp = MagicMock()
+    mock_resp.status_code = status_code
+    mock_resp.json.return_value = payload
+    mock_resp.text = json.dumps(payload)
+    return mock_resp
+
+
+@patch("transformerlab_cli.util.share.api.post_json", return_value=_mock_json_response(SHARE_LINK))
+@patch("transformerlab_cli.util.share.api.get", return_value=_mock_json_response(None))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_share_mints_link_when_none_active(_mock_check, _mock_require, mock_get, mock_post):
+    """`job chart --share` mints a public link when none is active and prints its URL."""
+    result = runner.invoke(app, ["--no-interactive", "job", "chart", "--share"])
+    assert result.exit_code == 0
+    assert SHARE_LINK["url"] in strip_ansi(result.output)
+    assert mock_get.call_args[0][0] == "/experiment/exp1/share/chart"
+    assert mock_post.call_args[0][0] == "/experiment/exp1/share/chart"
+
+
+@patch("transformerlab_cli.util.share.api.post_json", return_value=_mock_json_response(SHARE_LINK))
+@patch("transformerlab_cli.util.share.api.get", return_value=_mock_json_response(None))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_share_prompts_before_minting(_mock_check, _mock_require, _mock_get, mock_post):
+    """Minting a new public link asks for confirmation; declining aborts without minting."""
+    result = runner.invoke(app, ["job", "chart", "--share"], input="n\n")
+    assert result.exit_code == 1
+    mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.util.share.api.post_json", return_value=_mock_json_response(SHARE_LINK))
+@patch("transformerlab_cli.util.share.api.get", return_value=_mock_json_response(None))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_share_prompt_accepted(_mock_check, _mock_require, _mock_get, mock_post):
+    """Confirming the prompt mints the link."""
+    result = runner.invoke(app, ["job", "chart", "--share"], input="y\n")
+    assert result.exit_code == 0
+    assert SHARE_LINK["url"] in strip_ansi(result.output)
+    mock_post.assert_called_once()
+
+
+@patch("transformerlab_cli.util.share.api.post_json", return_value=_mock_json_response(SHARE_LINK))
+@patch("transformerlab_cli.util.share.api.get", return_value=_mock_json_response(None))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_share_json_format(_mock_check, _mock_require, _mock_get, _mock_post):
+    """`--format json` emits the link as JSON and never prompts (json implies --no-interactive)."""
+    result = runner.invoke(app, ["--format", "json", "job", "chart", "--share"])
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload == SHARE_LINK
+
+
+@patch("transformerlab_cli.util.share.api.post_json")
+@patch("transformerlab_cli.util.share.api.get", return_value=_mock_json_response(SHARE_LINK))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_share_reuses_existing_link(_mock_check, _mock_require, _mock_get, mock_post):
+    """`job chart --share` reuses the active link instead of rotating it."""
+    result = runner.invoke(app, ["job", "chart", "--share"])
+    assert result.exit_code == 0
+    assert SHARE_LINK["url"] in strip_ansi(result.output)
+    mock_post.assert_not_called()
+
+
+def _share_or_png_get(path, **kwargs):
+    if "/share/chart" in path:
+        return _mock_json_response(SHARE_LINK)
+    return _mock_png_response()
+
+
+@patch("transformerlab_cli.util.share.api.post_json")
+@patch("transformerlab_cli.commands.job.api.get", side_effect=_share_or_png_get)
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_share_with_output_does_both(_mock_check, _mock_require, _mock_get, mock_post, tmp_path):
+    """`job chart --share -o file.png` prints the public link and writes the PNG."""
+    output_path = tmp_path / "runs.png"
+    result = runner.invoke(app, ["job", "chart", "--share", "-o", str(output_path)])
+    assert result.exit_code == 0
+    out = strip_ansi(result.output)
+    assert SHARE_LINK["url"] in out
+    assert "Job runs chart saved to" in out
+    assert output_path.read_bytes() == FAKE_PNG_BYTES
+    mock_post.assert_not_called()
+
+
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_requires_output_or_share(_mock_check):
+    """`job chart` without -o or --share exits with a usage error."""
+    result = runner.invoke(app, ["job", "chart"])
+    assert result.exit_code == 1
+    assert "Provide --output/-o to save a PNG or --share" in strip_ansi(result.output)
+
+
+@patch(
+    "transformerlab_cli.util.share.api.get",
+    return_value=_mock_error_response(404, "Not Found"),
+)
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+@patch("transformerlab_cli.commands.job.check_configs")
+def test_job_chart_share_endpoint_missing_on_old_server(_mock_check, _mock_require, _mock_get):
+    """A FastAPI default 404 on the share endpoint means the server predates public sharing."""
+    result = runner.invoke(app, ["job", "chart", "--share"])
+    assert result.exit_code == 1
+    assert "does not support public sharing" in strip_ansi(result.output)

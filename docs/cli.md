@@ -56,7 +56,7 @@ cli/src/transformerlab_cli/
 │   ├── version.py              # lab version
 │   ├── config.py               # lab config
 │   ├── install_agent_skill.py  # lab install-agent-skill
-│   ├── job.py                  # lab job {list,info,machine-logs,task-logs,request-logs,download,metrics,artifacts,discard,stop,delete,delete-all,monitor,publish ...}
+│   ├── job.py                  # lab job {list,info,machine-logs,task-logs,request-logs,download,chart,metrics,artifacts,discard,stop,delete,delete-all,monitor,publish ...}
 │   ├── task.py                 # lab task {list,init,add,validate,edit,upload,delete,info,queue,gallery,interactive}
 │   ├── interactive.py          # implementation for `lab task interactive`
 │   ├── provider.py             # lab provider {list,add,info,update,delete,check,enable,disable,set-default,clear-default}
@@ -86,6 +86,7 @@ cli/src/transformerlab_cli/
     ├── auth.py                 # API key validation, user/team fetching
     ├── browser_login.py        # loopback browser login flow used by `lab login`
     ├── config.py               # ~/.lab/config.json management
+    ├── share.py                # Public share link helpers (`job chart --share`, `notes show --share`)
     ├── shared.py               # Constants (BASE_URL, credential paths)
     ├── ui.py                   # Rich console, themes, render_table()
     ├── logo.py                 # ASCII logo printed by the root help
