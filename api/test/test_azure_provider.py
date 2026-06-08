@@ -49,6 +49,9 @@ class TestResolveGpuVmSize:
     def test_h100_eight(self):
         assert _resolve_gpu_vm_size("H100:8") == "Standard_ND96isr_H100_v5"
 
+    def test_b200_four(self):
+        assert _resolve_gpu_vm_size("B200:4") == "Standard_ND128isr_NDR_GB200_v6"
+
     def test_v100_four(self):
         assert _resolve_gpu_vm_size("V100:4") == "Standard_NC24s_v3"
 
