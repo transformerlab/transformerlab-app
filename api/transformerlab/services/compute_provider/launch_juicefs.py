@@ -14,6 +14,11 @@ from transformerlab.services.compute_provider.launch_credentials import (
     get_aws_credentials_from_file,
 )
 
+# Each pod runs its own localhost-private JuiceFS gateway, so the port is fixed rather
+# than configurable: nothing outside the pod connects to it, and there is no host process
+# to conflict with. This is intentionally NOT tied to the API server's
+# TFL_JUICEFS_GATEWAY_ENDPOINT override — that override only relocates the API host's own
+# gateway (to avoid conflicts on that host) and is meaningless for an isolated pod.
 GATEWAY_PORT = 9000
 GATEWAY_ENDPOINT = f"http://127.0.0.1:{GATEWAY_PORT}"
 

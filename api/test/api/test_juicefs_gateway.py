@@ -44,7 +44,10 @@ def test_reuses_already_running_gateway(juicefs_env):
     ):
         juicefs_gateway.ensure_juicefs_gateway()
 
-    mock_auth.assert_not_called()
+    # Auth runs even when the gateway is reused: it is idempotent and writes the on-disk
+    # config that later `juicefs quota set` calls depend on (e.g. for a second API worker
+    # that reuses a gateway it did not spawn).
+    mock_auth.assert_called_once()
     mock_spawn.assert_not_called()
 
 

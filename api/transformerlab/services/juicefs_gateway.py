@@ -149,10 +149,11 @@ def ensure_juicefs_gateway() -> None:
 
     _validate_juicefs_config()
 
-    if is_gateway_ready():
-        print(f"✅ JuiceFS gateway already running at {gateway_endpoint()}")
-        return
-
+    # Always authenticate before the gateway-reuse early-return below. juicefs auth is
+    # idempotent (it just writes ~/.juicefs/<vol>.conf), and the on-disk config it writes
+    # is required by later `juicefs quota set` calls in _create_juicefs_workspace(). With
+    # multiple API workers, a worker that reuses a gateway another worker spawned would
+    # otherwise never auth, and its quota calls would fail for lack of that config file.
     try:
         _run_juicefs_auth()
     except subprocess.CalledProcessError as e:
@@ -164,6 +165,12 @@ def ensure_juicefs_gateway() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
+
+    # Reuse an existing gateway (e.g. one started by another API worker on this host)
+    # rather than spawning a conflicting process on the same port.
+    if is_gateway_ready():
+        print(f"✅ JuiceFS gateway already running at {gateway_endpoint()}")
+        return
 
     _gateway_process = _spawn_gateway()
     if not _wait_until_ready():
