@@ -26,8 +26,8 @@
     "clsx": "^2.0.0",
     "dotenv": "^16.3.1",
     "prism-react-renderer": "^2.3.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "react-icons": "^4.12.0"
   },
   "devDependencies": {
