@@ -60,7 +60,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mdxeditor/editor": "^4.0.1",
+    "@mdxeditor/editor": "^4.0.2",
     "@monaco-editor/react": "^4.7.0",
     "@mui/joy": "^5.0.0-beta.52",
     "@nivo/bar": "^0.88.0",
@@ -68,7 +68,7 @@
     "@nivo/line": "^0.88.0",
     "@nivo/radar": "^0.88.0",
     "@segment/analytics-next": "^1.84.0",
-    "@sentry/react": "^10.55.0",
+    "@sentry/react": "^10.56.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "dayjs": "^1.11.21",
@@ -80,7 +80,7 @@
     "react-dom": "^18.2.0",
     "react-dropzone": "^15.0.0",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.16.0",
+    "react-router-dom": "^7.17.0",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "swr": "^2.4.1",
@@ -98,7 +98,7 @@
     "@types/react-sparklines": "^1.7.2",
     "@types/three": "^0.184.1",
     "@types/webpack-bundle-analyzer": "^4.6.0",
-    "concurrently": "^10.0.0",
+    "concurrently": "^10.0.3",
     "core-js": "^3.49.0",
     "cross-env": "^10.1.0",
     "css-loader": "^6.8.1",
@@ -116,7 +116,7 @@
     "sass-loader": "^16.0.8",
     "style-loader": "^4.0.0",
     "tsconfig-paths-webpack-plugin": "^4.2.0",
-    "tsx": "^4.22.3",
+    "tsx": "^4.22.4",
     "typescript": "^5.1.3",
     "url-loader": "^4.1.1",
     "webpack": "^5.107.2",
@@ -124,7 +124,7 @@
     "webpack-cli": "^5.1.1",
     "webpack-dev-server": "^5.2.4",
     "webpack-merge": "^6.0.1",
-    "react-doctor": "^0.2.14"
+    "react-doctor": "^0.4.0"
   },
   "overrides": {
     "serialize-javascript": "^7.0.3",
