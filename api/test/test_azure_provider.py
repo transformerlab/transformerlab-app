@@ -285,6 +285,34 @@ class TestLaunchCluster:
         vm = mock_cc.virtual_machines.begin_create_or_update.return_value.result.return_value
         mock_ensure_role.assert_called_once_with(vm)
 
+    def test_spot_params_set_when_use_spot(self, provider):
+        mock_cc, mock_nc, mock_rc = self._make_mock_clients()
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch.object(provider, "_ensure_vm_self_delete_role"),
+            patch("transformerlab.compute_providers.azure.asyncio.run", return_value="ssh-ed25519 AAAA"),
+        ):
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py", use_spot=True))
+        vm_params = mock_cc.virtual_machines.begin_create_or_update.call_args[0][2]
+        assert vm_params["priority"] == "Spot"
+        assert vm_params["eviction_policy"] == "Delete"
+        assert vm_params["billing_profile"] == {"max_price": -1.0}
+
+    def test_no_spot_params_when_on_demand(self, provider):
+        mock_cc, mock_nc, mock_rc = self._make_mock_clients()
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch.object(provider, "_ensure_vm_self_delete_role"),
+            patch("transformerlab.compute_providers.azure.asyncio.run", return_value="ssh-ed25519 AAAA"),
+        ):
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py"))
+        vm_params = mock_cc.virtual_machines.begin_create_or_update.call_args[0][2]
+        assert "priority" not in vm_params
+
 
 class TestBuildUserData:
     def test_includes_run_command_and_setup(self):

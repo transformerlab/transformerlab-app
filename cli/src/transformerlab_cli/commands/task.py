@@ -904,15 +904,21 @@ def build_launch_payload(
     description: str | None = None,
     enable_profiling: bool = False,
     enable_profiling_torch: bool = False,
+    use_spot: bool = False,
     image: str | None = None,
 ) -> dict:
     """Build the payload for launching a task on a provider."""
     cfg = task.get("config") or {}
     overrides = resource_overrides or {}
 
-    launch_config = dict(param_values or {})
+    # The backend reads spot/preemptible selection and image overrides from the
+    # per-job `config` payload (same channel the frontend uses), so merge them
+    # alongside any parameter overrides.
+    launch_config: dict = dict(param_values or {})
     if image and image.strip():
         launch_config["docker_image"] = image.strip()
+    if use_spot:
+        launch_config["use_spot"] = True
 
     def pick(field: str):
         if field in overrides and overrides[field] not in (None, ""):
@@ -1104,6 +1110,7 @@ def queue_task(
     param_overrides: dict | None = None,
     enable_profiling: bool = False,
     enable_profiling_torch: bool = False,
+    use_spot: bool = False,
     image: str | None = None,
 ) -> None:
     """Queue a task on a compute provider."""
@@ -1139,6 +1146,12 @@ def queue_task(
             provider = next((p for p in providers if p.get("is_default")), providers[0])
         console.print(f"[dim]Using provider: {provider.get('name')}[/dim]")
 
+    if use_spot and not provider.get("supports_spot"):
+        console.print(
+            f"[warning]Warning:[/warning] Provider '{provider.get('name')}' does not support spot/preemptible "
+            "instances; --spot will be ignored and the job will run on-demand."
+        )
+
     parameters = task.get("parameters", {})
     overrides = param_overrides or {}
     if overrides:
@@ -1167,6 +1180,7 @@ def queue_task(
         description=description,
         enable_profiling=enable_profiling,
         enable_profiling_torch=enable_profiling_torch,
+        use_spot=use_spot,
         image=image,
     )
     provider_id = provider.get("id")
@@ -1214,6 +1228,14 @@ def command_task_queue(
         "--enable-profiling-torch",
         help="Enable torch profiler trace export for this run (requires --enable-profiling).",
     ),
+    spot: bool = typer.Option(
+        False,
+        "--spot",
+        help=(
+            "Request a spot/preemptible instance for this run. Only honored by spot-capable "
+            "providers (AWS, GCP, Azure, RunPod, dstack, Nebius, SkyPilot); ignored otherwise."
+        ),
+    ),
     image: str | None = typer.Option(
         None,
         "--image",
@@ -1241,6 +1263,7 @@ def command_task_queue(
         param_overrides=param_overrides,
         enable_profiling=enable_profiling,
         enable_profiling_torch=enable_profiling_torch,
+        use_spot=spot,
         image=image,
     )
 

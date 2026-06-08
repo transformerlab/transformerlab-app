@@ -149,6 +149,22 @@ class TestBuildRunSpec:
         spec = p._build_run_spec("override-run", config)
         assert spec["configuration"]["env"]["KEY"] == "new"
 
+    def test_spot_policy_set_when_use_spot(self, provider):
+        config = ClusterConfig(run="train.py", use_spot=True)
+        spec = provider._build_run_spec("spot-run", config)
+        assert spec["configuration"]["spot_policy"] == "spot"
+
+    def test_no_spot_policy_when_on_demand(self, provider):
+        config = ClusterConfig(run="train.py")
+        spec = provider._build_run_spec("ondemand-run", config)
+        assert "spot_policy" not in spec["configuration"]
+
+    def test_no_spot_policy_with_fleet(self, provider):
+        config = ClusterConfig(run="train.py", use_spot=True, provider_config={"fleet_name": "my-fleet"})
+        spec = provider._build_run_spec("fleet-run", config)
+        # Fleet capacity is pre-provisioned; spot_policy does not apply.
+        assert "spot_policy" not in spec["configuration"]
+
 
 # --- _map_status() ---
 

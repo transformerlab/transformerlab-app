@@ -27,7 +27,6 @@ type ResourceField = keyof ResourceInputs;
 export type SkypilotOverrides = {
   dockerImage: string;
   region: string;
-  useSpot: boolean;
 };
 
 type ResourceValidation = {
@@ -70,6 +69,9 @@ interface ResourceOverridesSectionProps {
     | null;
   skypilotOverrides: SkypilotOverrides;
   onSkypilotOverridesChange: (next: SkypilotOverrides) => void;
+  supportsSpot: boolean;
+  useSpot: boolean;
+  onUseSpotChange: (next: boolean) => void;
   jobDstackFleetName: string;
   onJobDstackFleetNameChange: (value: string) => void;
   runpodImage: string;
@@ -96,6 +98,9 @@ export default function ResourceOverridesSection({
   providerType,
   skypilotOverrides,
   onSkypilotOverridesChange,
+  supportsSpot,
+  useSpot,
+  onUseSpotChange,
   jobDstackFleetName,
   onJobDstackFleetNameChange,
   runpodImage,
@@ -295,25 +300,21 @@ export default function ResourceOverridesSection({
                     disabled={isSubmitting}
                   />
                 </FormControl>
-                <FormControl
-                  sx={{ flexDirection: 'row', alignItems: 'center' }}
-                >
-                  <Switch
-                    checked={skypilotOverrides.useSpot}
-                    onChange={(e) =>
-                      onSkypilotOverridesChange({
-                        ...skypilotOverrides,
-                        useSpot: e.target.checked,
-                      })
-                    }
-                    disabled={isSubmitting}
-                    sx={{ mr: 1 }}
-                  />
-                  <FormLabel sx={{ m: 0 }}>
-                    Use Spot / Preemptible Instances
-                  </FormLabel>
-                </FormControl>
               </>
+            )}
+
+            {supportsSpot && (
+              <FormControl sx={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Switch
+                  checked={useSpot}
+                  onChange={(e) => onUseSpotChange(e.target.checked)}
+                  disabled={isSubmitting}
+                  sx={{ mr: 1 }}
+                />
+                <FormLabel sx={{ m: 0 }}>
+                  Use Spot / Preemptible Instances
+                </FormLabel>
+              </FormControl>
             )}
 
             {isDstackProvider && (

@@ -279,6 +279,7 @@ class RunpodProvider(ComputeProvider):
             "H200": "NVIDIA H200",
             "H200-NVL": "NVIDIA H200 NVL",
             "B200": "NVIDIA B200",
+            "B300": "NVIDIA B300",
             "V100": "Tesla V100-PCIE-16GB",  # Default to PCIE-16GB
             "V100-16GB": "Tesla V100-PCIE-16GB",
             "V100-32GB": "Tesla V100-PCIE-32GB",
@@ -382,6 +383,11 @@ class RunpodProvider(ComputeProvider):
             "imageName": image_name,
             "computeType": compute_type,
         }
+
+        # Spot pod: interruptible pods are cheaper but can be reclaimed at any time.
+        # RunPod determines pricing automatically; no bid price is required.
+        if config.use_spot:
+            pod_data["interruptible"] = True
 
         # Add GPU-specific fields if GPU pod
         if compute_type == "GPU":
