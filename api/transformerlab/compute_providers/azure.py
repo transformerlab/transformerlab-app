@@ -27,6 +27,9 @@ _GPU_VM_SIZE_MAP: Dict[tuple, str] = {
     ("H100", 1): "Standard_NC40ads_H100_v5",
     ("H100", 2): "Standard_NC80adis_H100_v5",
     ("H100", 8): "Standard_ND96isr_H100_v5",
+    # Azure's only Blackwell SKU is the GB200 NVL72 (4 GPUs/VM). Keyed as "B200"
+    # for naming consistency with the other providers' Blackwell offerings.
+    ("B200", 4): "Standard_ND128isr_NDR_GB200_v6",
     ("A10", 1): "Standard_NV36ads_A10_v5",
     ("A10", 2): "Standard_NV72ads_A10_v5",
     ("V100", 1): "Standard_NC6s_v3",
