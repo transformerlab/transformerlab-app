@@ -8,7 +8,7 @@ date: 2026-06-09
 
 _INT8 and GGUF post-training quantization of Ideogram 4 on Ampere consumer GPUs, with the evidence behind each number._
 
-**Quick summary:** Ideogram released two builds of their new model — a high-quality version meant for massive data center GPUs, and a lower-quality version for consumer cards. We took the high-quality version, shrank it down to the memory footprint of the consumer build, and kept the premium performance intact.
+> **Quick summary:** Ideogram released two builds of their new model — a high-quality version meant for massive data center GPUs, and a lower-quality version for consumer cards. We took the high-quality version, shrank it down to the memory footprint of the consumer build, and kept the premium performance intact.
 
 <!--truncate-->
 
