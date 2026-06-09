@@ -159,7 +159,7 @@ const config = {
       announcementBar: {
         id: 'runpod_support',
         content:
-          'dstack is now supported in Transformer Lab. <a href="/blog/dstack-launch">More details here</a>.',
+          'New research: INT8 and GGUF quantizations of Ideogram 4 for consumer GPUs. <a href="/blog/quantizing-ideogram-4">Read more</a>',
         backgroundColor: 'rgb(60, 62, 160)',
         textColor: '#ffffff',
         isCloseable: false,
