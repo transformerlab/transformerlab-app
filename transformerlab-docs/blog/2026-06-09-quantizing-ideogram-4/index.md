@@ -1,18 +1,18 @@
 ---
 slug: quantizing-ideogram-4
-title: 'Quantizing Ideogram 4 onto a 3090: an INT8 build that matches FP8 and a 4-bit GGUF that beats NF4'
+title: 'Quantizing Ideogram 4.0 onto a 3090: an INT8 build that matches FP8 and a 4-bit GGUF that beats NF4'
 authors: [ali, tony, deep, frank]
 tags: [ml-research, quantization, diffusion, image-models, ideogram]
 date: 2026-06-09
 ---
 
-_INT8 and GGUF post-training quantization of Ideogram 4 on Ampere consumer GPUs, with the evidence behind each number._
+_INT8 and GGUF post-training quantization of Ideogram 4.0 on Ampere consumer GPUs, with the evidence behind each number._
 
 > **Quick summary:** Ideogram released two builds of their new model — a high-quality version meant for massive data center GPUs, and a lower-quality version for consumer cards. We took the high-quality version, shrank it down to the memory footprint of the consumer build, and kept the premium performance intact.
 
 <!--truncate-->
 
-Released just days ago on June 3, 2026, Ideogram 4 is a 9.3-billion-parameter text-to-image model. Built on a flow-matching diffusion transformer paired with a Qwen3-VL-8B text encoder, it is widely considered the best open-weights text-to-image model available. The Ideogram team shipped two non-commercial versions on Hugging Face: an **FP8 build** (high quality) and an **NF4 build** (consumer-friendly, but lower quality).
+Released just days ago on June 3, 2026, Ideogram 4.0 is a 9.3-billion-parameter text-to-image model. Built on a flow-matching diffusion transformer paired with a Qwen3-VL-8B text encoder, it is widely considered the best open-weights text-to-image model available. The Ideogram team shipped two non-commercial versions on Hugging Face: an **FP8 build** (high quality) and an **NF4 build** (consumer-friendly, but lower quality).
 
 We wanted to run the high-quality FP8 build efficiently on an **RTX 3090** (24 GB, Ampere architecture). However, Ampere lacks native FP8 tensor cores. This hardware limitation ends up driving the entire project: because an Ampere card can't run the FP8 checkpoint natively, it is forced to dequantize every layer back to bf16 on the fly. While it still technically runs, it is inefficient and completely misses the performance benefits FP8 would offer on a newer Hopper card.
 
@@ -66,7 +66,7 @@ INT8 tracks FP8 most closely; the lower-bit variants drift more in fine layout b
 
 ## What we are releasing
 
-- **The quantized weights**: gated on Hugging Face under a license matching Ideogram 4's non-commercial terms. Research use only.
+- **The quantized weights**: gated on Hugging Face under a license matching Ideogram 4.0's non-commercial terms. Research use only.
   - Our INT8 model: [https://huggingface.co/transformerlab/ideogram-4-int8-w8a8](https://huggingface.co/transformerlab/ideogram-4-int8-w8a8)
   - Our Q4_K GGUF model: [https://huggingface.co/transformerlab/ideogram-4-gguf-q4_k](https://huggingface.co/transformerlab/ideogram-4-gguf-q4_k)
 - An **arxiv paper** will be released soon which explains our experiments and ablations in detail.
