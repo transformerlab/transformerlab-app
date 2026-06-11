@@ -1,5 +1,18 @@
 from typing import Optional
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID, Date, Float, UniqueConstraint, Boolean
+from sqlalchemy import (
+    String,
+    JSON,
+    DateTime,
+    func,
+    Integer,
+    BigInteger,
+    Index,
+    UUID,
+    Date,
+    Float,
+    UniqueConstraint,
+    Boolean,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID
 import uuid
@@ -170,6 +183,32 @@ class TeamComputeProvider(Base):
     is_default: Mapped[bool] = mapped_column(Boolean, server_default="0", nullable=False)
 
     __table_args__ = (Index("idx_compute_provider_name", "team_id", "name"),)
+
+
+class StorageUsageSnapshot(Base):
+    """A point-in-time snapshot of a team's object-storage usage.
+
+    Populated by the storage usage worker from CloudWatch (see
+    storage_usage_service). One row per team per snapshot, kept as history so we
+    can show usage trends and, eventually, enforce caps. No foreign key by
+    project convention — team_id references teams.id by value only.
+    """
+
+    __tablename__ = "storage_usage_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    # No standalone index: the composite (team_id, captured_at) index below covers team_id lookups.
+    team_id: Mapped[str] = mapped_column(String, nullable=False)
+    # Total bytes summed across storage classes. BigInteger: bucket sizes easily exceed 2^31.
+    total_bytes: Mapped[int] = mapped_column(BigInteger, server_default="0", nullable=False)
+    # False when CloudWatch had no datapoint for the bucket at snapshot time.
+    has_data: Mapped[bool] = mapped_column(Boolean, server_default="0", nullable=False)
+    # Timestamp of the CloudWatch datapoint the size came from (UTC, naive). Null when no data.
+    as_of: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
+    # When this snapshot was recorded (UTC, naive).
+    captured_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    __table_args__ = (Index("idx_storage_usage_snapshots_team_captured", "team_id", "captured_at"),)
 
 
 # User and OAuth Account models

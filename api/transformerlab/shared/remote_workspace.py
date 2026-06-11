@@ -22,6 +22,27 @@ def get_default_aws_profile() -> str:
     return os.getenv("AWS_PROFILE", AWS_PROFILE_FALLBACK)
 
 
+def bucket_name_for_team(team_id: str) -> str:
+    """Return the canonical storage bucket/container name for a team.
+
+    Single source of truth for mapping a ``team_id`` to its bucket name,
+    while applying common naming rules for providers like S3 and GCS.
+    Used both when creating buckets and when reading per-team storage usage.
+    """
+    bucket_name = f"workspace-{team_id}".lower()
+
+    # S3/GCS have naming reules we need to follow: (lowercase; only letters,
+    # numbers, dots and hyphens; no leading/trailing or repeated separators)
+    # Replace any invalid characters with hyphens
+    bucket_name = re.sub(r"[^a-z0-9.-]", "-", bucket_name)
+    # Collapse consecutive dots and hyphens
+    bucket_name = re.sub(r"[.-]+", "-", bucket_name)
+    # Remove leading/trailing dots and hyphens
+    bucket_name = bucket_name.strip(".-")
+
+    return bucket_name
+
+
 def validate_cloud_credentials() -> None:
     """
     Validate that cloud credentials are available when cloud storage is enabled.
@@ -277,23 +298,11 @@ def create_bucket_for_team(team_id: str, profile_name: Optional[str] = None) -> 
         print("TFL_REMOTE_STORAGE_ENABLED is not set, skipping bucket creation")
         return False
 
-    # Validate bucket name (common rules for S3 and GCS)
-    # Bucket names must be 3-63 characters, lowercase, and can contain only letters, numbers, dots, and hyphens
-    # Add workspace- prefix to bucket name
-    bucket_name = f"workspace-{team_id}".lower()
+    # Derive the canonical bucket name, then validate the final result.
+    # Common S3/GCS rules: 3-63 chars, lowercase, letters/numbers/dots/hyphens only.
+    bucket_name = bucket_name_for_team(team_id)
     if len(bucket_name) < 3 or len(bucket_name) > 63:
-        print(f"Team ID '{team_id}' is not a valid bucket name (must be 3-63 characters)")
-        return False
-
-    # Replace any invalid characters with hyphens
-    bucket_name = re.sub(r"[^a-z0-9.-]", "-", bucket_name)
-    # Remove consecutive dots and hyphens
-    bucket_name = re.sub(r"[.-]+", "-", bucket_name)
-    # Remove leading/trailing dots and hyphens
-    bucket_name = bucket_name.strip(".-")
-
-    if len(bucket_name) < 3:
-        print(f"Team ID '{team_id}' cannot be converted to a valid bucket name")
+        print(f"Team ID '{team_id}' cannot be converted to a valid bucket name (must be 3-63 characters)")
         return False
 
     if STORAGE_PROVIDER == "aws":
