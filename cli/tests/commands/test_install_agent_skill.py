@@ -23,10 +23,30 @@ def test_install_agent_skill_success():
     assert result.exit_code == 0
     args, _ = mock_run.call_args
     cmd = args[0]
-    assert cmd[:3] == ["npx", "skills", "add"]
+    # The executable is the resolved path from shutil.which (not the bare "npx"),
+    # so subprocess can launch the npx.cmd shim on Windows.
+    assert cmd[0] == "/usr/local/bin/npx"
+    assert cmd[1:3] == ["skills", "add"]
     assert "transformerlab/transformerlab-app" in cmd
     assert cmd[-2:] == ["--skill", "transformerlab-cli"]
     assert "successfully" in result.output.lower()
+
+
+def test_install_agent_skill_uses_resolved_npx_path():
+    """Regression for Windows WinError 2: subprocess must receive the full path
+    returned by shutil.which (e.g. npx.cmd), not the bare `npx` token, otherwise
+    CreateProcess cannot resolve the .cmd shim via PATHEXT."""
+    resolved = r"C:\Program Files\nodejs\npx.cmd"
+    mock_proc = MagicMock(returncode=0)
+    with (
+        patch(f"{_MODULE}.shutil.which", return_value=resolved),
+        patch(f"{_MODULE}.subprocess.run", return_value=mock_proc) as mock_run,
+    ):
+        result = runner.invoke(app, ["install-agent-skill"])
+
+    assert result.exit_code == 0
+    args, _ = mock_run.call_args
+    assert args[0][0] == resolved
 
 
 def test_install_agent_skill_npx_missing():
