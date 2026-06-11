@@ -25,7 +25,12 @@ def install_agent_skill() -> None:
     telemetry.init()
     telemetry.incr("install_agent_skill.start")
 
-    if shutil.which("npx") is None:
+    # Resolve the full path to `npx`. On Windows `npx` is a `.cmd` shim, and
+    # `subprocess.run(["npx", ...])` (without shell=True) calls CreateProcess,
+    # which does not honor PATHEXT and fails with WinError 2. Passing the
+    # resolved path (e.g. `...\npx.cmd`) from shutil.which lets it launch.
+    npx_path = shutil.which("npx")
+    if npx_path is None:
         console.print(
             "[error]Error:[/error] `npx` was not found on PATH.\n"
             "[dim]`npx` ships with Node.js. Install Node.js from https://nodejs.org "
@@ -35,12 +40,13 @@ def install_agent_skill() -> None:
         telemetry.flush()
         raise typer.Exit(1)
 
+    command = [npx_path, *SKILL_COMMAND[1:]]
     pretty_command = " ".join(SKILL_COMMAND)
     console.print(f"\n[info]Running:[/info] [bold]{pretty_command}[/bold]\n")
     telemetry.breadcrumb("install_agent_skill_start")
 
     try:
-        process = subprocess.run(SKILL_COMMAND, stdout=sys.stdout, stderr=sys.stderr)
+        process = subprocess.run(command, stdout=sys.stdout, stderr=sys.stderr)
     except KeyboardInterrupt:
         console.print("\n[warning]Installation interrupted.[/warning]")
         telemetry.incr("install_agent_skill.completed", exit_code="130")
