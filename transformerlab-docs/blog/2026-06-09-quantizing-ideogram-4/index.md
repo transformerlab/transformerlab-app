@@ -70,7 +70,7 @@ INT8 tracks FP8 most closely; the lower-bit variants drift more in fine layout b
   - Our INT8 model: [https://huggingface.co/transformerlab/ideogram-4-int8-w8a8](https://huggingface.co/transformerlab/ideogram-4-int8-w8a8)
   - Our Q4_K GGUF model: [https://huggingface.co/transformerlab/ideogram-4-gguf-q4_k](https://huggingface.co/transformerlab/ideogram-4-gguf-q4_k)
 - An **arxiv paper** will be released soon which explains our experiments and ablations in detail.
-- We will also release a **reproducibility package** along with the arxiv paper so anyone can reproduce the experiments we conducted.
+- A **reproducibility package** — evaluation scripts, quantization configs, and the ablation setup behind these numbers — is available on request.
 
 ## Takeaway
 
