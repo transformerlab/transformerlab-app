@@ -28,9 +28,9 @@ _active_profile: str | None = None
 
 
 def _validate_name(name: str) -> str:
-    """Return a clean profile name or raise ValueError. Blocks path traversal."""
+    """Return a clean profile name or raise ValueError. Blocks path traversal and dot-only names."""
     cleaned = (name or "").strip()
-    if not cleaned or not _VALID_NAME.match(cleaned):
+    if not cleaned or not _VALID_NAME.match(cleaned) or set(cleaned) == {"."}:
         raise ValueError(f"Invalid profile name '{name}'. Use letters, digits, '.', '_' or '-' only.")
     return cleaned
 

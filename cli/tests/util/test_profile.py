@@ -37,6 +37,22 @@ def test_invalid_name_raises():
             profile.resolve_profile_name(bad)
 
 
+def test_dot_names_rejected():
+    import pytest
+
+    for bad in [".", "..", "..."]:
+        with pytest.raises(ValueError):
+            profile.resolve_profile_name(bad)
+
+
+def test_delete_dotdot_refused(monkeypatch, tmp_path):
+    import pytest
+
+    monkeypatch.setattr(shared, "CONFIG_DIR", str(tmp_path))
+    with pytest.raises(ValueError):
+        profile.delete_profile("..")
+
+
 def test_default_paths_are_root(monkeypatch, tmp_path):
     monkeypatch.setattr(shared, "CONFIG_DIR", str(tmp_path))
     profile.set_active("default")
