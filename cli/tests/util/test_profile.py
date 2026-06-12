@@ -94,3 +94,21 @@ def test_delete_default_refused(monkeypatch, tmp_path):
     monkeypatch.setattr(shared, "CONFIG_DIR", str(tmp_path))
     with pytest.raises(ValueError):
         profile.delete_profile("default")
+
+
+def test_credentials_are_per_profile(monkeypatch, tmp_path):
+    monkeypatch.setattr(shared, "CONFIG_DIR", str(tmp_path))
+    import transformerlab_cli.util.auth as auth
+
+    # default profile
+    profile.set_active("default")
+    assert auth.set_api_key_to_profile_path("default-key")
+    # named profile
+    profile.set_active("prod")
+    assert auth.set_api_key_to_profile_path("prod-key")
+
+    profile.set_active("default")
+    assert auth.get_api_key() == "default-key"
+    profile.set_active("prod")
+    assert auth.get_api_key() == "prod-key"
+    profile.set_active(None)

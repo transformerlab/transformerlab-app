@@ -32,13 +32,6 @@ def _isolate_lab_config_from_user_home(tmp_path, monkeypatch):
     monkeypatch.setattr(shared_mod, "CREDENTIALS_DIR", str(fake_lab_dir))
     monkeypatch.setattr(shared_mod, "CREDENTIALS_FILE", fake_credentials_file)
     monkeypatch.setattr(config_mod, "cached_config", None)
-    # auth.py imports CREDENTIALS_DIR/FILE by value at module load, so patching shared
-    # alone does not redirect it. Patch auth's own names too until auth routes through
-    # the profile helpers. raising=False keeps this resilient if auth stops binding them.
-    import transformerlab_cli.util.auth as auth_mod
-
-    monkeypatch.setattr(auth_mod, "CREDENTIALS_DIR", str(fake_lab_dir), raising=False)
-    monkeypatch.setattr(auth_mod, "CREDENTIALS_FILE", fake_credentials_file, raising=False)
     # Each test starts on the default profile.
     profile_mod.set_active(None)
 
