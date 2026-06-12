@@ -1,6 +1,7 @@
 import typer
 import typer.core
 
+from transformerlab_cli.util import profile
 from transformerlab_cli.util.logo import show_header
 from transformerlab_cli.util.ui import console
 from transformerlab_cli.util.version_check import check_for_update
@@ -62,6 +63,11 @@ app.add_typer(install_agent_skill_app)
 def common_setup(
     ctx: typer.Context,
     format: str = typer.Option("pretty", "--format", help="Output format: pretty or json"),
+    profile_name: str = typer.Option(
+        None,
+        "--profile",
+        help="Profile to use (overrides LAB_PROFILE env var; defaults to 'default').",
+    ),
     no_interactive: bool = typer.Option(
         False,
         "--no-interactive",
@@ -69,6 +75,11 @@ def common_setup(
     ),
 ):
     """Common setup code to run before any command."""
+    try:
+        profile.init_profile(profile.resolve_profile_name(profile_name))
+    except ValueError as e:
+        console.print(f"[error]Error:[/error] {e}")
+        raise typer.Exit(2)
     cli_state.output_format = format
     cli_state.no_interactive = no_interactive or (format == "json")
     if not ctx.invoked_subcommand:
