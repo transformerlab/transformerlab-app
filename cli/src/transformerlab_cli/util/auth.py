@@ -1,42 +1,48 @@
 import os
 import httpx
 
-from transformerlab_cli.util.shared import CREDENTIALS_DIR, CREDENTIALS_FILE, AUTH_URL
+from transformerlab_cli.util.shared import AUTH_URL
+from transformerlab_cli.util import profile
 from transformerlab_cli.util.ui import console
 
 
-def set_api_key(api_key: str) -> bool:
-    """
-    Validate and save the API key.
-    Returns True if successful, False otherwise.
-    """
+def _write_credentials(api_key: str) -> bool:
+    """Write the key to the active profile's credentials file. No validation."""
     try:
-        os.makedirs(CREDENTIALS_DIR, exist_ok=True)
+        os.makedirs(profile.credentials_dir(), exist_ok=True)
     except PermissionError:
-        console.print(f"[error]Error:[/error] Cannot create directory {CREDENTIALS_DIR}")
+        console.print(f"[error]Error:[/error] Cannot create directory {profile.credentials_dir()}")
         return False
     except OSError as e:
         console.print(f"[error]Error:[/error] Failed to create directory: {e}")
         return False
-
-    key_response = test_api_key_on_remote_server(api_key)
-
-    if key_response is None:
-        # Connection error already handled in test_api_key_on_remote_server
+    try:
+        with open(profile.credentials_path(), "w", encoding="utf-8") as f:
+            f.write(api_key)
+        return True
+    except PermissionError:
+        console.print(f"[error]Error:[/error] Cannot write to {profile.credentials_path()}")
+        return False
+    except OSError as e:
+        console.print(f"[error]Error:[/error] Failed to save credentials: {e}")
         return False
 
+
+def set_api_key_to_profile_path(api_key: str) -> bool:
+    """Test/seam helper: persist the key to the active profile without network validation."""
+    return _write_credentials(api_key)
+
+
+def set_api_key(api_key: str) -> bool:
+    """Validate against the server, then persist to the active profile's credentials file."""
+    key_response = test_api_key_on_remote_server(api_key)
+    if key_response is None:
+        return False
     if key_response.status_code == 200:
-        try:
-            with open(CREDENTIALS_FILE, "w", encoding="utf-8") as f:
-                f.write(api_key)
+        if _write_credentials(api_key):
             console.print("[success]✓[/success] API key validated and saved locally.")
             return True
-        except PermissionError:
-            console.print(f"[error]Error:[/error] Cannot write to {CREDENTIALS_FILE}")
-            return False
-        except OSError as e:
-            console.print(f"[error]Error:[/error] Failed to save credentials: {e}")
-            return False
+        return False
     elif key_response.status_code == 401:
         console.print("[error]Error:[/error] Invalid API key")
         return False
@@ -49,20 +55,17 @@ def set_api_key(api_key: str) -> bool:
 
 
 def delete_api_key() -> bool:
-    """
-    Delete the saved API key.
-    Returns True if successful, False otherwise.
-    """
-    if not os.path.exists(CREDENTIALS_FILE):
+    """Delete the active profile's saved API key."""
+    creds = profile.credentials_path()
+    if not os.path.exists(creds):
         console.print("[warning]No credentials file found[/warning]")
         return True
-
     try:
-        os.unlink(CREDENTIALS_FILE)
+        os.unlink(creds)
         console.print("[success]✓[/success] Logged out successfully")
         return True
     except PermissionError:
-        console.print(f"[error]Error:[/error] Cannot delete {CREDENTIALS_FILE}")
+        console.print(f"[error]Error:[/error] Cannot delete {creds}")
         return False
     except OSError as e:
         console.print(f"[error]Error:[/error] Failed to delete credentials: {e}")
@@ -70,14 +73,12 @@ def delete_api_key() -> bool:
 
 
 def get_api_key() -> str | None:
-    """
-    Retrieve the saved API key.
-    Returns the API key string or None if not found.
-    """
-    if not os.path.exists(CREDENTIALS_FILE):
+    """Retrieve the active profile's saved API key, or None."""
+    creds = profile.credentials_path()
+    if not os.path.exists(creds):
         return None
     try:
-        with open(CREDENTIALS_FILE, "r", encoding="utf-8") as f:
+        with open(creds, "r", encoding="utf-8") as f:
             return f.read().strip()
     except OSError:
         return None

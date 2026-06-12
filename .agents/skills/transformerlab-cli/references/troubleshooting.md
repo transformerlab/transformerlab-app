@@ -53,6 +53,8 @@ lab config set server http://correct-host:8338
 lab status
 ```
 
+If you regularly switch between servers, `lab config set server` (which mutates the shared `default` profile) is the wrong tool — use **profiles** instead so each server keeps its own URL + team + key, and select per command with `--profile <name>` / `LAB_PROFILE`. See "Profiles: talking to multiple servers in parallel" in `SKILL.md`.
+
 ---
 
 ## Authentication Errors (401/403)

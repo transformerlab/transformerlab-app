@@ -1,6 +1,7 @@
 import typer
 import typer.core
 
+from transformerlab_cli.util import profile
 from transformerlab_cli.util.logo import show_header
 from transformerlab_cli.util.ui import console
 from transformerlab_cli.util.version_check import check_for_update
@@ -21,6 +22,7 @@ from transformerlab_cli.commands.notes import app as notes_app
 from transformerlab_cli.commands.dataset import app as dataset_app
 from transformerlab_cli.commands.model import app as model_app
 from transformerlab_cli.commands.team import app as team_app
+from transformerlab_cli.commands.profile import app as profile_app
 from transformerlab_cli.commands.install_agent_skill import app as install_agent_skill_app
 
 
@@ -54,6 +56,7 @@ app.add_typer(dataset_app, name="dataset", help="Dataset management commands", n
 app.add_typer(model_app, name="model", help="Model management commands", no_args_is_help=True)
 app.add_typer(experiment_app, name="experiment", help="Experiment management commands", no_args_is_help=True)
 app.add_typer(team_app, name="team", help="Team configuration commands", no_args_is_help=True)
+app.add_typer(profile_app, name="profile", help="CLI profile management commands", no_args_is_help=True)
 app.add_typer(install_agent_skill_app)
 
 
@@ -62,6 +65,11 @@ app.add_typer(install_agent_skill_app)
 def common_setup(
     ctx: typer.Context,
     format: str = typer.Option("pretty", "--format", help="Output format: pretty or json"),
+    profile_name: str | None = typer.Option(
+        None,
+        "--profile",
+        help="Profile to use (overrides LAB_PROFILE env var; defaults to 'default').",
+    ),
     no_interactive: bool = typer.Option(
         False,
         "--no-interactive",
@@ -71,6 +79,16 @@ def common_setup(
     """Common setup code to run before any command."""
     cli_state.output_format = format
     cli_state.no_interactive = no_interactive or (format == "json")
+    try:
+        profile.init_profile(profile.resolve_profile_name(profile_name))
+    except ValueError as e:
+        if format == "json":
+            import json
+
+            print(json.dumps({"error": str(e)}))
+        else:
+            console.print(f"[error]Error:[/error] {e}")
+        raise typer.Exit(1)
     if not ctx.invoked_subcommand:
         show_header(console)  # Display the logo when no command is provided
     elif ctx.invoked_subcommand != "version" and format != "json":
