@@ -1,7 +1,7 @@
 ---
 slug: fused-int8-ideogram-4
 title: 'Making INT8 actually fast: a fused kernel for Ideogram 4 on a 3090'
-authors: [ali, tony, deep]
+authors: [deep]
 tags: [ml-research, quantization, diffusion, image-models, ideogram, kernels]
 date: 2026-06-12
 ---

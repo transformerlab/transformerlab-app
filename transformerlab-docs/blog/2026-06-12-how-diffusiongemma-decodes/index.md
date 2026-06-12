@@ -1,7 +1,7 @@
 ---
 slug: how-diffusiongemma-decodes
 title: 'Neither parallel nor sequential: how DiffusionGemma actually commits tokens'
-authors: [ali, tony, deep]
+authors: [deep]
 tags: [ml-research, interpretability, diffusion, language-models]
 date: 2026-06-12
 ---
