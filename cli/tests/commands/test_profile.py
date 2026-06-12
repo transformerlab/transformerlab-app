@@ -166,3 +166,45 @@ def test_profile_show_corrupt_config_errors(tmp_path, monkeypatch):
     result = runner.invoke(app, ["--format=json", "profile", "show", "prod"])
     assert result.exit_code == 1
     assert "error" in json.loads(result.output.strip())
+
+
+def test_login_writes_into_selected_profile(tmp_path, monkeypatch):
+    import transformerlab_cli.util.shared as shared
+    import transformerlab_cli.util.auth as auth
+
+    monkeypatch.setattr(shared, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(shared, "CONFIG_FILE", os.path.join(str(tmp_path), "config.json"))
+
+    class _Resp:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self._payload
+
+    monkeypatch.setattr(auth, "test_api_key_on_remote_server", lambda api_key: _Resp({}))
+    monkeypatch.setattr(
+        "transformerlab_cli.commands.login.fetch_user_info",
+        lambda key: {"email": "u@example.com", "api_key_team_id": "team-1"},
+    )
+    monkeypatch.setattr(
+        "transformerlab_cli.commands.login.fetch_user_teams",
+        lambda key: {"teams": [{"id": "team-1", "name": "Team One", "role": "owner"}]},
+    )
+
+    result = runner.invoke(
+        app,
+        ["--profile", "prod", "login", "--api-key", "secret-key", "--server", "http://prod:8338"],
+    )
+    assert result.exit_code == 0
+    # credentials + config land under the prod profile, not the default root
+    assert os.path.exists(os.path.join(str(tmp_path), "profiles", "prod", "credentials"))
+    with open(os.path.join(str(tmp_path), "profiles", "prod", "config.json")) as f:
+        assert json.loads(f.read())["server"] == "http://prod:8338"
+    # default root is untouched
+    assert not os.path.exists(os.path.join(str(tmp_path), "credentials"))

@@ -131,6 +131,39 @@ The CLI uses **API key** auth (not cookies):
 
 Stored in `~/.lab/config.json`. Valid keys: `server`, `team_id`, `team_name`, `user_email`, `current_experiment`.
 
+### Profiles (multiple servers in parallel)
+
+Each `lab` invocation binds to one **profile**, bundling a server URL, team, experiment, and
+API key. The `default` profile lives at the legacy root (`~/.lab/config.json`,
+`~/.lab/credentials`); named profiles live under `~/.lab/profiles/<name>/`.
+
+Selection is **per-process** (no stored "current profile"), so two commands can hit two
+servers at once:
+
+```bash
+# Create/authenticate profiles (login is the profile-creating command):
+lab --profile prod    login --server https://prod.example.com:8338
+lab --profile staging login --server https://staging.example.com:8338
+
+# Run against different servers in parallel — fully isolated, safe:
+LAB_PROFILE=prod    lab job list &
+LAB_PROFILE=staging lab job list &
+
+# One-off override without exporting:
+lab --profile prod job list
+```
+
+Precedence: `--profile <name>` (must precede the subcommand, like `--format`) > `LAB_PROFILE`
+env var > `default`.
+
+Manage profiles:
+
+```bash
+lab profile list           # all profiles; marks active + which have credentials
+lab profile show [name]    # config for a profile (defaults to the active one)
+lab profile delete <name>  # remove a named profile ('default' cannot be deleted)
+```
+
 ```python
 from transformerlab_cli.util.config import get_config, set_config, check_configs
 
