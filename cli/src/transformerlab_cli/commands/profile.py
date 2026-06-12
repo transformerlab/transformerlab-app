@@ -17,7 +17,7 @@ from transformerlab_cli.util.ui import console, render_table, exit_with_no_resul
 app = typer.Typer(help="Manage CLI profiles (server + team + credentials).")
 
 
-def _fail(message: str, format_type: str):
+def _fail(message: str, format_type: str) -> None:
     if format_type == "json":
         print(json.dumps({"error": message}))
     else:
@@ -25,17 +25,24 @@ def _fail(message: str, format_type: str):
     raise typer.Exit(1)
 
 
-def _read_other(name: str) -> dict:
-    """Read another profile's config.json directly (without switching the active profile)."""
+def _read_other(name: str, format_type: str) -> dict:
+    """Read another profile's config.json directly (without switching the active profile).
+
+    A corrupt/unreadable file fails cleanly (matching the json-mode error contract) rather
+    than raising an uncaught traceback the way a bare json.loads would.
+    """
     path = profile_util.config_path(name)
     if not os.path.exists(path):
         return {}
-    with open(path, "r", encoding="utf-8") as f:
-        return json.loads(f.read())
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.loads(f.read())
+    except (json.JSONDecodeError, OSError):
+        _fail(f"Profile '{name}' has an unreadable config.json.", format_type)
 
 
 @app.command("list")
-def list_profiles(format: str = typer.Option(None, "--format")):
+def list_profiles(format: str = typer.Option(None, "--format")) -> None:
     """List all profiles, marking the active one and which have saved credentials."""
     format_type = format or cli_state.output_format
     active = profile_util.current_profile_name()
@@ -65,12 +72,12 @@ def list_profiles(format: str = typer.Option(None, "--format")):
 def show_profile(
     name: str = typer.Argument(None, help="Profile to show (defaults to the active profile)."),
     format: str = typer.Option(None, "--format"),
-):
+) -> None:
     """Show a profile's server / team / user / experiment."""
     format_type = format or cli_state.output_format
     active = profile_util.current_profile_name()
     target = name or active
-    cfg = load_config() if target == active else _read_other(target)
+    cfg = load_config() if target == active else _read_other(target, format_type)
     if not cfg:
         exit_with_no_results(format_type, f"Profile '{target}' has no configuration.")
     out = {
@@ -93,7 +100,7 @@ def show_profile(
 def delete_profile(
     name: str = typer.Argument(..., help="Profile to delete."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
-):
+) -> None:
     """Delete a named profile directory. The 'default' profile cannot be deleted."""
     format_type = cli_state.output_format
     if not yes and not cli_state.no_interactive:

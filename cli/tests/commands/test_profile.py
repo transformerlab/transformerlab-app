@@ -150,3 +150,19 @@ def test_profile_delete_default_refused(tmp_path, monkeypatch):
     result = runner.invoke(app, ["profile", "delete", "default", "--yes"])
     assert result.exit_code == 1
     assert "default" in result.output
+
+
+def test_profile_show_corrupt_config_errors(tmp_path, monkeypatch):
+    import transformerlab_cli.util.shared as shared
+
+    monkeypatch.setattr(shared, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(shared, "CONFIG_FILE", os.path.join(str(tmp_path), "config.json"))
+    # active profile is default; create a corrupt prod config and show it explicitly
+    pdir = os.path.join(str(tmp_path), "profiles", "prod")
+    os.makedirs(pdir, exist_ok=True)
+    with open(os.path.join(pdir, "config.json"), "w", encoding="utf-8") as f:
+        f.write("{not valid json,,")
+
+    result = runner.invoke(app, ["--format=json", "profile", "show", "prod"])
+    assert result.exit_code == 1
+    assert "error" in json.loads(result.output.strip())
