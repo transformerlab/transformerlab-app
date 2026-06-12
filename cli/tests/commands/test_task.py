@@ -231,6 +231,42 @@ def test_task_queue_no_interactive_picks_is_default_provider(_mock_exp, _mock_ge
     assert "p_default" in path, f"expected launch on default provider, got path: {path}"
 
 
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS_MULTI)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+def test_task_queue_provider_flag_selects_by_name(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """`--provider <name>` (case-insensitive) overrides the default and launches on that provider."""
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "--provider", "runpod", "-m", "x"])
+    assert result.exit_code == 0, result.output
+    path, body = mock_post.call_args.args
+    assert "p_other" in path, f"expected launch on named provider, got path: {path}"
+    assert body["provider_name"] == "Runpod"
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS_MULTI)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+def test_task_queue_provider_flag_skips_prompt_in_interactive(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """`--provider` resolves without prompting even when interactive (no --no-interactive)."""
+    result = runner.invoke(app, ["task", "queue", "t1", "--provider", "p_other", "-m", "x"], input="y\n")
+    assert result.exit_code == 0, result.output
+    path, _body = mock_post.call_args.args
+    assert "p_other" in path, f"expected launch on named provider, got path: {path}"
+
+
+@patch("transformerlab_cli.commands.task.api.post_json", return_value=_mock_resp({"job_id": "j1"}))
+@patch("transformerlab_cli.commands.task.fetch_providers", return_value=SAMPLE_PROVIDERS_MULTI)
+@patch("transformerlab_cli.commands.task.api.get", return_value=_mock_resp(SAMPLE_TASK))
+@patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
+def test_task_queue_provider_flag_unknown_errors(_mock_exp, _mock_get, _mock_providers, mock_post):
+    """`--provider <unknown>` exits non-zero and does not launch anything."""
+    result = runner.invoke(app, ["task", "queue", "t1", "--no-interactive", "--provider", "nope", "-m", "x"])
+    assert result.exit_code != 0
+    mock_post.assert_not_called()
+
+
 SAMPLE_TASK_WITH_PARAMS = {
     "id": "t1",
     "name": "finetune",
