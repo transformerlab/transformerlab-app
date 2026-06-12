@@ -75,4 +75,5 @@ def test_invalid_profile_name_errors(tmp_path, monkeypatch):
     monkeypatch.setattr(shared, "CONFIG_FILE", os.path.join(str(tmp_path), "config.json"))
 
     result = runner.invoke(app, ["--profile", "../escape", "--format=json", "config", "get", "server"])
-    assert result.exit_code != 0
+    assert result.exit_code == 1
+    assert "error" in json.loads(result.output.strip())

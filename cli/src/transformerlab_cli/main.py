@@ -63,7 +63,7 @@ app.add_typer(install_agent_skill_app)
 def common_setup(
     ctx: typer.Context,
     format: str = typer.Option("pretty", "--format", help="Output format: pretty or json"),
-    profile_name: str = typer.Option(
+    profile_name: str | None = typer.Option(
         None,
         "--profile",
         help="Profile to use (overrides LAB_PROFILE env var; defaults to 'default').",
@@ -75,13 +75,18 @@ def common_setup(
     ),
 ):
     """Common setup code to run before any command."""
+    cli_state.output_format = format
+    cli_state.no_interactive = no_interactive or (format == "json")
     try:
         profile.init_profile(profile.resolve_profile_name(profile_name))
     except ValueError as e:
-        console.print(f"[error]Error:[/error] {e}")
-        raise typer.Exit(2)
-    cli_state.output_format = format
-    cli_state.no_interactive = no_interactive or (format == "json")
+        if format == "json":
+            import json
+
+            print(json.dumps({"error": str(e)}))
+        else:
+            console.print(f"[error]Error:[/error] {e}")
+        raise typer.Exit(1)
     if not ctx.invoked_subcommand:
         show_header(console)  # Display the logo when no command is provided
     elif ctx.invoked_subcommand != "version" and format != "json":
