@@ -363,6 +363,25 @@ class AzureProvider(ComputeProvider):
         env_exports = "\n".join(f'export {k}="{v}"' for k, v in config.env_vars.items())
         setup_block = config.setup or ""
         run_cmd = config.run or "true"
+        # GPU VMs boot from a stock Ubuntu image with no NVIDIA driver. The driver is
+        # installed asynchronously via the NvidiaGpuDriverLinux VM extension (see
+        # _ensure_gpu_driver_extension), which races this boot script — so block until the
+        # driver is usable before running the GPU workload. ~20 min cap; if it never appears
+        # we fall through and let the workload's own CUDA error surface the failure.
+        gpu_wait_block = ""
+        if config.accelerators:
+            gpu_wait_block = (
+                'echo "[tfl] waiting for NVIDIA GPU driver (installed via VM extension)..."\n'
+                "for _tfl_i in $(seq 1 80); do\n"
+                "  if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then\n"
+                '    echo "[tfl] NVIDIA driver ready"; nvidia-smi || true; break\n'
+                "  fi\n"
+                "  sleep 15\n"
+                "done\n"
+                "if ! nvidia-smi >/dev/null 2>&1; then\n"
+                '  echo "[tfl] WARNING: NVIDIA driver not available after wait; GPU workload may fail" >&2\n'
+                "fi"
+            )
         return f"""#!/bin/bash
 set -eo pipefail
 mkdir -p /workspace
@@ -420,6 +439,7 @@ if [ -x /root/.local/bin/uv ]; then cp /root/.local/bin/uv /usr/local/bin/uv && 
 if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx && chmod +x /usr/local/bin/uvx; fi
 
 {env_exports}
+{gpu_wait_block}
 {setup_block}
 ({run_cmd}) 2>&1 | tee /workspace/run_logs.txt
 """
@@ -437,6 +457,30 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             return _AZURE_POWER_STATE_MAP[power_state]
         prov_state = (vm.provisioning_state or "").lower()
         return _AZURE_PROV_STATE_MAP.get(prov_state, ClusterState.UNKNOWN)
+
+    def _ensure_gpu_driver_extension(self, compute_client: Any, cluster_name: str) -> None:
+        """Install the NVIDIA driver on a freshly-created GPU VM.
+
+        Azure GPU VMs boot from a stock Ubuntu image with no driver, so without this the
+        CUDA runtime fails with "Found no NVIDIA driver on your system". We attach the
+        official Microsoft.HpcCompute NvidiaGpuDriverLinux extension, which installs the
+        driver on N-series VMs. The boot script (_build_user_data) waits for `nvidia-smi`
+        before running the GPU workload, so we do NOT block here on the multi-minute install.
+        """
+        from azure.mgmt.compute.models import VirtualMachineExtension
+
+        extension = VirtualMachineExtension(
+            location=self.location,
+            publisher="Microsoft.HpcCompute",
+            type_properties_type="NvidiaGpuDriverLinux",
+            type_handler_version="1.9",
+            auto_upgrade_minor_version=True,
+            settings={},
+        )
+        compute_client.virtual_machine_extensions.begin_create_or_update(
+            self.resource_group, cluster_name, "NvidiaGpuDriverLinux", extension
+        )
+        logger.info("Requested NVIDIA GPU driver extension for VM %s", cluster_name)
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         import base64
@@ -540,6 +584,11 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
                         self._ensure_vm_self_delete_role(vm)
                     except Exception as e:
                         logger.warning("Failed configuring VM self-delete RBAC: %s", e)
+                    if config.accelerators:
+                        try:
+                            self._ensure_gpu_driver_extension(compute_client, cluster_name)
+                        except Exception as e:
+                            logger.warning("Failed to install NVIDIA GPU driver extension: %s", e)
                     launch_succeeded = True
                     return {"vm_id": vm.id, "request_id": cluster_name}
                 except Exception as e:
