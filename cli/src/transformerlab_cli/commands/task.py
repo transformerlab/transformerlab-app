@@ -1045,6 +1045,20 @@ def _prompt_provider(providers: list[dict]) -> dict:
             console.print("[error]Please enter a valid number[/error]")
 
 
+def _resolve_provider(providers: list[dict], identifier: str) -> dict:
+    """Resolve a provider by name (case-insensitive) or exact id.
+
+    Raises typer.BadParameter listing available providers if no match.
+    """
+    match = next((p for p in providers if str(p.get("name", "")).lower() == identifier.lower()), None)
+    if match is None:
+        match = next((p for p in providers if str(p.get("id", "")) == identifier), None)
+    if match is None:
+        available = ", ".join(p.get("name", p.get("id", "?")) for p in providers) or "(none)"
+        raise typer.BadParameter(f"No provider matching {identifier!r}. Available providers: {available}")
+    return match
+
+
 def _prompt_parameters(parameters: dict) -> dict:
     """Prompt user for each parameter value, showing defaults."""
     if not parameters:
@@ -1112,6 +1126,7 @@ def queue_task(
     enable_profiling_torch: bool = False,
     use_spot: bool = False,
     image: str | None = None,
+    provider_name: str | None = None,
 ) -> None:
     """Queue a task on a compute provider."""
     with console.status("[bold success]Fetching task...[/bold success]", spinner="dots"):
@@ -1137,7 +1152,10 @@ def queue_task(
         console.print("[error]Error:[/error] No compute providers available. Add one in team settings first.")
         raise typer.Exit(1)
 
-    if interactive:
+    if provider_name:
+        provider = _resolve_provider(providers, provider_name)
+        console.print(f"[dim]Using provider: {provider.get('name')}[/dim]")
+    elif interactive:
         provider = _prompt_provider(providers)
     else:
         task_provider_id = task.get("provider_id")
@@ -1199,6 +1217,14 @@ def queue_task(
 def command_task_queue(
     task_id: str = typer.Argument(..., help="Task ID to queue"),
     no_interactive: bool = typer.Option(False, "--no-interactive", help="Skip interactive prompts, use defaults"),
+    provider: str | None = typer.Option(
+        None,
+        "--provider",
+        help=(
+            "Provider name (as shown in `lab provider list`) or id to run on. Overrides the task's "
+            "compute_provider and skips the interactive provider prompt. Errors if no provider matches."
+        ),
+    ),
     description: str | None = typer.Option(
         None,
         "--description",
@@ -1265,6 +1291,7 @@ def command_task_queue(
         enable_profiling_torch=enable_profiling_torch,
         use_spot=spot,
         image=image,
+        provider_name=provider,
     )
 
 
