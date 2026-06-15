@@ -208,6 +208,7 @@ export const TEXT_FILE_EXTENSIONS = new Set([
   'ini',
   'toml',
   'json',
+  'jsonl',
   'xml',
   'html',
   'css',
