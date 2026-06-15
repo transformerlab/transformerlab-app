@@ -538,3 +538,14 @@ async def current_active_user(
 
     # If we get here, neither API key nor JWT worked
     raise HTTPException(status_code=401, detail="Authentication required")
+
+
+async def current_admin_user(user: User = Depends(current_active_user)) -> User:
+    """Require an instance super-admin (``is_superuser``).
+
+    For instance-level admin endpoints that are not scoped to a single team, so
+    this deliberately does not depend on ``get_user_and_team``.
+    """
+    if not user.is_superuser:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
