@@ -154,6 +154,14 @@ async def lifespan(app: FastAPI):
 
         await start_remote_job_queue_worker()
 
+        # Start daily per-team storage usage snapshot worker.
+        from transformerlab.services.storage_usage_worker import (
+            start_storage_usage_worker,
+            stop_storage_usage_worker,
+        )
+
+        await start_storage_usage_worker()
+
         # Sweep abandoned chunked-upload staging dirs older than 24 h
         from transformerlab.services.upload_service import sweep_expired_uploads
 
@@ -170,6 +178,7 @@ async def lifespan(app: FastAPI):
         await stop_remote_job_status_worker()
         await stop_notification_worker()
         await stop_remote_job_queue_worker()
+        await stop_storage_usage_worker()
         await stop_tasks_migration_worker()
         await stop_jobs_migration_worker()
     from transformerlab.services.process_registry import get_registry
