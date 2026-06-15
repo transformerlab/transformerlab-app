@@ -52,6 +52,7 @@ from transformerlab.routers import (  # noqa: E402
     permissions,
     upload,
     public_share,
+    admin,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 
@@ -335,6 +336,9 @@ app.include_router(asset_versions.router, dependencies=[Depends(get_user_and_tea
 app.include_router(trackio.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(permissions.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(upload.router, dependencies=[Depends(get_user_and_team)])
+# Admin routes enforce super-admin via current_admin_user (router-level), and are
+# instance-scoped, so they intentionally do NOT use get_user_and_team.
+app.include_router(admin.router)
 
 
 # @app.get("/")
