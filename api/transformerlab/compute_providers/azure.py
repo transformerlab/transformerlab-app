@@ -433,19 +433,36 @@ fi
 # Mirror all runner output to run_logs.txt (shown in the UI) and journald.
 exec > >(tee -a /workspace/run_logs.txt) 2>&1
 
-# Bootstrap python tooling. Idempotent + best-effort so a reboot can safely re-run it.
-apt-get update -qq || true
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq software-properties-common >/dev/null 2>&1 || true
+# Bootstrap python tooling. Must survive (a) apt-lock contention with boot-time apt users
+# (unattended-upgrades, the NVIDIA driver extension) and (b) a driver-install reboot that
+# interrupted a previous boot's apt mid-transaction, which leaves dpkg half-configured and
+# makes a plain `apt-get install` fail. So we repair dpkg, wait for the lock, and retry.
+# Errors are NOT silenced (they land in run_logs.txt); the runner re-runs next boot anyway.
+export DEBIAN_FRONTEND=noninteractive
+_tfl_apt="apt-get -o DPkg::Lock::Timeout=600 -y -qq"
+for _tfl_try in 1 2 3; do
+  command -v python3.11 >/dev/null 2>&1 && break
+  echo "[tfl] bootstrapping python3.11 (attempt $_tfl_try)"
+  dpkg --configure -a || true
+  $_tfl_apt install -f || true
+  $_tfl_apt update || true
+  $_tfl_apt install software-properties-common curl || true
+  if ! command -v python3.11 >/dev/null 2>&1; then
+    add-apt-repository -y ppa:deadsnakes/ppa || true
+    $_tfl_apt update || true
+    $_tfl_apt install python3.11 python3.11-venv python3.11-distutils || true
+  fi
+done
 if ! command -v python3.11 >/dev/null 2>&1; then
-  add-apt-repository -y ppa:deadsnakes/ppa >/dev/null 2>&1 || true
-  apt-get update -qq || true
+  echo "[tfl] ERROR: python3.11 unavailable after bootstrap; the workload will fail" >&2
 fi
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3.11 python3.11-venv python3.11-distutils curl >/dev/null 2>&1 || true
-if [ ! -x /opt/transformerlab-venv/bin/python ]; then
+if [ ! -x /opt/transformerlab-venv/bin/python ] && command -v python3.11 >/dev/null 2>&1; then
   curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
-  python3.11 /tmp/get-pip.py >/dev/null 2>&1 || true
+  python3.11 /tmp/get-pip.py || true
   python3.11 -m venv /opt/transformerlab-venv
 fi
+# Activate the venv so BOTH `pip` and `uv pip` target it (uv keys off VIRTUAL_ENV, not PATH).
+export VIRTUAL_ENV=/opt/transformerlab-venv
 export PATH="/opt/transformerlab-venv/bin:$PATH"
 
 curl -LsSf https://astral.sh/uv/install.sh | sh
