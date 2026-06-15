@@ -61,6 +61,9 @@ class MinimalProvider(ComputeProvider):
     def check(self):
         return True
 
+    def show_gpus(self):
+        return []
+
 
 def _make_job_dict(
     job_id: str = "test-1",
