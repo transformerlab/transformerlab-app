@@ -107,3 +107,7 @@ DiffusionGemma decodes with a partial, granularity-dependent left-to-right bias,
 All of this is one checkpoint on one H100, with 20 prompts per regime, so it is a characterization and not the last word. `tau_b` is a rank correlation, not a claim about the model's internal reasoning, and we keep the language descriptive on purpose. The full writeup, _Neither Parallel Nor Sequential: How DiffusionGemma Actually Commits Tokens_, has the per-regime tables, the bin-size sweep, the block-sequential control, and the non-monotonicity check. There is no public release for this one; the instrumentation harness, the probe suite, and the recorded traces are available on request.
 
 The thing we would most like to be useful is the lens itself: hooking a shipped sampler's own commit mechanism and watching what it does, rather than proposing a new decoding strategy. It is cheap, it is non-invasive, and it caught us being wrong, which is about the best you can ask of a measurement.
+
+## Links
+
+- Full paper on arXiv: [arxiv.org/abs/2606.14620](https://arxiv.org/abs/2606.14620)
