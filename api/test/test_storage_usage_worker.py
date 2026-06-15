@@ -38,15 +38,22 @@ async def test_run_once_opens_session_and_calls_snapshot():
 
 
 async def test_start_and_stop_worker_lifecycle():
-    run_mock = AsyncMock()
+    # Signal from inside the cycle so we wait deterministically rather than
+    # relying on event-loop scheduling (which is racy on CI).
+    ran = asyncio.Event()
+
+    async def _signal_ran():
+        ran.set()
+
+    run_mock = AsyncMock(side_effect=_signal_ran)
     with patch.object(worker, "run_storage_usage_snapshot_once", run_mock):
         await worker.start_storage_usage_worker()
-        # Let the loop run its first immediate cycle before it sleeps.
-        await asyncio.sleep(0)
-        await asyncio.sleep(0)
+        try:
+            assert worker._storage_usage_worker_task is not None
+            # Block until the worker's first cycle actually runs (with a timeout).
+            await asyncio.wait_for(ran.wait(), timeout=5)
+            run_mock.assert_awaited()  # ran at least one cycle
+        finally:
+            await worker.stop_storage_usage_worker()
 
-        assert worker._storage_usage_worker_task is not None
-        run_mock.assert_awaited()  # ran at least one cycle
-
-        await worker.stop_storage_usage_worker()
         assert worker._storage_usage_worker_task is None
