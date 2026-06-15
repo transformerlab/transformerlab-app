@@ -83,7 +83,7 @@ The most important caveat is also the cleanest result, so we measured exactly wh
 
 That is not a bug, it is the thesis turned around. Those cards have very fast native bf16 (about 216 TFLOPS on the A100, 587 to 610 on the B200), so the bf16 matmul they run is already extremely fast and the integer path has nothing to win back. The kernel is a win on consumer Ampere precisely _because_ consumer Ampere has no fast native low-precision alternative.
 
-So the deployment rule is simple: use the fused INT8 kernel when, and only when, the target lacks a fast native low-precision matmul, which is the consumer-Ampere case. On datacenter or Blackwell hardware, run the native bf16/FP8 path. Quality is unaffected either way; on the A100 the fused and fake-quant builds score within a hair of each other (PickScore 17.49 vs 17.54).
+So the deployment rule is simple: use the fused INT8 kernel when, and only when, the target lacks a fast native low-precision matmul, which is the consumer-Ampere case. On datacenter or Blackwell hardware, run the native bf16/FP8 path. Quality is unaffected either way; on the A100 the fused and fake-quant builds score within a hair of each other (PickScore 17.49 vs 17.54 on the 4-prompt subset).
 
 ## What we are claiming, and what we are not
 
