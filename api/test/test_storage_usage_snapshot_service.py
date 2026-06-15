@@ -11,10 +11,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from transformerlab.db.storage_usage import upsert_daily_snapshot
+from transformerlab.db.storage_usage import get_latest_snapshots_per_team, upsert_daily_snapshot
 from transformerlab.services import storage_usage_snapshot_service as snap
 from transformerlab.services.storage_usage_service import StorageUsageReport, TeamStorageUsage
-from transformerlab.shared.models.models import Base, StorageUsageSnapshot
+from transformerlab.shared.models.models import Base, StorageUsageSnapshot, Team
 
 
 async def _make_session_factory():
@@ -138,6 +138,52 @@ async def test_snapshot_rerun_same_day_does_not_duplicate():
 
             rows = await _all_snapshots(session)
             assert len(rows) == 1  # second run updated, did not append
+    finally:
+        await engine.dispose()
+
+
+# ==================== get_latest_snapshots_per_team ====================
+
+
+async def test_latest_snapshots_picks_newest_per_team_and_orders_by_size():
+    engine, Session = await _make_session_factory()
+    try:
+        async with Session() as session:
+            session.add_all(
+                [
+                    Team(id="t1", name="Team One"),
+                    Team(id="t2", name="Team Two"),
+                    Team(id="t3", name="Team Three (no snapshots)"),
+                ]
+            )
+            await session.commit()
+
+            day1 = datetime(2026, 6, 10, 8, 0, 0)
+            day2 = datetime(2026, 6, 11, 8, 0, 0)
+            # t1: two days of history — newest (day2) should win.
+            await upsert_daily_snapshot(
+                session, team_id="t1", total_bytes=100, has_data=True, as_of=None, captured_at=day1
+            )
+            await upsert_daily_snapshot(
+                session, team_id="t1", total_bytes=5000, has_data=True, as_of=None, captured_at=day2
+            )
+            # t2: single snapshot.
+            await upsert_daily_snapshot(
+                session, team_id="t2", total_bytes=2000, has_data=True, as_of=None, captured_at=day2
+            )
+            await session.commit()
+
+            rows = await get_latest_snapshots_per_team(session)
+            by_id = {r.team_id: r for r in rows}
+
+            # Latest value for t1 (not the older 100), every team present incl. the one with no data.
+            assert by_id["t1"].total_bytes == 5000
+            assert by_id["t2"].total_bytes == 2000
+            assert by_id["t3"].total_bytes is None  # no snapshot yet
+            assert by_id["t3"].team_name == "Team Three (no snapshots)"
+
+            # Ordered by size desc; the no-data team sorts last.
+            assert [r.team_id for r in rows] == ["t1", "t2", "t3"]
     finally:
         await engine.dispose()
 
