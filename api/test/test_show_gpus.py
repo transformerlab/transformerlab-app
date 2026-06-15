@@ -10,6 +10,8 @@ never raise — failures degrade to the catalog (or an empty list).
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from transformerlab.compute_providers.base import gpu_catalog_from_map_keys
 from transformerlab.compute_providers.models import GpuInfo
 from transformerlab.compute_providers.aws import AWSProvider, _GPU_INSTANCE_MAP
@@ -21,7 +23,19 @@ from transformerlab.compute_providers.runpod import RunpodProvider, _RUNPOD_GPU_
 from transformerlab.compute_providers.lambda_labs import LambdaProvider, _GPU_INSTANCE_TYPE_MAP
 from transformerlab.compute_providers.vastai import VastAIProvider
 from transformerlab.compute_providers.slurm import SLURMProvider
-from transformerlab.compute_providers.skypilot import SkyPilotProvider
+
+# SkyPilot is an optional dependency: skypilot.py raises ImportError at import time
+# when the `sky` SDK isn't installed (e.g. the build CI job). Guard the import so
+# the rest of this module still collects, and skip the SkyPilot-specific tests.
+try:
+    from transformerlab.compute_providers.skypilot import SkyPilotProvider
+
+    SKYPILOT_AVAILABLE = True
+except ImportError:
+    SkyPilotProvider = None  # type: ignore[assignment,misc]
+    SKYPILOT_AVAILABLE = False
+
+requires_skypilot = pytest.mark.skipif(not SKYPILOT_AVAILABLE, reason="sky SDK not installed")
 
 
 def _names(gpus):
@@ -210,6 +224,7 @@ def test_slurm_show_gpus_empty_on_error():
 # ---------------------------------------------------------------------------
 
 
+@requires_skypilot
 def test_skypilot_show_gpus_parses_accelerator_dict():
     info_a100 = SimpleNamespace(accelerator_name="A100", accelerator_count=8)
     info_a100_small = SimpleNamespace(accelerator_name="A100", accelerator_count=1)
@@ -225,6 +240,7 @@ def test_skypilot_show_gpus_parses_accelerator_dict():
     assert _by_name(gpus) == {"A100": 8, "H100": 4}
 
 
+@requires_skypilot
 def test_skypilot_show_gpus_empty_on_error():
     stub = SimpleNamespace(
         _server_common=SimpleNamespace(get_request_id=lambda resp: "rid"),
