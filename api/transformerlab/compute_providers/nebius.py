@@ -22,8 +22,8 @@ from transformerlab.services.nebius_cli_resolve import nebius_cli_argv_prefix, n
 from transformerlab.services.ssh_key_service import get_org_ssh_private_key
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
-from .base import ComputeProvider, format_status_snapshot
-from .models import ClusterConfig, ClusterState, ClusterStatus, JobConfig, JobInfo, ResourceInfo
+from .base import ComputeProvider, format_status_snapshot, gpu_catalog_from_map_keys
+from .models import ClusterConfig, ClusterState, ClusterStatus, GpuInfo, JobConfig, JobInfo, ResourceInfo
 
 logger = logging.getLogger(__name__)
 
@@ -680,6 +680,14 @@ runcmd:
                 )
             )
         return statuses
+
+    def show_gpus(self) -> List[GpuInfo]:
+        """Return the catalog of GPU platform presets Nebius can launch.
+
+        Derived from the static GPU platform/preset map; Nebius availability is
+        not queried live here.
+        """
+        return gpu_catalog_from_map_keys(_GPU_PLATFORM_PRESET_MAP.keys())
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         instance = self._find_instance_by_cluster_name(cluster_name)

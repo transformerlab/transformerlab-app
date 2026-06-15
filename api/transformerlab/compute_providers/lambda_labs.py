@@ -19,11 +19,12 @@ import requests
 
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
-from .base import ComputeProvider
+from .base import ComputeProvider, gpu_catalog_from_map_keys
 from .models import (
     ClusterConfig,
     ClusterState,
     ClusterStatus,
+    GpuInfo,
     JobConfig,
     JobInfo,
     ResourceInfo,
@@ -653,6 +654,41 @@ exit $?
                 )
             )
         return result
+
+    def show_gpus(self) -> List[GpuInfo]:
+        """List GPUs available on Lambda Cloud.
+
+        Queries ``GET /instance-types`` and reports the GPU types that currently
+        have regional capacity, mapping each available instance type back to its
+        ``(gpu_type, count)`` via _GPU_INSTANCE_TYPE_MAP. Falls back to the full
+        launch catalog when the live query fails or reports no capacity anywhere.
+        """
+        # instance_type_name -> (gpu_type, count), keeping the largest count when
+        # a name appears for multiple specs (it won't, but be defensive).
+        reverse_map: Dict[str, tuple] = {name: key for key, name in _GPU_INSTANCE_TYPE_MAP.items()}
+
+        try:
+            types = self._unwrap(self._make_request("GET", "/instance-types").json()) or {}
+            available: Dict[str, int] = {}
+            if isinstance(types, dict):
+                for name, entry in types.items():
+                    if not isinstance(entry, dict):
+                        continue
+                    regions = entry.get("regions_with_capacity_available") or []
+                    if not regions:
+                        continue
+                    spec = reverse_map.get(name)
+                    if not spec:
+                        continue
+                    gpu_type, count = spec
+                    available[gpu_type] = max(available.get(gpu_type, 0), int(count))
+            if available:
+                return [GpuInfo(gpu=gpu, count=count) for gpu, count in sorted(available.items())]
+        except Exception as exc:  # pragma: no cover - network failures
+            logger.warning("Lambda show_gpus live query failed, using catalog: %s", exc)
+
+        # Fallback: full catalog of launchable GPU types.
+        return gpu_catalog_from_map_keys(_GPU_INSTANCE_TYPE_MAP.keys())
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         instance = self._find_instance_by_name(cluster_name)

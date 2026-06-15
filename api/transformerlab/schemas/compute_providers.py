@@ -3,7 +3,16 @@
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
+from transformerlab.compute_providers.models import GpuInfo
 from transformerlab.shared.models.models import ProviderType, AcceleratorType
+
+
+class ProviderGpus(BaseModel):
+    """GPUs available on a provider, as returned by GET /providers/{id}/gpus."""
+
+    provider_id: str
+    provider_type: str
+    gpus: List[GpuInfo] = Field(default_factory=list)
 
 
 class ProviderResourceGroup(BaseModel):

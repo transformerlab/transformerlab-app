@@ -12,6 +12,7 @@ from .models import (
     ClusterConfig,
     ClusterState,
     ClusterStatus,
+    GpuInfo,
     JobConfig,
     JobInfo,
     ResourceInfo,
@@ -308,6 +309,45 @@ class VastAIProvider(ComputeProvider):
         except Exception as exc:
             logger.warning("Error listing Vast.ai instances: %s", exc)
             return []
+
+    def show_gpus(self) -> List[GpuInfo]:
+        """List GPU types currently rentable on the Vast.ai marketplace.
+
+        Searches rentable on-demand offers and reports, per GPU model, the largest
+        GPU count available in a single offer. Returns an empty list when the
+        marketplace query fails or returns nothing (Vast has no static catalog).
+        """
+        query = {
+            "rentable": {"eq": True},
+            "num_gpus": {"gte": 1},
+            "type": "ondemand",
+            "order": [["dph_total", "asc"]],
+            "limit": 1000,
+        }
+        try:
+            response = self._make_request("POST", "/bundles/", json_data=query)
+            data = response.json()
+            offers = data.get("offers", []) if isinstance(data, dict) else data
+        except Exception as exc:
+            logger.warning("Vast.ai show_gpus query failed: %s", exc)
+            return []
+
+        max_count: Dict[str, int] = {}
+        for offer in offers or []:
+            if not isinstance(offer, dict):
+                continue
+            gpu_name = offer.get("gpu_name")
+            if not gpu_name:
+                continue
+            try:
+                num_gpus = int(offer.get("num_gpus") or 0)
+            except (TypeError, ValueError):
+                continue
+            if num_gpus <= 0:
+                continue
+            max_count[str(gpu_name)] = max(max_count.get(str(gpu_name), 0), num_gpus)
+
+        return [GpuInfo(gpu=name, count=count) for name, count in sorted(max_count.items())]
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         instance = self._find_instance_by_name(cluster_name)

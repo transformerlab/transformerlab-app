@@ -13,6 +13,7 @@ from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 from .base import ComputeProvider, format_status_snapshot
 from .models import (
     ClusterConfig,
+    GpuInfo,
     JobConfig,
     ClusterStatus,
     JobInfo,
@@ -24,6 +25,49 @@ from .models import (
 # Path inside the RunPod container where we tee stdout/stderr for provider log retrieval via SSH
 RUNPOD_RUN_LOGS_PATH = "/workspace/run_logs.txt"
 logger = logging.getLogger(__name__)
+
+# Common GPU-type abbreviation -> full Runpod GPU name. Shared by the launch path
+# (_map_gpu_type_to_runpod) and the show_gpus catalog fallback.
+_RUNPOD_GPU_NAME_MAP: Dict[str, str] = {
+    "RTX3090": "NVIDIA GeForce RTX 3090",
+    "RTX3080": "NVIDIA GeForce RTX 3080",
+    "RTX3070": "NVIDIA GeForce RTX 3070",
+    "RTX4090": "NVIDIA GeForce RTX 4090",
+    "RTX4080": "NVIDIA GeForce RTX 4080",
+    "RTX4070TI": "NVIDIA GeForce RTX 4070 Ti",
+    "RTX3080TI": "NVIDIA GeForce RTX 3080 Ti",
+    "RTX3090TI": "NVIDIA GeForce RTX 3090 Ti",
+    "RTX5080": "NVIDIA GeForce RTX 5080",
+    "RTX5090": "NVIDIA GeForce RTX 5090",
+    "A100": "NVIDIA A100-SXM4-80GB",  # Default to SXM4-80GB
+    "A100-80GB": "NVIDIA A100-SXM4-80GB",
+    "A100-PCIE": "NVIDIA A100 80GB PCIe",
+    "A40": "NVIDIA A40",
+    "A30": "NVIDIA A30",
+    "A5000": "NVIDIA RTX A5000",
+    "A4500": "NVIDIA RTX A4500",
+    "A4000": "NVIDIA RTX A4000",
+    "A6000": "NVIDIA RTX A6000",
+    "A2000": "NVIDIA RTX A2000",
+    "L40": "NVIDIA L40",
+    "L40S": "NVIDIA L40S",
+    "L4": "NVIDIA L4",
+    "H100": "NVIDIA H100 80GB HBM3",  # Default to 80GB HBM3
+    "H100-PCIE": "NVIDIA H100 PCIe",
+    "H100-NVL": "NVIDIA H100 NVL",
+    "H200": "NVIDIA H200",
+    "H200-NVL": "NVIDIA H200 NVL",
+    "B200": "NVIDIA B200",
+    "B300": "NVIDIA B300",
+    "V100": "Tesla V100-PCIE-16GB",  # Default to PCIE-16GB
+    "V100-16GB": "Tesla V100-PCIE-16GB",
+    "V100-32GB": "Tesla V100-PCIE-32GB",
+    "T4": "Tesla T4",
+    "RTX6000": "NVIDIA RTX 6000 Ada Generation",
+    "RTX5000": "NVIDIA RTX 5000 Ada Generation",
+    "RTX4000": "NVIDIA RTX 4000 Ada Generation",
+    "RTX2000": "NVIDIA RTX 2000 Ada Generation",
+}
 
 
 async def fetch_runpod_provider_logs(
@@ -248,51 +292,9 @@ class RunpodProvider(ComputeProvider):
         parts = accelerators.split(":")
         gpu_type = parts[0].strip()
 
-        # Common GPU type mappings (abbreviation -> full Runpod name)
-        gpu_mappings = {
-            "RTX3090": "NVIDIA GeForce RTX 3090",
-            "RTX3080": "NVIDIA GeForce RTX 3080",
-            "RTX3070": "NVIDIA GeForce RTX 3070",
-            "RTX4090": "NVIDIA GeForce RTX 4090",
-            "RTX4080": "NVIDIA GeForce RTX 4080",
-            "RTX4070TI": "NVIDIA GeForce RTX 4070 Ti",
-            "RTX3080TI": "NVIDIA GeForce RTX 3080 Ti",
-            "RTX3090TI": "NVIDIA GeForce RTX 3090 Ti",
-            "RTX5080": "NVIDIA GeForce RTX 5080",
-            "RTX5090": "NVIDIA GeForce RTX 5090",
-            "A100": "NVIDIA A100-SXM4-80GB",  # Default to SXM4-80GB
-            "A100-80GB": "NVIDIA A100-SXM4-80GB",
-            "A100-PCIE": "NVIDIA A100 80GB PCIe",
-            "A40": "NVIDIA A40",
-            "A30": "NVIDIA A30",
-            "A5000": "NVIDIA RTX A5000",
-            "A4500": "NVIDIA RTX A4500",
-            "A4000": "NVIDIA RTX A4000",
-            "A6000": "NVIDIA RTX A6000",
-            "A2000": "NVIDIA RTX A2000",
-            "L40": "NVIDIA L40",
-            "L40S": "NVIDIA L40S",
-            "L4": "NVIDIA L4",
-            "H100": "NVIDIA H100 80GB HBM3",  # Default to 80GB HBM3
-            "H100-PCIE": "NVIDIA H100 PCIe",
-            "H100-NVL": "NVIDIA H100 NVL",
-            "H200": "NVIDIA H200",
-            "H200-NVL": "NVIDIA H200 NVL",
-            "B200": "NVIDIA B200",
-            "B300": "NVIDIA B300",
-            "V100": "Tesla V100-PCIE-16GB",  # Default to PCIE-16GB
-            "V100-16GB": "Tesla V100-PCIE-16GB",
-            "V100-32GB": "Tesla V100-PCIE-32GB",
-            "T4": "Tesla T4",
-            "RTX6000": "NVIDIA RTX 6000 Ada Generation",
-            "RTX5000": "NVIDIA RTX 5000 Ada Generation",
-            "RTX4000": "NVIDIA RTX 4000 Ada Generation",
-            "RTX2000": "NVIDIA RTX 2000 Ada Generation",
-        }
-
-        # Check if we have a direct mapping
-        if gpu_type.upper() in gpu_mappings:
-            gpu_type = gpu_mappings[gpu_type.upper()]
+        # Check if we have a direct mapping (abbreviation -> full Runpod name)
+        if gpu_type.upper() in _RUNPOD_GPU_NAME_MAP:
+            gpu_type = _RUNPOD_GPU_NAME_MAP[gpu_type.upper()]
 
         # Try to get GPU types from Runpod API
         try:
@@ -648,6 +650,41 @@ class RunpodProvider(ComputeProvider):
         except Exception as e:
             print(f"Error listing pods: {e}")
             return []
+
+    def show_gpus(self) -> List[GpuInfo]:
+        """List GPU types Runpod offers.
+
+        Tries the live ``GET /gpu-types`` endpoint first; on any failure (the
+        REST API does not always expose it) falls back to the static catalog of
+        common GPU abbreviations. ``count`` reflects the max GPUs per pod when the
+        live API reports it, otherwise 1 (the type is offered).
+        """
+        # Live attempt.
+        try:
+            response = self._make_request("GET", "/gpu-types")
+            gpu_types = response.json()
+            if isinstance(gpu_types, dict):
+                gpu_types = gpu_types.get("data", [])
+            live: Dict[str, int] = {}
+            if isinstance(gpu_types, list):
+                for gt in gpu_types:
+                    if not isinstance(gt, dict):
+                        continue
+                    name = gt.get("displayName") or gt.get("name") or gt.get("id")
+                    if not name:
+                        continue
+                    try:
+                        count = int(gt.get("maxGpuCount") or 1)
+                    except (TypeError, ValueError):
+                        count = 1
+                    live[str(name)] = max(live.get(str(name), 0), count)
+            if live:
+                return [GpuInfo(gpu=name, count=count) for name, count in sorted(live.items())]
+        except Exception as exc:
+            logger.warning("Runpod show_gpus live query failed, using catalog: %s", exc)
+
+        # Catalog fallback: the GPU abbreviations we know how to launch.
+        return [GpuInfo(gpu=name, count=1) for name in sorted(_RUNPOD_GPU_NAME_MAP.keys())]
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         """Get pod resource information."""
