@@ -8,11 +8,11 @@ date: 2026-06-12
 
 _A custom fused INT8 GEMM that turns our Ideogram 4.0 INT8 build from the slowest variant into the fastest on consumer Ampere, and makes 1024px single-GPU._
 
-> **Quick summary:** A few weeks ago we shipped an INT8 build of Ideogram 4.0 that matched FP8 on quality but was, embarrassingly, the _slowest_ of the three variants on a 3090. The reason was that the "INT8" path never actually used the GPU's INT8 hardware. We wrote one fused kernel that fixes that. INT8 goes from slowest to fastest, and a 1024px image now generates on a single RTX 3090.
+> **Quick summary:** Last week we shipped an INT8 build of Ideogram 4.0 that matched FP8 on quality but was, embarrassingly, the _slowest_ of the three variants on a 3090. The reason was that the "INT8" path never actually used the GPU's INT8 hardware. We wrote one fused kernel that fixes that. INT8 goes from slowest to fastest, and a 1024px image now generates on a single RTX 3090.
 
 <!--truncate-->
 
-A few weeks ago we [quantized Ideogram 4.0 onto a 3090](/blog/quantizing-ideogram-4). The INT8 build held the FP8 quality ceiling and beat NF4, which is exactly what you want from a quantization. There was one embarrassing problem: it was the _slowest_ of the three on a pair of RTX 3090s, 184 to 185 seconds per image against FP8's 172.9 and NF4's 164.5. The quality was right and the speed was wrong, which is a strange place to land for a method whose whole job is to make things faster.
+Last week we [quantized Ideogram 4.0 onto a 3090](/blog/quantizing-ideogram-4). The INT8 build held the FP8 quality ceiling and beat NF4, which is exactly what you want from a quantization. There was one embarrassing problem: it was the _slowest_ of the three on a pair of RTX 3090s, 184 to 185 seconds per image against FP8's 172.9 and NF4's 164.5. The quality was right and the speed was wrong, which is a strange place to land for a method whose whole job is to make things faster.
 
 This post is about why that happened and how we fixed it. The short version: the "INT8" path was never running on the GPU's INT8 hardware. We wrote one fused Triton kernel that keeps the multiply on the integer tensor cores where it belongs. On a single RTX 3090 that turns INT8 from the slowest variant into the fastest, **156.5 s/image at 1024px**, ahead of both NF4 and FP8, and it fits on one card instead of two.
 
