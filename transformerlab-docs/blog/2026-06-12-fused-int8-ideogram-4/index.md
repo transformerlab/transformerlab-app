@@ -92,3 +92,9 @@ The primary criterion was to beat FP8, and we do, by about 9.5% (16 s) on one ca
 Two honest gaps. We did not re-measure the text-rendering OCR metric for the fused build; it is the most quantization-fragile number and it is carried over from the recipe. And our unfused baseline is the standard `torch._int_mm` two-step path, not a tuned vendor INT8 GEMM (cuBLASLt or CUTLASS); beating a tuned library kernel is left for later.
 
 The whole study cost about 3 RTX 3090-hours of compute. The full writeup, including the per-shape microbenchmarks, the roofline analysis, and the hardware-specificity tables, is in the paper _Realizing Native INT8 Compute for Diffusion Transformers on Consumer GPUs_. The fused INT8 build is available as a gated, research-only checkpoint under the Ideogram 4.0 non-commercial license.
+
+## Links
+
+- Full paper on arXiv: [arxiv.org/abs/2606.14598](https://arxiv.org/abs/2606.14598)
+- Fused INT8 model (gated, Hugging Face): [huggingface.co/transformerlab/ideogram-4-int8-fused](https://huggingface.co/transformerlab/ideogram-4-int8-fused)
+- Prior work (last week's quantization study): [lab.cloud/blog/quantizing-ideogram-4](https://lab.cloud/blog/quantizing-ideogram-4/) · [arxiv.org/abs/2606.12280](https://arxiv.org/abs/2606.12280)
