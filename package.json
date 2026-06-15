@@ -105,7 +105,7 @@
     "css-minimizer-webpack-plugin": "^8.0.0",
     "detect-port": "^2.1.0",
     "dotenv-cli": "^11.0.0",
-    "esbuild-loader": "^4.4.3",
+    "esbuild-loader": "^4.5.0",
     "file-loader": "^6.2.0",
     "html-webpack-plugin": "^5.6.7",
     "mini-css-extract-plugin": "^2.10.2",
