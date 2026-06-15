@@ -1,0 +1,122 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  padding: 1.25rem 1.25rem 1rem;
+  margin: 2rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.panels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  justify-content: center;
+}
+
+.panel {
+  flex: 1 1 280px;
+  min-width: 260px;
+  max-width: 420px;
+}
+
+.panelHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.1rem;
+}
+
+.panelTitle {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.stepCounter {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 0.6rem;
+  min-height: 2.2em;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  border: 1.5px solid transparent;
+  transition:
+    background-color 220ms ease,
+    transform 220ms ease,
+    border-color 220ms ease;
+}
+
+.masked {
+  background: var(--ifm-color-emphasis-200);
+  border: 1.5px dashed var(--ifm-color-emphasis-400);
+  color: transparent;
+}
+
+.justCommitted {
+  transform: scale(1.12);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.1rem;
+  flex-wrap: wrap;
+}
+
+.button {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--ifm-color-primary);
+  background: transparent;
+  color: var(--ifm-color-primary);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.button:hover {
+  background: var(--ifm-color-primary);
+  color: #fff;
+}
+
+.caption {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-left: auto;
+  text-align: right;
+  max-width: 60%;
+}
+
+@media (max-width: 600px) {
+  .caption {
+    margin-left: 0;
+    max-width: 100%;
+    text-align: left;
+  }
+}
