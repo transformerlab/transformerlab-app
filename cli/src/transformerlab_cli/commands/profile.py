@@ -31,7 +31,10 @@ def _read_other(name: str, format_type: str) -> dict:
     A corrupt/unreadable file fails cleanly (matching the json-mode error contract) rather
     than raising an uncaught traceback the way a bare json.loads would.
     """
-    path = profile_util.config_path(name)
+    try:
+        path = profile_util.config_path(name)
+    except ValueError as e:
+        _fail(str(e), format_type)
     if not os.path.exists(path):
         return {}
     try:

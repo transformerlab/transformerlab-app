@@ -146,6 +146,3 @@ def fetch_user_teams(api_key: str) -> dict | None:
     except httpx.HTTPStatusError as e:
         console.print(f"[error]Error:[/error] Server returned status {e.response.status_code}")
         return None
-
-
-api_key = get_api_key()

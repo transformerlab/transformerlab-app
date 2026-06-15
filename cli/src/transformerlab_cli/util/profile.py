@@ -104,15 +104,11 @@ def delete_profile(name: str) -> None:
 def init_profile(name: str) -> None:
     """Bind this process to ``name`` and reset cached path-derived state.
 
-    Called once from the root callback before any command body runs. Lazy imports
-    avoid an import cycle (config/auth import profile, not the reverse).
+    Called once from the root callback before any command body runs. The lazy import
+    avoids an import cycle (config imports profile, not the reverse).
     """
     set_active(name)
 
     import transformerlab_cli.util.config as config_mod
 
     config_mod.cached_config = None
-
-    import transformerlab_cli.util.auth as auth_mod
-
-    auth_mod.api_key = auth_mod.get_api_key()
