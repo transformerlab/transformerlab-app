@@ -25,3 +25,16 @@ def utc_now_naive() -> datetime:
     value is tz-naive but represents UTC.
     """
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def to_utc_naive(value: datetime) -> datetime:
+    """Convert a datetime to naive UTC for storage in a ``DateTime`` column.
+
+    Use when persisting an externally-sourced datetime (e.g. a timestamp from an
+    AWS API) into a naive ``DateTime`` column. Aware datetimes are converted to
+    UTC and stripped of tzinfo; naive datetimes are assumed to already represent
+    UTC and returned unchanged.
+    """
+    if value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
