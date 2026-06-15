@@ -360,69 +360,170 @@ class AzureProvider(ComputeProvider):
 
     @staticmethod
     def _build_user_data(config: ClusterConfig) -> str:
+        """Build the VM's cloud-init user-data.
+
+        The actual job (bootstrap + GPU-driver wait + setup + workload + self-terminate)
+        runs from a systemd service (``/opt/tfl/run-job.sh``), NOT inline in this boot
+        script. That makes it resilient to the reboot the NvidiaGpuDriverLinux extension
+        performs mid driver-install: a run-once cloud-init script is killed by that reboot
+        (and self-deleted via its EXIT trap) before the workload ever runs, whereas an
+        enabled systemd service simply re-runs on the next boot, picking up once the driver
+        is present.
+        """
+        import base64
+
         env_exports = "\n".join(f'export {k}="{v}"' for k, v in config.env_vars.items())
         setup_block = config.setup or ""
         run_cmd = config.run or "true"
-        return f"""#!/bin/bash
-set -eo pipefail
-mkdir -p /workspace
 
-# Self-terminate on EXIT (success or crash) using Azure IMDS + ARM.
-_tfl_self_terminate() {{
+        # Wait for the NVIDIA driver before the GPU workload. It is installed
+        # asynchronously by the NvidiaGpuDriverLinux extension (see
+        # _ensure_gpu_driver_extension), which reboots the VM mid-install; because the job
+        # runner is a systemd service this loop just returns once the driver is present.
+        gpu_wait_block = ""
+        if config.accelerators:
+            gpu_wait_block = (
+                'echo "[tfl] waiting for NVIDIA GPU driver (installed via VM extension)..."\n'
+                "for _tfl_i in $(seq 1 80); do\n"
+                "  if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then\n"
+                '    echo "[tfl] NVIDIA driver ready"; nvidia-smi || true; break\n'
+                "  fi\n"
+                "  sleep 15\n"
+                "done\n"
+                "if ! nvidia-smi >/dev/null 2>&1; then\n"
+                '  echo "[tfl] WARNING: NVIDIA driver not available after wait; GPU workload may fail" >&2\n'
+                "fi"
+            )
+
+        # The reboot-resilient job runner. systemd runs it on every boot until the workload
+        # completes (guarded by /workspace/.tfl_done). Self-terminate is called ONLY after
+        # the workload returns — never from a signal/EXIT trap — so a driver-install reboot
+        # that interrupts the runner defers cleanly to the next boot instead of deleting the
+        # VM mid-flight (the failure mode of the original inline boot script).
+        run_job_script = r"""#!/bin/bash
+set -o pipefail
+
+_tfl_self_terminate() {
   local _token_json _token _sub _rg _name _http _resp _delete_url
   echo "[tfl] self-terminate: requesting managed identity token" >> /workspace/run_logs.txt 2>&1 || true
-  _token_json=$(curl -s -H "Metadata: true" \
-    "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.azure.com%2F" \
-    2>/dev/null) || true
+  _token_json=$(curl -s -H "Metadata: true" "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.azure.com%2F" 2>/dev/null) || true
   _token=$(printf "%s" "$_token_json" | python3.11 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))' 2>/dev/null) || true
-  _sub=$(curl -s -H "Metadata: true" \
-    "http://169.254.169.254/metadata/instance/compute/subscriptionId?api-version=2021-02-01&format=text" \
-    2>/dev/null) || true
-  _rg=$(curl -s -H "Metadata: true" \
-    "http://169.254.169.254/metadata/instance/compute/resourceGroupName?api-version=2021-02-01&format=text" \
-    2>/dev/null) || true
-  _name=$(curl -s -H "Metadata: true" \
-    "http://169.254.169.254/metadata/instance/compute/name?api-version=2021-02-01&format=text" \
-    2>/dev/null) || true
+  _sub=$(curl -s -H "Metadata: true" "http://169.254.169.254/metadata/instance/compute/subscriptionId?api-version=2021-02-01&format=text" 2>/dev/null) || true
+  _rg=$(curl -s -H "Metadata: true" "http://169.254.169.254/metadata/instance/compute/resourceGroupName?api-version=2021-02-01&format=text" 2>/dev/null) || true
+  _name=$(curl -s -H "Metadata: true" "http://169.254.169.254/metadata/instance/compute/name?api-version=2021-02-01&format=text" 2>/dev/null) || true
   if [ -n "$_token" ] && [ -n "$_sub" ] && [ -n "$_rg" ] && [ -n "$_name" ]; then
     _delete_url="https://management.azure.com/subscriptions/$_sub/resourceGroups/$_rg/providers/Microsoft.Compute/virtualMachines/$_name?api-version=2022-11-01"
-    _http=$(curl -s -o /tmp/tfl_self_terminate_resp.txt -w "%{{http_code}}" -X DELETE \
-      -H "Authorization: Bearer $_token" \
-      "$_delete_url") || true
+    _http=$(curl -s -o /tmp/tfl_self_terminate_resp.txt -w "%{http_code}" -X DELETE -H "Authorization: Bearer $_token" "$_delete_url") || true
     _resp=$(tr '\n' ' ' < /tmp/tfl_self_terminate_resp.txt | cut -c1-600) || true
     echo "[tfl] self-terminate: vm delete requested (http=$_http) body=$_resp" >> /workspace/run_logs.txt 2>&1 || true
   else
     echo "[tfl] self-terminate: missing token/metadata; skipping delete" >> /workspace/run_logs.txt 2>&1 || true
   fi
   return 0
-}}
-trap _tfl_self_terminate EXIT
+}
 
-# Ensure Python tooling is available and use an isolated runtime for setup/run.
-apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq software-properties-common >/dev/null 2>&1
-if ! command -v python3.11 >/dev/null 2>&1; then
-  add-apt-repository -y ppa:deadsnakes/ppa >/dev/null 2>&1 || true
-  apt-get update -qq
+mkdir -p /workspace
+
+# Already finished on a previous boot? Make sure the VM is gone, then stop.
+if [ -f /workspace/.tfl_done ]; then
+  _tfl_self_terminate
+  exit 0
 fi
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3.11 python3.11-venv python3.11-distutils curl >/dev/null 2>&1
-curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
-python3.11 /tmp/get-pip.py >/dev/null 2>&1
-python3.11 -m venv /opt/transformerlab-venv
+
+# Mirror all runner output to run_logs.txt (shown in the UI) and journald.
+exec > >(tee -a /workspace/run_logs.txt) 2>&1
+
+# Bootstrap python tooling. We need to deal with a few things:
+# (a) apt-lock contention with boot-time apt users (unattended-upgrades, NVIDIA driver)
+# (b) a driver-install reboot that interrupted a previous boot's apt mid-transaction, 
+#     which leaves dpkg half-configured and makes a plain `apt-get install` fail. 
+# So we repair dpkg, wait for the lock, and retry.
+# Errors are NOT silenced (they land in run_logs.txt); the runner re-runs next boot anyway.
+export DEBIAN_FRONTEND=noninteractive
+_tfl_apt="apt-get -o DPkg::Lock::Timeout=600 -y -qq"
+for _tfl_try in 1 2 3; do
+  command -v python3.11 >/dev/null 2>&1 && break
+  echo "[tfl] bootstrapping python3.11 (attempt $_tfl_try)"
+  dpkg --configure -a || true
+  $_tfl_apt install -f || true
+  $_tfl_apt update || true
+  $_tfl_apt install software-properties-common curl || true
+  if ! command -v python3.11 >/dev/null 2>&1; then
+    add-apt-repository -y ppa:deadsnakes/ppa || true
+    $_tfl_apt update || true
+    $_tfl_apt install python3.11 python3.11-venv python3.11-distutils || true
+  fi
+done
+if ! command -v python3.11 >/dev/null 2>&1; then
+  echo "[tfl] ERROR: python3.11 unavailable after bootstrap; the workload will fail" >&2
+fi
+if [ ! -x /opt/transformerlab-venv/bin/python ] && command -v python3.11 >/dev/null 2>&1; then
+  curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+  python3.11 /tmp/get-pip.py || true
+  python3.11 -m venv /opt/transformerlab-venv
+fi
+# Activate the venv so BOTH `pip` and `uv pip` target it (uv keys off VIRTUAL_ENV, not PATH).
+export VIRTUAL_ENV=/opt/transformerlab-venv
 export PATH="/opt/transformerlab-venv/bin:$PATH"
 
-# Install uv for setup scripts that use `uv pip ...`.
 curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:/root/.local/bin:/home/azureuser/.local/bin:$PATH"
-
-# Make uv available even when later commands run as a different user.
 if [ -x /root/.local/bin/uv ]; then cp /root/.local/bin/uv /usr/local/bin/uv && chmod +x /usr/local/bin/uv; fi
 if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx && chmod +x /usr/local/bin/uvx; fi
 
-{env_exports}
-{setup_block}
-({run_cmd}) 2>&1 | tee /workspace/run_logs.txt
+__TFL_ENV__
+__TFL_GPU_WAIT__
+__TFL_SETUP__
+
+# Run the workload; capture rc so we still self-terminate on failure (not just success).
+set +e
+(__TFL_RUN__)
+_tfl_rc=$?
+set -o pipefail
+echo "[tfl] workload exited rc=$_tfl_rc"
+
+# Mark done before deleting so a reboot in the delete window won't re-run the job.
+touch /workspace/.tfl_done
+_tfl_self_terminate
+exit $_tfl_rc
 """
+        run_job_script = (
+            run_job_script.replace("__TFL_ENV__", env_exports)
+            .replace("__TFL_GPU_WAIT__", gpu_wait_block)
+            .replace("__TFL_SETUP__", setup_block)
+            .replace("__TFL_RUN__", run_cmd)
+        )
+
+        unit_file = (
+            "[Unit]\n"
+            "Description=Transformer Lab job runner\n"
+            "After=network-online.target\n"
+            "Wants=network-online.target\n\n"
+            "[Service]\n"
+            "Type=oneshot\n"
+            "ExecStart=/bin/bash /opt/tfl/run-job.sh\n"
+            "TimeoutStartSec=0\n\n"
+            "[Install]\n"
+            "WantedBy=multi-user.target\n"
+        )
+
+        run_b64 = base64.b64encode(run_job_script.encode()).decode()
+        unit_b64 = base64.b64encode(unit_file.encode()).decode()
+
+        # Tiny cloud-init phase: write the runner + unit and start it, then exit. No
+        # workload and no self-terminate trap here — the slow, reboot-prone work all lives
+        # in the systemd runner above.
+        return (
+            "#!/bin/bash\n"
+            "set -eo pipefail\n"
+            "mkdir -p /opt/tfl /workspace\n"
+            f"printf '%s' '{run_b64}' | base64 -d > /opt/tfl/run-job.sh\n"
+            "chmod +x /opt/tfl/run-job.sh\n"
+            f"printf '%s' '{unit_b64}' | base64 -d > /etc/systemd/system/tfl-run.service\n"
+            "systemctl daemon-reload\n"
+            "systemctl enable tfl-run.service\n"
+            "systemctl start --no-block tfl-run.service\n"
+        )
 
     def _get_vm_power_state(self, vm: Any) -> str:
         if vm.instance_view and vm.instance_view.statuses:
@@ -437,6 +538,30 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             return _AZURE_POWER_STATE_MAP[power_state]
         prov_state = (vm.provisioning_state or "").lower()
         return _AZURE_PROV_STATE_MAP.get(prov_state, ClusterState.UNKNOWN)
+
+    def _ensure_gpu_driver_extension(self, compute_client: Any, cluster_name: str) -> None:
+        """Install the NVIDIA driver on a freshly-created GPU VM.
+
+        Azure GPU VMs boot from a stock Ubuntu image with no driver, so without this the
+        CUDA runtime fails with "Found no NVIDIA driver on your system". We attach the
+        official Microsoft.HpcCompute NvidiaGpuDriverLinux extension, which installs the
+        driver on N-series VMs. The boot script (_build_user_data) waits for `nvidia-smi`
+        before running the GPU workload, so we do NOT block here on the multi-minute install.
+        """
+        from azure.mgmt.compute.models import VirtualMachineExtension
+
+        extension = VirtualMachineExtension(
+            location=self.location,
+            publisher="Microsoft.HpcCompute",
+            type_properties_type="NvidiaGpuDriverLinux",
+            type_handler_version="1.9",
+            auto_upgrade_minor_version=True,
+            settings={},
+        )
+        compute_client.virtual_machine_extensions.begin_create_or_update(
+            self.resource_group, cluster_name, "NvidiaGpuDriverLinux", extension
+        )
+        logger.info("Requested NVIDIA GPU driver extension for VM %s", cluster_name)
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         import base64
@@ -540,6 +665,11 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
                         self._ensure_vm_self_delete_role(vm)
                     except Exception as e:
                         logger.warning("Failed configuring VM self-delete RBAC: %s", e)
+                    if config.accelerators:
+                        try:
+                            self._ensure_gpu_driver_extension(compute_client, cluster_name)
+                        except Exception as e:
+                            logger.warning("Failed to install NVIDIA GPU driver extension: %s", e)
                     launch_succeeded = True
                     return {"vm_id": vm.id, "request_id": cluster_name}
                 except Exception as e:

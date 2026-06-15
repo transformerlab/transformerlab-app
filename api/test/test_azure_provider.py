@@ -1,5 +1,7 @@
 """Tests for the Azure compute provider."""
 
+import base64
+import re
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -318,28 +320,72 @@ class TestLaunchCluster:
 
 
 class TestBuildUserData:
-    def test_includes_run_command_and_setup(self):
+    # The job (bootstrap + GPU-driver wait + setup + workload + self-terminate) runs from a
+    # systemd service whose script is base64-embedded in the user-data, so it survives the
+    # reboot the NVIDIA driver extension performs. These helpers decode the embedded files.
+    @staticmethod
+    def _decode(user_data: str, dest_path: str) -> str:
+        m = re.search(
+            r"printf '%s' '([A-Za-z0-9+/=]+)' \| base64 -d > " + re.escape(dest_path),
+            user_data,
+        )
+        assert m, f"{dest_path} not embedded in user-data"
+        return base64.b64decode(m.group(1)).decode()
+
+    def _run_job(self, user_data: str) -> str:
+        return self._decode(user_data, "/opt/tfl/run-job.sh")
+
+    def _unit(self, user_data: str) -> str:
+        return self._decode(user_data, "/etc/systemd/system/tfl-run.service")
+
+    def test_cloud_init_installs_and_starts_systemd_runner(self):
+        script = AzureProvider._build_user_data(ClusterConfig())
+        # The cloud-init phase stays tiny: write the runner + unit, then enable/start it.
+        assert "set -eo pipefail" in script
+        assert "base64 -d > /opt/tfl/run-job.sh" in script
+        assert "base64 -d > /etc/systemd/system/tfl-run.service" in script
+        assert "systemctl daemon-reload" in script
+        assert "systemctl enable tfl-run.service" in script
+        assert "systemctl start --no-block tfl-run.service" in script
+
+    def test_runner_includes_run_command_and_setup(self):
         config = ClusterConfig(
             setup="echo setup",
             run="python train.py --epochs 1",
             env_vars={"FOO": "bar"},
         )
-        script = AzureProvider._build_user_data(config)
-        assert "set -eo pipefail" in script
-        assert "add-apt-repository -y ppa:deadsnakes/ppa" in script
-        assert "python3.11 -m venv /opt/transformerlab-venv" in script
-        assert "curl -LsSf https://astral.sh/uv/install.sh | sh" in script
-        assert "trap _tfl_self_terminate EXIT" in script
-        assert "metadata/identity/oauth2/token" in script
-        assert "providers/Microsoft.Compute/virtualMachines" in script
-        assert 'export FOO="bar"' in script
-        assert "echo setup" in script
-        assert "(python train.py --epochs 1) 2>&1 | tee /workspace/run_logs.txt" in script
-        assert "command -v python3.11" in script
+        runner = self._run_job(AzureProvider._build_user_data(config))
+        # bootstrap
+        assert "add-apt-repository -y ppa:deadsnakes/ppa" in runner
+        assert "python3.11 -m venv /opt/transformerlab-venv" in runner
+        assert "curl -LsSf https://astral.sh/uv/install.sh | sh" in runner
+        assert "command -v python3.11" in runner
+        # env + setup + workload
+        assert 'export FOO="bar"' in runner
+        assert "echo setup" in runner
+        assert "(python train.py --epochs 1)" in runner
+        # self-terminate is an explicit call after the workload completes, NOT an EXIT trap
+        # (the trap self-deleted the VM when a driver-install reboot killed the boot script).
+        assert "metadata/identity/oauth2/token" in runner
+        assert "providers/Microsoft.Compute/virtualMachines" in runner
+        assert "trap _tfl_self_terminate EXIT" not in runner
+        # reboot-resilience: completion marker guards against re-running after a reboot
+        assert "/workspace/.tfl_done" in runner
 
-    def test_defaults_run_command_to_true(self):
-        script = AzureProvider._build_user_data(ClusterConfig())
-        assert "(true) 2>&1 | tee /workspace/run_logs.txt" in script
+    def test_runner_defaults_run_command_to_true(self):
+        runner = self._run_job(AzureProvider._build_user_data(ClusterConfig()))
+        assert "(true)" in runner
+
+    def test_systemd_unit_runs_on_every_boot(self):
+        unit = self._unit(AzureProvider._build_user_data(ClusterConfig()))
+        assert "ExecStart=/bin/bash /opt/tfl/run-job.sh" in unit
+        assert "WantedBy=multi-user.target" in unit
+
+    def test_gpu_job_waits_for_driver_but_cpu_does_not(self):
+        gpu = self._run_job(AzureProvider._build_user_data(ClusterConfig(accelerators="A100:1")))
+        cpu = self._run_job(AzureProvider._build_user_data(ClusterConfig()))
+        assert "waiting for NVIDIA GPU driver" in gpu
+        assert "waiting for NVIDIA GPU driver" not in cpu
 
 
 class TestStopCluster:
