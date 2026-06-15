@@ -399,7 +399,7 @@ class AzureProvider(ComputeProvider):
         # completes (guarded by /workspace/.tfl_done). Self-terminate is called ONLY after
         # the workload returns — never from a signal/EXIT trap — so a driver-install reboot
         # that interrupts the runner defers cleanly to the next boot instead of deleting the
-        # VM mid-flight (the failure mode of the previous inline boot script).
+        # VM mid-flight (the failure mode of the original inline boot script).
         run_job_script = r"""#!/bin/bash
 set -o pipefail
 
@@ -433,10 +433,11 @@ fi
 # Mirror all runner output to run_logs.txt (shown in the UI) and journald.
 exec > >(tee -a /workspace/run_logs.txt) 2>&1
 
-# Bootstrap python tooling. Must survive (a) apt-lock contention with boot-time apt users
-# (unattended-upgrades, the NVIDIA driver extension) and (b) a driver-install reboot that
-# interrupted a previous boot's apt mid-transaction, which leaves dpkg half-configured and
-# makes a plain `apt-get install` fail. So we repair dpkg, wait for the lock, and retry.
+# Bootstrap python tooling. We need to deal with a few things:
+# (a) apt-lock contention with boot-time apt users (unattended-upgrades, NVIDIA driver)
+# (b) a driver-install reboot that interrupted a previous boot's apt mid-transaction, 
+#     which leaves dpkg half-configured and makes a plain `apt-get install` fail. 
+# So we repair dpkg, wait for the lock, and retry.
 # Errors are NOT silenced (they land in run_logs.txt); the runner re-runs next boot anyway.
 export DEBIAN_FRONTEND=noninteractive
 _tfl_apt="apt-get -o DPkg::Lock::Timeout=600 -y -qq"
