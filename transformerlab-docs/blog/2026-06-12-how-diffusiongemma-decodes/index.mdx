@@ -6,19 +6,23 @@ tags: [ml-research, interpretability, diffusion, language-models]
 date: 2026-06-12
 ---
 
+import DecodingAnimation from './DecodingAnimation';
+
 _An inference-only interpretability study of a shipped diffusion language model: we hooked its own commit mechanism and watched the order it finalizes tokens in._
 
-> **Quick summary:** Diffusion language models are sold as the parallel alternative to writing one token at a time. We instrumented Google's DiffusionGemma, without training or changing anything, to see the order it actually finalizes tokens in. It is neither cleanly parallel nor secretly left-to-right: it has a partial, granularity-dependent bias, commits in big batches, and behaves differently depending on what you ask it to write. Along the way our first headline turned out to be wrong, and the correction is the most useful thing here.
+> **Quick summary:** Our mental model of a diffusion language model assumes it fills text in parallel, all at once, independent of position. We instrumented Google's DiffusionGemma, without training or changing anything, to watch the order it actually finalizes tokens in. The surprise: it matches neither picture. It is not the clean parallel fill we assume, and it is not secretly left-to-right either — it has a partial, granularity-dependent bias, commits in big batches, and behaves differently depending on what you ask it to write. Separately, we found the model leans on an internal sense of confidence to finalize tokens early and stop generations ahead of its budget, and that confidence is a reliable signal of correctness in some domains (math) but not others (factual recall).
 
 <!--truncate-->
 
-Diffusion language models are usually sold as the parallel alternative to autoregressive decoding: instead of writing one token at a time, left to right, they denoise a whole canvas of masked tokens at once. That is the pitch, and it is where the latency story comes from. But the order a _shipped_ model actually finalizes tokens in is a property of the trained weights and the sampler, not a guarantee of the architecture. Nobody had measured it for a real released checkpoint.
+An autoregressive model writes one token at a time, left to right; our mental model of diffusion assumes the opposite — that it denoises a whole canvas of masked tokens at once, finalizing positions all over the output in parallel, in no particular order. That picture is the entire reason we expect a diffusion model to be faster. But the order a _shipped_ model actually finalizes tokens in is a property of its trained weights and sampler, not a promise of the architecture, and nobody had measured it on a real released checkpoint.
 
-So we did. We took Google's DiffusionGemma (`diffusiongemma-26B-A4B-it`, an open-weights masked-diffusion mixture-of-experts model built on Gemma 4) and instrumented its own commit mechanism, without training or changing anything, to record exactly which canvas positions it freezes on each step and how confident it was when it did.
+<DecodingAnimation />
 
-The answer is more interesting than either marketing extreme. DiffusionGemma is neither cleanly parallel nor secretly left-to-right. It has a **partial, granularity-dependent left-to-right bias**: moderate at the level of individual tokens, and looking more and more sequential the more you zoom out. It commits in big batches, it commits early and aggressively, and how it behaves depends on what you ask it to write. Structured JSON, notably, comes out close to order-independent.
+So which picture does a real diffusion model resemble? To find out we took Google's DiffusionGemma (`diffusiongemma-26B-A4B-it`, an open-weights masked-diffusion mixture-of-experts model built on Gemma 4) and instrumented its own commit mechanism — without training or changing anything — recording exactly which canvas positions it freezes on each step and how confident it was when it did.
 
-There is also a story here about being wrong in public. Our first read of this data said "block-autoregressive." A stronger run walked that back. We will tell that part straight, because the correction is the most useful thing in the study.
+The surprise is that it is neither picture. DiffusionGemma is not the clean random fill we assume on the right, and it is not secretly left-to-right either. It has a **partial, granularity-dependent left-to-right bias**: moderate at the level of individual tokens, and looking more and more sequential the more you zoom out. It commits in big batches, it commits early and aggressively, and how it behaves depends on what you ask it to write. Structured JSON, notably, comes out close to order-independent.
+
+There is also a story here about how the picture sharpened as we looked closer. A first read of this data suggested "block-autoregressive." A stronger run refined that into something more accurate, and we will walk through how, because the refinement is one of the most useful things in the study.
 
 ## How we measured it, without touching the model
 
@@ -34,15 +38,15 @@ Our main metric is a tie-aware Kendall rank correlation (`tau_b`) between a toke
 
 We ran six regimes: math (GSM8K), two code regimes (HumanEval and MBPP), short factual recall, open-ended instructions, and constrained JSON. We split each regime into an exploratory half (used to freeze every metric and threshold choice) and a confirmatory half (used only for the reported numbers), so the analysis choices could not be tuned on the numbers we report.
 
-## The part where we were wrong
+## Looking closer: it is not block-autoregressive
 
-An early two-seed run read the data as **block-autoregressive**: it looked like the model committed in left-to-right blocks of roughly 16 tokens, which is a clean, quotable story. It would have made a nice headline.
+An early two-seed run read the data as **block-autoregressive**: it looked like the model committed in left-to-right blocks of roughly 16 tokens, a clean and quotable story. It was worth a harder look before leaning on it.
 
-We didn't trust it enough to ship it, so we ran a strengthening pass: five seeds, 20 prompts per regime, 600 generations, with a prompt-clustered bootstrap (resample prompts, keep their seeds together) so the confidence intervals respect the cross-seed correlation within a prompt. And the strengthening run took the block-autoregressive headline apart.
+So we ran a strengthening pass: five seeds, 20 prompts per regime, 600 generations, with a prompt-clustered bootstrap (resample prompts, keep their seeds together) so the confidence intervals respect the cross-seed correlation within a prompt. At that resolution, the "block" dissolves into something more interesting.
 
 The "16-token block" was the tell. If 16 were the model's real architectural block, you would expect the order correlation to jump when you bin the analysis at 16. It doesn't. Sweeping the bin size from 4 to 64, the block-level `tau_b` rises _smoothly and monotonically_, with no jump anywhere near 16. For the math regime it goes 0.59, 0.64, 0.70, 0.79, 0.91 as the bin grows 4, 8, 16, 32, 64. Coarser bins look more sequential for the boring reason that they hide more within-bin disorder. 16 was an artifact of where _we_ drew the bin, not a fact about the model.
 
-That is the kind of finding that only shows up when you deliberately try to break your own result. The honest version of the claim is weaker and more accurate, and we would rather ship that.
+That is the kind of detail that only shows up when you push the measurement harder. The finer-grained claim is the more accurate one, and it is the one worth reporting.
 
 ## What it actually does
 
@@ -73,11 +77,11 @@ Structured JSON output (R6) breaks the pattern entirely. Its token-level `tau_b`
 
 ### Confidence predicts correctness on math, but not on facts
 
-We also asked whether the model's confidence when it locks in a token (low entropy at commit) tells you anything about whether that token is right. The answer is again regime-specific, and this is another place the strengthening run corrected an earlier read.
+Separately from the decoding-order question, we looked at something the model appears to have arrived at on its own: an internal sense of confidence. It commits a token once the entropy at that position drops low enough, and it leans on this signal to finalize aggressively and stop a generation well before its step budget is up (more on that below). The signal is real and the model clearly uses it. The question we wanted to answer is how good a tool it is — when the model is confident about a token, is that token actually right? The answer is regime-specific, and this is another place where the stronger run sharpened the picture.
 
 ![Within-regime reliability of commit confidence by entropy tertile. On GSM8K math, accuracy falls monotonically as commit entropy rises, with an AUROC of 0.749 whose clustered confidence interval excludes chance, so confidence predicts correctness. On factual recall the curve is flat, AUROC 0.471 with a confidence interval that includes 0.5, a null result.](./images/fig_calibration.png)
 
-On math (GSM8K), confidence is informative: the AUROC of low-entropy-predicts-correct is **0.749** (prompt-clustered 95% CI [0.602, 0.879], which excludes chance), and the reliability curve is monotone, with accuracy falling as commit entropy rises. On factual recall it is a clean null: **AUROC 0.471**, CI [0.383, 0.544], which straddles 0.5, with flat reliability tertiles. An earlier run had a strong factual signal; with five seeds it evaporated. It was small-sample noise.
+On math (GSM8K), confidence is informative: the AUROC of low-entropy-predicts-correct is **0.749** (prompt-clustered 95% CI [0.602, 0.879], which excludes chance), and the reliability curve is monotone, with accuracy falling as commit entropy rises. On factual recall it is a clean null: **AUROC 0.471**, CI [0.383, 0.544], which straddles 0.5, with flat reliability tertiles. With two seeds the factual signal looked strong; with five it settles to chance, so that early signal was small-sample noise.
 
 To be precise about what "no better than chance" means here: the model is actually ~91% accurate on facts. What is chance-level is whether its own confidence tells you _which_ answers it got wrong. On math, a confident commit really is more likely to be correct. On facts, the confidence carries no such signal.
 
@@ -98,7 +102,7 @@ A good chunk of this project was learning what _not_ to measure, and these are t
 - **Trailing EOS padding.** On the raw canvas the naive order metric gives `tau_b` around -0.9, which would look like dramatic right-to-left decoding. It is an artifact: trailing end-of-sequence padding gets committed first and dominates the correlation. Restricting to content positions removes it. Every number we report is content-only.
 - **Simpson's-paradox pooling**, described above: pool across regimes and the confidence-correctness signal flips sign.
 - **Commit non-monotonicity.** Because positions can re-mask, "commit order" is first-acceptance order. We re-ran the correlation on only the strictly monotone generations and got essentially the same numbers (e.g. math 0.579 vs 0.512), so the re-masking does not bias the conclusion, but it is a real model behavior worth studying on its own.
-- **Bin size is an analysis choice, not a model fact.** This is the one that produced our retracted headline. Report the sweep, not a single bin.
+- **Bin size is an analysis choice, not a model fact.** This is the one behind the early block-autoregressive read. Report the sweep, not a single bin.
 
 ## What we are claiming
 
@@ -106,7 +110,7 @@ DiffusionGemma decodes with a partial, granularity-dependent left-to-right bias,
 
 All of this is one checkpoint on one H100, with 20 prompts per regime, so it is a characterization and not the last word. `tau_b` is a rank correlation, not a claim about the model's internal reasoning, and we keep the language descriptive on purpose. The full writeup, _Neither Parallel Nor Sequential: How DiffusionGemma Actually Commits Tokens_, has the per-regime tables, the bin-size sweep, the block-sequential control, and the non-monotonicity check. There is no public release for this one; the instrumentation harness, the probe suite, and the recorded traces are available on request.
 
-The thing we would most like to be useful is the lens itself: hooking a shipped sampler's own commit mechanism and watching what it does, rather than proposing a new decoding strategy. It is cheap, it is non-invasive, and it caught us being wrong, which is about the best you can ask of a measurement.
+The thing we would most like to be useful is the lens itself: hooking a shipped sampler's own commit mechanism and watching what it does, rather than proposing a new decoding strategy. It is cheap, it is non-invasive, and it sharpened our own picture of the model, which is about the best you can ask of a measurement.
 
 ## Links
 
