@@ -1,7 +1,7 @@
 ---
 slug: self-verification-codec-tts
 title: 'Neural-codec TTS keeps failing on you — and the fix is almost free'
-authors: [ali, tony, deep]
+authors: [deep, ali, tony]
 tags: [ml-research, text-to-speech, audio, robustness, preference-optimization]
 date: 2026-06-16
 ---
