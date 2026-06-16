@@ -17,7 +17,7 @@ _A robustness study of open autoregressive codec-TTS: a tiny test-time trick rem
 
 If you have played with open neural-codec text-to-speech, you have probably heard this: most sentences come out clean and natural, and then, with no warning, one comes out as half a second of silence, or a word looped five times, or a confident rendering of a sentence you did not type. The model didn't get _worse_; the very next sample of the same sentence is usually fine. It just fails, stochastically, on some fraction of generations. For a demo that is charming. For anything you would ship, it is disqualifying.
 
-We spent a couple of weeks chasing this failure mode on Llasa-1B (a LLaMA-style language model over the XCodec2 speech codec) and then on three other open systems. The short version: the failures are real and frequent, they are cheap to remove at test time, and the fix generalizes far better than we expected. The longer version has a satisfying amount of "we were wrong about that" in it, which is why it is worth writing down.
+We chased this failure mode on Llasa-1B (a LLaMA-style language model over the XCodec2 speech codec) and then on three other open systems. The short version: the failures are real and frequent, they are cheap to remove at test time, and the fix generalizes far better than we expected. The longer version has a satisfying amount of "we were wrong about that" in it, which is why it is worth writing down.
 
 ## First, you have to be able to measure it
 
