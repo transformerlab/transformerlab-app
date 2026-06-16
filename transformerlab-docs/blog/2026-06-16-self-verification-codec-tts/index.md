@@ -58,8 +58,6 @@ A robustness paper that only reports what worked is hiding the evidence. Three n
 - **Scaling up didn't buy robustness.** The larger Llasa-3B was the one model where best-of-N didn't reach the floor, and where distillation regressed. We are upfront that its numbers carry a measurement caveat (we had capped its generation length to stop a hang, which can truncate long generations into failures), so we don't read the 1B-vs-3B gap as a clean scale effect — but "bigger" was conspicuously not "more robust."
 - **Some failures aren't sampling failures at all.** Rare words (think _otorhinolaryngologist_) are a genuine capability ceiling: only 2 of 10 such prompts ever produced a faithful sample, no matter how many we drew. Best-of-N and distillation can only recover an answer the model is _capable_ of; they cannot manufacture one it isn't.
 
-There was also a fair amount of plain engineering pain that is worth a war-story sentence: a chunk of our compute went to Lambda nodes whose GPU driver was too old for the prebuilt PyTorch, so jobs silently fell back to CPU and a six-prompt smoke test crawled for an hour before we caught it. And we briefly mis-diagnosed two healthy-but-slow runs as "hung" because the log endpoint only showed us the first slice of the output. Both are the kind of thing that doesn't make it into a paper but absolutely eats your week.
-
 ## What we're claiming
 
 Catastrophic failures in neural-codec TTS are not an intrinsic price of the paradigm. A trivial test-time procedure — sample a few, verify with ASR, keep a good one — drives them to near-zero, and it does so across four models and three codecs, so it is a broadly shared property rather than a single-model quirk. A single distillation pass makes that fix free at inference time on the hard inputs that dominate the failure budget. And the negatives (offline preference optimization adds nothing over SFT; scale didn't help; rare words are a capability wall) are, we think, as informative as the positives.
@@ -69,4 +67,3 @@ The whole study ran on Transformer Lab and cost on the order of 45 GPU-hours end
 ## Links
 
 - Full paper: _coming soon_ (arXiv link to be added on publication).
-- Built with [Transformer Lab](https://transformerlab.ai).
