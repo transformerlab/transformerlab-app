@@ -1,14 +1,17 @@
 ---
 slug: self-verification-codec-tts
-title: 'Neural-codec TTS keeps failing on you, and the fix is almost free'
+title: 'Improving open text-to-speech reliability with a simple sampling method'
 authors: [deep, ali, tony]
 tags: [ml-research, text-to-speech, audio, robustness, preference-optimization]
 date: 2026-06-16
 ---
 
-_A robustness study of open autoregressive codec-TTS: a tiny test-time check removes catastrophic failures across four models and three codecs. And we can distill it back into the model for free where it actually matters._
+import BestOfNDiagram from './BestOfNDiagram';
+import DistillDiagram from './DistillDiagram';
 
-> **Quick summary:** Open source text-to-speech models perform well most of the time but occasionally fail badly: going silent, looping a syllable, or saying something that isn't the text. We show this is cheap to fix: generate a few takes, let an ASR model pick a clean one, and the failures all but disappear. That trick works on every model and codec we tried (four models, three codecs), and we can bake the behaviour back into the model so a single normal generation inherits most of it, but only where the model was actually failing. We also report the things that _didn't_ work, because they're the useful part.
+_A robustness study of open autoregressive codec-TTS: a tiny test-time trick removes catastrophic failures across four models and three codecs, and we can distill it back into the model (paid once in training, not on every generation) where it actually matters._
+
+> **Quick summary:** Open source text-to-speech models perform well most of the time but occasionally fail badly: going silent, looping a syllable, or saying something that isn't the text. We found a simple technique that vastly improves quality: generate a few takes, let an ASR model pick a clean one, and the failures all but disappear. The method is easy to apply, it works on every model and codec we tried (four models, three codecs), and we can bake the behaviour back into the model so a single normal generation inherits most of it, but only where the model was actually failing. We share some samples of our results below, and we also report the things that _didn't_ work, because they're the useful part.
 
 <!--truncate-->
 
@@ -22,11 +25,13 @@ Word error rate is the obvious metric, and it is a trap. Early on we wanted to s
 
 Concretely, a single generation counts as a catastrophic failure if **either** of two things is true: it is a _dropout_ (fewer than 25 decoded speech tokens, or an ASR transcript of one word or less), **or** it is a _collapse_ (`WER(transcript, reference) > 0.5`). One flag, `0` or `1`, per generation. It is deliberately coarse: it does not care whether speech is _beautiful_, only whether it is _catastrophically broken_, and that bluntness is exactly what makes it stable across models and codecs.
 
-On Llasa-1B this flag fires on a meaningful fraction of generations: about a third of all attempts on a deliberately hard, hand-written prompt set, and even on ordinary read-aloud prose (LibriSpeech) it is in the 5–10% range. That is the problem in one number.
+On Llasa-1B this flag fires on a meaningful fraction of generations: about a third of all attempts on a broad evaluation (≈0.36, including deliberately adversarial rare-word and number/date prompts), around 0.27 on the hard, hand-written set we use for the robustness experiments, and even on ordinary read-aloud prose (LibriSpeech) it is in the 5–10% range. That is the problem in one number.
 
 ## The fix: let the model check its own work
 
 The remedy is almost embarrassingly simple. Sample a few candidates for a prompt, transcribe each with ASR, and keep the one that isn't broken. A prompt only "fails" under best-of-N if _all_ N candidates are catastrophic, so the failure rate is a product of per-candidate failures and can only go down as N grows.
+
+<BestOfNDiagram />
 
 It goes down fast. On the hard set, the failure rate falls from 0.27 single-shot to zero (no observed failures) by N=4. On LibriSpeech it is gone by N=2. The model is almost always _capable_ of a clean take; it just doesn't always produce one on the first try, and a cheap verifier is enough to find the good one.
 
@@ -38,15 +43,17 @@ Three of the four models hit the floor (no observed failures) by just N=2. That 
 
 One honest asterisk on this plot: best-of-N is a _reference-aware_ selector (it uses the target transcript to score candidates), so it is an upper bound on what self-verification can buy, not a number you can deploy as-is. Which is the whole reason for the next step.
 
-## Making it free: distill the behaviour back in
+## Paying for the fix once: distill the behaviour back in
 
 Sampling N candidates at inference time costs N× compute. So we tried to remove that cost: fine-tune the model (a small LoRA) on its own self-verified best samples, so that ordinary single-shot decoding inherits the cleaner behaviour. No verifier at inference, no extra samples.
+
+<DistillDiagram />
 
 This is where the story gets more interesting and more honest. The distillation works, but only where there is room for it to work.
 
 ![Best-of-N failure rate by input difficulty for the primary model. Hard, hand-written inputs need about N=4 before failures vanish; easy natural prose saturates by N=2. The number of samples a prompt needs is a proxy for how hard it is, and that is exactly where distillation has headroom to help.](./images/bon_curve.png)
 
-On the hard inputs (the ones where the base model is frequently wrong on the first try, but a good answer exists if you sample for it), a single distillation pass cuts the single-shot failure rate from about 0.20 down to 0.08–0.10, closing roughly half to three-fifths of the failure mass at no inference cost. On easy prose, where the base model already succeeds almost always, there is simply nothing to recover: the rate doesn't move, and on a couple of models where the base was already near the floor, distillation even nudged it slightly _worse_.
+On the hard inputs (the ones where the base model is frequently wrong on the first try, but a good answer exists if you sample for it), a single distillation pass cuts the single-shot failure rate from about 0.20 down to 0.08–0.10, closing roughly half to three-fifths of the failure mass without paying the per-generation sampling cost. On easy prose, where the base model already succeeds almost always, there is simply nothing to recover: the rate doesn't move, and on a couple of models where the base was already near the floor, distillation even nudged it slightly _worse_.
 
 We think the cleanest way to say it is: **the distilled gain concentrates exactly where the model was failing.** That is the useful, deployable version of the result. (We are also careful in the paper that our two test sets differ in more than just difficulty, so we flag difficulty as the most plausible explanation rather than a proven one, and we name the controlled experiment that would settle it. It is the honest read of a two-point comparison.)
 
@@ -60,7 +67,7 @@ A robustness paper that only reports what worked is hiding the evidence. Three n
 
 ## What we're claiming
 
-Catastrophic failures in neural-codec TTS are not an intrinsic price of the paradigm. A trivial test-time procedure (sample a few, verify with ASR, keep a good one) drives them to near-zero, and it does so across four models and three codecs, so it is a broadly shared property rather than a single-model quirk. A single distillation pass makes that fix free at inference time on the hard inputs that dominate the failure budget. And the negatives (offline preference optimization adds nothing over SFT; scale didn't help; rare words are a capability wall) are, we think, as informative as the positives.
+Catastrophic failures in neural-codec TTS are not an intrinsic price of the paradigm. A trivial test-time procedure (sample a few, verify with ASR, keep a good one) drives them to near-zero, and it does so across four models and three codecs, so it is a broadly shared property rather than a single-model quirk. A single distillation pass moves that fix's cost off the inference path (paid once in training rather than on every generation) on the hard inputs that dominate the failure budget. And the negatives (offline preference optimization adds nothing over SFT; scale didn't help; rare words are a capability wall) are, we think, as informative as the positives.
 
 The whole study ran on Transformer Lab and cost on the order of 45 GPU-hours end to end, most of it on a single H100 at a time. Everything (the metric, the verifier, the distillation loop, and the four model backends) is reproducible from public models and public data; the numbers reproduce within the confidence intervals we report, since generation is stochastic by design.
 
