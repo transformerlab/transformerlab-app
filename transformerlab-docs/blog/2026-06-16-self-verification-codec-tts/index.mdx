@@ -8,6 +8,8 @@ date: 2026-06-16
 
 import BestOfNDiagram from './BestOfNDiagram';
 import DistillDiagram from './DistillDiagram';
+import AudioBeforeDropout from './audio/before-dropout.wav';
+import AudioAfterClean from './audio/after-clean.wav';
 
 _A robustness study of open autoregressive codec-TTS: a tiny test-time trick removes catastrophic failures across four models and three codecs, and we can distill it back into the model (paid once in training, not on every generation) where it actually matters._
 
@@ -34,6 +36,24 @@ The remedy is almost embarrassingly simple. Sample a few candidates for a prompt
 <BestOfNDiagram />
 
 It goes down fast. On the hard set, the failure rate falls from 0.27 single-shot to zero (no observed failures) by N=4. On LibriSpeech it is gone by N=2. The model is almost always _capable_ of a clean take; it just doesn't always produce one on the first try, and a cheap verifier is enough to find the good one.
+
+### Hear it
+
+Here is what that looks like for a single prompt, _"The morning train arrived exactly on time."_ The first take is a **dropout**: Llasa-1B ran on for tens of seconds producing only silence (clip trimmed below), so the ASR transcript comes back empty and it scores as a catastrophic failure. A later take, the one self-verification keeps, is clean and correct.
+
+**Before** (a raw single-shot generation, dropout to silence):
+
+<audio controls>
+  <source src={AudioBeforeDropout} type="audio/wav" />
+  Your browser does not support the audio element.
+</audio>
+
+**After** (the self-verified take for the same prompt):
+
+<audio controls>
+  <source src={AudioAfterClean} type="audio/wav" />
+  Your browser does not support the audio element.
+</audio>
 
 The result we did not expect is how well this travels. We ran the exact same procedure on three more open systems spanning three different neural codecs: Orpheus-3B (over the SNAC codec), Sesame's CSM-1B (over the Mimi codec), and a larger Llasa-3B. Best-of-N reduced catastrophic failures on every one of them.
 
