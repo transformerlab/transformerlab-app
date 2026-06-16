@@ -1,0 +1,71 @@
+---
+slug: judging-single-image-3d
+title: 'Judging single-image 3D generation without humans (and why cheap proxies fall short)'
+authors: [deep, ali, tony]
+tags: [ml-research, 3d-generation, evaluation, computer-vision]
+date: 2026-06-16
+---
+
+import JudgeProtocolDiagram from './JudgeProtocolDiagram';
+import PositionBiasDiagram from './PositionBiasDiagram';
+import ProxyBimodalDiagram from './ProxyBimodalDiagram';
+
+_A reproducible, human-free way to tell whether one generated 3D mesh is better than another, and a warning about the cheap automatic proxies people reach for instead._
+
+> **Quick summary:** Single-image-to-3D generators are improving fast, but there is no agreed, human-free way to say which of two generated meshes is better. We built a protocol around a fixed multi-view render rig and two _independent_ vision-language judges, with a mandatory position-bias correction, and the two judges agree substantially (Cohen&rsquo;s &kappa; = 0.66) with no human labels. We then used that protocol as the reference and asked whether the cheap proxies people actually use (mesh geometry-validity statistics and render-space CLIP) can stand in for it. They cannot: geometry validity is a weak signal and render-CLIP is at chance. Worse, the proxies fail in a specifically misleading way, and we show below exactly where. We also report the things that _didn&rsquo;t_ work, because that is the useful part.
+
+<!--truncate-->
+
+If you have generated a 3D asset from a single photo lately, you know the outputs are good enough to be tempting and inconsistent enough to be dangerous. One mesh comes out clean; the next has a hole punched through it, an inverted normal, or a surface that looks fine head-on and falls apart from behind. To improve a generator, or to pick between two of them, or to use one as a reward signal, you first need to answer a deceptively simple question: _is this mesh better than that one?_ And you need to answer it thousands of times, which rules out asking a human every time.
+
+The field&rsquo;s usual answers are cheap automatic proxies. Render the mesh and measure CLIP similarity to the input photo; or compute geometry-validity statistics (is it watertight, is it manifold, are the normals consistent). Both are free and need no labels. The unexamined assumption is that they track _perceived_ quality, the thing a downstream user or a training signal actually cares about. We set out to measure whether that assumption holds, and to do it we first had to build a reference we trusted.
+
+## The reference: two judges that have to agree
+
+Our position is that the right reference for &ldquo;is this mesh good?&rdquo; is a vision-language model looking at a multi-view render, not a single scalar computed off the geometry. But a single VLM judge is just trading one unexamined oracle for another. So the protocol is built to be checkable: a fixed 24-view headless render rig, and _two independent_ open VLM judge families, an oracle judge (Qwen2.5-VL-7B) and a separate validation judge (InternVL3-8B). Keeping the two judges from different families lets us report their agreement as a reliability number instead of asking you to trust one model.
+
+<JudgeProtocolDiagram />
+
+With the position-bias correction described below, the two judges agree on 0.83 of dual-labeled pairs, and because a forced-choice verdict has a built-in coin-flip floor we summarize that as Cohen&rsquo;s &kappa; = 0.66, &ldquo;substantial&rdquo; on the usual scale. That is the positive result: a usable, reproducible evaluator with no human labels in the loop.
+
+## You cannot skip the position-bias correction
+
+Here is the part that surprised us most. VLM judges have a strong _presentation-order_ bias: show the same two meshes as (A, B) versus (B, A) and the verdict can flip, purely because of which one came first. If you trust the raw verdicts, you are partly measuring the prompt layout, not the meshes.
+
+The fix is a swap-and-keep-consistent rule: query every pair in both orders and keep the verdict only if it survives the swap. Order-dependent verdicts get discarded as biased. Toggle it below on a small illustrative set and watch the agreement with the independent judge move.
+
+<PositionBiasDiagram />
+
+This is not an optional polish step. In the real study about 26% of raw verdicts were order-inconsistent, and on one sample the correction moved an agreement estimate from 0.33 (chance) to 0.71. Skip it and your &ldquo;judge&rdquo; is noise wearing a confident face.
+
+## The cheap proxies do not substitute for the judge
+
+Now the question we came for. Using the de-biased judge as the reference, how well do the cheap proxies agree with it on strictly held-out objects?
+
+Not well. Across the full corpus, geometry validity agrees with the judge on 0.62 of pairs: significantly above chance, but far below the 0.75 we pre-registered as a usable target. Render-CLIP is worse, sitting at chance (0.48); we cannot even say it is anti-correlated, only that it carries no usable quality signal. We also tried to _learn_ the best linear combination of five features (a pairwise Bradley-Terry head). It bought nothing: it dumped almost all its weight onto a single geometry statistic (manifoldness), gave render-CLIP a _negative_ weight, and reproduced the geometry-only ranking exactly. Given the freedom to weight the features, the learned model just rediscovered &ldquo;count the geometry defects.&rdquo;
+
+## Why this is dangerous, not just weak
+
+A 0.62 average would be a boring result if the errors were spread evenly. They are not. Break the proxy down by the _type_ of contrast and a bimodal pattern appears. Click through the contrasts:
+
+<ProxyBimodalDiagram />
+
+The shape of it: geometry validity is excellent when the defect is _visible_ in the render (one generator versus another, or a clearly-holed mesh versus an intact one) and collapses to chance exactly on the ambiguous contrasts that matter most for ranking or optimizing a single model. The cross-generator-vs-ambiguous gap is large and significant. The danger is that the easy, visible-defect regime is precisely the setting in which proxies are usually reported to work, so a proxy can look great on the benchmark you publish and be worthless on the calls you actually need it for. The judge, meanwhile, stays reliable across all of them.
+
+We read this as a visual-salience effect: geometry validity always penalizes the broken mesh, but the judge only agrees when the defect actually shows up in a rendered view. When it does not, the geometry statistic is &ldquo;right&rdquo; about a difference no viewer can see.
+
+## The things that didn&rsquo;t work (the useful part)
+
+- **Learning the feature weights bought nothing.** The Bradley-Terry head collapsed onto manifoldness and matched the geometry-only proxy exactly, with zero lift. We read this as the ceiling living in the feature set, not the model, though richer visual features might do better.
+- **Render-CLIP added no quality signal.** It was at chance overall and weak in every subgroup. The intuition that &ldquo;it looks like the photo&rdquo; tracks &ldquo;it is a good mesh&rdquo; did not survive contact with held-out data.
+- **One subgroup is genuinely confounded, and we cut it.** On within-Stable-Fast-3D pairs the proxy reads _below_ chance, which looks dramatic, but those meshes are open shells where face-dropping is barely visible at our render resolution, so the judge itself is at chance there. That cell measures reference noise, not proxy failure, so we exclude it from the bimodality claim rather than dressing it up as a stronger result.
+
+## What we are claiming
+
+For single-image-to-3D, a cross-model, position-bias-corrected VLM-judge protocol is a reliable, reproducible, human-free evaluator (&kappa; = 0.66) under the conditions we tested. The cheap geometry and CLIP proxies people reach for instead are weak on average and, more subtly, look deceptively good on the visible-defect contrasts that get reported while dropping to chance on the ambiguous ones. The practical takeaway for anyone aligning a 3D generator with a reward: drive it with the de-biased judge preferences directly, not with a geometry or CLIP proxy that a generator could satisfy (by maximizing manifoldness, say) without improving anything a person would notice.
+
+This is a scoped result, not a universal law. We tested two feed-forward generators on Google Scanned Objects with a face-drop degradation regime; naturalistic failures (thin structures, transparency, multi-object inputs) and structurally different generators are future work, as is a human spot-check to validate the judge against people. The whole study ran on Transformer Lab and cost about 3.4 H100-hours end to end.
+
+## Links
+
+- Full paper: _coming soon_ (arXiv link to be added on publication).
