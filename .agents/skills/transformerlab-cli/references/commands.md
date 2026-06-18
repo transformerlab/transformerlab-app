@@ -6,12 +6,14 @@ Full reference for every CLI command. All commands are invoked via:
 lab <command> [subcommand] [options]
 ```
 
-Global option available on all commands:
-- `--format pretty|json` — Output format (default: `pretty`). **Must come before the subcommand.**
+Global options available on all commands (**must come before the subcommand**):
+- `--format pretty|json` — Output format (default: `pretty`).
+- `--profile <name>` — Select the profile (server + team + credentials) for this invocation. Overrides the `LAB_PROFILE` env var; defaults to `default`. See [`profile`](#profile) below.
 
 ```bash
 # Correct
 lab --format json task list
+lab --profile prod job list
 
 # Wrong — flag will be ignored
 lab task list --format json
@@ -61,9 +63,15 @@ Authenticate with the server. Also configures `server`, `user_email`, `team_id`,
 | `--api-key <key>` | API key (prompted if omitted) |
 | `--server <url>` | Server URL (prompted if omitted) |
 
+To log into a **named profile**, combine the global `--profile` flag with `--server` — the credentials and config are written under that profile instead of `default`:
+
+```bash
+lab --profile prod login --server https://prod.example.com:8338
+```
+
 ### `logout`
 
-Remove stored API key.
+Remove the stored API key for the active profile (selected via `--profile` / `LAB_PROFILE`; defaults to `default`).
 
 ### `whoami`
 
@@ -73,6 +81,31 @@ Show current user, team, and server.
 ```json
 {"email": "user@example.com", "team_id": "...", "team_name": "...", "server": "http://localhost:8338"}
 ```
+
+### `profile`
+
+Manage CLI **profiles** — independent `(server + team + experiment + API key)` sets, so two `lab` commands can talk to two different servers in parallel. The `default` profile lives at the legacy root (`~/.lab/config.json`, `~/.lab/credentials`); named profiles live under `~/.lab/profiles/<name>/`.
+
+Selection is **per-process** (there is no `use` subcommand / stored "current profile"). Precedence: `--profile <name>` (root-level flag, before the subcommand) > `LAB_PROFILE` env var > `default`.
+
+```bash
+lab profile list                 # list all profiles; marks active + which have credentials
+lab profile show [name]          # show a profile's config (defaults to the active profile)
+lab profile delete <name> --yes  # delete a named profile ('default' cannot be deleted)
+
+# Create/authenticate a profile via login (see `login` above):
+lab --profile prod login --server https://prod.example.com:8338
+
+# Run two servers in parallel:
+LAB_PROFILE=prod    lab job list &
+LAB_PROFILE=staging lab job list &
+```
+
+| Subcommand | Description |
+|---|---|
+| `list` | List all profiles. JSON: array of `{name, active, has_credentials}`. |
+| `show [name]` | Show `name`/`server`/`team_id`/`team_name`/`user_email`/`current_experiment`/`has_credentials` for a profile (defaults to the active one). |
+| `delete <name>` | Delete a named profile directory. Refuses `default`. `--yes`/`-y` skips the confirm prompt. |
 
 ---
 

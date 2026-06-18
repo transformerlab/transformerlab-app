@@ -3,7 +3,6 @@ import httpx
 import typer
 
 from transformerlab_cli.util.shared import BASE_URL
-from transformerlab_cli.util.auth import api_key
 from transformerlab_cli.util.config import get_config
 from transformerlab_cli.util.ui import console
 
@@ -24,7 +23,9 @@ def _should_reraise_transport(reraise_transport: bool | None) -> bool:
 
 def _request_headers() -> dict:
     """Build request headers: Authorization and optional X-Team-Id from config."""
-    headers: dict = {"Authorization": f"Bearer {api_key}"}
+    from transformerlab_cli.util.auth import get_api_key
+
+    headers: dict = {"Authorization": f"Bearer {get_api_key()}"}
     team_id = get_config("team_id")
     if team_id:
         headers["X-Team-Id"] = str(team_id)

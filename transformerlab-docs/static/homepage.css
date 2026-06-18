@@ -1,0 +1,511 @@
+:root {
+  --paper: #fcfcf9;
+  --paper-2: #f6f6f0;
+  --ink: #1a1a18;
+  --ink-2: #3a3a36;
+  --muted: #6a6a63;
+  --faint: #9a9a90;
+  --rule: #ddddd4;
+  --rule-2: #c6c6bc;
+  --green: #0f9a55;
+  --green-d: #0a7a3f;
+
+  --serif:
+    'Computer Modern Serif', 'Latin Modern Roman', Georgia, 'Times New Roman',
+    serif;
+  --sans: 'Computer Modern Sans', 'Latin Modern Sans', system-ui, sans-serif;
+  --mono:
+    'Computer Modern Typewriter', 'Latin Modern Mono', ui-monospace, 'SF Mono',
+    Menlo, monospace;
+
+  --wrap: 1060px;
+  --text: 64ch;
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+::selection {
+  background: rgba(15, 154, 85, 0.16);
+}
+sup {
+  font-size: 0.62em;
+  vertical-align: super;
+  line-height: 0;
+}
+
+.wrap {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 0 36px;
+}
+
+/* ---- running head ---- */
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  backdrop-filter: blur(7px);
+  border-bottom: 1px solid var(--rule);
+}
+.head-in {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 11px 36px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.head-in .brand {
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.head-in .brand svg {
+  width: 15px;
+  height: 15px;
+}
+.head-in nav a {
+  margin-left: 18px;
+  color: var(--muted);
+}
+.head-in nav a:hover {
+  color: var(--green-d);
+}
+@media (max-width: 680px) {
+  .head-in nav a.opt {
+    display: none;
+  }
+  .head-in nav a {
+    margin-left: 13px;
+  }
+}
+
+/* ---- hero ---- */
+.hero {
+  padding: 78px 0 26px;
+}
+.hero h1 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: clamp(2.5rem, 6vw, 4.4rem);
+  line-height: 1.01;
+  letter-spacing: -0.035em;
+  margin: 0.5em 0 0;
+  max-width: 19ch;
+}
+.hero h1 .grn {
+  color: var(--green-d);
+}
+.hero h1 .swap {
+  white-space: nowrap;
+}
+.hero h1 .caret {
+  display: inline-block;
+  visibility: hidden;
+  margin-left: 1px;
+  border-right: 0.06em solid currentColor;
+  height: 0.92em;
+  vertical-align: -0.1em;
+}
+.hero h1 .swap.typing .caret {
+  visibility: visible;
+  animation: caretblink 1s steps(1) infinite;
+}
+@keyframes caretblink {
+  50% {
+    opacity: 0;
+  }
+}
+.hero .lead {
+  font-size: clamp(1.12rem, 1.7vw, 1.32rem);
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin: 1.1em 0 0;
+  max-width: 56ch;
+}
+.hero .lead em {
+  font-style: italic;
+  color: var(--ink);
+}
+.hero .lead strong {
+  font-weight: 700;
+}
+.hero-actions {
+  margin-top: 2em;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.btn {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  padding: 12px 20px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  transition: all 0.16s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn.primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+.btn.primary:hover {
+  background: var(--green-d);
+}
+.btn.ghost {
+  border-color: var(--rule-2);
+  color: var(--ink-2);
+}
+.btn.ghost:hover {
+  border-color: var(--ink);
+}
+
+/* ---- sections ---- */
+section {
+  padding: 58px 0 0;
+}
+.sec-no {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--green-d);
+  letter-spacing: 0.04em;
+  display: block;
+  margin-bottom: 0.5em;
+}
+h2.sec {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: clamp(1.7rem, 3.4vw, 2.5rem);
+  letter-spacing: 0.006em;
+  line-height: 1.12;
+  margin: 0;
+}
+p.body {
+  margin: 0.9em 0 0;
+  max-width: var(--text);
+  color: var(--ink);
+}
+p.body strong {
+  font-weight: 700;
+}
+p.body em {
+  font-style: italic;
+}
+a.url {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  color: var(--green-d);
+}
+a.url:hover {
+  text-decoration: underline;
+}
+.divider {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+/* ---- §1 The Lab: papers pin as a background; the text scrolls over them ---- */
+.lab {
+  position: relative;
+}
+.lab-bg {
+  position: sticky;
+  top: 92px;
+  height: calc(100vh - 150px);
+  z-index: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.lab-content {
+  position: relative;
+  z-index: 1;
+  margin-top: calc(-100vh + 150px);
+  padding-top: 64px;
+}
+#lab-papers {
+  position: absolute;
+  right: 3%;
+  top: 8%;
+  width: 460px;
+  height: 80%;
+}
+@media (max-width: 940px) {
+  .lab-bg {
+    display: none;
+  }
+  .lab-content {
+    margin-top: 0;
+    padding-top: 0;
+  }
+}
+
+/* ---- publications (refs style) ---- */
+ol.refs {
+  margin: 30px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: ref;
+  /* same right margin as the body text, so rows clear the paper stream */
+  max-width: var(--text);
+}
+ol.refs li {
+  counter-increment: ref;
+  position: relative;
+  padding: 0 0 18px 3.2em;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+}
+ol.refs li:last-child {
+  border-bottom: 0;
+}
+ol.refs li::before {
+  content: '[' counter(ref) ']';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--green-d);
+}
+ol.refs .ti {
+  font-style: italic;
+  font-size: 1.06rem;
+}
+ol.refs .venue {
+  color: var(--muted);
+}
+ol.refs .mod {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--green-d);
+}
+ol.refs .ds {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin-top: 5px;
+}
+ol.refs .ph {
+  color: var(--faint);
+  font-style: italic;
+}
+
+/* publications: each entry pulls a real paper out of the stream, which
+   flies in to land in this empty slot and then rides along with the row */
+ol.refs li.pub-row {
+  display: flex;
+  gap: 26px;
+  align-items: flex-start;
+  padding-left: 0;
+}
+ol.refs li.pub-row::before {
+  content: none;
+}
+.pub-fig {
+  flex: 0 0 96px;
+  min-height: 125px; /* reserves the gap the flown-in paper lands in */
+}
+.pub-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  will-change: transform, opacity;
+}
+/* info hidden until the scene's JS reveals it (visible if JS is off) */
+.js .pub-info {
+  opacity: 0;
+}
+@media (max-width: 620px) {
+  ol.refs li.pub-row {
+    gap: 16px;
+  }
+  .pub-fig {
+    flex-basis: 70px;
+    min-height: 92px;
+  }
+}
+
+/* ---- tool cards ---- */
+.tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 34px;
+}
+.tool {
+  border: 1px solid var(--rule-2);
+  border-radius: 6px;
+  padding: 24px 26px;
+  background: var(--paper);
+  transition:
+    border-color 0.18s,
+    transform 0.18s;
+}
+.tool:hover {
+  border-color: var(--green);
+  transform: translateY(-2px);
+}
+.tool .k {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--green-d);
+  letter-spacing: 0.04em;
+}
+.tool h3 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 1.28rem;
+  margin: 7px 0 0;
+}
+.tool p {
+  color: var(--muted);
+  font-size: 0.98rem;
+  line-height: 1.5;
+  margin: 9px 0 0;
+}
+.tool .meta {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--faint);
+  margin-top: 14px;
+}
+@media (max-width: 680px) {
+  .tools {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- §4 row: text on the left, a slot for the final paper on the right ---- */
+.loop-row {
+  display: flex;
+  gap: 44px;
+  align-items: center;
+}
+.loop-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* reserves the area the final paper descends into, shrinks, and spins within */
+.loop-fig {
+  flex: 0 0 132px;
+  align-self: center;
+  min-height: 172px;
+}
+@media (max-width: 760px) {
+  .loop-fig {
+    display: none;
+  }
+}
+
+/* ---- footer ---- */
+footer {
+  margin-top: 76px;
+  border-top: 1.6px solid var(--ink);
+  padding: 44px 0 60px;
+}
+footer .f-in {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+footer .brand {
+  font-family: var(--mono);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+footer .brand svg {
+  width: 15px;
+  height: 15px;
+}
+footer h2 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
+  margin: 18px 0 0;
+  max-width: 16ch;
+  line-height: 1.1;
+}
+footer .links {
+  display: flex;
+  gap: 48px;
+  flex-wrap: wrap;
+}
+footer .links h5 {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  margin: 0 0 12px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+footer .links a {
+  display: block;
+  font-size: 0.96rem;
+  color: var(--ink-2);
+  margin: 8px 0;
+}
+footer .links a:hover {
+  color: var(--green-d);
+}
+footer .colophon {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-top: 40px;
+  letter-spacing: 0.02em;
+}
+
+/* ---- reveal ---- */
+.reveal {
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.js .reveal:not(.in) {
+  opacity: 0;
+  transform: translateY(14px);
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001s !important;
+    transition: none !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+}
