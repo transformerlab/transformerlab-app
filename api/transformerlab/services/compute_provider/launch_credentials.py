@@ -9,6 +9,11 @@ from typing import Any, Optional, Tuple
 # lab.init() not required; copy_file_mounts uses _TFL_JOB_ID, _TFL_EXPERIMENT_ID / TFL_EXPERIMENT_ID, and job_data
 COPY_FILE_MOUNTS_SETUP = 'python -c "from lab import lab; lab.copy_file_mounts()"'
 
+# Sentinel file that lab.copy_file_mounts() writes on the remote box, recording the
+# absolute directory where task files were synced. The remote run command cd's into it
+# so a bare `python main.py` resolves. Keep in sync with lab-sdk's copy_file_mounts().
+WORKDIR_SENTINEL_PATH = "/tmp/.tfl_task_workdir"
+
 # RunPod (and similar) use /workspace as a writable persistent path
 RUNPOD_AWS_CREDENTIALS_DIR = "/workspace/.aws"
 
