@@ -1291,6 +1291,11 @@ async def test_copy_file_mounts_without_lab_init(tmp_path, monkeypatch):
     with open(dest) as f:
         assert f.read() == "hi"
 
+    # The workdir sentinel records the absolute dir where files landed, so the remote
+    # run command can `cd` into it (no ~/sky_workdir here, so dest is $HOME).
+    with open("/tmp/.tfl_task_workdir") as f:
+        assert f.read() == str(home)
+
 
 def test_download_registry_model(tmp_path, monkeypatch):
     _fresh(monkeypatch)
