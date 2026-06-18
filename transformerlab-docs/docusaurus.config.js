@@ -23,10 +23,7 @@ const config = {
   organizationName: 'transformerlab', // Usually your GitHub org/user name.
   projectName: 'transfomerlab-docs', // Usually your repo name.
 
-  // The homepage at "/" is served from a static file (static/index.html), not a
-  // React route, so Docusaurus's link checker can't verify links to "/". Use
-  // "warn" instead of "throw" so those (valid at runtime) links don't fail the build.
-  onBrokenLinks: 'warn',
+  onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
 
   /* we need to add the following using links :
