@@ -1,0 +1,110 @@
+---
+slug: how-i-built-self-driving-ai
+title: 'How I built my own Tesla-style self-driving AI'
+authors: [ali]
+tags: [ml-research, computer-vision, autonomous-driving, vision-transformers]
+date: 2026-06-18
+---
+
+import AdaptationLadderDiagram from './AdaptationLadderDiagram';
+import ParityScalingDiagram from './ParityScalingDiagram';
+import FlipCollapseDiagram from './FlipCollapseDiagram';
+
+_Teaching a neural network to steer a car from a single camera image has been a dream of mine for years. I finally sat down and did it: found the data, built the rig, picked the model the literature pointed to, ran the experiments, and got a result that genuinely surprised me. It is not a self-driving car. But it is a real vision-to-action model, and building it taught me a lot._
+
+> **Quick summary:** I trained small AI models to predict a car's steering angle directly from one forward-facing camera frame, using real highway driving data. The fun finding: a Vision Transformer, which everyone says is too "data-hungry" for small datasets, matched a convolutional network once I adapted it the right way. The honest caveat: this is an offline prediction study, not a car that drives. It is one weekend-scale step toward the thing in the title, and a clear look at what these models actually are.
+
+<!--truncate-->
+
+## The thing that hooked me
+
+If you have sat in a recent Tesla, you have seen the screen render the world around you: the lane lines, the cars, a little cartoon of the scene. The natural assumption is that this rendering _is_ how the car thinks: first it builds a 3D model of the world, then it decides what to do.
+
+What got me obsessed with this problem is that, as Tesla has described it in their own talks, that on-screen rendering is largely **out of the loop**. The driving network does not first build a tidy scene and then reason over it. It goes more or less straight from camera pixels to a control output: steer this much, brake this hard. The pretty visualization is for _you_, the passenger, not a representation the controller depends on. (Their stated future direction is to add a reasoning step so the system can "think about" the scene before acting, but the core today is direct vision-to-action.)
+
+That idea is wild to me. No hand-built map of the world, no explicit "there is a car at 30 meters" step that a human designed. Just a model that has learned the mapping from _what the camera sees_ to _what the steering wheel should do_. I wanted to build one myself and see how far one person with a single GPU could get.
+
+## What is a "vision-to-action" model, and why is it a cool problem?
+
+A vision-to-action model takes raw perception (here, a camera image) and outputs an action (here, a steering angle) with **no hand-designed intermediate representation** in between. Contrast that with the classic robotics pipeline: detect objects, build a map, plan a path, then control. Each of those is a separate, human-specified module. The end-to-end approach throws the modules out and lets one network learn the whole image-to-control mapping from examples of humans driving.
+
+Why is that cool? Three reasons that kept me up at night:
+
+- **It is shockingly direct.** The model never gets told what a "car" or a "lane" is. It just learns that _these pixels_ mean _turn the wheel this way_. The original version of this idea, NVIDIA's PilotNet, did exactly this back in 2016 and it worked.
+- **It is how production systems are actually moving.** comma.ai's open-source openpilot and Tesla's stack both lean on learned, end-to-end-ish perception-to-control rather than fully hand-built pipelines.
+- **The hard parts are subtle and interesting.** When there is no intermediate scene, you cannot debug the model by inspecting "did it see the car?" You only see the action. That makes the data, the metrics, and the failure modes the whole game.
+
+I was never going to build a car that drives itself. The goal was smaller and honest: build the _core learned component_, the part that maps a frame to a steering angle, and learn it properly end to end.
+
+## Step 1: finding the dataset
+
+You cannot learn human driving without recordings of humans driving. The dataset I landed on is **comma2k19**, released by comma.ai: about 33 hours of California highway driving, recorded as ~1-minute segments with a forward camera at 20 frames per second and synchronized car logs, including the actual steering-wheel angle at every moment. It is public and MIT-licensed, which made it perfect for a personal project.
+
+The setup is clean: each camera frame is an input, and the steering angle the human was applying at that instant is the label I want the model to predict. Thousands of (image, steering-angle) pairs, straight from real drives.
+
+## Step 2: architecting the rig
+
+I deliberately kept this small: a single GPU and a budget of roughly 100 GPU-hours, all run on Transformer Lab. The point was to prove the whole loop works end to end on a hobbyist-scale setup, not to throw a datacenter at it.
+
+The pipeline I had to build: decode the compressed video into frames, match each frame to the steering angle from the car's log by timestamp, and, crucially, split the data into train and test sets **by route**, never by individual clip. That last part matters more than it sounds. Consecutive seconds of the same drive look almost identical, so if you split randomly you leak near-duplicate frames into both train and test and fool yourself into thinking the model is brilliant. Splitting by whole routes keeps the test honest.
+
+Then I hit the real wall: **the data is wildly imbalanced.** Highway driving is overwhelmingly straight. About 94.5% of frames have the wheel within 15 degrees of center, leaving only ~5.5% that are actual turns. A lazy model can score great on average error by always predicting "go straight" and never learning to turn at all. The signal I cared about lived in the rare turns.
+
+![Example frames from one pre-dawn highway segment of comma2k19, each labeled with the human steering-wheel angle the model is trying to predict (shown as a steering-wheel glyph rotated by that angle). The whole segment only spans about -12 to +10 degrees, which is exactly the problem: highway steering is almost always gentle, so the interesting moments are rare.](./images/road_examples.png)
+
+## Step 3: figuring out which model should work, from the literature
+
+Here is where I did my reading before touching code. The two obvious candidates were a **convolutional neural network** (CNN), the traditional workhorse for images and what PilotNet used, and a **Vision Transformer** (ViT), the newer architecture behind a lot of modern computer vision.
+
+The conventional wisdom is blunt: ViTs are **data-hungry**. They lack the built-in "things that are near each other in an image are related" assumption that CNNs have baked in, so the story goes that they need huge datasets to compete. On a small slice of driving data, the literature basically predicts the CNN should win. That made it the perfect thing to actually test rather than assume.
+
+## Step 4: the experiments (and the part that surprised me)
+
+My first attempts made the ViT look exactly as data-hungry as advertised. The two most obvious things you would try first both flop:
+
+- Freeze the pretrained ViT and only train a small head on top (a "linear probe"): turn-quality correlation of 0.38, basically "this thing cannot steer."
+- Add the standard left-right image flip as data augmentation (mirror the picture, flip the sign of the steering): the model collapses to predicting a constant.
+
+If I had stopped there, I would have written "transformers don't work on small driving data" and moved on. The breakthrough was realizing the problem was not the architecture, it was **how I was adapting it**. Same exact ViT backbone, three different ways of training it:
+
+<AdaptationLadderDiagram />
+
+Fine-tune the _whole_ network at a gentle learning rate and the same model that scored 0.38 jumps to 0.96. Nothing about the architecture changed. Only the adaptation did.
+
+The other gotcha was that innocent-looking flip augmentation. On normal image tasks, flipping is free extra data. But on this lopsided steering distribution it actively destroys the model by reinforcing "predict zero." The tell was a simple diagnostic: the spread of the model's predictions collapsing to nearly zero, even while the training loss looked fine.
+
+<FlipCollapseDiagram />
+
+## Step 5: impressed by the results
+
+Once adapted properly, the result genuinely surprised me. The supposedly data-hungry Vision Transformer **matched** the convolutional network at predicting steering, on as few as ~5,000 frames. On the turn slice (the part that matters), the ViT scored 0.964 and the CNN 0.967, a difference smaller than the run-to-run noise. It matches the CNN; it does not beat it, and I am careful not to oversell that. But "matches a CNN on small data" is the opposite of what the data-hungry reputation predicted.
+
+<ParityScalingDiagram />
+
+The "data-hungry" verdict, at least here, turned out to be an artifact of lazy adaptation, not the architecture. That felt like a real finding, not just a tutorial result, so we did the last step.
+
+## Step 6: writing it up (and being honest about what it isn't)
+
+I want to be clear-eyed about how far this went, because the title is aspirational. This is **not** a self-driving car:
+
+- **It is offline only.** The model predicts the steering angle for recorded frames. I never put it in control of anything. Good prediction on a saved video does not mean it could drive, because real driving compounds small errors in ways an offline test never sees.
+- **It is small and narrow.** A few hours of one dataset, one vehicle, mostly highway. No city streets, no weather, no night-vs-day stress test.
+- **It is one learned component, not a system.** The vision-to-action mapping is the heart of the thing, but a real stack is much more.
+
+What it _is_: a working, honest, end-to-end vision-to-action model that learns to read the road well enough to steer into curves, built on a single GPU, with a result worth reporting. We wrote it up as a short paper.
+
+And it points right back at the thing that hooked me. Today's model goes straight from vision to action with no scene in between, exactly like the direct controller I was fascinated by. The obvious next step, and the direction the field (Tesla included) is heading, is to add a reasoning layer so the model can think about the scene before it acts, instead of reflexively mapping pixels to a steering angle. That is the next dream.
+
+## The takeaways
+
+- A vision-to-action model learns to go straight from what the camera sees to what to do, with no hand-built map of the world in between. That directness is the whole appeal.
+- On small data, _how_ you adapt a pretrained model can matter more than _which_ model you pick. The same ViT went from useless (0.38) to competitive (0.96) on adaptation alone.
+- Check your "free" tricks against your data. A standard augmentation that helps on normal images quietly wrecked this one.
+- Measure the thing you care about. Average error rewarded driving straight; the rare turns were where the real signal lived.
+- Building the core component of a self-driving system on a single GPU is genuinely doable. Building a car that drives is a very different, much larger problem, and I am not pretending otherwise.
+
+The whole project runs on Transformer Lab. The reproducibility package (training and evaluation code, the model definitions, the metric harness, and the exact data-subset recipe) is available on request. We do not redistribute comma2k19 (it is comma.ai's, under its own license), and we do not release trained checkpoints.
+
+## Links
+
+The full paper is on its way; we'll add the arXiv link here as soon as it's published.
