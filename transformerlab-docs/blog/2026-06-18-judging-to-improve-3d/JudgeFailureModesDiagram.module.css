@@ -1,0 +1,112 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 2rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.title {
+  font-weight: 700;
+  font-size: 1rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.tab:hover {
+  transform: translateY(-2px);
+}
+
+.tabActive {
+  border-color: var(--ifm-color-primary);
+  background: var(--ifm-color-emphasis-100);
+}
+
+.tabNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--ifm-color-primary);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.panel {
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  padding-top: 1rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+  margin-bottom: 0.8rem;
+}
+
+.rowLabelBad,
+.rowLabelOk {
+  flex-shrink: 0;
+  width: 4.5rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-top: 0.15rem;
+}
+
+.rowLabelBad {
+  color: #d9534f;
+}
+
+.rowLabelOk {
+  color: #2e8b57;
+}
+
+.rowText {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.metric {
+  margin-top: 0.6rem;
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-color-emphasis-700);
+  background: var(--ifm-color-emphasis-200);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+}

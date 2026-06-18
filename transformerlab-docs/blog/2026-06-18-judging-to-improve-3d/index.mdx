@@ -1,0 +1,100 @@
+---
+slug: judging-to-improve-3d
+title: 'Judging to improve: a 3D judge you can train against, and the limit of cheap 3D specialization'
+authors: [deep, ali, tony]
+tags: [ml-research, 3d-generation, evaluation, preference-optimization]
+date: 2026-06-18
+---
+
+import JudgeFailureModesDiagram from './JudgeFailureModesDiagram';
+import ParityWallDiagram from './ParityWallDiagram';
+
+_We hardened a human-free VLM judge until it survived being put inside a training loop, then used it to get an honest answer: cheap, label-free, public-data adaptation matches a strong single-image-3D generator but does not beat it &mdash; and we can show, mechanistically, exactly why._
+
+> **Quick summary:** Single-image-to-3D models turn one photo into a textured 3D mesh. A natural next step is specialization: take a strong open base and cheaply adapt it, with no human labels, so its furniture comes out better. The principled training signal is a VLM judge, because cheap geometry and CLIP proxies track perceived 3D quality only weakly. But the moment you optimize a generator against a judge and then grade with a judge, you risk learning the judge's quirks instead of real quality. We built a judge that survives that loop: one VLM family labels training pairs, a different family reports every score, and a verdict only counts if it holds when you swap the presentation order. Using it, we ran six adaptation methods across two input regimes and a degradation-severity sweep. The best result is parity (win-rate 0.50), never the 0.65 win we set as the bar. The cause is specific and located: clean inputs already saturate the judge, flow-transformer updates wash out through the sampler, and only repairing the image conditioner moves the output at all, up to parity. The durable artifact is the judge protocol, not a model.
+
+<!--truncate-->
+
+This builds directly on our companion study, [_A Cross-Model VLM-Judge Protocol for Single-Image 3D_ (arXiv:2606.18451)](https://arxiv.org/abs/2606.18451), which showed that cheap geometry-validity and render-CLIP proxies fall short of a de-biased VLM judge. If there is no cheap stand-in to optimize against, you have to optimize against the judge itself &mdash; and that raises the bar on the judge.
+
+## Why you'd care
+
+If you train any generator against a VLM judge, this is a circularity you have to handle. Optimize against a judge, then declare victory with the same judge, and your win-rate measures the judge's preferences, not quality. If you build 3D specifically, there are render-side traps that make a judge look reliable while it is answering by presentation order or being fooled by a render that hides a broken mesh. And if you are weighing whether cheap label-free adaptation can push a strong single-image-3D base past its baseline, the short answer here is that public-data PEFT reaches parity, and the useful part is the mechanism that says why and where the real bottleneck sits.
+
+## Making the judge un-foolable
+
+The protocol has three pillars. **Cross-model independence:** a training judge (Qwen2.5-VL-7B) labels preference pairs for optimization, and a separate evaluation judge (InternVL3-8B) is never used in training and reports every final win-rate. Keeping them distinct turns the win-rate into a cross-family generalization claim instead of a self-consistency check. **Position-bias correction:** VLM judges answer by presentation order when uncertain, so for each pair we query both orders (A, B and B, A) and keep the verdict only if it is consistent across the swap. This removes the bias and doubles as a confidence filter. **Calibration:** a clear-gap control (clean vs. deliberately degraded) confirms the evaluation judge prefers the better mesh with win-rate 0.83 to 1.0, and a base-vs-base control sits at ~0.5, so it has no systematic preference. Because the clear-gap control passes, the 0.0 win-rates later are true nulls, not a blind judge.
+
+What ranking never revealed, the optimization loop did: three failure modes that only surface when you push the judge into training.
+
+<JudgeFailureModesDiagram />
+
+## The preference signal does not exist for free
+
+Before any specialization can work, a learnable preference has to exist. We sampled candidates i.i.d. from the base on the same furniture input and asked the training judge to rank them. Under the position-corrected protocol the judge flipped on 0.94 of pairs (15/16 at n=16). Independent samples of a strong base on in-domain furniture are near-identical in quality, so the protocol correctly rejects almost everything. There is simply no learnable preference in same-model i.i.d. samples.
+
+To create one, we used quality-contrastive construction: pair a high-quality sample (full 25-step sampling) against a deliberately degraded one (2 steps, no guidance). The training judge prefers the high-budget sample with win-rate 0.89. The specialization objective becomes "make default-budget furniture reconstructions approach high-budget quality," and this supplies the (winner, loser) pairs to every method below.
+
+One cross-paper observation falls out of this. The companion study measured a ~26% order-flip rate, but across two different generators where real quality gaps exist. This paper measures a 0.94 flip rate on i.i.d. samples of one strong base where no gap exists. Read together, the flip rate is a readout of how much real quality separates the candidates: a wide gap yields confident, swap-consistent verdicts and a low flip rate; no gap drives the flip rate toward random.
+
+## The specialization study
+
+The question: can lightweight, label-free specialization of TRELLIS beat the strong base on held-out furniture? We tested six methods. On the rectified-flow transformer, with a custom LoRA on its sparse-linear blocks: SFT-on-best, DPO at &beta;&nbsp;0.1 and 0.5, ORPO, and SFT-on-clean. Separately, a conditioner-repair adapter: freeze the flow transformer and train a small residual adapter on the DINOv2 conditioning features to map degraded features back toward clean ones, then sample with the repaired conditioning. Two input regimes (clean in-distribution furniture; hard-degraded with a mild/medium/severe sweep), held-out win-rates over n=8 disjoint objects.
+
+<ParityWallDiagram />
+
+No intervention reaches the 0.65 bar. The best is 0.50, parity. Because the judge is calibrated and unbiased, the 0.0 entries are genuine nulls. The full per-method table:
+
+| Intervention (what is adapted)  | Regime            | Judge-Y win | Geom &Delta; | meets &ge; 0.65? |
+| ------------------------------- | ----------------- | ----------- | ------------ | ---------------- |
+| SFT-on-best (flow DiT)          | clean             | 0.00        | &minus;0.06  | no               |
+| DPO &beta;=0.1 (flow DiT)       | clean             | 0.00        | 0.00         | no               |
+| DPO &beta;=0.5 (flow DiT)       | clean             | 0.00\*      | &minus;0.44  | no (diverged)    |
+| ORPO (flow DiT)                 | clean             | 0.00        | 0.00         | no               |
+| SFT-on-clean (flow DiT)         | hard (severe)     | 0.00        | &minus;0.06  | no               |
+| DPO &beta;=0.1 (flow DiT)       | hard (severe)     | 0.00        | 0.00         | no               |
+| Conditioner-repair (DINOv2)     | hard (mild)       | 0.125       | +0.06        | no               |
+| Conditioner-repair (DINOv2)     | hard (medium)     | 0.25        | 0.00         | no               |
+| **Conditioner-repair (DINOv2)** | **hard (severe)** | **0.50**    | **+0.06**    | **no**           |
+
+_\*DPO &beta;=0.5's lone apparent "win" is a mirage: the model diverged (convergence probe FM-MSE 0.09&rarr;4.9, geometry &minus;0.44); &beta;=0.5 is too aggressive._
+
+One method is not flat. Conditioner-repair rises monotonically with degradation severity, because more degradation means more conditioning corruption and more for a feature-repair adapter to fix:
+
+| Severity | Spec-vs-base win | Clear-gap (headroom) | Geom &Delta; | Adapter feat-MSE |
+| -------- | ---------------- | -------------------- | ------------ | ---------------- |
+| Mild     | 0.125            | 1.00                 | +0.06        | 0.077&rarr;0.047 |
+| Medium   | 0.25             | 0.50                 | 0.00         | 0.284&rarr;0.226 |
+| Severe   | 0.50             | 0.83                 | +0.06        | 0.668&rarr;0.503 |
+
+## Why parity, not a win
+
+The result separates cleanly into three causes. **Saturation:** on clean in-distribution furniture the base already maxes the judge (base-vs-base and base-vs-specialized both flip; i.i.d. flip rate 0.94). These renders are inside TRELLIS's training distribution, so there is no headroom for a win regardless of method &mdash; that is why every clean-regime entry is 0.0. **Sampler wash-out:** in the hard regime there is real headroom (clear-gap 0.83, training signal 0.89), yet flow-transformer fine-tuning still yields no win. The tell is that geometry &Delta; is 0 everywhere for flow-transformer methods. LoRA SFT converges (a fixed probe drops FM-MSE 0.092 to 0.080), but a small velocity-field change, integrated over the rectified-flow sampling trajectory, does not move the decoded mesh. The update washes out through the sampler. **The conditioner is the right locus, and it reaches parity:** repairing the DINOv2 conditioning features is the only intervention that moves the output &mdash; the only one with a non-flat, severity-monotonic win-rate and positive geometry &Delta;. So the conditioner, not the flow head, is where hard-input quality is bottlenecked. But lightweight feature repair only recovers enough to reach parity. Information the degradation destroyed is not cheaply recoverable; the wall is a recovery limit, not a wrong-component error.
+
+## The things that didn't work (the useful part)
+
+- Every flow-transformer method (SFT-on-best, DPO, ORPO, SFT-on-clean) returned a 0.0 win-rate. The velocity-field update converges in training and then washes out through the sampler.
+- DPO at &beta; 0.5 diverged outright (FM-MSE 0.09 to 4.9, geometry &minus;0.44). Its lone apparent "win" is a divergence artifact, not a result.
+- A learned-feature path bought nothing over the conditioner-repair regression.
+- We saw a severe conditioner-repair reading of 1.0 at n=2 and do not cite it. It collapsed to 0.50 at n=8 and was noise. We do not fabricate confidence intervals we did not compute.
+
+## Where it does not work
+
+This is one base (TRELLIS), one asset class (furniture), and synthetic degradations. Naturalistic real-world furniture photos and structurally different generators are out of scope and may behave differently. Held-out win-rates use n=8 disjoint objects, so they are directional, not precise. Quality is defined relative to two VLM judge families, not a large-scale human study; "reliable" here means cross-model consistency calibrated to clear quality gaps. Every adaptation is LoRA or a small adapter, never full fine-tuning, so we cannot rule out that full fine-tuning, much larger adapters, or licensed data would move past parity. We show only that the cheap public-data levers do not.
+
+## Takeaways
+
+- If you optimize a generator against a VLM judge, evaluate with a different judge than you train against, or your win-rate measures the judge's quirks.
+- Always position-bias-correct: query both orders, keep only swap-consistent verdicts. It removes the bias and acts as a confidence filter for free.
+- For mesh quality, render normal-map montages, not splat renders, or the judge cannot see geometry defects.
+- Engineer the preference signal first. i.i.d. samples of a strong base carry no learnable preference; you have to construct contrastive pairs.
+- On hard inputs, suspect the image conditioner, not the generative head. Flow-transformer updates can converge and still wash out through the sampler.
+- Budget for more than public-data LoRA-scale capacity, or licensed data, to move past parity.
+
+The reusable artifact is the protocol: a cross-model, position-bias-corrected VLM-as-3D-judge with mesh normal-map montages, a two-image single comparison, and clear-gap calibration is a reproducible, human-free evaluator for single-image 3D, and its three failure modes are traps any 3D-judge builder should expect. The whole study runs on Transformer Lab.
+
+Built on TRELLIS (Xiang et al.) as the base generator, with Qwen2.5-VL and InternVL3 as the judges and DINOv2 as the conditioner. All are existing public models; no model checkpoints ship from this work. The judging protocol and per-pair verdicts are available from the authors on request.
+
+## Links
+
+The full paper is on its way &mdash; we'll add the arXiv link here as soon as it's published. The companion judge-protocol paper is at [arXiv:2606.18451](https://arxiv.org/abs/2606.18451).

@@ -1,0 +1,122 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 2rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.title {
+  font-weight: 700;
+  font-size: 1rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.tab {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.tab:hover {
+  transform: translateY(-2px);
+}
+
+.tabActive {
+  border-color: var(--ifm-color-primary);
+  background: var(--ifm-color-emphasis-100);
+}
+
+.config {
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-600);
+  font-style: italic;
+  margin-bottom: 1.1rem;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 600px) {
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+.metricHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.35rem;
+}
+
+.metricLabel {
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.metricValue {
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  transition: color 220ms ease;
+}
+
+.track {
+  position: relative;
+  height: 16px;
+  border-radius: 5px;
+  background: var(--ifm-color-emphasis-200);
+  overflow: visible;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 5px;
+  transition:
+    width 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 220ms ease;
+}
+
+.targetTick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 0;
+  border-left: 2px dashed var(--ifm-color-emphasis-700);
+  z-index: 2;
+}
+
+.scale {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.note {
+  margin: 1.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+  min-height: 3.4em;
+}
