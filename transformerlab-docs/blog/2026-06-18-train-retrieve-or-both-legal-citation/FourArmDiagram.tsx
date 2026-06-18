@@ -54,7 +54,7 @@ const ARMS: Arm[] = [
     halluc: 0.0,
     hallucDisplay: '0%',
     story:
-      'Retrieval is the decisive lever. And because the model can only cite from a pinned, verified inventory, the hallucination rate is 0.00 — a design property, not a learned one.',
+      'Retrieval is the decisive lever. And because the model can only cite from a pinned, verified inventory, the hallucination rate is 0.00, a design property, not a learned one.',
   },
   {
     key: 'hybrid',

@@ -33,13 +33,13 @@
     color 150ms ease;
 }
 
-.buttonBad {
+.button.buttonBad {
   border-color: #d9534f;
   color: #d9534f;
   background: transparent;
 }
 
-.buttonOk {
+.button.buttonOk {
   border-color: #2e8b57;
   background: #2e8b57;
   color: #fff;

@@ -43,7 +43,7 @@
     color 150ms ease;
 }
 
-.tabActive {
+.tab.tabActive {
   background: var(--ifm-color-primary);
   color: #fff;
 }

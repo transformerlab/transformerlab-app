@@ -50,20 +50,20 @@ The final model against the success-criteria gates:
 | Citation exact-match (section+subsection) | 0.481  | &ge; 0.70 | not met |
 | Hallucinated-citation rate                | 0.00   | &le; 0.05 | met     |
 | Lift over zero-shot base                  | +0.48  | &ge; 0.15 | met     |
-| Evidenced train-vs-retrieve answer        | yes    | &mdash;   | met     |
+| Evidenced train-vs-retrieve answer        | yes    | n/a       | met     |
 
 And the full grid, with ablations:
 
-| Arm                | Config                     | k       | recall@k  | Exact     | F1        |
-| ------------------ | -------------------------- | ------- | --------- | --------- | --------- |
-| base zero-shot     | &mdash;                    | &mdash; | &mdash;   | 0.00      | 0.00      |
-| SFT-only           | LoRA r32/400               | &mdash; | &mdash;   | 0.148     | 0.167     |
-| RAG-only           | bge-small, k=5             | 5       | 0.815     | 0.44      | 0.52      |
-| RAG-only           | bge-small, k=10            | 10      | 0.889     | 0.37      | 0.46      |
-| hybrid             | r32/400, k=5               | 5       | 0.815     | 0.333     | 0.43      |
-| **hybrid (final)** | **r32/400, k=10**          | **10**  | **0.889** | **0.481** | **0.574** |
-| RAG-only           | bge-large + reranker, k=10 | 10      | 0.852     | 0.37      | &mdash;   |
-| hybrid             | bge-large + reranker, k=10 | 10      | 0.852     | 0.37      | &mdash;   |
+| Arm                | Config                     | k      | recall@k  | Exact     | F1        |
+| ------------------ | -------------------------- | ------ | --------- | --------- | --------- |
+| base zero-shot     | n/a                        | n/a    | n/a       | 0.00      | 0.00      |
+| SFT-only           | LoRA r32/400               | n/a    | n/a       | 0.148     | 0.167     |
+| RAG-only           | bge-small, k=5             | 5      | 0.815     | 0.44      | 0.52      |
+| RAG-only           | bge-small, k=10            | 10     | 0.889     | 0.37      | 0.46      |
+| hybrid             | r32/400, k=5               | 5      | 0.815     | 0.333     | 0.43      |
+| **hybrid (final)** | **r32/400, k=10**          | **10** | **0.889** | **0.481** | **0.574** |
+| RAG-only           | bge-large + reranker, k=10 | 10     | 0.852     | 0.37      | n/a       |
+| hybrid             | bge-large + reranker, k=10 | 10     | 0.852     | 0.37      | n/a       |
 
 The hybrid scores highest at 0.481. We read its edge as fine-tuning making provision selection more robust to a larger candidate set, but at n=27 the roughly one-item margin over RAG-only is within noise, so we report it as suggestive, not a proven win.
 
@@ -106,4 +106,4 @@ The whole study reproduces from public models and statute text and ran on about 
 
 ## Links
 
-The full paper is on its way &mdash; we'll add the arXiv link here as soon as it's published.
+The full paper is on its way; we'll add the arXiv link here as soon as it's published.
