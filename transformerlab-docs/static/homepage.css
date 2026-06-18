@@ -11,13 +11,12 @@
   --green-d: #0a7a3f;
 
   --serif:
-    "Computer Modern Serif", "Latin Modern Roman", Georgia,
-    "Times New Roman", serif;
-  --sans:
-    "Computer Modern Sans", "Latin Modern Sans", system-ui, sans-serif;
+    'Computer Modern Serif', 'Latin Modern Roman', Georgia, 'Times New Roman',
+    serif;
+  --sans: 'Computer Modern Sans', 'Latin Modern Sans', system-ui, sans-serif;
   --mono:
-    "Computer Modern Typewriter", "Latin Modern Mono", ui-monospace,
-    "SF Mono", Menlo, monospace;
+    'Computer Modern Typewriter', 'Latin Modern Mono', ui-monospace, 'SF Mono',
+    Menlo, monospace;
 
   --wrap: 1060px;
   --text: 64ch;
@@ -287,7 +286,7 @@ ol.refs li:last-child {
   border-bottom: 0;
 }
 ol.refs li::before {
-  content: "[" counter(ref) "]";
+  content: '[' counter(ref) ']';
   position: absolute;
   left: 0;
   top: 2px;
