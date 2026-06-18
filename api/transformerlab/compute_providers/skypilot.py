@@ -950,6 +950,9 @@ class SkyPilotProvider(ComputeProvider):
                     max_count = max(max_count, int(count))
                 except (TypeError, ValueError):
                     continue
+            # The catalog only lists launchable accelerators, so the smallest
+            # meaningful per-instance count is 1; fall back to 1 rather than
+            # reporting a misleading 0 when no count could be parsed.
             gpus.append(GpuInfo(gpu=str(name), count=max_count or 1))
 
         return sorted(gpus, key=lambda g: g.gpu)

@@ -322,7 +322,10 @@ class VastAIProvider(ComputeProvider):
             "num_gpus": {"gte": 1},
             "type": "ondemand",
             "order": [["dph_total", "asc"]],
-            "limit": 1000,
+            # Offers are sorted cheapest-first; cap at 500 to keep the request
+            # responsive while still covering rarer/pricier GPU models and the
+            # higher per-model GPU counts that show up beyond the cheapest offers.
+            "limit": 500,
         }
         try:
             response = self._make_request("POST", "/bundles/", json_data=query)
