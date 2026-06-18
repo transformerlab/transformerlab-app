@@ -6,11 +6,11 @@ directory where lab.copy_file_mounts() synced the task files. prepend_remote_wor
 prefixes a `cd` into the recorded workdir so a bare `python main.py` resolves.
 """
 
-from transformerlab.services.compute_provider.launch_credentials import WORKDIR_SENTINEL_PATH
+from transformerlab.services.compute_provider.launch_credentials import WORKDIR_FILE_PATH
 from transformerlab.services.compute_provider.launch_template import prepend_remote_workdir_cd
 from transformerlab.shared.models.models import ProviderType
 
-EXPECTED_PREFIX = f'cd "$(cat {WORKDIR_SENTINEL_PATH} 2>/dev/null || echo "$HOME")" && '
+EXPECTED_PREFIX = f'cd "$(cat {WORKDIR_FILE_PATH} 2>/dev/null || echo "$HOME")" && '
 
 
 def test_prefixes_cd_for_remote_provider_with_file_mounts():
@@ -43,7 +43,7 @@ def test_local_provider_is_not_prefixed():
 
 def test_no_prefix_when_file_mounts_not_enabled():
     # No synced files (inlined run, or dict-form file_mounts handled natively):
-    # copy_file_mounts isn't injected, so there's no sentinel and no workdir to cd into.
+    # copy_file_mounts isn't injected, so there's no workdir file and nothing to cd into.
     for file_mounts in (False, None, {"/remote": "/local"}):
         out = prepend_remote_workdir_cd(
             "python main.py",

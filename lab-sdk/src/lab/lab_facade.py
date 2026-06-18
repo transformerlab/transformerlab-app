@@ -385,10 +385,10 @@ class Lab:
         # `$HOME` is empty while expanduser("~") resolves to /root. (Keep this path in
         # sync with launch_template.py's cd prefix.)
         try:
-            with open("/tmp/.tfl_task_workdir", "w") as workdir_sentinel:
-                workdir_sentinel.write(dest_dir)
+            with open("/tmp/.tfl_task_workdir", "w") as workdir_file:
+                workdir_file.write(dest_dir)
         except Exception:
-            logger.debug("Failed to write task workdir sentinel", exc_info=True)
+            logger.debug("Failed to write task workdir file", exc_info=True)
 
         # Determine if we're working with a remote URI (e.g., s3://)
         is_remote = storage.is_remote_path(task_dir)

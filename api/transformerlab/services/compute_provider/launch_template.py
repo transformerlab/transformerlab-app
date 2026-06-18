@@ -16,7 +16,7 @@ from transformerlab.services import job_service, quota_service
 from transformerlab.services.compute_provider.launch_credentials import (
     COPY_FILE_MOUNTS_SETUP,
     RUNPOD_AWS_CREDENTIALS_DIR,
-    WORKDIR_SENTINEL_PATH,
+    WORKDIR_FILE_PATH,
     generate_aws_credentials_setup,
     generate_azure_credentials_setup,
     generate_gcp_credentials_setup,
@@ -67,22 +67,22 @@ def prepend_remote_workdir_cd(
 
     When task files are synced to a remote box via lab.copy_file_mounts() (any non-Local
     provider with file_mounts enabled), the files land in the directory copy_file_mounts
-    resolved at runtime (~/sky_workdir or $HOME) and recorded in the WORKDIR_SENTINEL_PATH
-    sentinel. The remote run command, however, executes from the provider's default cwd —
+    resolved at runtime (~/sky_workdir or $HOME) and recorded in the WORKDIR_FILE_PATH
+    file. The remote run command, however, executes from the provider's default cwd —
     `/` for Lambda cloud-init, the image WORKDIR for RunPod — so a bare `python main.py`
     can't find the synced file (CPython reports it as `//main.py` when cwd is `/`). cd into
     the recorded workdir first so the user's run command sees its files, matching the Local
     provider's cwd == $HOME invariant.
 
-    We read the sentinel rather than hardcoding $HOME because the run shell's $HOME may not
-    match expanduser("~") used during sync (e.g. Lambda cloud-init runs as root with HOME
-    unset, so bash $HOME is empty while expanduser("~") resolves to /root). The `|| echo
-    "$HOME"` is a best-effort fallback for the case where the sentinel is somehow absent.
+    We read the workdir file rather than hardcoding $HOME because the run shell's $HOME may
+    not match expanduser("~") used during sync (e.g. Lambda cloud-init runs as root with
+    HOME unset, so bash $HOME is empty while expanduser("~") resolves to /root). The `||
+    echo "$HOME"` is a best-effort fallback for the case where the file is somehow absent.
 
     Local is excluded because it already forces cwd == $HOME == the file-drop dir.
     """
     if task_id and file_mounts is True and provider_type != ProviderType.LOCAL.value:
-        return f'cd "$(cat {WORKDIR_SENTINEL_PATH} 2>/dev/null || echo "$HOME")" && {command}'
+        return f'cd "$(cat {WORKDIR_FILE_PATH} 2>/dev/null || echo "$HOME")" && {command}'
     return command
 
 
