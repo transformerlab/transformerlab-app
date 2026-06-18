@@ -7,6 +7,7 @@ from transformerlab.shared.models.models import ProviderType
 
 from .models import (
     ClusterConfig,
+    GpuInfo,
     JobConfig,
     ClusterStatus,
     JobInfo,
@@ -51,6 +52,21 @@ def format_status_snapshot(
         lines.append("")
         lines.append(footer)
     return "\n".join(lines)
+
+
+def gpu_catalog_from_map_keys(keys: Any) -> List[GpuInfo]:
+    """Build a GPU catalog from launch-map keys of the form ``(gpu_type, count)``.
+
+    Several providers key their launch tables by ``(gpu_type, count)`` (e.g. AWS
+    ``_GPU_INSTANCE_MAP``). This collapses those keys into one ``GpuInfo`` per GPU
+    type whose ``count`` is the maximum launchable count for that type, sorted by
+    GPU name for stable output.
+    """
+    max_count_by_type: Dict[str, int] = {}
+    for key in keys:
+        gpu_type, count = key
+        max_count_by_type[gpu_type] = max(max_count_by_type.get(gpu_type, 0), int(count))
+    return [GpuInfo(gpu=gpu_type, count=count) for gpu_type, count in sorted(max_count_by_type.items())]
 
 
 class ComputeProvider(ABC):
@@ -207,6 +223,24 @@ class ComputeProvider(ABC):
             Tuple of `(is_healthy, reason)`.
             - `is_healthy`: True when provider is active and accessible
             - `reason`: Failure reason when unhealthy, otherwise None
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def show_gpus(self) -> List[GpuInfo]:
+        """
+        List the GPUs available on this provider.
+
+        Returns live availability where the provider can report it, otherwise the
+        provider's catalog of launchable GPU types. Each entry carries the
+        accelerator name and a count (available quantity for live sources, or the
+        catalog's max launchable count per node for catalog sources).
+
+        Implementations must NOT raise: a failed live query should fall back to
+        the catalog (or an empty list) so callers can render results uniformly.
+
+        Returns:
+            List of GpuInfo objects (possibly empty).
         """
         raise NotImplementedError
 

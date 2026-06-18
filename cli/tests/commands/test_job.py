@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 from transformerlab_cli.main import app
+from transformerlab_cli.util.ui import console as ui_console
 from tests.helpers import strip_ansi
 
 runner = CliRunner()
@@ -200,25 +201,22 @@ def test_compute_duration_helper():
 @patch("transformerlab_cli.commands.job.api.get", return_value=_mock_api_response(SAMPLE_JOBS))
 @patch("transformerlab_cli.util.config.require_current_experiment", return_value="exp1")
 @patch("transformerlab_cli.commands.job.check_configs")
-def test_job_list_shows_score(_mock_check, _mock_require, _mock_api, monkeypatch):
+def test_job_list_shows_score(_mock_check, _mock_require, _mock_api):
     """Test that job list table shows score values for jobs that have them."""
-    # Force a wide console so Rich doesn't truncate the Score column to "eval…".
-    # Without this the test is flaky: at the default ~80-col width the metric is
-    # cut off and the assertion below fails depending on the CI runner's width.
-    # The shared console reads COLUMNS only at import, so set its width directly.
-    from transformerlab_cli.util.ui import console
-
-    monkeypatch.setattr(console, "_width", 200)
-    result = runner.invoke(app, ["job", "list"])
+    # Force a wide render width so Rich doesn't truncate the Score column. Without
+    # a TTY (pytest, CI) the console defaults to ~80 cols and "eval/loss=2.1"
+    # collapses to an ellipsis, which would make the substring assertions flaky.
+    with patch.object(ui_console, "_width", 200):
+        result = runner.invoke(app, ["job", "list"])
     assert result.exit_code == 0
     out = strip_ansi(result.output)
     # Job 2 has score with eval/loss=2.1
     assert "eval/" in out
     # Job 1 (no score) should have empty score column — just verify Score header is present
     assert "Score" in out
-    # The discard flag must not leak into the Score column as a metric (e.g. "discard=true").
-    # Note: a legitimate "SUCCESS (discarded)" completion status DOES contain "discard", so
-    # assert on the metric form ("discard=") rather than the bare substring.
+    # The score's `discard` flag must not be rendered as a metric (metrics render as
+    # `key=value`). Match on "discard=" so we don't trip on the legitimate
+    # "SUCCESS (discarded)" completion status, which also contains "discard".
     assert "discard=" not in out.lower()
 
 

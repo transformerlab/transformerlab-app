@@ -531,6 +531,28 @@ Delete a compute provider.
 
 Check connectivity and health of a provider.
 
+### `provider gpus <provider_id_or_name>`
+
+Show the GPUs available on a provider. The argument accepts either a provider id
+or a name (resolved the same way as `provider delete`). Output is a `GPU | Count`
+table, or `--format json` returns `{provider_id, provider_type, gpus: [{gpu, count}]}`.
+
+Semantics: **live availability where the backend can report it** — Slurm (free
+GPUs per node), SkyPilot (catalog across enabled clouds), RunPod, Lambda
+(regions with capacity), Vast.ai (rentable offers), Local (detected GPUs) —
+otherwise the provider's **catalog of launchable GPU types** (AWS, GCP, Azure,
+Nebius, and the fallback for the live providers). `count` is the available
+quantity for live sources, or the max launchable count per node for catalog
+sources; there is no live-vs-catalog flag in the output. An empty list
+(`No GPU information available`) is expected for dstack (no enumeration endpoint)
+and CPU-only local hosts. The command never errors on backend failures — it
+degrades to the catalog or an empty list.
+
+```bash
+lab provider gpus my-skypilot
+lab --format json provider gpus PROVIDER_ID
+```
+
 ### `provider enable <provider_id>`
 
 Enable a disabled provider.

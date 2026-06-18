@@ -12,8 +12,8 @@ from typing import Any, Dict, List, Optional, Union
 
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
-from .base import ComputeProvider, format_status_snapshot
-from .models import ClusterConfig, ClusterState, ClusterStatus, JobConfig, JobInfo, ResourceInfo
+from .base import ComputeProvider, format_status_snapshot, gpu_catalog_from_map_keys
+from .models import ClusterConfig, ClusterState, ClusterStatus, GpuInfo, JobConfig, JobInfo, ResourceInfo
 
 logger = logging.getLogger(__name__)
 
@@ -565,6 +565,15 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
                 )
             )
         return statuses
+
+    def show_gpus(self) -> List[GpuInfo]:
+        """Return the catalog of GPU types GCP can launch.
+
+        Combines the attached-GPU (N1 + accelerator) and accelerator-optimized
+        machine maps. GCP availability is per-zone and quota-bound, so this
+        returns the static catalog rather than a live query.
+        """
+        return gpu_catalog_from_map_keys([*_ATTACHED_GPU_MAP.keys(), *_ACCELERATOR_MACHINE_MAP.keys()])
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         instance = self._find_instance_by_cluster_name(cluster_name)

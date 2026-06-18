@@ -715,6 +715,47 @@ def command_provider_check(
         raise typer.Exit(1)
 
 
+@app.command("gpus")
+def command_provider_gpus(
+    identifier: str = typer.Argument(..., help="Provider ID or name"),
+):
+    """Show the GPUs available on a compute provider (live where possible, else catalog)."""
+    check_configs(output_format=cli_state.output_format)
+
+    provider_id = _resolve_provider_id(identifier)
+    if not provider_id:
+        console.print(f"[error]Error:[/error] Provider '{identifier}' not found.")
+        raise typer.Exit(1)
+
+    with console.status(f"[bold success]Fetching GPUs for {identifier}...[/bold success]", spinner="dots"):
+        response = api.get(f"/compute_provider/providers/{provider_id}/gpus", timeout=60.0)
+
+    if response.status_code == 404:
+        console.print(f"[error]Error:[/error] Provider {identifier} not found.")
+        raise typer.Exit(1)
+    if response.status_code != 200:
+        console.print(f"[error]Error:[/error] Failed to fetch GPUs. {_extract_error_detail(response)}")
+        raise typer.Exit(1)
+
+    payload = response.json()
+    if cli_state.output_format == "json":
+        render_object(payload, format_type=cli_state.output_format)
+        return
+
+    gpus = payload.get("gpus") or []
+    provider_type = payload.get("provider_type", "")
+    if not gpus:
+        console.print(f"[warning]No GPU information available for this {provider_type or 'provider'}.[/warning]")
+        return
+
+    render_table(
+        data=gpus,
+        format_type=cli_state.output_format,
+        table_columns=["gpu", "count"],
+        title=f"Available GPUs ({provider_type})" if provider_type else "Available GPUs",
+    )
+
+
 @app.command("verify-lifecycle")
 def command_provider_verify_lifecycle(
     provider_id: str = typer.Argument(..., help="Provider ID to verify"),

@@ -11,6 +11,7 @@ from .models import (
     ClusterConfig,
     ClusterState,
     ClusterStatus,
+    GpuInfo,
     JobConfig,
     JobInfo,
     JobState,
@@ -298,6 +299,16 @@ class DstackProvider(ComputeProvider):
 
     def get_clusters_detailed(self) -> List[Dict[str, Any]]:
         return [s.provider_data for s in self.list_clusters()]
+
+    def show_gpus(self) -> List[GpuInfo]:
+        """dstack does not expose a standalone "list available GPUs" endpoint.
+
+        Offers are only enumerable through the run-plan flow, which requires a
+        concrete run configuration (a specific resources request) rather than a
+        catalog query. We therefore return an empty list; users specify the GPU
+        they want at launch time and dstack matches it against backends then.
+        """
+        return []
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         response = self._make_request(
