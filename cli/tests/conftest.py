@@ -23,22 +23,17 @@ def _isolate_lab_config_from_user_home(tmp_path, monkeypatch):
 
     import transformerlab_cli.util.config as config_mod
     import transformerlab_cli.util.shared as shared_mod
+    import transformerlab_cli.util.profile as profile_mod
 
+    # CONFIG_DIR is the lab home; profile paths derive from it. Pointing it at a tmp dir
+    # isolates every profile (default + named) from the developer's real ~/.lab.
     monkeypatch.setattr(shared_mod, "CONFIG_DIR", str(fake_lab_dir))
     monkeypatch.setattr(shared_mod, "CONFIG_FILE", fake_config_file)
     monkeypatch.setattr(shared_mod, "CREDENTIALS_DIR", str(fake_lab_dir))
     monkeypatch.setattr(shared_mod, "CREDENTIALS_FILE", fake_credentials_file)
-    monkeypatch.setattr(config_mod, "CONFIG_DIR", str(fake_lab_dir))
-    monkeypatch.setattr(config_mod, "CONFIG_FILE", fake_config_file)
     monkeypatch.setattr(config_mod, "cached_config", None)
-
-    try:
-        import transformerlab_cli.util.auth as auth_mod
-
-        monkeypatch.setattr(auth_mod, "CREDENTIALS_DIR", str(fake_lab_dir), raising=False)
-        monkeypatch.setattr(auth_mod, "CREDENTIALS_FILE", fake_credentials_file, raising=False)
-    except ImportError:
-        pass
+    # Each test starts on the default profile.
+    profile_mod.set_active(None)
 
 
 @pytest.fixture()

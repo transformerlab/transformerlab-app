@@ -11,7 +11,8 @@ import typer
 
 from transformerlab_cli.util.logo import one_liner_logo
 from transformerlab_cli.util.ui import render_table
-from transformerlab_cli.util.shared import CONFIG_DIR, CONFIG_FILE, set_base_url
+from transformerlab_cli.util.shared import set_base_url
+from transformerlab_cli.util import profile
 
 VALID_CONFIG_KEYS = ["server", "team_id", "team_name", "user_email", "current_experiment"]
 REQUIRED_CONFIG_KEYS = ["server", "team_id", "user_email"]
@@ -59,16 +60,17 @@ def load_config() -> dict[str, Any]:
     if cached_config is not None:
         return cached_config
 
-    if not os.path.exists(CONFIG_FILE):
+    config_file = profile.config_path()
+    if not os.path.exists(config_file):
         return {}
     try:
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        with open(config_file, "r", encoding="utf-8") as f:
             cached_config = json.loads(f.read())
         return cached_config
     except (json.JSONDecodeError, OSError) as e:
-        backup_path = f"{CONFIG_FILE}.corrupt-{int(time.time())}"
+        backup_path = f"{config_file}.corrupt-{int(time.time())}"
         try:
-            os.rename(CONFIG_FILE, backup_path)
+            os.rename(config_file, backup_path)
             console.print(
                 f"[error]Error:[/error] Config file is unreadable ({e}). "
                 f"Moved to [label]{backup_path}[/label] to avoid overwriting it."
@@ -89,14 +91,15 @@ def _save_config(config: dict[str, Any]) -> bool:
     never observe a truncated or partially-written config.
     """
     global cached_config
-    tmp_path = f"{CONFIG_FILE}.tmp"
+    config_file = profile.config_path()
+    tmp_path = f"{config_file}.tmp"
     try:
-        os.makedirs(CONFIG_DIR, exist_ok=True)
+        os.makedirs(profile.config_dir(), exist_ok=True)
         with open(tmp_path, "w", encoding="utf-8") as f:
             f.write(json.dumps(config, indent=2))
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp_path, CONFIG_FILE)
+        os.replace(tmp_path, config_file)
         cached_config = config
         return True
     except OSError as e:
@@ -246,6 +249,7 @@ def check_configs(output_format: str = "pretty") -> None:
         return
 
     # Now print really nicely the name of the user, server, team and current experiment
+    profile_name = profile.current_profile_name()
     user_email = config.get("user_email", "N/A")
     team_name = config.get("team_id", "N/A")
     server = config.get("server", "N/A")
@@ -254,13 +258,14 @@ def check_configs(output_format: str = "pretty") -> None:
 
     table = Table(show_header=True, header_style="header", box=None, title_justify="left")
 
+    table.add_column("Profile", style="value")
     table.add_column("User Email", style="value")
     table.add_column("Team ID", style="value")
     table.add_column("Server", style="value")
     table.add_column("Experiment", style="value")
     table.add_column("Storage", style="value")
 
-    table.add_row(user_email, team_name, server, experiment, storage)
+    table.add_row(profile_name, user_email, team_name, server, experiment, storage)
     console.rule()
     one_liner_logo(console)
     console.print(table)

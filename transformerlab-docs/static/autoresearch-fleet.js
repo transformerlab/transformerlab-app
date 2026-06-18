@@ -16,18 +16,18 @@
  * UMD. Depends on the global `ScrollStage` (scrollstage.js).
  */
 (function (root, factory) {
-  if (typeof module === "object" && module.exports) module.exports = factory();
-  else if (typeof define === "function" && define.amd)
-    define(["scrollstage"], factory);
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else if (typeof define === 'function' && define.amd)
+    define(['scrollstage'], factory);
   else root.AutoresearchFleet = factory();
-})(typeof self !== "undefined" ? self : this, function () {
-  "use strict";
-  var NS = "http://www.w3.org/2000/svg";
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  var NS = 'http://www.w3.org/2000/svg';
 
   var DEFAULTS = {
     sessions: 5,
     clouds: 12,
-    tints: ["#0f9a55", "#2f8f74", "#3b6f8c", "#7d8a36", "#a06a2c"],
+    tints: ['#0f9a55', '#2f8f74', '#3b6f8c', '#7d8a36', '#a06a2c'],
     cloudSizes: [24, 20, 28, 18, 24, 22, 26, 18, 24, 20, 28, 22],
     trials: [46, 40, 52, 44, 48],
     vh: 820,
@@ -57,72 +57,74 @@
     jobDur: 0.05,
     doneWin: 0.02,
     pktWin: 0.03, // per-job spans, in progress units
-    green: "#0f9a55",
-    line2: "#c6c6bc",
-    paper: "#fcfcf9",
-    faint: "#9a9a90",
+    green: '#0f9a55',
+    line2: '#c6c6bc',
+    paper: '#fcfcf9',
+    faint: '#9a9a90',
     fgBacking: 0.75, // opacity of the paper-colored wash behind the §1/§2 text on narrow screens
-    dotColor: "#d2d3c9",
-    dotStroke: "#bdbeb3",
+    dotColor: '#d2d3c9',
+    dotStroke: '#bdbeb3',
     yMin: 0.04,
     yMax: 0.54,
   };
 
   var STYLE = false;
   function injectStyle(o) {
-    if (STYLE || typeof document === "undefined") return;
-    var s = document.createElement("style");
+    if (STYLE || typeof document === 'undefined') return;
+    var s = document.createElement('style');
     s.textContent = [
-      ".af-wrap{position:relative;height:100%;max-width:1180px;margin:0 auto;padding:0 36px}",
-      ".af-fleet{position:absolute;left:36px;right:36px;top:50%;transform:translateY(-50%);height:min(600px,72vh);border:1px solid transparent;border-radius:12px;padding:14px;box-sizing:border-box}",
-      ".af-cols{position:relative;height:100%;display:grid;grid-template-columns:330px 1fr;gap:42px;align-items:stretch}",
-      ".af-left{display:flex;flex-direction:column;gap:12px;min-width:0;height:100%}",
-      ".af-right{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr);gap:12px;min-width:0;height:100%}",
-      ".af-session{flex:1;border:1px solid " +
+      '.af-wrap{position:relative;height:100%;max-width:1180px;margin:0 auto;padding:0 36px}',
+      '.af-fleet{position:absolute;left:36px;right:36px;top:50%;transform:translateY(-50%);height:min(600px,72vh);border:1px solid transparent;border-radius:12px;padding:14px;box-sizing:border-box}',
+      '.af-cols{position:relative;height:100%;display:grid;grid-template-columns:330px 1fr;gap:42px;align-items:stretch}',
+      '.af-left{display:flex;flex-direction:column;gap:12px;min-width:0;height:100%}',
+      '.af-right{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr);gap:12px;min-width:0;height:100%}',
+      '.af-session{flex:1;border:1px solid ' +
         o.line2 +
-        ";border-radius:8px;background:#fff;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;opacity:0;transform:translateY(14px);transition:opacity .35s ease,transform .35s cubic-bezier(.2,.7,.2,1)}",
-      ".af-session.on{opacity:1;transform:none}",
-      ".af-schart{display:block;width:100%;height:56px}",
-      ".af-cloud{border:1px solid " +
+        ';border-radius:8px;background:#fff;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;opacity:0;transform:translateY(14px);transition:opacity .35s ease,transform .35s cubic-bezier(.2,.7,.2,1)}',
+      '.af-session.on{opacity:1;transform:none}',
+      '.af-schart{display:block;width:100%;height:56px}',
+      '.af-cloud{border:1px solid ' +
         o.line2 +
-        ";border-radius:8px;background:#fff;padding:8px 10px;display:flex;flex-direction:column;min-height:0;overflow:hidden;opacity:0;transform:translateY(14px);transition:opacity .35s ease,transform .35s cubic-bezier(.2,.7,.2,1)}",
-      ".af-cloud.on{opacity:1;transform:none}",
-      ".af-cicon{color:" + o.faint + ";opacity:.7}",
-      ".af-grid{margin-top:7px;flex:1;display:grid;gap:3px;grid-template-columns:repeat(auto-fill,11px);align-content:center}",
-      ".af-gpu{width:11px;height:11px;border-radius:2px;background:" +
+        ';border-radius:8px;background:#fff;padding:8px 10px;display:flex;flex-direction:column;min-height:0;overflow:hidden;opacity:0;transform:translateY(14px);transition:opacity .35s ease,transform .35s cubic-bezier(.2,.7,.2,1)}',
+      '.af-cloud.on{opacity:1;transform:none}',
+      '.af-cicon{color:' + o.faint + ';opacity:.7}',
+      '.af-grid{margin-top:7px;flex:1;display:grid;gap:3px;grid-template-columns:repeat(auto-fill,11px);align-content:center}',
+      '.af-gpu{width:11px;height:11px;border-radius:2px;background:' +
         o.paper +
-        ";border:1px solid " +
+        ';border:1px solid ' +
         o.line2 +
-        "}",
-      ".af-gpu.run{transform:scale(1.16)}",
-      ".af-packets{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:6}",
-      ".af-flows{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:6}",
-      ".af-hero{position:absolute;left:50%;top:" +
+        '}',
+      '.af-gpu.run{transform:scale(1.16)}',
+      '.af-packets{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:6}',
+      '.af-flows{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:6}',
+      '.af-hero{position:absolute;left:50%;top:' +
         o.heroTop * 100 +
-        "%;width:clamp(560px,54vw,860px);transform:translate(-50%,-50%);z-index:7;will-change:transform,opacity;border:1px solid " +
+        '%;width:clamp(560px,54vw,860px);transform:translate(-50%,-50%);z-index:7;will-change:transform,opacity;border:1px solid ' +
         o.line2 +
-        ";background:#fff;border-radius:10px;padding:28px;box-shadow:0 8px 30px rgba(40,40,30,.06)}",
-      ".af-hero svg{display:block;width:100%;height:auto}",
-      ".af-report{position:absolute;left:50%;top:74%;transform:translate(-50%,-50%);width:158px;height:206px;opacity:0;z-index:8}",
-      ".af-pfront{position:absolute;left:0;top:0;width:158px;height:206px;border:1px solid " +
+        ';background:#fff;border-radius:10px;padding:28px;box-shadow:0 8px 30px rgba(40,40,30,.06)}',
+      '.af-hero svg{display:block;width:100%;height:auto}',
+      '.af-report{position:absolute;left:50%;top:74%;transform:translate(-50%,-50%);width:158px;height:206px;opacity:0;z-index:8}',
+      '.af-pfront{position:absolute;left:0;top:0;width:158px;height:206px;border:1px solid ' +
         o.line2 +
-        ";border-radius:6px;background:#fff;overflow:hidden;z-index:0;box-shadow:0 6px 20px rgba(40,40,30,.06)}",
-      ".af-paper{position:absolute;inset:0;width:100%;height:100%}",
-      ".af-fg{position:absolute;left:50%;top:0;width:min(1040px,92%);padding:0 36px;box-sizing:border-box;z-index:9;opacity:0;will-change:transform}",
+        ';border-radius:6px;background:#fff;overflow:hidden;z-index:0;box-shadow:0 6px 20px rgba(40,40,30,.06)}',
+      '.af-paper{position:absolute;inset:0;width:100%;height:100%}',
+      '.af-fg{position:absolute;left:50%;top:0;width:min(1040px,92%);padding:0 36px;box-sizing:border-box;z-index:9;opacity:0;will-change:transform}',
       // no wash on desktop — the text reads directly over the papers. Only narrow
       // widths get a light paper-colored backing for legibility (half opacity).
-      ".af-fg>*{position:relative;z-index:1}",
-      "@media (max-width:900px){.af-fg::before{content:'';position:absolute;left:-30px;right:-30px;top:-26px;bottom:-26px;z-index:0;border-radius:12px;background:rgba(252,252,249," + o.fgBacking + ")}}",
-      ".af-stack{position:absolute;inset:0;pointer-events:none;z-index:7}",
-      ".af-pcopy{position:absolute;width:158px;height:206px;margin:-103px 0 0 -79px;border:1px solid " +
+      '.af-fg>*{position:relative;z-index:1}',
+      "@media (max-width:900px){.af-fg::before{content:'';position:absolute;left:-30px;right:-30px;top:-26px;bottom:-26px;z-index:0;border-radius:12px;background:rgba(252,252,249," +
+        o.fgBacking +
+        ')}}',
+      '.af-stack{position:absolute;inset:0;pointer-events:none;z-index:7}',
+      '.af-pcopy{position:absolute;width:158px;height:206px;margin:-103px 0 0 -79px;border:1px solid ' +
         o.line2 +
-        ";border-radius:6px;background:linear-gradient(#fff 0 30px,rgba(255,255,255,0) 30px),repeating-linear-gradient(180deg,#d8d8cf 0 2px,#fff 2px 9px);opacity:0}",
+        ';border-radius:6px;background:linear-gradient(#fff 0 30px,rgba(255,255,255,0) 30px),repeating-linear-gradient(180deg,#d8d8cf 0 2px,#fff 2px 9px);opacity:0}',
       // §4 finale: once the last paper lands it spins forever (the wrapper holds
       // its position/scale; this only animates rotation, so nothing conflicts)
-      "@keyframes af-spin{to{transform:rotate(360deg)}}",
-      ".af-spin-on{animation:af-spin 8s linear infinite}",
-      "@media (max-width:860px){.af-cols{grid-template-columns:1fr;gap:18px}.af-right{grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr)}.af-wrap{padding:0 22px}.af-hero{width:88%;padding:20px}}",
-    ].join("");
+      '@keyframes af-spin{to{transform:rotate(360deg)}}',
+      '.af-spin-on{animation:af-spin 8s linear infinite}',
+      '@media (max-width:860px){.af-cols{grid-template-columns:1fr;gap:18px}.af-right{grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr)}.af-wrap{padding:0 22px}.af-hero{width:88%;padding:20px}}',
+    ].join('');
     document.head.appendChild(s);
     STYLE = true;
   }
@@ -194,22 +196,22 @@
       m = Math.min(m, y);
       this.mins.push(m);
     }
-    this._svg = svg("svg", {
-      class: opt.cls || "",
-      viewBox: "0 0 " + this.W + " " + this.H,
-      preserveAspectRatio: "none",
+    this._svg = svg('svg', {
+      class: opt.cls || '',
+      viewBox: '0 0 ' + this.W + ' ' + this.H,
+      preserveAspectRatio: 'none',
     });
-    this.dotsG = svg("g", {});
+    this.dotsG = svg('g', {});
     this._svg.appendChild(this.dotsG);
-    this.line = svg("path", {
-      fill: "none",
+    this.line = svg('path', {
+      fill: 'none',
       stroke: this.tint,
-      "stroke-width": this.lineW,
-      "stroke-linejoin": "round",
-      "stroke-linecap": "round",
+      'stroke-width': this.lineW,
+      'stroke-linejoin': 'round',
+      'stroke-linecap': 'round',
     });
     this._svg.appendChild(this.line);
-    this.lead = svg("circle", {
+    this.lead = svg('circle', {
       r: this.dotR * 1.5,
       fill: this.tint,
       opacity: 0,
@@ -217,13 +219,13 @@
     this._svg.appendChild(this.lead);
     this.dots = [];
     for (var k = 0; k < this.K; k++) {
-      var d = svg("circle", {
+      var d = svg('circle', {
         cx: this._x(k),
         cy: this._y(this.trials[k]),
         r: this.dotR,
         fill: o.dotColor,
         stroke: o.dotStroke,
-        "stroke-width": 0.7,
+        'stroke-width': 0.7,
         opacity: 0,
       });
       this.dotsG.appendChild(d);
@@ -247,19 +249,19 @@
     if (n === this._n) return;
     this._n = n;
     for (var k = 0; k < this.K; k++)
-      this.dots[k].setAttribute("opacity", k < n ? 1 : 0);
+      this.dots[k].setAttribute('opacity', k < n ? 1 : 0);
     if (n <= 0) {
-      this.line.setAttribute("d", "");
-      this.lead.setAttribute("opacity", 0);
+      this.line.setAttribute('d', '');
+      this.lead.setAttribute('opacity', 0);
       return;
     }
-    var d = "M " + this._x(0) + " " + this._y(this.mins[0]);
+    var d = 'M ' + this._x(0) + ' ' + this._y(this.mins[0]);
     for (var j = 1; j < n; j++)
-      d += " H " + this._x(j) + " V " + this._y(this.mins[j]);
-    this.line.setAttribute("d", d);
-    this.lead.setAttribute("cx", this._x(n - 1));
-    this.lead.setAttribute("cy", this._y(this.mins[n - 1]));
-    this.lead.setAttribute("opacity", 1);
+      d += ' H ' + this._x(j) + ' V ' + this._y(this.mins[j]);
+    this.line.setAttribute('d', d);
+    this.lead.setAttribute('cx', this._x(n - 1));
+    this.lead.setAttribute('cy', this._y(this.mins[n - 1]));
+    this.lead.setAttribute('opacity', 1);
   };
 
   function Fleet(container, options) {
@@ -267,8 +269,8 @@
     o.T = Object.assign({}, DEFAULTS.T, o.T || {});
     o.T.text = [o.T.text[0], o.fgScrollEnd];
     o.T.loop = [o.T.loop[0], o.fgScrollEnd];
-    if (typeof ScrollStage === "undefined" && typeof window !== "undefined")
-      throw new Error("autoresearch-fleet needs scrollstage.js");
+    if (typeof ScrollStage === 'undefined' && typeof window !== 'undefined')
+      throw new Error('autoresearch-fleet needs scrollstage.js');
     injectStyle(o);
     this._build(container);
     this._schedule();
@@ -286,29 +288,29 @@
     // foreground: content that scrolls OVER the pinned papers (e.g. the §1 text)
     if (o.foreground) {
       var fgEl =
-        typeof o.foreground === "string"
+        typeof o.foreground === 'string'
           ? document.querySelector(o.foreground)
           : o.foreground;
       if (fgEl) {
-        var rev = fgEl.querySelectorAll ? fgEl.querySelectorAll(".reveal") : [];
-        for (var ri = 0; ri < rev.length; ri++) rev[ri].classList.add("in");
-        this.fg = elh("div", "af-fg");
+        var rev = fgEl.querySelectorAll ? fgEl.querySelectorAll('.reveal') : [];
+        for (var ri = 0; ri < rev.length; ri++) rev[ri].classList.add('in');
+        this.fg = elh('div', 'af-fg');
         this.fg.appendChild(fgEl);
         this.wrap.appendChild(this.fg);
         // each publication row pulls a paper out of the stack as it scrolls in
-        var rows = this.fg.querySelectorAll(".pub-row");
+        var rows = this.fg.querySelectorAll('.pub-row');
         this.pubRows = [];
         for (var pi = 0; pi < rows.length; pi++) {
           this.pubRows.push({
             row: rows[pi],
-            fig: rows[pi].querySelector(".pub-fig"),
-            info: rows[pi].querySelector(".pub-info"),
+            fig: rows[pi].querySelector('.pub-fig'),
+            info: rows[pi].querySelector('.pub-info'),
           });
         }
         // §4 finale: the LAST paper in the trail descends into this slot beside
         // the section, shrinking and spinning a full turn. Reserve that paper so
         // the streaming trail and the publications never claim it.
-        this.loopFig = this.fg.querySelector("#loop .loop-fig");
+        this.loopFig = this.fg.querySelector('#loop .loop-fig');
         this.loopPaper =
           this.loopFig && this.pile && this.pile.length
             ? this.pile[this.pile.length - 1]
@@ -319,9 +321,9 @@
         // without clobbering the JS-driven position.
         if (this.loopPaper) {
           var lpEl = this.loopPaper.el;
-          var lw = document.createElement("div");
+          var lw = document.createElement('div');
           lw.style.cssText =
-            "position:absolute;left:0;top:0;width:158px;height:206px;transform-origin:50% 50%;will-change:transform";
+            'position:absolute;left:0;top:0;width:158px;height:206px;transform-origin:50% 50%;will-change:transform';
           lpEl.parentNode.insertBefore(lw, lpEl);
           lw.appendChild(lpEl);
           this.loopWrap = lw;
@@ -333,12 +335,12 @@
 
   Fleet.prototype._build = function (container) {
     var o = this.o;
-    this.wrap = elh("div", "af-wrap");
-    this.fleet = elh("div", "af-fleet");
-    var cols = elh("div", "af-cols");
+    this.wrap = elh('div', 'af-wrap');
+    this.fleet = elh('div', 'af-fleet');
+    var cols = elh('div', 'af-cols');
     this.colsEl = cols;
-    var left = elh("div", "af-left"),
-      right = elh("div", "af-right");
+    var left = elh('div', 'af-left'),
+      right = elh('div', 'af-right');
     cols.appendChild(left);
     cols.appendChild(right);
     this.fleet.appendChild(cols);
@@ -347,7 +349,7 @@
     this.sessions = [];
     for (var i = 0; i < o.sessions; i++) {
       var tint = o.tints[i % o.tints.length];
-      var card = elh("div", "af-session");
+      var card = elh('div', 'af-session');
       left.appendChild(card);
       var dsc = new Descent(card, o, {
         K: o.trials[i % o.trials.length],
@@ -361,27 +363,27 @@
         padR: 6,
         padT: 6,
         padB: 6,
-        cls: "af-schart",
+        cls: 'af-schart',
       });
       this.sessions.push({ el: card, tint: tint, dsc: dsc, on: false });
     }
     // slot 0 is occupied by the docked hero and never reveals its own card, so
     // clear its pre-reveal translateY(14px) — otherwise the hero would dock onto
     // a slot rect that sits ~14px too low.
-    this.sessions[0].el.style.transform = "none";
+    this.sessions[0].el.style.transform = 'none';
     this.cells = [];
     this.clouds = [];
     for (var c = 0; c < o.clouds; c++) {
       var n = o.cloudSizes[c % o.cloudSizes.length];
       var cl = elh(
-        "div",
-        "af-cloud",
+        'div',
+        'af-cloud',
         CLOUD_ICON + '<div class="af-grid"></div>',
       );
-      var grid = cl.querySelector(".af-grid"),
+      var grid = cl.querySelector('.af-grid'),
         cells = [];
       for (var k = 0; k < n; k++) {
-        var cell = elh("div", "af-gpu");
+        var cell = elh('div', 'af-gpu');
         grid.appendChild(cell);
         cells.push(cell);
         this.cells.push(cell);
@@ -389,19 +391,19 @@
       right.appendChild(cl);
       this.clouds.push({ el: cl, cells: cells, on: false });
     }
-    this.packets = svg("svg", { class: "af-packets" });
+    this.packets = svg('svg', { class: 'af-packets' });
     this.wrap.appendChild(this.packets);
 
     // flow-line layer: streams that distill the research down into the report
-    this.flowSvg = svg("svg", { class: "af-flows" });
+    this.flowSvg = svg('svg', { class: 'af-flows' });
     this.flows = [];
     for (var fi = 0; fi < this.sessions.length; fi++) {
-      var fp = svg("path", {
-        fill: "none",
+      var fp = svg('path', {
+        fill: 'none',
         stroke: this.sessions[fi].tint,
-        "stroke-width": 1.7,
-        "stroke-linecap": "round",
-        "stroke-dasharray": "5 8",
+        'stroke-width': 1.7,
+        'stroke-linecap': 'round',
+        'stroke-dasharray': '5 8',
         opacity: 0,
       });
       this.flowSvg.appendChild(fp);
@@ -409,7 +411,7 @@
     }
     this.wrap.appendChild(this.flowSvg);
 
-    this.hero = elh("div", "af-hero");
+    this.hero = elh('div', 'af-hero');
     this.heroDsc = new Descent(this.hero, o, {
       K: o.trials[0],
       tint: o.green,
@@ -436,21 +438,21 @@
       PH = 392;
     this.PW = PW;
     this.PH = PH; // ~ box aspect
-    var rep = elh("div", "af-report");
+    var rep = elh('div', 'af-report');
     this.report = rep;
-    var s = svg("svg", {
-      class: "af-paper",
-      viewBox: "0 0 " + PW + " " + PH,
-      preserveAspectRatio: "none",
+    var s = svg('svg', {
+      class: 'af-paper',
+      viewBox: '0 0 ' + PW + ' ' + PH,
+      preserveAspectRatio: 'none',
     });
     this.paper = s;
-    var titleC = "#b6b6ad",
-      textC = "#d2d2c9"; // faded greys — a caricature of a paper, no black
+    var titleC = '#b6b6ad',
+      textC = '#d2d2c9'; // faded greys — a caricature of a paper, no black
     this.lines = [];
     this.figs = [];
     var order = 0;
     function add(x, y, w, h, fill) {
-      var r = svg("rect", {
+      var r = svg('rect', {
         x: x,
         y: y,
         width: 0,
@@ -477,11 +479,11 @@
       add(x, y, w, 8, textC);
       y += 17;
       if (i === 2) {
-        self._addFigure(s, x, y, w0, 82, { type: "descent", addAt: 0.44 });
+        self._addFigure(s, x, y, w0, 82, { type: 'descent', addAt: 0.44 });
         y += 82 + 12;
       }
       if (i === 5) {
-        self._addFigure(s, x, y, w0, 48, { type: "bars", addAt: 0.64 });
+        self._addFigure(s, x, y, w0, 48, { type: 'bars', addAt: 0.64 });
         y += 48 + 10;
       }
     }
@@ -522,18 +524,22 @@
       cy += STEP * Math.cos(ang);
       this.trailX.push(cx);
       this.trailY.push(cy);
-      var cp = elh("div", "af-pcopy");
+      var cp = elh('div', 'af-pcopy');
       cp.style.cssText =
-        "position:absolute;margin:0;left:0;top:0;width:158px;height:206px;background:#fff;overflow:hidden;z-index:" +
+        'position:absolute;margin:0;left:0;top:0;width:158px;height:206px;background:#fff;overflow:hidden;z-index:' +
         pc +
-        ";opacity:0;transform-origin:50% 50%;will-change:transform,opacity";
+        ';opacity:0;transform-origin:50% 50%;will-change:transform,opacity';
       cp.appendChild(paperSVG(o, o.seed + 200 + pc * 7)); // a varied copy of the paper
       rep.appendChild(cp);
       var ramp = clamp((pc - 1) / 3, 0, 1); // ease the shuffle in over the first few
       var wob = (R2() - 0.5) * 7 * ramp;
-      this.pile.push({ el: cp, k: pc, rot: ((ang * 180) / Math.PI) * 0.42 + wob });
+      this.pile.push({
+        el: cp,
+        k: pc,
+        rot: ((ang * 180) / Math.PI) * 0.42 + wob,
+      });
     }
-    this.front = elh("div", "af-pfront");
+    this.front = elh('div', 'af-pfront');
     var front = this.front;
     front.appendChild(s);
     rep.appendChild(front);
@@ -542,27 +548,27 @@
 
   // shared figure renderer (used animated by the scene, static by paperStack)
   function drawFigure(s, x, y, w, h, type, o, seed) {
-    var g = svg("g", { opacity: 0 });
+    var g = svg('g', { opacity: 0 });
     g.appendChild(
-      svg("rect", {
+      svg('rect', {
         x: x,
         y: y,
         width: w,
         height: h,
         rx: 2,
-        fill: "#fcfcf9",
-        stroke: "#e4e4dc",
-        "stroke-width": 1,
+        fill: '#fcfcf9',
+        stroke: '#e4e4dc',
+        'stroke-width': 1,
       }),
     );
     g.appendChild(
-      svg("rect", {
+      svg('rect', {
         x: x + w * 0.12,
         y: y + h + 4,
         width: w * 0.76,
         height: 2.4,
         rx: 1,
-        fill: "#cfcfc6",
+        fill: '#cfcfc6',
       }),
     );
     var pad = 9,
@@ -571,32 +577,32 @@
       pw = w - 2 * pad,
       ph = h - 2 * pad,
       rnd = rng(seed);
-    if (type === "descent") {
-      var d = "M " + px + " " + (py + ph * 0.1),
+    if (type === 'descent') {
+      var d = 'M ' + px + ' ' + (py + ph * 0.1),
         pts = 6;
       for (var i = 1; i <= pts; i++) {
         d +=
-          " H " +
+          ' H ' +
           (px + pw * (i / pts)).toFixed(1) +
-          " V " +
+          ' V ' +
           (py + ph * (0.1 + 0.74 * (i / pts))).toFixed(1);
       }
       for (var k = 0; k < 11; k++)
         g.appendChild(
-          svg("circle", {
+          svg('circle', {
             cx: (px + pw * rnd()).toFixed(1),
             cy: (py + ph * (0.08 + 0.84 * rnd())).toFixed(1),
             r: 1.1,
-            fill: "#d2d3c9",
+            fill: '#d2d3c9',
           }),
         );
       g.appendChild(
-        svg("path", {
+        svg('path', {
           d: d,
-          fill: "none",
+          fill: 'none',
           stroke: o.green,
-          "stroke-width": 1.5,
-          "stroke-linejoin": "round",
+          'stroke-width': 1.5,
+          'stroke-linejoin': 'round',
         }),
       );
     } else {
@@ -604,13 +610,13 @@
       for (var b = 0; b < 6; b++) {
         var bh = ph * (0.32 + 0.62 * (((b * 7) % 5) / 5));
         g.appendChild(
-          svg("rect", {
+          svg('rect', {
             x: (px + b * bw + 1).toFixed(1),
             y: (py + ph - bh).toFixed(1),
             width: (bw - 2).toFixed(1),
             height: bh.toFixed(1),
             rx: 1,
-            fill: b % 2 ? o.green : "#c2cad2",
+            fill: b % 2 ? o.green : '#c2cad2',
           }),
         );
       }
@@ -621,23 +627,23 @@
 
   // a single fully-written caricature paper (static), as a positioned div
   function staticPaper(o) {
-    var el = document.createElement("div");
-    el.className = "af-pcopy";
+    var el = document.createElement('div');
+    el.className = 'af-pcopy';
     el.style.cssText =
-      "position:absolute;margin:0;width:158px;height:206px;background:#fff";
+      'position:absolute;margin:0;width:158px;height:206px;background:#fff';
     var PW = 300,
       PH = 392,
-      s = svg("svg", {
-        viewBox: "0 0 " + PW + " " + PH,
-        preserveAspectRatio: "none",
+      s = svg('svg', {
+        viewBox: '0 0 ' + PW + ' ' + PH,
+        preserveAspectRatio: 'none',
       });
-    s.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
-    var titleC = "#b6b6ad",
-      textC = "#d2d2c9",
+    s.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+    var titleC = '#b6b6ad',
+      textC = '#d2d2c9',
       R = rng(o.seed + 5);
     function bar(x, y, w, h, f) {
       s.appendChild(
-        svg("rect", { x: x, y: y, width: w, height: h, rx: h / 2, fill: f }),
+        svg('rect', { x: x, y: y, width: w, height: h, rx: h / 2, fill: f }),
       );
     }
     bar(PW / 2 - 96, 34, 192, 13, titleC);
@@ -651,15 +657,15 @@
       bar(x, y, w, 8, textC);
       y += 17;
       if (i === 2) {
-        drawFigure(s, x, y, w0, 82, "descent", o, o.seed + 30).setAttribute(
-          "opacity",
+        drawFigure(s, x, y, w0, 82, 'descent', o, o.seed + 30).setAttribute(
+          'opacity',
           1,
         );
         y += 82 + 12;
       }
       if (i === 5) {
-        drawFigure(s, x, y, w0, 48, "bars", o, o.seed + 31).setAttribute(
-          "opacity",
+        drawFigure(s, x, y, w0, 48, 'bars', o, o.seed + 31).setAttribute(
+          'opacity',
           1,
         );
         y += 48 + 10;
@@ -676,18 +682,18 @@
   function paperSVG(o, seed) {
     var PW = 300,
       PH = 392,
-      s = svg("svg", {
-        viewBox: "0 0 " + PW + " " + PH,
-        preserveAspectRatio: "none",
+      s = svg('svg', {
+        viewBox: '0 0 ' + PW + ' ' + PH,
+        preserveAspectRatio: 'none',
       });
-    s.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
-    var titleC = "#b6b6ad",
-      textC = "#d2d2c9",
+    s.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+    var titleC = '#b6b6ad',
+      textC = '#d2d2c9',
       R = rng(seed),
-      og = Object.assign({}, o, { green: "#b3b3aa" }); // figures stay grey/white, no green
+      og = Object.assign({}, o, { green: '#b3b3aa' }); // figures stay grey/white, no green
     function bar(x, y, w, h, f) {
       s.appendChild(
-        svg("rect", { x: x, y: y, width: w, height: h, rx: h / 2, fill: f }),
+        svg('rect', { x: x, y: y, width: w, height: h, rx: h / 2, fill: f }),
       );
     }
     // title: one or two thick centered bars + a short subtitle
@@ -717,10 +723,10 @@
       bar(x, y, w, 8, textC);
       y += 17;
       if (figRows.indexOf(i) >= 0 && y < PH - 70) {
-        var type = R() < 0.55 ? "descent" : "bars",
-          fh = type === "descent" ? 70 + R() * 24 : 42 + R() * 16;
+        var type = R() < 0.55 ? 'descent' : 'bars',
+          fh = type === 'descent' ? 70 + R() * 24 : 42 + R() * 16;
         drawFigure(s, x, y, w0, fh, type, og, seed + 31 + i).setAttribute(
-          "opacity",
+          'opacity',
           1,
         );
         y += fh + 12;
@@ -735,11 +741,11 @@
     var o = Object.assign({}, DEFAULTS, opts);
     injectStyle(o);
     var host =
-      typeof container === "string"
+      typeof container === 'string'
         ? document.querySelector(container)
         : container;
     if (!host) return { reveal: function () {} };
-    host.innerHTML = "";
+    host.innerHTML = '';
     var count = opts.count || 16,
       dy = opts.dy || 15,
       R = rng(o.seed + 12);
@@ -747,12 +753,12 @@
     // pile below it — no fade; papers literally come out from under the first paper
     var copies = [];
     for (var i = 1; i < count; i++) {
-      var c = document.createElement("div");
-      c.className = "af-pcopy";
+      var c = document.createElement('div');
+      c.className = 'af-pcopy';
       c.style.cssText =
-        "position:absolute;margin:0;left:0;top:0;z-index:" +
+        'position:absolute;margin:0;left:0;top:0;z-index:' +
         (60 - i) +
-        ";opacity:1;transform-origin:50% 30%;transform:translate(0,0)";
+        ';opacity:1;transform-origin:50% 30%;transform:translate(0,0)';
       host.appendChild(c);
       copies.push({
         el: c,
@@ -763,9 +769,9 @@
       });
     }
     var front = staticPaper(o);
-    front.style.left = "0px";
-    front.style.top = "0px";
-    front.style.zIndex = "61";
+    front.style.left = '0px';
+    front.style.top = '0px';
+    front.style.zIndex = '61';
     host.appendChild(front);
     return {
       el: host,
@@ -779,13 +785,13 @@
           a = a < 0 ? 0 : a > 1 ? 1 : a;
           a = a * a * (3 - 2 * a);
           cc.el.style.transform =
-            "translate(" +
+            'translate(' +
             (a * cc.tx).toFixed(1) +
-            "px," +
+            'px,' +
             (a * cc.ty).toFixed(1) +
-            "px) rotate(" +
+            'px) rotate(' +
             (a * cc.rot).toFixed(2) +
-            "deg)";
+            'deg)';
         }
       },
     };
@@ -874,22 +880,26 @@
     var tx = lerp(0, slotR.left + slotR.width / 2 - hcx, dk);
     var ty = lerp(0, slotR.top + slotR.height / 2 - hcy, dk);
     this.hero.style.transform =
-      "translate(-50%,-50%) translate(" +
+      'translate(-50%,-50%) translate(' +
       tx +
-      "px," +
+      'px,' +
       ty +
-      "px) scale(" +
+      'px) scale(' +
       scaleX +
-      "," +
+      ',' +
       scaleY +
-      ")";
+      ')';
     // compensate stroke-width for the CSS scale: at dk=1 the 720-wide SVG is
     // squashed to slot width, so we need 2×720/300=4.8 to match the other sessions' visual weight of 2
-    this.heroDsc.line.setAttribute("stroke-width", lerp(2.8, 4.8, dk).toFixed(2));
+    this.heroDsc.line.setAttribute(
+      'stroke-width',
+      lerp(2.8, 4.8, dk).toFixed(2),
+    );
     // compensate border-width: CSS transform scales the 1px border down with the
     // element, making it hairline-thin when docked. Divide by scaleX so the visual
     // border always renders at 1px, matching the other session cards.
-    this.hero.style.borderWidth = (1 / Math.max(scaleX, 0.01)).toFixed(2) + "px";
+    this.hero.style.borderWidth =
+      (1 / Math.max(scaleX, 0.01)).toFixed(2) + 'px';
     // the hero IS the top session block now: it docks into slot 0 and stays
     // (tracking the slot through the shrink). No early cross-dissolve — it only
     // recedes later, together with the whole fleet at the closing.
@@ -904,14 +914,14 @@
       var on = i > 0 && p > lerp(T.ses[0], T.ses[1], i / Math.max(1, nS - 1));
       if (on !== s.on) {
         s.on = on;
-        s.el.classList.toggle("on", on);
+        s.el.classList.toggle('on', on);
       }
     });
     this.clouds.forEach(function (cl, i) {
       var on = p > lerp(T.cloud[0], T.cloud[1], i / Math.max(1, nC - 1));
       if (on !== cl.on) {
         cl.on = on;
-        cl.el.classList.toggle("on", on);
+        cl.el.classList.toggle('on', on);
       }
     });
 
@@ -925,12 +935,12 @@
         counts[job.i]++;
         if (p < job.c + o.doneWin)
           nextActive[job.cell] = {
-            st: "done",
+            st: 'done',
             tint: this.sessions[job.i].tint,
           };
         if (p < job.c + o.pktWin) flying.push(job);
       } else if (p >= job.d) {
-        nextActive[job.cell] = { st: "run", tint: this.sessions[job.i].tint };
+        nextActive[job.cell] = { st: 'run', tint: this.sessions[job.i].tint };
       }
     }
     counts[0] = this.sessions[0].on ? this.heroDsc.K : 0; // session 0 = the completed intro run
@@ -941,21 +951,21 @@
     for (var key in prev) {
       if (!nextActive[key]) {
         var cc = this.cells[key];
-        cc.className = "af-gpu";
-        cc.style.background = "";
-        cc.style.borderColor = "";
+        cc.className = 'af-gpu';
+        cc.style.background = '';
+        cc.style.borderColor = '';
       }
     }
     for (var k2 in nextActive) {
       var st = nextActive[k2],
         cell = this.cells[k2];
-      if (st.st === "run") {
-        cell.className = "af-gpu run";
+      if (st.st === 'run') {
+        cell.className = 'af-gpu run';
         cell.style.background = st.tint;
         cell.style.borderColor = st.tint;
       } else {
         var f = this._fade(st.tint);
-        cell.className = "af-gpu done";
+        cell.className = 'af-gpu done';
         cell.style.background = f;
         cell.style.borderColor = f;
       }
@@ -980,12 +990,12 @@
     var sc = 1 - sp * 0.42; // → ~0.58
     var dy = -sp * 0.21 * stageH; // drift up, leaving room for the report below
     this.fleet.style.transform =
-      "translateY(-50%) translateY(" +
+      'translateY(-50%) translateY(' +
       dy.toFixed(1) +
-      "px) scale(" +
+      'px) scale(' +
       sc.toFixed(3) +
-      ")";
-    this.fleet.style.borderColor = "rgba(198,198,188," + sp.toFixed(3) + ")";
+      ')';
+    this.fleet.style.borderColor = 'rgba(198,198,188,' + sp.toFixed(3) + ')';
     this.fleet.style.opacity = (1 - sp * 0.08).toFixed(3);
 
     // the small report appears at the bottom
@@ -999,10 +1009,10 @@
     for (var k = 0; k < this.figs.length; k++) {
       var F = this.figs[k],
         a = ease(rp, F.addAt, F.addAt + 0.05);
-      F.g.setAttribute("opacity", a.toFixed(3));
+      F.g.setAttribute('opacity', a.toFixed(3));
       F.g.setAttribute(
-        "transform",
-        "translate(0," + ((1 - a) * 7).toFixed(1) + ")",
+        'transform',
+        'translate(0,' + ((1 - a) * 7).toFixed(1) + ')',
       );
     }
 
@@ -1021,14 +1031,14 @@
     // the experiments box + distill lines recede as the closing begins
     var fan = ease(p, T.fan[0], T.fan[1]);
     this.fleet.style.opacity = (
-      parseFloat(this.fleet.style.opacity || "1") *
+      parseFloat(this.fleet.style.opacity || '1') *
       (1 - fan * 0.97)
     ).toFixed(3);
     for (var fi = 0; fi < this.flows.length; fi++)
       this.flows[fi].setAttribute(
-        "opacity",
+        'opacity',
         (
-          parseFloat(this.flows[fi].getAttribute("opacity") || 0) *
+          parseFloat(this.flows[fi].getAttribute('opacity') || 0) *
           (1 - fan)
         ).toFixed(3),
       );
@@ -1050,7 +1060,7 @@
 
     if (this.front) {
       // the distilled paper is the head (slot 0,0); it just scrolls up too
-      this.front.style.transform = "translate(0px," + (-S).toFixed(1) + "px)";
+      this.front.style.transform = 'translate(0px,' + (-S).toFixed(1) + 'px)';
       this.front.style.opacity = clamp((spawnY - S) / 90, 0, 1).toFixed(3);
     }
     for (var i = 0; i < N; i++) {
@@ -1069,29 +1079,29 @@
         var fx = lerp(this.trailX[k], pu.tx, a),
           fy = lerp(this.trailY[k] - S, pu.ty, a);
         pl.el.style.transform =
-          "translate(" +
+          'translate(' +
           fx.toFixed(1) +
-          "px," +
+          'px,' +
           fy.toFixed(1) +
-          "px) rotate(" +
+          'px) rotate(' +
           lerp(pl.rot, 0, a).toFixed(2) +
-          "deg) scale(" +
+          'deg) scale(' +
           lerp(1, pu.sc, a).toFixed(3) +
-          ")";
-        pl.el.style.opacity = "1";
-        pl.el.style.zIndex = "60";
+          ')';
+        pl.el.style.opacity = '1';
+        pl.el.style.zIndex = '60';
         pl.el.style.boxShadow =
-          a > 0.05 ? "0 10px 26px rgba(40,40,30,.14)" : "";
+          a > 0.05 ? '0 10px 26px rgba(40,40,30,.14)' : '';
         continue;
       }
       // released back to the stream → restore its normal stacking
-      if (pl.el.style.zIndex === "60") {
+      if (pl.el.style.zIndex === '60') {
         pl.el.style.zIndex = String(k);
-        pl.el.style.boxShadow = "";
+        pl.el.style.boxShadow = '';
       }
 
       if (lead < k - 1) {
-        pl.el.style.opacity = "0";
+        pl.el.style.opacity = '0';
         continue;
       } // not surfaced yet
       var x = this.trailX[k],
@@ -1100,13 +1110,13 @@
       born = born * born * (3 - 2 * born); // ease the surfacing
       var fadeUp = clamp((spawnY + y) / 90, 0, 1); // fade as it nears the top edge
       pl.el.style.transform =
-        "translate(" +
+        'translate(' +
         x.toFixed(1) +
-        "px," +
+        'px,' +
         y.toFixed(1) +
-        "px) rotate(" +
+        'px) rotate(' +
         pl.rot.toFixed(2) +
-        "deg)";
+        'deg)';
       pl.el.style.opacity = (born * fadeUp * 0.82).toFixed(3);
     }
 
@@ -1114,14 +1124,14 @@
     var tp = ease(p, T.text[0], T.text[1]);
     if (this.fg) {
       if (tp <= 0.001) {
-        this.fg.style.opacity = "0";
+        this.fg.style.opacity = '0';
       } else {
-        this.fg.style.opacity = "1";
+        this.fg.style.opacity = '1';
         var fgH = this.fg.offsetHeight || H;
         this.fg.style.transform =
-          "translateX(-50%) translateY(" +
+          'translateX(-50%) translateY(' +
           lerp(H * 0.62, -(fgH - H), tp).toFixed(1) +
-          "px)";
+          'px)';
       }
     }
 
@@ -1131,7 +1141,8 @@
         ia = pubs.pull[pj].a;
       if (info) {
         info.style.opacity = ia.toFixed(3);
-        info.style.transform = "translateX(" + lerp(22, 0, ia).toFixed(1) + "px)";
+        info.style.transform =
+          'translateX(' + lerp(22, 0, ia).toFixed(1) + 'px)';
       }
     }
 
@@ -1151,15 +1162,15 @@
     var paper = pl.el;
     // slot hidden (narrow screens) → keep the paper out of the scene
     if (!fig.offsetWidth) {
-      paper.style.opacity = "0";
-      paper.classList.remove("af-spin-on");
+      paper.style.opacity = '0';
+      paper.classList.remove('af-spin-on');
       return;
     }
     var a = ease(p, this.o.T.loop[0], this.o.T.loop[1]);
     if (a <= 0.001) {
-      paper.style.opacity = "0";
-      paper.classList.remove("af-spin-on");
-      paper.style.transform = "";
+      paper.style.opacity = '0';
+      paper.classList.remove('af-spin-on');
+      paper.style.transform = '';
       return;
     }
     // landing target in the report's local coords (same convention as pub pulls:
@@ -1174,27 +1185,33 @@
     var scEnd = clamp((fr.width || 120) / 158, 0.4, 1),
       sc = lerp(1, scEnd, a);
     // wrapper: position + scale (held steady once landed)
-    wrap.style.zIndex = "60";
+    wrap.style.zIndex = '60';
     wrap.style.transform =
-      "translate(" + ex.toFixed(1) + "px," + y.toFixed(1) + "px) scale(" + sc.toFixed(3) + ")";
+      'translate(' +
+      ex.toFixed(1) +
+      'px,' +
+      y.toFixed(1) +
+      'px) scale(' +
+      sc.toFixed(3) +
+      ')';
     paper.style.opacity = clamp(a / 0.12, 0, 1).toFixed(3);
-    paper.style.boxShadow = "0 12px 28px rgba(40,40,30,.16)";
+    paper.style.boxShadow = '0 12px 28px rgba(40,40,30,.16)';
 
     // paper: rotation. Scroll-drives the descent spin; once landed (a≈1, a full
     // turn complete), hand off to the CSS animation so it spins forever. A small
     // hysteresis band avoids flicker at the boundary while scrubbing.
-    var spinning = paper.classList.contains("af-spin-on");
+    var spinning = paper.classList.contains('af-spin-on');
     if (spinning) {
       if (a < 0.95) {
-        paper.classList.remove("af-spin-on");
-        paper.style.transform = "rotate(" + (360 * a).toFixed(1) + "deg)";
+        paper.classList.remove('af-spin-on');
+        paper.style.transform = 'rotate(' + (360 * a).toFixed(1) + 'deg)';
       }
       // else: keep spinning — leave rotation to the animation
     } else if (a >= 0.999) {
-      paper.style.transform = ""; // animation starts from 0° == the landed 360°
-      paper.classList.add("af-spin-on");
+      paper.style.transform = ''; // animation starts from 0° == the landed 360°
+      paper.classList.add('af-spin-on');
     } else {
-      paper.style.transform = "rotate(" + (360 * a).toFixed(1) + "deg)";
+      paper.style.transform = 'rotate(' + (360 * a).toFixed(1) + 'deg)';
     }
   };
 
@@ -1205,7 +1222,7 @@
   Fleet.prototype._planPubs = function (H, lead, S, spawnY) {
     var out = { featByK: {}, pull: [] };
     if (!this.pubRows || !this.pubRows.length) return out;
-    var hide = !this.fg || this.fg.style.opacity === "0";
+    var hide = !this.fg || this.fg.style.opacity === '0';
     var feat = this._featK || (this._featK = []);
     while (feat.length < this.pubRows.length) feat.push(-1);
     var rr0 = this.report.getBoundingClientRect();
@@ -1231,7 +1248,8 @@
     }
 
     var taken = {};
-    for (var t = 0; t < feat.length; t++) if (feat[t] >= 0) taken[feat[t]] = true;
+    for (var t = 0; t < feat.length; t++)
+      if (feat[t] >= 0) taken[feat[t]] = true;
     for (var j2 = 0; j2 < this.pubRows.length; j2++) {
       if (out.pull[j2].a > 0.02 && feat[j2] < 0) {
         var best = -1,
@@ -1268,7 +1286,7 @@
     for (var i = 0; i < n; i++) {
       var path = this.flows[i];
       if (pa <= 0.002) {
-        path.setAttribute("opacity", 0);
+        path.setAttribute('opacity', 0);
         continue;
       }
       var sR = this.sessions[i].el.getBoundingClientRect();
@@ -1278,25 +1296,25 @@
       var c1y = sy + (ty - sy) * 0.45,
         c2y = sy + (ty - sy) * 0.78;
       var d =
-        "M " +
+        'M ' +
         sx.toFixed(1) +
-        " " +
+        ' ' +
         sy.toFixed(1) +
-        " C " +
+        ' C ' +
         sx.toFixed(1) +
-        " " +
+        ' ' +
         c1y.toFixed(1) +
-        " " +
+        ' ' +
         txi.toFixed(1) +
-        " " +
+        ' ' +
         c2y.toFixed(1) +
-        " " +
+        ' ' +
         txi.toFixed(1) +
-        " " +
+        ' ' +
         ty.toFixed(1);
-      path.setAttribute("d", d);
-      path.setAttribute("opacity", (pa * 0.8).toFixed(3));
-      path.setAttribute("stroke-dashoffset", (-rp * 180).toFixed(1)); // dashes flow toward the report as you scroll
+      path.setAttribute('d', d);
+      path.setAttribute('opacity', (pa * 0.8).toFixed(3));
+      path.setAttribute('stroke-dashoffset', (-rp * 180).toFixed(1)); // dashes flow toward the report as you scroll
     }
   };
 
@@ -1308,7 +1326,7 @@
     else if (L.rev && rp >= L.rev.rew)
       w = L.w2 * ease(rp, L.rev.rew, L.rev.rew + 0.03); // rewritten
     else w = rp >= writeAt ? L.w * ease(rp, writeAt, writeAt + 0.03) : 0; // written
-    L.el.setAttribute("width", (w > 0 ? w : 0).toFixed(1));
+    L.el.setAttribute('width', (w > 0 ? w : 0).toFixed(1));
   };
 
   Fleet.prototype._drawPackets = function (flying, p, u) {
@@ -1332,7 +1350,7 @@
       var x = e * e * x0 + 2 * e * t * mx + t * t * x1;
       var y = e * e * y0 + 2 * e * t * my + t * t * y1;
       pk.appendChild(
-        svg("circle", {
+        svg('circle', {
           cx: x,
           cy: y,
           r: 3,
@@ -1344,19 +1362,19 @@
   };
 
   Fleet.prototype._fade = function (hex) {
-    var c = hex.replace("#", ""),
+    var c = hex.replace('#', ''),
       r = parseInt(c.substr(0, 2), 16),
       g = parseInt(c.substr(2, 2), 16),
       b = parseInt(c.substr(4, 2), 16),
       t = 0.5;
     return (
-      "rgb(" +
+      'rgb(' +
       Math.round(lerp(r, 252, t)) +
-      "," +
+      ',' +
       Math.round(lerp(g, 252, t)) +
-      "," +
+      ',' +
       Math.round(lerp(b, 249, t)) +
-      ")"
+      ')'
     );
   };
 
