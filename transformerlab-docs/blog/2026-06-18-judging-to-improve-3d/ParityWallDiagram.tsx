@@ -113,8 +113,8 @@ export default function ParityWallDiagram(): React.ReactElement {
             Repairing the DINOv2 conditioning features rises monotonically with
             degradation severity (0.125 &rarr; 0.25 &rarr; 0.50): more
             corruption means more for a feature-repair adapter to recover. The
-            effect saturates at parity &mdash; lightweight repair recovers
-            enough to match the base, not to beat it.
+            effect saturates at parity: lightweight repair recovers enough to
+            match the base, not to beat it.
           </>
         )}
       </p>

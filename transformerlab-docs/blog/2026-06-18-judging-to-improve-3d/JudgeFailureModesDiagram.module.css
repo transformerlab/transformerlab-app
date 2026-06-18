@@ -45,7 +45,14 @@
 
 .tabActive {
   border-color: var(--ifm-color-primary);
-  background: var(--ifm-color-emphasis-100);
+  background: var(--ifm-color-primary);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+}
+
+.tabActive .tabNum {
+  background: #fff;
+  color: var(--ifm-color-primary);
 }
 
 .tabNum {
