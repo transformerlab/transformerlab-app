@@ -1,0 +1,140 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 2rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.2rem;
+}
+
+.subtitle {
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 0.9rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.1rem;
+}
+
+.tab {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--ifm-color-emphasis-400);
+  background: transparent;
+  color: var(--ifm-color-emphasis-800);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.tab:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.tabActive {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #fff;
+}
+
+.tabVisible::before {
+  content: '● ';
+  color: #2e8b57;
+}
+
+.tabAmbiguous::before {
+  content: '● ';
+  color: #d9534f;
+}
+
+.chart {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.6rem 0 1.4rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 130px 1fr 48px;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.rowLabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: right;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.track {
+  position: relative;
+  height: 22px;
+  background: var(--ifm-color-emphasis-200);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.bar {
+  height: 100%;
+  border-radius: 6px;
+  transition:
+    width 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 300ms ease;
+}
+
+.rowValue {
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+
+.chance {
+  position: absolute;
+  top: 0.6rem;
+  bottom: 1.4rem;
+  left: calc(130px + 0.7rem + 50%);
+  width: 0;
+  border-left: 2px dashed var(--ifm-color-emphasis-500);
+  pointer-events: none;
+}
+
+.chanceLabel {
+  position: absolute;
+  bottom: 0;
+  left: calc(130px + 0.7rem + 50%);
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  color: var(--ifm-color-emphasis-600);
+  white-space: nowrap;
+}
+
+.takeaway {
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  border-left: 3px solid var(--ifm-color-primary);
+  background: var(--ifm-color-emphasis-100);
+  font-size: 0.85rem;
+  min-height: 3.4em;
+}
+
+.meta {
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-top: 0.5rem;
+}
