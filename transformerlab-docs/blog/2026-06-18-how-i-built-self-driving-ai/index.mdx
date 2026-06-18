@@ -60,8 +60,6 @@ The pipeline I had to build: decode the compressed video into frames, match each
 
 Then I hit the real wall: **the data is wildly imbalanced.** Highway driving is overwhelmingly straight. About 94.5% of frames have the wheel within 15 degrees of center, leaving only ~5.5% that are actual turns. A lazy model can score great on average error by always predicting "go straight" and never learning to turn at all. The signal I cared about lived in the rare turns.
 
-![Example frames from one pre-dawn highway segment of comma2k19, each labeled with the human steering-wheel angle the model is trying to predict (shown as a steering-wheel glyph rotated by that angle). The whole segment only spans about -12 to +10 degrees, which is exactly the problem: highway steering is almost always gentle, so the interesting moments are rare.](./images/road_examples.png)
-
 ## Step 3: figuring out which model should work, from the literature
 
 I tried to read as much research literature on this general problem as I could. My understanding is that comma.ai uses a **convolutional neural network** (CNN) style model, the traditional workhorse for images and what PilotNet used. But Tesla uses a **Vision Transformer** (ViT), the newer architecture behind a lot of modern computer vision.
@@ -93,6 +91,10 @@ The other gotcha was that innocent-looking flip augmentation. On normal image ta
 
 ## Step 5: impressed by the results
 
+![Example frames from one pre-dawn highway segment of comma2k19, each labeled with the human steering-wheel angle the model is trying to predict (shown as a steering-wheel glyph rotated by that angle). The whole segment only spans about -12 to +10 degrees, which is exactly the problem: highway steering is almost always gentle, so the interesting moments are rare.](./images/road_examples.png)
+
+It works! Above are night-time driving images with steering directions from my real trained model! 💃
+
 Once adapted properly, the result genuinely surprised me. The supposedly data-hungry Vision Transformer **matched** the convolutional network at predicting steering, on as few as ~5,000 frames. On the turn slice (the part that matters), the ViT scored 0.964 and the CNN 0.967, a difference smaller than the run-to-run noise.
 
 <ParityScalingDiagram />
@@ -113,4 +115,4 @@ And it points right back at the thing that hooked me. My model goes straight fro
 
 ## You can try this too
 
-Stay tuned and we'll release the code for the end working project on Github. Full paper is on its way too; we'll add the arXiv link here as soon as it's published.
+If interested, I can the code for the end working project on Github. Full paper is on its way too; we'll add the arXiv link here as soon as it's published.
