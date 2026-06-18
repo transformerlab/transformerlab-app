@@ -72,22 +72,23 @@ def test_validate_url_empty():
 
 
 def _patch_config_paths(config_dir: str, config_file: str):
-    """Return a context manager that patches CONFIG_DIR and CONFIG_FILE."""
+    """Return a context manager that points the default-profile paths at a tmp dir."""
     import transformerlab_cli.util.config as config_mod
+    import transformerlab_cli.util.shared as shared_mod
 
     class _Patcher:
         def __enter__(self):
-            self._orig_dir = config_mod.CONFIG_DIR
-            self._orig_file = config_mod.CONFIG_FILE
+            self._orig_dir = shared_mod.CONFIG_DIR
+            self._orig_file = shared_mod.CONFIG_FILE
             self._orig_cache = config_mod.cached_config
-            config_mod.CONFIG_DIR = config_dir
-            config_mod.CONFIG_FILE = config_file
+            shared_mod.CONFIG_DIR = config_dir
+            shared_mod.CONFIG_FILE = config_file
             config_mod.cached_config = None
             return self
 
         def __exit__(self, *args):
-            config_mod.CONFIG_DIR = self._orig_dir
-            config_mod.CONFIG_FILE = self._orig_file
+            shared_mod.CONFIG_DIR = self._orig_dir
+            shared_mod.CONFIG_FILE = self._orig_file
             config_mod.cached_config = self._orig_cache
 
     return _Patcher()
