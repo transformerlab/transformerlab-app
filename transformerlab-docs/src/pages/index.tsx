@@ -115,7 +115,7 @@ function SceneForeground(): React.ReactElement {
           <li className="pub-row">
             <div className="pub-fig" />
             <div className="pub-info">
-              Asaria et al.{' '}
+              Asaria, Salomone, Gandhi.{' '}
               <span className="ti">
                 A Cross-Model VLM-Judge Protocol for Single-Image 3D Mesh
                 Quality (and Why Cheap Proxies Fall Short).
@@ -135,7 +135,7 @@ function SceneForeground(): React.ReactElement {
           <li className="pub-row">
             <div className="pub-fig" />
             <div className="pub-info">
-              Asaria et al.{' '}
+              Asaria, Salomone, Gandhi.{' '}
               <span className="ti">
                 Reliable Neural-Codec Text-to-Speech by ASR Self-Verification
                 and Distillation: Near-Zero Catastrophic Failures Across Models
@@ -157,7 +157,7 @@ function SceneForeground(): React.ReactElement {
           <li className="pub-row">
             <div className="pub-fig" />
             <div className="pub-info">
-              Asaria et al.{' '}
+              Asaria, Salomone, Gandhi.{' '}
               <span className="ti">
                 Neither Parallel Nor Sequential: How DiffusionGemma Actually
                 Commits Tokens.
@@ -177,7 +177,7 @@ function SceneForeground(): React.ReactElement {
           <li className="pub-row">
             <div className="pub-fig" />
             <div className="pub-info">
-              Asaria et al.{' '}
+              Asaria, Salomone, Gandhi.{' '}
               <span className="ti">
                 Realizing Native INT8 Compute for Diffusion Transformers on
                 Consumer GPUs: A Fused INT8 GEMM Kernel for Ideogram 4.0.
@@ -196,7 +196,7 @@ function SceneForeground(): React.ReactElement {
           <li className="pub-row">
             <div className="pub-fig" />
             <div className="pub-info">
-              Gandhi et al.{' '}
+              Gandhi, Asaria, Salomone.{' '}
               <span className="ti">
                 Holding the FP8 Quality Ceiling at 8-Bit Weights and
                 Activations: INT8 and GGUF Post-Training Quantization of
