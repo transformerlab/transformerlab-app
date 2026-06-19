@@ -743,6 +743,10 @@ export default function Scene({
     return lerp(H * 0.62, -(fgH - H), tp);
   });
 
+  // "keep scrolling" cue: fully shown when the scene first pins, fades out as
+  // soon as the user starts scrolling into the animation
+  const hintOpacity = useTransform(p, (v) => 1 - ease(v, 0.008, 0.05));
+
   // In-scene nav: §1–§4 live inside the pinned, scroll-transformed foreground,
   // so a plain `#lab` anchor jump lands on a meaningless scroll position (blank
   // p, broken offset). Intercept those clicks and smooth-scroll to the scroll
@@ -934,6 +938,17 @@ export default function Scene({
             style={{ opacity: fgOpacity, y: fgY, translateX: '-50%' }}
           >
             <div className="scene-fg-inner">{children}</div>
+          </motion.div>
+
+          {/* subtle "keep scrolling" cue on the RHS — the scene is scroll-
+              driven, so nudge the user; fades out as soon as they scroll in */}
+          <motion.div
+            className="scroll-hint"
+            style={{ opacity: hintOpacity }}
+            aria-hidden="true"
+          >
+            <span className="scroll-hint-label">keep&nbsp;scrolling</span>
+            <span className="scroll-hint-arrow">↓</span>
           </motion.div>
         </div>
       </div>

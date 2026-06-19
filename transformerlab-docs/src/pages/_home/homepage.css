@@ -660,6 +660,49 @@
   }
 }
 
+/* subtle "keep scrolling" cue, pinned to the right edge of the scene */
+.tlab-home .scroll-hint {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.tlab-home .scroll-hint-label {
+  writing-mode: vertical-rl;
+}
+.tlab-home .scroll-hint-arrow {
+  font-size: 0.9rem;
+  animation: tlab-scroll-bob 1.7s ease-in-out infinite;
+}
+@keyframes tlab-scroll-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(6px);
+    opacity: 1;
+  }
+}
+@media (max-width: 680px) {
+  .tlab-home .scroll-hint {
+    right: 2px;
+    font-size: 0.6rem;
+  }
+}
+
 @keyframes tlab-spin {
   to {
     transform: rotate(360deg);
