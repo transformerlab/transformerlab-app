@@ -557,7 +557,7 @@ wheels = [
 
 [[package]]
 name = "transformerlab-cli"
-version = "0.0.66"
+version = "0.0.67"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

@@ -630,6 +630,13 @@ lab --format json provider info PROVIDER_ID
 # Health check (verifies the CLI can reach the provider's backend)
 lab --format json provider check PROVIDER_ID
 
+# Show the GPUs available on a provider (accepts an id OR a name, like `delete`).
+# Reports live availability where the backend can report it (Slurm, SkyPilot,
+# RunPod, Lambda, Vast, Local), otherwise the provider's catalog of launchable
+# GPU types (AWS, GCP, Azure, Nebius). Each row is a GPU name + count; an empty
+# result ("No GPU information available") is normal for dstack and CPU-only hosts.
+lab --format json provider gpus PROVIDER_ID_OR_NAME
+
 # Toggle availability without deleting
 lab provider enable PROVIDER_ID
 lab provider disable PROVIDER_ID
@@ -1027,6 +1034,7 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab provider update <id>` | Update provider config | No |
 | `lab provider delete <id>` | Delete a provider (`--no-interactive` to skip prompt) | No |
 | `lab provider check <id>` | Check provider health | No |
+| `lab provider gpus <id_or_name>` | Show available GPUs on a provider (live where supported, else catalog) | No |
 | `lab provider verify-lifecycle <id>` | Verify provider lifecycle via a storage probe (`--no-wait` to launch only; see `--help` for polling options) | No |
 | `lab provider enable <id>` | Enable a provider | No |
 | `lab provider disable <id>` | Disable a provider | No |

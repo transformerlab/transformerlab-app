@@ -32,6 +32,7 @@ import InviteUserModal from './InviteUserModal';
 import AcceptedInvitationsModal from './AcceptedInvitationsModal';
 import ProviderDetailsModal from './ProviderDetailsModal';
 import ProviderResourceGroupsModal from './ProviderResourceGroupsModal';
+import ProviderGpusModal from './ProviderGpusModal';
 import LocalProviderRefreshModal from './LocalProviderRefreshModal';
 import QuotaSettingsSection from './QuotaSettingsSection';
 import TeamSecretsSection from './TeamSecretsSection';
@@ -69,6 +70,12 @@ export default function UserLoginTest(): JSX.Element {
   const [providerId, setProviderId] = useState<string>('');
   const [openProviderResourceGroupsModal, setOpenProviderResourceGroupsModal] =
     useState<boolean>(false);
+  const [openProviderGpusModal, setOpenProviderGpusModal] =
+    useState<boolean>(false);
+  const [providerForGpus, setProviderForGpus] = useState<{
+    id: string;
+    name?: string;
+  } | null>(null);
   const [providerForResourceGroups, setProviderForResourceGroups] = useState<
     any | null
   >(null);
@@ -1251,6 +1258,23 @@ export default function UserLoginTest(): JSX.Element {
                               size="sm"
                               variant="outlined"
                               onClick={() => {
+                                setProviderForGpus({
+                                  id: provider.id,
+                                  name: provider.name,
+                                });
+                                setOpenProviderGpusModal(true);
+                              }}
+                              disabled={
+                                providersLoading || providers === undefined
+                              }
+                              sx={{ minWidth: '60px', fontSize: '0.75rem' }}
+                            >
+                              GPUs
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outlined"
+                              onClick={() => {
                                 setProviderId(provider.id);
                                 setOpenProviderDetailsModal(true);
                               }}
@@ -1410,6 +1434,17 @@ export default function UserLoginTest(): JSX.Element {
           providers.some((provider: any) => provider?.type === 'local')
         }
       />
+      {providerForGpus && (
+        <ProviderGpusModal
+          open={openProviderGpusModal}
+          onClose={() => {
+            setOpenProviderGpusModal(false);
+            setProviderForGpus(null);
+          }}
+          providerId={providerForGpus.id}
+          providerName={providerForGpus.name}
+        />
+      )}
       {providerForResourceGroups && (
         <ProviderResourceGroupsModal
           open={openProviderResourceGroupsModal}

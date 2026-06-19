@@ -10,6 +10,7 @@ from lab import storage
 from .base import ComputeProvider
 from .models import (
     ClusterConfig,
+    GpuInfo,
     JobConfig,
     ClusterStatus,
     JobInfo,
@@ -399,6 +400,32 @@ class SLURMProvider(ComputeProvider):
             state=state,
             status_message="SLURM cluster status",
         )
+
+    def show_gpus(self) -> List[GpuInfo]:
+        """List GPUs available across the SLURM cluster's nodes.
+
+        Reuses the per-node detail (GRES totals and free counts, parsed from
+        sinfo/scontrol in SSH mode or the nodes REST endpoint) and aggregates the
+        currently-free GPUs per GPU type. Falls back to a node's configured total
+        when its free count can't be determined, and to an empty list on failure.
+        """
+        try:
+            nodes = self._get_slurm_nodes_detailed()
+        except Exception as exc:
+            logger.warning("SLURM show_gpus failed: %s", exc)
+            return []
+
+        free_by_type: Dict[str, int] = {}
+        for node in nodes:
+            # Prefer free counts; fall back to configured totals when free is unknown.
+            per_type = node.get("gpus_free") or node.get("gpus") or {}
+            for gpu_type, count in per_type.items():
+                try:
+                    free_by_type[gpu_type] = free_by_type.get(gpu_type, 0) + int(count)
+                except (TypeError, ValueError):
+                    continue
+
+        return [GpuInfo(gpu=gpu_type, count=count) for gpu_type, count in sorted(free_by_type.items())]
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         """Get cluster resources using sinfo."""

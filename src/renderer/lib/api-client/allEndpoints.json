@@ -258,6 +258,10 @@
       "method": "GET",
       "path": "compute_provider/providers/{providerId}"
     },
+    "gpus": {
+      "method": "GET",
+      "path": "compute_provider/providers/{providerId}/gpus"
+    },
     "resumeFromCheckpoint": {
       "method": "POST",
       "path": "compute_provider/jobs/{jobId}/resume_from_checkpoint?experimentId={experimentId}"
