@@ -258,6 +258,12 @@
 .tlab-home ol.refs .ti {
   font-style: italic;
   font-size: 1.06rem;
+  /* clip long titles to two lines with an ellipsis */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .tlab-home ol.refs .venue {
   color: var(--muted);

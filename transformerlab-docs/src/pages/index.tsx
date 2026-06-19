@@ -115,12 +115,11 @@ function SceneForeground(): React.ReactElement {
           <li className="pub-row">
             <div className="pub-fig" />
             <div className="pub-info">
-              Asaria, Salomone, Gandhi.{' '}
+              Asaria et al.{' '}
               <span className="ti">
                 A Cross-Model VLM-Judge Protocol for Single-Image 3D Mesh
                 Quality (and Why Cheap Proxies Fall Short).
               </span>{' '}
-              <span className="venue">arXiv preprint, Jun 2026.</span>{' '}
               <span className="mod">[3D]</span> &nbsp;
               <a className="url" href="https://arxiv.org/abs/2606.18451">
                 arXiv:2606.18451
@@ -136,13 +135,12 @@ function SceneForeground(): React.ReactElement {
           <li className="pub-row">
             <div className="pub-fig" />
             <div className="pub-info">
-              Asaria, Salomone, Gandhi.{' '}
+              Asaria et al.{' '}
               <span className="ti">
                 Reliable Neural-Codec Text-to-Speech by ASR Self-Verification
                 and Distillation: Near-Zero Catastrophic Failures Across Models
                 and Codecs.
               </span>{' '}
-              <span className="venue">arXiv preprint, Jun 2026.</span>{' '}
               <span className="mod">[AUDIO]</span> &nbsp;
               <a className="url" href="https://arxiv.org/abs/2606.18323">
                 arXiv:2606.18323
@@ -159,12 +157,11 @@ function SceneForeground(): React.ReactElement {
           <li className="pub-row">
             <div className="pub-fig" />
             <div className="pub-info">
-              Asaria, Salomone, Gandhi.{' '}
+              Asaria et al.{' '}
               <span className="ti">
                 Neither Parallel Nor Sequential: How DiffusionGemma Actually
                 Commits Tokens.
               </span>{' '}
-              <span className="venue">arXiv preprint, Jun 2026.</span>{' '}
               <span className="mod">[LLM]</span> &nbsp;
               <a className="url" href="https://arxiv.org/abs/2606.14620">
                 arXiv:2606.14620
@@ -180,12 +177,11 @@ function SceneForeground(): React.ReactElement {
           <li className="pub-row">
             <div className="pub-fig" />
             <div className="pub-info">
-              Asaria, Salomone, Gandhi.{' '}
+              Asaria et al.{' '}
               <span className="ti">
                 Realizing Native INT8 Compute for Diffusion Transformers on
                 Consumer GPUs: A Fused INT8 GEMM Kernel for Ideogram 4.0.
               </span>{' '}
-              <span className="venue">arXiv preprint, Jun 2026.</span>{' '}
               <span className="mod">[SYSTEMS]</span> &nbsp;
               <a className="url" href="https://arxiv.org/abs/2606.14598">
                 arXiv:2606.14598
@@ -200,13 +196,12 @@ function SceneForeground(): React.ReactElement {
           <li className="pub-row">
             <div className="pub-fig" />
             <div className="pub-info">
-              Gandhi, Asaria, Salomone.{' '}
+              Gandhi et al.{' '}
               <span className="ti">
                 Holding the FP8 Quality Ceiling at 8-Bit Weights and
                 Activations: INT8 and GGUF Post-Training Quantization of
                 Ideogram 4.0 for Consumer GPUs.
               </span>{' '}
-              <span className="venue">arXiv preprint, Jun 2026.</span>{' '}
               <span className="mod">[VISION]</span> &nbsp;
               <a className="url" href="https://arxiv.org/abs/2606.12280">
                 arXiv:2606.12280
