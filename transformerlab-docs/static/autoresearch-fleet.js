@@ -1234,11 +1234,18 @@
         ty = 0,
         sc = 0.6;
       if (!hide && R.fig) {
-        var rr = R.row.getBoundingClientRect(),
-          cy = rr.top + rr.height / 2;
-        a = clamp((0.84 * H - cy) / (0.84 * H - 0.46 * H), 0, 1);
-        a = a * a * (3 - 2 * a);
         var fr = R.fig.getBoundingClientRect();
+        // Drive the reveal off the figure slot (where the paper actually lands),
+        // NOT the whole row's center. On mobile the rows are very tall, so the
+        // row center lags far below the fig — the paper wouldn't finish flying in
+        // until the slot had already scrolled off the top ("paper too high before
+        // you can see it"). Tracking the fig keeps the full paper visible while
+        // the slot is still comfortably on screen. Start as the slot enters from
+        // the bottom (0.96H) and finish while it's still in the lower-middle
+        // (0.62H) — both earlier than the old row-center 0.84H→0.46H band.
+        var cy = fr.top + fr.height / 2;
+        a = clamp((0.96 * H - cy) / (0.96 * H - 0.62 * H), 0, 1);
+        a = a * a * (3 - 2 * a);
         tx = fr.left + fr.width / 2 - rr0.left - 79; // center the 158px paper
         ty = fr.top + fr.height / 2 - rr0.top - 103;
         sc = (fr.width || 96) / 158;
