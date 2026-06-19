@@ -16,6 +16,7 @@ from transformerlab.services.provider_service import get_team_provider, update_t
 from transformerlab.services.cache_service import cache, cached
 from transformerlab.schemas.compute_providers import (
     ProviderCreate,
+    ProviderGpus,
     ProviderUpdate,
     ProviderRead,
 )
@@ -109,6 +110,18 @@ async def check_provider(
     team_id = user_and_team["team_id"]
     user_id_str = str(user_and_team["user"].id)
     return await team_provider_endpoints.check_provider_accessible(session, team_id, provider_id, user_id_str)
+
+
+@router.get("/{provider_id}/gpus", response_model=ProviderGpus)
+async def get_provider_gpus(
+    provider_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """List the GPUs available on a provider (live where possible, else catalog)."""
+    team_id = user_and_team["team_id"]
+    user_id_str = str(user_and_team["user"].id)
+    return await team_provider_endpoints.get_provider_gpus(session, team_id, provider_id, user_id_str)
 
 
 class AwsCredentialsRequest(BaseModel):

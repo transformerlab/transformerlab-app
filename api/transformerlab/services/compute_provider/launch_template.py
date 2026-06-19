@@ -16,6 +16,7 @@ from transformerlab.services import job_service, quota_service
 from transformerlab.services.compute_provider.launch_credentials import (
     COPY_FILE_MOUNTS_SETUP,
     RUNPOD_AWS_CREDENTIALS_DIR,
+    WORKDIR_FILE_PATH,
     generate_aws_credentials_setup,
     generate_azure_credentials_setup,
     generate_gcp_credentials_setup,
@@ -58,6 +59,36 @@ from lab.dirs import (
 from lab.job_status import JobStatus
 from lab.storage import STORAGE_PROVIDER
 from werkzeug.utils import secure_filename
+
+
+def prepend_remote_workdir_cd(
+    command: str,
+    *,
+    task_id: Optional[str],
+    file_mounts: Any,
+    provider_type: str,
+) -> str:
+    """Prefix a remote run command with a `cd` into the synced task-file directory.
+
+    When task files are synced to a remote box via lab.copy_file_mounts() (any non-Local
+    provider with file_mounts enabled), the files land in the directory copy_file_mounts
+    resolved at runtime (~/sky_workdir or $HOME) and recorded in the WORKDIR_FILE_PATH
+    file. The remote run command, however, executes from the provider's default cwd —
+    `/` for Lambda cloud-init, the image WORKDIR for RunPod — so a bare `python main.py`
+    can't find the synced file (CPython reports it as `//main.py` when cwd is `/`). cd into
+    the recorded workdir first so the user's run command sees its files, matching the Local
+    provider's cwd == $HOME invariant.
+
+    We read the workdir file rather than hardcoding $HOME because the run shell's $HOME may
+    not match expanduser("~") used during sync (e.g. Lambda cloud-init runs as root with
+    HOME unset, so bash $HOME is empty while expanduser("~") resolves to /root). The `||
+    echo "$HOME"` is a best-effort fallback for the case where the file is somehow absent.
+
+    Local is excluded because it already forces cwd == $HOME == the file-drop dir.
+    """
+    if task_id and file_mounts is True and provider_type != ProviderType.LOCAL.value:
+        return f'cd "$(cat {WORKDIR_FILE_PATH} 2>/dev/null || echo "$HOME")" && {command}'
+    return command
 
 
 async def launch_template_on_provider(
@@ -687,6 +718,15 @@ async def launch_template_on_provider(
             pre_hook=str(pre_setup_hook) if pre_setup_hook is not None else None,
             post_hook=str(post_setup_hook) if post_setup_hook is not None else None,
         )
+
+    # On remote providers, cd into the directory where lab.copy_file_mounts() synced the
+    # task files so a bare `python main.py` resolves (see prepend_remote_workdir_cd).
+    command_with_hooks = prepend_remote_workdir_cd(
+        command_with_hooks,
+        task_id=request.task_id,
+        file_mounts=request.file_mounts,
+        provider_type=provider.type,
+    )
 
     # Wrap the user command with tfl-remote-trap so we can track live_status in job_data.
     # This uses the tfl-remote-trap helper from the transformerlab SDK, which:

@@ -10,8 +10,8 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Union
 
-from .base import ComputeProvider, format_status_snapshot
-from .models import ClusterConfig, ClusterState, ClusterStatus, JobConfig, JobInfo, ResourceInfo
+from .base import ComputeProvider, format_status_snapshot, gpu_catalog_from_map_keys
+from .models import ClusterConfig, ClusterState, ClusterStatus, GpuInfo, JobConfig, JobInfo, ResourceInfo
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
 logger = logging.getLogger(__name__)
@@ -786,6 +786,14 @@ exit $_tfl_rc
         except Exception as e:
             logger.warning("Error listing Azure VMs: %s", e)
         return statuses
+
+    def show_gpus(self) -> List[GpuInfo]:
+        """Return the catalog of GPU VM sizes Azure can launch.
+
+        Azure has no cheap live availability query here, so this returns the
+        static catalog derived from the launch VM-size map.
+        """
+        return gpu_catalog_from_map_keys(_GPU_VM_SIZE_MAP.keys())
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         compute_client = self._get_compute_client()

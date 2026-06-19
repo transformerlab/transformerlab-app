@@ -86,6 +86,40 @@ lab --format json task info 42
 lab job list --format json
 ```
 
+## Profiles: talking to multiple servers in parallel
+
+A **profile** bundles one server's URL, team, experiment, and API key. The `default` profile lives at the legacy location (`~/.lab/config.json`, `~/.lab/credentials`); named profiles live under `~/.lab/profiles/<name>/`. This lets two `lab` commands hit two different servers (with different teams / API keys) **at the same time** without clobbering each other.
+
+Selection is **per-process** — there is no stored "current profile" to switch (so nothing one process can yank out from under another). Precedence (highest first):
+
+1. `--profile <name>` — a root-level flag; like `--format` it MUST come before the subcommand: `lab --profile prod job list`
+2. `LAB_PROFILE` environment variable
+3. `default`
+
+```bash
+# Create/authenticate a profile. `login` is the profile-creating command;
+# combine the global --profile flag with --server:
+lab --profile prod    login --server https://prod.example.com:8338
+lab --profile staging login --server https://staging.example.com:8338
+
+# Run against two servers in parallel — fully isolated, safe:
+LAB_PROFILE=prod    lab job list &
+LAB_PROFILE=staging lab job list &
+
+# One-off override without exporting the env var:
+lab --profile prod job list
+```
+
+Manage profiles:
+
+```bash
+lab profile list           # all profiles; marks the active one + which have saved credentials
+lab profile show [name]    # server/team/user/experiment for a profile (defaults to the active one)
+lab profile delete <name>  # remove a named profile ('default' cannot be deleted)
+```
+
+**For agents:** to run workstreams against different *servers* concurrently, give each its own profile and set `LAB_PROFILE` per process (or pass `--profile` on every call). This is the server/team/credentials analogue of the per-command `-e/--experiment` override — profiles scope which server+team+key you talk to, `-e` scopes which experiment *within* that server (see "Scoping a single command to an experiment"). Profiles do **not** scope the experiment; keep using `-e` for that.
+
 ## Core Workflow
 
 The standard pattern for working with Transformer Lab:
@@ -308,7 +342,7 @@ lab notes append "..." -e exp-a
 
 - **Pass `-e <exp>` on every `task` / `job` / `notes` command** for that workstream. Treat it as mandatory, not optional — a single omitted `-e` leaks into the global default.
 - **Never call `lab experiment set-default` (or `lab config set current_experiment`) mid-flight** while other experiments are in flight — it yanks the default out from under any command that forgot its `-e`.
-- There is **no environment variable** (e.g. `LAB_EXPERIMENT`) and **no per-session config file** to scope this once for a whole session — the override is strictly per-command. Plan for passing `-e` on each call.
+- There is **no environment variable** (e.g. `LAB_EXPERIMENT`) and **no per-session config file** to scope the *experiment* once for a whole session — the `-e` override is strictly per-command. Plan for passing `-e` on each call. (The *server/team/credentials* dimension is different: that **can** be scoped per-process via a profile + `LAB_PROFILE` — see "Profiles: talking to multiple servers in parallel". A profile does not pin the experiment, so even within a profile you still pass `-e` per command.)
 
 For a single, sequential workflow it's fine to set the default once with `set-default` and omit `-e`. The `-e` discipline only becomes load-bearing when more than one experiment is active concurrently.
 
@@ -595,6 +629,13 @@ lab --format json provider info PROVIDER_ID
 
 # Health check (verifies the CLI can reach the provider's backend)
 lab --format json provider check PROVIDER_ID
+
+# Show the GPUs available on a provider (accepts an id OR a name, like `delete`).
+# Reports live availability where the backend can report it (Slurm, SkyPilot,
+# RunPod, Lambda, Vast, Local), otherwise the provider's catalog of launchable
+# GPU types (AWS, GCP, Azure, Nebius). Each row is a GPU name + count; an empty
+# result ("No GPU information available") is normal for dstack and CPU-only hosts.
+lab --format json provider gpus PROVIDER_ID_OR_NAME
 
 # Toggle availability without deleting
 lab provider enable PROVIDER_ID
@@ -952,6 +993,9 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab logout` | Remove stored API key | No |
 | `lab whoami` | Show current user and team | No |
 | `lab version` | Show CLI version | No |
+| `lab profile list` | List CLI profiles (server+team+credentials sets); marks the active one and which have credentials | No |
+| `lab profile show [name]` | Show a profile's server/team/user/experiment (defaults to the active profile) | No |
+| `lab profile delete <name>` | Delete a named profile (`'default'` cannot be deleted; `--yes` to skip prompt) | No |
 | `lab experiment list` | List all experiments (current default marked with `*`) | No |
 | `lab experiment create <name>` | Create a new experiment (`--set-default` to also switch to it) | No |
 | `lab experiment delete <id>` | Delete an experiment (`--no-interactive` to skip prompt) | No |
@@ -990,6 +1034,7 @@ This applies to launching jobs, fetching logs, checking cluster status, and ever
 | `lab provider update <id>` | Update provider config | No |
 | `lab provider delete <id>` | Delete a provider (`--no-interactive` to skip prompt) | No |
 | `lab provider check <id>` | Check provider health | No |
+| `lab provider gpus <id_or_name>` | Show available GPUs on a provider (live where supported, else catalog) | No |
 | `lab provider verify-lifecycle <id>` | Verify provider lifecycle via a storage probe (`--no-wait` to launch only; see `--help` for polling options) | No |
 | `lab provider enable <id>` | Enable a provider | No |
 | `lab provider disable <id>` | Disable a provider | No |

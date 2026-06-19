@@ -6,12 +6,14 @@ Full reference for every CLI command. All commands are invoked via:
 lab <command> [subcommand] [options]
 ```
 
-Global option available on all commands:
-- `--format pretty|json` — Output format (default: `pretty`). **Must come before the subcommand.**
+Global options available on all commands (**must come before the subcommand**):
+- `--format pretty|json` — Output format (default: `pretty`).
+- `--profile <name>` — Select the profile (server + team + credentials) for this invocation. Overrides the `LAB_PROFILE` env var; defaults to `default`. See [`profile`](#profile) below.
 
 ```bash
 # Correct
 lab --format json task list
+lab --profile prod job list
 
 # Wrong — flag will be ignored
 lab task list --format json
@@ -61,9 +63,15 @@ Authenticate with the server. Also configures `server`, `user_email`, `team_id`,
 | `--api-key <key>` | API key (prompted if omitted) |
 | `--server <url>` | Server URL (prompted if omitted) |
 
+To log into a **named profile**, combine the global `--profile` flag with `--server` — the credentials and config are written under that profile instead of `default`:
+
+```bash
+lab --profile prod login --server https://prod.example.com:8338
+```
+
 ### `logout`
 
-Remove stored API key.
+Remove the stored API key for the active profile (selected via `--profile` / `LAB_PROFILE`; defaults to `default`).
 
 ### `whoami`
 
@@ -73,6 +81,31 @@ Show current user, team, and server.
 ```json
 {"email": "user@example.com", "team_id": "...", "team_name": "...", "server": "http://localhost:8338"}
 ```
+
+### `profile`
+
+Manage CLI **profiles** — independent `(server + team + experiment + API key)` sets, so two `lab` commands can talk to two different servers in parallel. The `default` profile lives at the legacy root (`~/.lab/config.json`, `~/.lab/credentials`); named profiles live under `~/.lab/profiles/<name>/`.
+
+Selection is **per-process** (there is no `use` subcommand / stored "current profile"). Precedence: `--profile <name>` (root-level flag, before the subcommand) > `LAB_PROFILE` env var > `default`.
+
+```bash
+lab profile list                 # list all profiles; marks active + which have credentials
+lab profile show [name]          # show a profile's config (defaults to the active profile)
+lab profile delete <name> --yes  # delete a named profile ('default' cannot be deleted)
+
+# Create/authenticate a profile via login (see `login` above):
+lab --profile prod login --server https://prod.example.com:8338
+
+# Run two servers in parallel:
+LAB_PROFILE=prod    lab job list &
+LAB_PROFILE=staging lab job list &
+```
+
+| Subcommand | Description |
+|---|---|
+| `list` | List all profiles. JSON: array of `{name, active, has_credentials}`. |
+| `show [name]` | Show `name`/`server`/`team_id`/`team_name`/`user_email`/`current_experiment`/`has_credentials` for a profile (defaults to the active one). |
+| `delete <name>` | Delete a named profile directory. Refuses `default`. `--yes`/`-y` skips the confirm prompt. |
 
 ---
 
@@ -497,6 +530,28 @@ Delete a compute provider.
 ### `provider check <provider_id>`
 
 Check connectivity and health of a provider.
+
+### `provider gpus <provider_id_or_name>`
+
+Show the GPUs available on a provider. The argument accepts either a provider id
+or a name (resolved the same way as `provider delete`). Output is a `GPU | Count`
+table, or `--format json` returns `{provider_id, provider_type, gpus: [{gpu, count}]}`.
+
+Semantics: **live availability where the backend can report it** — Slurm (free
+GPUs per node), SkyPilot (catalog across enabled clouds), RunPod, Lambda
+(regions with capacity), Vast.ai (rentable offers), Local (detected GPUs) —
+otherwise the provider's **catalog of launchable GPU types** (AWS, GCP, Azure,
+Nebius, and the fallback for the live providers). `count` is the available
+quantity for live sources, or the max launchable count per node for catalog
+sources; there is no live-vs-catalog flag in the output. An empty list
+(`No GPU information available`) is expected for dstack (no enumeration endpoint)
+and CPU-only local hosts. The command never errors on backend failures — it
+degrades to the catalog or an empty list.
+
+```bash
+lab provider gpus my-skypilot
+lab --format json provider gpus PROVIDER_ID
+```
 
 ### `provider enable <provider_id>`
 

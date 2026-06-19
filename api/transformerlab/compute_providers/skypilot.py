@@ -15,6 +15,7 @@ import time
 from .base import ComputeProvider
 from .models import (
     ClusterConfig,
+    GpuInfo,
     JobConfig,
     ClusterStatus,
     JobInfo,
@@ -910,6 +911,51 @@ class SkyPilotProvider(ComputeProvider):
             )
 
         return cluster_statuses
+
+    def show_gpus(self) -> List[GpuInfo]:
+        """List GPUs offered by SkyPilot's catalog across its enabled clouds.
+
+        Calls the SkyPilot API server's ``/list_accelerators`` endpoint (the same
+        data behind ``sky show-gpus``) and reports one entry per canonical
+        accelerator name with the maximum offered per-instance count. This is the
+        catalog of what SkyPilot can launch, not live real-time stock. Returns an
+        empty list on any failure.
+        """
+        if not (SKYPILOT_AVAILABLE and self._server_common):
+            return []
+        try:
+            with suppress_warnings_and_logs():
+                body = payloads.ListAcceleratorsBody(gpus_only=True)
+                response = self._make_authenticated_request(
+                    "POST", "/list_accelerators", json_data=json.loads(body.model_dump_json()), timeout=30
+                )
+                request_id = self._server_common.get_request_id(response)
+                result = self._get_request_result(request_id)
+        except Exception as exc:
+            logger.warning("SkyPilot show_gpus failed: %s", exc)
+            return []
+
+        if not isinstance(result, dict):
+            return []
+
+        gpus: List[GpuInfo] = []
+        for name, infos in result.items():
+            max_count = 0
+            for info in infos or []:
+                # InstanceTypeInfo.accelerator_count (namedtuple attr, or index 3).
+                count = getattr(info, "accelerator_count", None)
+                if count is None and isinstance(info, (list, tuple)) and len(info) > 3:
+                    count = info[3]
+                try:
+                    max_count = max(max_count, int(count))
+                except (TypeError, ValueError):
+                    continue
+            # The catalog only lists launchable accelerators, so the smallest
+            # meaningful per-instance count is 1; fall back to 1 rather than
+            # reporting a misleading 0 when no count could be parsed.
+            gpus.append(GpuInfo(gpu=str(name), count=max_count or 1))
+
+        return sorted(gpus, key=lambda g: g.gpu)
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         """Get cluster resources."""

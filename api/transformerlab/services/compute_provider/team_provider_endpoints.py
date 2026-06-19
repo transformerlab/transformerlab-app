@@ -10,7 +10,13 @@ from typing import Any, Dict, List
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from transformerlab.compute_providers.base import SPOT_CAPABLE_PROVIDER_TYPES
-from transformerlab.schemas.compute_providers import ProviderCreate, ProviderRead, ProviderUpdate, mask_sensitive_config
+from transformerlab.schemas.compute_providers import (
+    ProviderCreate,
+    ProviderGpus,
+    ProviderRead,
+    ProviderUpdate,
+    mask_sensitive_config,
+)
 from transformerlab.services.cache_service import cache
 from transformerlab.services.compute_provider.local_setup_service import (
     get_provider_setup_status_path,
@@ -281,6 +287,27 @@ async def delete_provider_for_team(session: AsyncSession, team_id: str, provider
     await delete_team_provider(session, provider)
     await cache.invalidate("providers")
     return {"message": "Provider deleted successfully"}
+
+
+async def get_provider_gpus(session: AsyncSession, team_id: str, provider_id: str, user_id_str: str) -> ProviderGpus:
+    """Return the GPUs available on a provider (live where possible, else catalog).
+
+    Builds the provider instance and calls its show_gpus() off the event loop.
+    show_gpus() is contractually non-raising, but we guard defensively so a
+    provider bug surfaces as an empty list rather than a 500.
+    """
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
+    try:
+        gpus = await asyncio.to_thread(provider_instance.show_gpus)
+    except Exception:
+        logger.exception("show_gpus failed for provider %s", provider_id)
+        gpus = []
+
+    return ProviderGpus(provider_id=str(provider.id), provider_type=provider.type, gpus=gpus or [])
 
 
 async def check_provider_accessible(

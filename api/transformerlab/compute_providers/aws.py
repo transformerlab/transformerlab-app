@@ -13,11 +13,12 @@ from typing import Any, Dict, List, Optional, Union
 
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
-from .base import ComputeProvider, format_status_snapshot
+from .base import ComputeProvider, format_status_snapshot, gpu_catalog_from_map_keys
 from .models import (
     ClusterConfig,
     ClusterState,
     ClusterStatus,
+    GpuInfo,
     JobConfig,
     JobInfo,
     ResourceInfo,
@@ -658,6 +659,15 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
                     )
                 )
         return statuses
+
+    def show_gpus(self) -> List[GpuInfo]:
+        """Return the catalog of GPU instance types AWS can launch.
+
+        AWS has no cheap live "list available GPUs" query (it would require
+        enumerating instance-type offerings and quotas per region), so this
+        returns the static catalog derived from the launch instance map.
+        """
+        return gpu_catalog_from_map_keys(_GPU_INSTANCE_MAP.keys())
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         ec2 = self._get_ec2_client()

@@ -113,6 +113,15 @@ class JobInfo(BaseModel):
     provider_data: Dict[str, Any] = Field(default_factory=dict)
 
 
+class GpuInfo(BaseModel):
+    """A single GPU/accelerator entry reported by a provider's show_gpus()."""
+
+    gpu: str  # Accelerator name, e.g. "A100", "H100", "RTX4090"
+    # Available quantity for live sources, or the catalog's max launchable count
+    # per node for catalog sources. No live/catalog flag is exposed (by design).
+    count: int
+
+
 class ResourceInfo(BaseModel):
     """Normalized resource information for a cluster."""
 
