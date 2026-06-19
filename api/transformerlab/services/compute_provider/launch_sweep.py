@@ -21,6 +21,11 @@ from transformerlab.services.compute_provider.launch_credentials import (
     generate_gcp_credentials_setup,
     get_aws_credentials_from_file,
 )
+from transformerlab.services.compute_provider.launch_juicefs import (
+    build_juicefs_backend_credentials_setup,
+    build_juicefs_install_command,
+    build_juicefs_pod_config,
+)
 from transformerlab.services.compute_provider.spot_utils import resolve_use_spot
 from transformerlab.services.compute_provider.trackio_launch import (
     apply_trackio_launch_env,
@@ -212,7 +217,13 @@ async def launch_sweep_jobs(
                     )
 
                 tfl_storage_uri = None
-                if STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
+                juicefs_gateway_cmd_for_setup: str | None = None
+                if STORAGE_PROVIDER == "juicefs" and team_id:
+                    juicefs_env, juicefs_gateway_cmd_for_setup, tfl_storage_uri = build_juicefs_pod_config(
+                        team_id=str(team_id)
+                    )
+                    env_vars.update(juicefs_env)
+                elif STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
                     tfl_storage_uri = storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", str(team_id), "workspace")
                 else:
                     try:
@@ -288,6 +299,13 @@ async def launch_sweep_jobs(
                             if azure_sas:
                                 env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
 
+                # JuiceFS: inject backing object-storage credentials unconditionally
+                # (TFL_REMOTE_STORAGE_ENABLED guards cloud-bucket providers, not JuiceFS).
+                if STORAGE_PROVIDER == "juicefs":
+                    juicefs_cred_cmds, juicefs_cred_env = await build_juicefs_backend_credentials_setup(provider.type)
+                    setup_commands.extend(juicefs_cred_cmds)
+                    env_vars.update(juicefs_cred_env)
+
                 if provider.type in (ProviderType.RUNPOD.value, ProviderType.VASTAI.value):
                     setup_commands.append(
                         "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=$HOME/.local/bin:$PATH"
@@ -321,6 +339,12 @@ async def launch_sweep_jobs(
                         replace_secret_placeholders(request.setup, team_secrets) if team_secrets else request.setup
                     )
                     setup_commands.append(setup_with_secrets)
+
+                # JuiceFS: install binary then auth + localhost S3 gateway — must come after
+                # backend credentials are materialized so juicefs auth can use ACCESS_KEY/SECRET_KEY.
+                if juicefs_gateway_cmd_for_setup is not None:
+                    setup_commands.append(build_juicefs_install_command())
+                    setup_commands.append(juicefs_gateway_cmd_for_setup)
 
                 final_setup = ";".join(setup_commands) if setup_commands else None
 

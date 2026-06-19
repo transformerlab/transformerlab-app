@@ -22,6 +22,11 @@ from transformerlab.services.compute_provider.launch_credentials import (
     generate_gcp_credentials_setup,
     get_aws_credentials_from_file,
 )
+from transformerlab.services.compute_provider.launch_juicefs import (
+    build_juicefs_backend_credentials_setup,
+    build_juicefs_install_command,
+    build_juicefs_pod_config,
+)
 from transformerlab.services.compute_provider.launch_secrets import find_missing_secrets_for_template_launch
 from transformerlab.services.compute_provider.launch_sweep import create_sweep_parent_job, launch_sweep_jobs
 from transformerlab.services.compute_provider.launch_task_files import copy_task_files_to_dir
@@ -294,6 +299,13 @@ async def launch_template_on_provider(
                 if azure_sas:
                     env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
 
+    # JuiceFS: inject backing object-storage credentials unconditionally
+    # (TFL_REMOTE_STORAGE_ENABLED guards cloud-bucket providers, not JuiceFS).
+    if STORAGE_PROVIDER == "juicefs":
+        juicefs_cred_cmds, juicefs_cred_env = await build_juicefs_backend_credentials_setup(provider.type)
+        setup_commands.extend(juicefs_cred_cmds)
+        env_vars.update(juicefs_cred_env)
+
     # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
     # This runs after AWS credentials are configured so we have access to any remote storage if needed.
     if provider.type != ProviderType.LOCAL.value:
@@ -417,7 +429,14 @@ async def launch_template_on_provider(
     # For localfs, explicitly provide an org-scoped URI so subprocess code can
     # resolve storage without relying on contextvar propagation.
     tfl_storage_uri = None
-    if STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
+    if STORAGE_PROVIDER == "juicefs" and team_id:
+        juicefs_env, juicefs_gateway_cmd, tfl_storage_uri = build_juicefs_pod_config(team_id=str(team_id))
+        env_vars.update(juicefs_env)  # sets TFL_REMOTE_STORAGE_ENABLED=true for pod
+
+        # Gateway setup runs after credential materialization so juicefs auth can use ACCESS_KEY/SECRET_KEY.
+        setup_commands.append(build_juicefs_install_command())
+        setup_commands.append(juicefs_gateway_cmd)
+    elif STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
         tfl_storage_uri = storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", str(team_id), "workspace")
     else:
         try:
