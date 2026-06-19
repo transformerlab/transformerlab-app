@@ -7,10 +7,11 @@ date: 2026-06-19
 ---
 
 import MethodDiagram from './MethodDiagram';
+import PipelineDiagram from './PipelineDiagram';
 
 _A model already has a quiet sense of when it is bluffing. We turned that sense into an off-switch for confident wrong answers, without ever telling it which answers were right._
 
-> **Quick summary:** Language models state false facts as smoothly as true ones. But underneath, a model is often _less sure_ when it is about to be wrong: the probabilities it assigns to its own words sag. The usual way to make a model "know when to shut up" is to build a labelled dataset (a big answer key of right and wrong). We asked: can the model's _own_ doubt, which is free and needs no answer key, do the same job? We fine-tuned six open-weights models to say "I'm not sure" exactly where their own confidence was low. The label-free recipe held its own against the answer-key version on every model. This post is mostly about the method; play with the diagram below.
+Language models state false facts as smoothly as true ones. But underneath, a model is often _less sure_ when it is about to be wrong: the probabilities it assigns to its own words quietly slip. The usual way to make a model "know when to shut up" is to build a labelled dataset, a big answer key of right and wrong. We asked whether the model's _own_ doubt, which is free and needs no answer key, could do the same job. We fine-tuned six open-weights models to say "I'm not sure" exactly where their own confidence was low, and the label-free recipe held its own against the answer-key version on every model.
 
 <!--truncate-->
 
@@ -36,11 +37,15 @@ That's the moment we got curious. The model _already_ produces a doubt signal, f
 
 ## Our method: let the model's doubt write the lesson plan
 
-The recipe is almost suspiciously simple. Pick a cutoff on the confidence score. Every question where the model's confidence falls _below_ the cutoff, we change the training target to _"I'm not sure."_ Every question _above_ the cutoff keeps the model's own answer. Then we fine-tune the model (cheaply, with LoRA) on that homemade dataset.
+The recipe is almost suspiciously simple. Here's the whole thing, one example at a time:
+
+<PipelineDiagram />
+
+In words: pick a cutoff on the confidence score; every question where the model's confidence falls _below_ the cutoff gets its training target changed to _"I'm not sure,"_ every question _above_ the cutoff keeps the model's own answer; then we fine-tune the model (cheaply, with LoRA) on that homemade dataset.
 
 The key move: **we never look at whether any answer is actually correct.** The model's confidence in its own words is the only thing that decides. No answer key.
 
-Drag the cutoff below and watch the training set rebuild itself:
+Step 3 is where it all happens. Drag the cutoff below and watch the training set rebuild itself:
 
 <MethodDiagram />
 
