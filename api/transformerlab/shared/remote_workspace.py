@@ -9,8 +9,9 @@ import asyncio
 import logging
 import os
 import re
-from typing import List, Optional, Tuple
+import subprocess
 import sys
+from typing import List, Optional, Tuple
 
 from lab.storage import STORAGE_PROVIDER
 
@@ -32,6 +33,10 @@ def validate_cloud_credentials() -> None:
     """
     # If NFS or other non-cloud storage is configured, skip validation
     if STORAGE_PROVIDER == "localfs":
+        return
+
+    if STORAGE_PROVIDER == "juicefs":
+        _validate_juicefs_config()
         return
 
     # Check if cloud storage is enabled
@@ -171,6 +176,36 @@ def _validate_gcp_credentials() -> None:
         sys.exit(1)
 
 
+def _validate_juicefs_config() -> None:
+    """
+    Validate that JuiceFS gateway configuration is present.
+
+    Gateway readiness itself is validated by juicefs_gateway.ensure_juicefs_gateway()
+    at API startup, which starts the local S3 gateway and polls its health endpoint.
+
+    Raises:
+        SystemExit: If any required env var is missing or invalid.
+    """
+    for required in (
+        "TFL_JUICEFS_METADATA_URL",
+        "TFL_JUICEFS_VOLUME_NAME",
+        "TFL_JUICEFS_STORAGE_BACKEND",
+        "TFL_JUICEFS_TOKEN",
+        "TFL_JUICEFS_GATEWAY_ACCESS_KEY",
+        "TFL_JUICEFS_GATEWAY_SECRET_KEY",
+    ):
+        if not os.getenv(required):
+            print(f"❌ ERROR: {required} is required when TFL_STORAGE_PROVIDER=juicefs", file=sys.stderr)
+            sys.exit(1)
+    backend = os.getenv("TFL_JUICEFS_STORAGE_BACKEND", "")
+    if backend not in ("aws", "gcp", "azure"):
+        print(
+            f"❌ ERROR: Invalid TFL_JUICEFS_STORAGE_BACKEND. Expected one of: aws, gcp, azure; got {backend!r}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def _validate_azure_credentials() -> None:
     """
     Validate that Azure storage credentials are available.
@@ -271,6 +306,9 @@ def create_bucket_for_team(team_id: str, profile_name: Optional[str] = None) -> 
             print(f"❌ Failed to create local workspace folder for team {team_id}: {e}")
             return False
 
+    if STORAGE_PROVIDER == "juicefs":
+        return _create_juicefs_workspace(team_id)
+
     # Check if TFL_REMOTE_STORAGE_ENABLED is enabled
     tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
     if not tfl_remote_storage_enabled:
@@ -307,7 +345,7 @@ def create_bucket_for_team(team_id: str, profile_name: Optional[str] = None) -> 
         return _create_azure_container(bucket_name, team_id)
 
     print(
-        f"Unsupported TFL_STORAGE_PROVIDER: {STORAGE_PROVIDER}. Supported values: 'aws', 'gcp', 'azure', or 'localfs'"
+        f"Unsupported TFL_STORAGE_PROVIDER: {STORAGE_PROVIDER}. Supported values: 'aws', 'gcp', 'azure', 'localfs', or 'juicefs'"
     )
     return False
 
@@ -472,6 +510,50 @@ def _create_azure_container(container_name: str, team_id: str) -> bool:
         return False
 
 
+def _create_juicefs_workspace(team_id: str) -> bool:
+    """Create the workspace-<team_id> bucket through the local JuiceFS S3 gateway and set its quota.
+
+    In multi-bucket gateway mode, creating a bucket creates the matching
+    top-level directory on the JuiceFS volume. The quota is set via the
+    juicefs CLI, which talks to the metadata service directly (no mount needed).
+    """
+    volume_name = os.getenv("TFL_JUICEFS_VOLUME_NAME", "")
+    if not volume_name:
+        print("❌ TFL_JUICEFS_VOLUME_NAME is not set, cannot create JuiceFS workspace")
+        return False
+    quota_gb = int(os.getenv("TFL_JUICEFS_QUOTA_GB", "100"))
+    bucket_name = f"workspace-{team_id}"
+    endpoint = os.getenv("TFL_JUICEFS_GATEWAY_ENDPOINT", "http://127.0.0.1:9000")
+    try:
+        import fsspec
+
+        fs = fsspec.filesystem(
+            "s3",
+            key=os.getenv("TFL_JUICEFS_GATEWAY_ACCESS_KEY", ""),
+            secret=os.getenv("TFL_JUICEFS_GATEWAY_SECRET_KEY", ""),
+            client_kwargs={"endpoint_url": endpoint},
+            skip_instance_cache=True,
+        )
+        if not fs.exists(bucket_name):
+            fs.mkdir(bucket_name)
+    except Exception as e:
+        print(f"❌ Failed to create JuiceFS workspace bucket {bucket_name}: {e}")
+        return False
+    try:
+        subprocess.run(
+            ["juicefs", "quota", "set", volume_name, "--path", f"/{bucket_name}", "--capacity", str(quota_gb)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except Exception as e:
+        stderr_output = e.stderr if hasattr(e, "stderr") else ""
+        print(f"❌ Failed to set JuiceFS quota on /{bucket_name}: {e}\n{stderr_output}".rstrip())
+        return False
+    print(f"✅ Created JuiceFS workspace for team {team_id}: s3://{bucket_name} (quota: {quota_gb} GB)")
+    return True
+
+
 async def create_buckets_for_all_teams(session, profile_name: Optional[str] = None) -> Tuple[int, int, List[str]]:
     """
     Create buckets for all existing teams that don't have buckets yet.
@@ -494,6 +576,9 @@ async def create_buckets_for_all_teams(session, profile_name: Optional[str] = No
             print("TFL_STORAGE_PROVIDER=localfs but TFL_STORAGE_URI is not set, skipping")
             return (0, 0, ["TFL_STORAGE_URI is not set"])
         print("Initialising local workspaces for all teams (localfs mode)")
+    elif STORAGE_PROVIDER == "juicefs":
+        # juicefs doesn't require TFL_REMOTE_STORAGE_ENABLED — it's always active when configured.
+        print("Initialising JuiceFS directories for all teams")
     else:
         tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
         if not tfl_remote_storage_enabled:
@@ -547,6 +632,6 @@ async def create_buckets_for_all_teams(session, profile_name: Optional[str] = No
             error_messages.append(error_msg)
             print(f"❌ {error_msg}")
 
-    storage_type = "workspace" if STORAGE_PROVIDER == "localfs" else "bucket"
+    storage_type = "workspace" if STORAGE_PROVIDER in ("localfs", "juicefs") else "bucket"
     print(f"Storage init summary: {success_count} {storage_type}(s) succeeded, {failure_count} failed")
     return (success_count, failure_count, error_messages)
