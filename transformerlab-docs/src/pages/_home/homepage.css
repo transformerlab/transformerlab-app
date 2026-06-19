@@ -622,6 +622,15 @@
   overflow: hidden;
   transform-origin: 50% 50%;
 }
+/* positioning container for the §4 loop paper: outer holds the motion-driven
+   position/scale so the inner card is free to spin via CSS once it lands */
+.tlab-home .pcopy-pos {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 158px;
+  height: 206px;
+}
 
 /* the §1–§4 foreground that scrolls up over the pinned papers */
 .tlab-home .scene-fg {

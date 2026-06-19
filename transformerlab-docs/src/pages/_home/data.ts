@@ -75,7 +75,9 @@ export const T = {
   report: [0.269, 0.344],
   fan: [0.333, 0.387],
   text: [0.333, FG_SCROLL_END],
-  loop: [0.9, FG_SCROLL_END],
+  // ends before the very bottom so the loop paper fully lands (a === 1) with
+  // scroll headroom to spare; past this it stays landed and spins via CSS.
+  loop: [0.9, 0.96],
 } as const;
 
 // ---- best-so-far descent data (the little line charts) ----

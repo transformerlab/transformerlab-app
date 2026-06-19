@@ -3,19 +3,23 @@
  *   <Logo/>          the Transformer Lab mark
  *   <PaperSVG/>      a seeded, algorithmically-varied caricature of a paper
  *   <DescentChart/>  a best-so-far line chart that grows with a count MotionValue
+ *   <ReportPaper/>   the head paper that "writes itself" with a progress MV
  *
  * None of these touch the DOM imperatively — animation is driven by the
  * MotionValues passed in from <Scene/>.
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion, useTransform, type MotionValue } from 'framer-motion';
 import {
   rng,
+  ease,
   descentPath,
   descentX,
   descentY,
   DOT_COLOR,
   DOT_STROKE,
+  GREEN,
+  SEED,
   type DescentData,
 } from './data';
 
@@ -220,6 +224,167 @@ export function PaperSVG({ seed }: { seed: number }): React.ReactElement {
         />
       ))}
       {figs}
+    </svg>
+  );
+}
+
+// ---- the head paper that "writes itself" (report-progress driven) ----
+interface ReportLineSpec {
+  x: number;
+  y: number;
+  w: number; // written width
+  w2: number; // rewritten width (if revised)
+  h: number;
+  fill: string;
+  order: number;
+  rev: { del: number; rew: number } | null; // revision window, in report-progress
+}
+interface ReportFigSpec {
+  type: 'descent' | 'bars';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  addAt: number; // report-progress at which the figure drops in
+  seed: number;
+}
+interface ReportLayout {
+  PW: number;
+  PH: number;
+  lines: ReportLineSpec[];
+  figs: ReportFigSpec[];
+  N: number;
+}
+function buildReport(seed: number): ReportLayout {
+  const PW = 300,
+    PH = 392;
+  const titleC = '#b6b6ad',
+    textC = '#d2d2c9';
+  const lines: ReportLineSpec[] = [];
+  let order = 0;
+  const add = (x: number, y: number, w: number, h: number, fill: string) =>
+    lines.push({ x, y, w, w2: w, h, fill, order: order++, rev: null });
+  const R = rng(seed + 5);
+  const x = 34,
+    w0 = PW - 68;
+  // title: two thick centred bars + a short subtitle
+  add(PW / 2 - 96, 34, 192, 13, titleC);
+  add(PW / 2 - 64, 56, 128, 13, titleC);
+  add(PW / 2 - 34, 78, 68, 7, textC);
+  // body: thick grey lines with two figures dropped in
+  let y = 104;
+  const figs: ReportFigSpec[] = [];
+  for (let i = 0; i < 7; i++) {
+    const w = i % 3 === 2 ? w0 * (0.4 + 0.2 * R()) : w0 * (0.82 + 0.18 * R());
+    add(x, y, w, 8, textC);
+    y += 17;
+    if (i === 2) {
+      figs.push({
+        type: 'descent',
+        x,
+        y,
+        w: w0,
+        h: 82,
+        addAt: 0.44,
+        seed: seed + 9 + Math.round(y),
+      });
+      y += 82 + 12;
+    }
+    if (i === 5) {
+      figs.push({
+        type: 'bars',
+        x,
+        y,
+        w: w0,
+        h: 48,
+        addAt: 0.64,
+        seed: seed + 9 + Math.round(y),
+      });
+      y += 48 + 10;
+    }
+  }
+  // a couple of body lines get deleted & rewritten (shorter)
+  const body = lines.filter((L) => L.order > 3);
+  for (let r = 0; r < 2 && r < body.length; r++) {
+    const L = body[Math.floor(body.length * 0.4) + r];
+    const d = 0.5 + r * 0.04;
+    L.rev = { del: d, rew: d + 0.08 };
+    L.w2 = L.w * (0.55 + 0.4 * R());
+  }
+  return { PW, PH, lines, figs, N: lines.length };
+}
+/** width of a line at report-progress rp: writes in order, may delete+rewrite */
+function lineWidth(L: ReportLineSpec, rp: number, N: number): number {
+  const writeAt = (L.order / N) * 0.6;
+  if (L.rev && rp >= L.rev.del && rp < L.rev.rew) return 0; // deleted
+  if (L.rev && rp >= L.rev.rew)
+    return L.w2 * ease(rp, L.rev.rew, L.rev.rew + 0.03); // rewritten
+  return rp >= writeAt ? L.w * ease(rp, writeAt, writeAt + 0.03) : 0; // written
+}
+function ReportLine({
+  L,
+  rp,
+  N,
+}: {
+  L: ReportLineSpec;
+  rp: MotionValue<number>;
+  N: number;
+}): React.ReactElement {
+  const width = useTransform(rp, (v) => lineWidth(L, v, N));
+  return (
+    <motion.rect
+      x={L.x}
+      y={L.y}
+      height={L.h}
+      rx={L.h / 2}
+      fill={L.fill}
+      width={width}
+    />
+  );
+}
+function ReportFig({
+  fig,
+  rp,
+}: {
+  fig: ReportFigSpec;
+  rp: MotionValue<number>;
+}): React.ReactElement {
+  const opacity = useTransform(rp, (v) => ease(v, fig.addAt, fig.addAt + 0.05));
+  const yOff = useTransform(
+    rp,
+    (v) => (1 - ease(v, fig.addAt, fig.addAt + 0.05)) * 7,
+  );
+  return (
+    <motion.g style={{ opacity, y: yOff }}>
+      <>{figureEls(fig.x, fig.y, fig.w, fig.h, fig.type, GREEN, fig.seed)}</>
+    </motion.g>
+  );
+}
+/**
+ * The distilled head paper that writes itself: lines appear in order, two get
+ * deleted and rewritten shorter, and two figures drop in — all a pure function
+ * of the report-progress MotionValue `rp` (0→1 over the report keyframe band).
+ */
+export function ReportPaper({
+  rp,
+  seed = SEED + 5,
+}: {
+  rp: MotionValue<number>;
+  seed?: number;
+}): React.ReactElement {
+  const { PW, PH, lines, figs, N } = useMemo(() => buildReport(seed), [seed]);
+  return (
+    <svg
+      className="paper-svg"
+      viewBox={`0 0 ${PW} ${PH}`}
+      preserveAspectRatio="none"
+    >
+      {lines.map((L) => (
+        <ReportLine key={L.order} L={L} rp={rp} N={N} />
+      ))}
+      {figs.map((f) => (
+        <ReportFig key={f.seed} fig={f} rp={rp} />
+      ))}
     </svg>
   );
 }

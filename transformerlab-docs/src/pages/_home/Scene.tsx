@@ -21,9 +21,10 @@ import {
   motion,
   useScroll,
   useTransform,
+  useMotionValueEvent,
   type MotionValue,
 } from 'framer-motion';
-import { DescentChart, PaperSVG } from './visuals';
+import { DescentChart, PaperSVG, ReportPaper } from './visuals';
 import {
   T,
   SESSIONS,
@@ -515,6 +516,32 @@ function TrailPaper({
     a[3] < 0.999 || pubIndex != null ? 60 : k,
   );
 
+  // §4 loop paper: once it lands, hand rotation off to a CSS animation so it
+  // spins forever — a MotionValue can't keep advancing after scrolling stops.
+  const [spinning, setSpinning] = useState(false);
+  useMotionValueEvent(p, 'change', (v) => {
+    if (isLoop) setSpinning(ease(v, T.loop[0], T.loop[1]) >= 0.999);
+  });
+
+  if (isLoop) {
+    // outer positions/scales; inner card rotates (JS while descending, CSS once
+    // landed) — they can't share one element since a CSS transform animation
+    // would clobber the motion-driven x/y/scale.
+    return (
+      <motion.div
+        className="pcopy-pos"
+        style={{ x, y, scale, opacity, zIndex }}
+      >
+        <motion.div
+          className={spinning ? 'pcopy spin-on' : 'pcopy'}
+          style={spinning ? undefined : { rotate }}
+        >
+          <PaperSVG seed={seed} />
+        </motion.div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       className="pcopy"
@@ -594,8 +621,12 @@ export default function Scene({
     return `rgba(198,198,188,${sp.toFixed(3)})`;
   });
 
-  // ---- report appears, then the front paper streams up ----
+  // ---- report appears, writes itself, then the front paper streams up ----
   const reportOpacity = useTransform(p, (v) => ease(v, T.paper[0], T.paper[1]));
+  // report-writing progress (0→1 across the report keyframe band)
+  const reportProgress = useTransform(p, (v) =>
+    clamp((v - T.report[0]) / (T.report[1] - T.report[0]), 0, 1),
+  );
   const frontY = useTransform(
     p,
     (v) => -streamScroll(v, trail.length + 1) * TRAIL_STEP,
@@ -800,12 +831,12 @@ export default function Scene({
                 vp={vp}
               />
             ))}
-            {/* the distilled head paper */}
+            {/* the distilled head paper, which writes itself */}
             <motion.div
               className="pfront"
               style={{ y: frontY, opacity: frontOpacity }}
             >
-              <PaperSVG seed={SEED + 5} />
+              <ReportPaper rp={reportProgress} />
             </motion.div>
           </motion.div>
 
