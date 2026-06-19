@@ -640,7 +640,22 @@ export default function Scene({
     };
     measure();
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    // The Computer Modern web fonts load from a CDN after first paint and
+    // reflow the publication text, shifting every fig slot. Re-measure when
+    // they're ready, and observe the foreground for any later reflow, so the
+    // flown-in papers always line up with their (now-correct) slots.
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready.then(measure);
+    }
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== 'undefined' && fgRef.current) {
+      ro = new ResizeObserver(() => measure());
+      ro.observe(fgRef.current);
+    }
+    return () => {
+      window.removeEventListener('resize', measure);
+      ro?.disconnect();
+    };
   }, [vp.w, vp.h, p]);
   const fgOpacity = useTransform(p, (v) =>
     ease(v, T.text[0], T.text[1]) <= 0.001 ? 0 : 1,

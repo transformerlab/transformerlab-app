@@ -116,6 +116,8 @@
   flex-direction: column;
   align-items: flex-start;
   padding: 78px 0 26px;
+  /* Infima's .hero sets a white background; let the paper page show through */
+  background: transparent;
 }
 .tlab-home .hero h1 {
   font-family: var(--serif);
