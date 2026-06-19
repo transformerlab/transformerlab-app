@@ -117,13 +117,61 @@ function SceneForeground(): React.ReactElement {
             <div className="pub-info">
               Asaria, Salomone, Gandhi.{' '}
               <span className="ti">
+                Judging to Improve: A De-biased VLM-as-3D-Judge Protocol for
+                Single-Image 3D Generation.
+              </span>{' '}
+              <span className="mod">[3D]</span> &nbsp;
+              <a className="url" href="https://arxiv.org/abs/2606.20364">
+                arXiv:2606.20364
+              </a>{' '}
+              <span className="pubdate">June 18, 2026</span>
+              <div className="ds">
+                A trainable, de-biased VLM-as-judge for single-image 3D
+                generation — one VLM family labels training pairs, a different
+                family scores, and verdicts only count when they survive an
+                order swap. Used to test cheap label-free adaptation of a strong
+                base: six methods reach only parity (0.50 win-rate), never the
+                0.65 bar — the durable artifact is the judge protocol, not a
+                model.
+              </div>
+            </div>
+          </li>
+          <li className="pub-row">
+            <div className="pub-fig" />
+            <div className="pub-info">
+              Asaria, Salomone, Gandhi.{' '}
+              <span className="ti">
+                Train, Retrieve, or Both? A Four-Arm Head-to-Head for Correct
+                Statutory Citation on the Ontario Residential Tenancies Act.
+              </span>{' '}
+              <span className="mod">[LLM]</span> &nbsp;
+              <a className="url" href="https://arxiv.org/abs/2606.20359">
+                arXiv:2606.20359
+              </a>{' '}
+              <span className="pubdate">June 18, 2026</span>
+              <div className="ds">
+                A four-arm head-to-head (base, LoRA SFT, RAG, SFT+RAG) for
+                correct statutory citation on Ontario tenancy law. The base
+                model hallucinates 81% of its citations; retrieval is the
+                decisive lever, driving hallucinations to zero by construction
+                and lifting citation exact-match to 0.44, with the SFT+RAG
+                hybrid best at 0.481.
+              </div>
+            </div>
+          </li>
+          <li className="pub-row">
+            <div className="pub-fig" />
+            <div className="pub-info">
+              Asaria, Salomone, Gandhi.{' '}
+              <span className="ti">
                 A Cross-Model VLM-Judge Protocol for Single-Image 3D Mesh
                 Quality (and Why Cheap Proxies Fall Short).
               </span>{' '}
               <span className="mod">[3D]</span> &nbsp;
               <a className="url" href="https://arxiv.org/abs/2606.18451">
                 arXiv:2606.18451
-              </a>
+              </a>{' '}
+              <span className="pubdate">June 16, 2026</span>
               <div className="ds">
                 A standardized evaluation protocol for single-image-to-3D mesh
                 generators, using 24-view rendering and position-bias correction
@@ -144,7 +192,8 @@ function SceneForeground(): React.ReactElement {
               <span className="mod">[AUDIO]</span> &nbsp;
               <a className="url" href="https://arxiv.org/abs/2606.18323">
                 arXiv:2606.18323
-              </a>
+              </a>{' '}
+              <span className="pubdate">June 16, 2026</span>
               <div className="ds">
                 ASR-based self-verification drives catastrophic failures
                 (silence, early termination, repetition) to near zero in
@@ -165,7 +214,8 @@ function SceneForeground(): React.ReactElement {
               <span className="mod">[LLM]</span> &nbsp;
               <a className="url" href="https://arxiv.org/abs/2606.14620">
                 arXiv:2606.14620
-              </a>
+              </a>{' '}
+              <span className="pubdate">June 12, 2026</span>
               <div className="ds">
                 A close look at token-commitment patterns in DiffusionGemma 26B.
                 Contrary to parallel-decoding marketing, the behavior is neither
@@ -185,7 +235,8 @@ function SceneForeground(): React.ReactElement {
               <span className="mod">[SYSTEMS]</span> &nbsp;
               <a className="url" href="https://arxiv.org/abs/2606.14598">
                 arXiv:2606.14598
-              </a>
+              </a>{' '}
+              <span className="pubdate">June 12, 2026</span>
               <div className="ds">
                 A fused Triton kernel that properly drives the INT8 tensor cores
                 on consumer Ampere GPUs — ~1.1× end-to-end speedup, making
@@ -205,7 +256,8 @@ function SceneForeground(): React.ReactElement {
               <span className="mod">[VISION]</span> &nbsp;
               <a className="url" href="https://arxiv.org/abs/2606.12280">
                 arXiv:2606.12280
-              </a>
+              </a>{' '}
+              <span className="pubdate">June 10, 2026</span>
               <div className="ds">
                 Post-training quantization of Ideogram 4.0 where INT8 W8A8 comes
                 out statistically indistinguishable from FP8 on key quality

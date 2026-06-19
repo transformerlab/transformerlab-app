@@ -273,6 +273,10 @@
   font-size: 0.72rem;
   color: var(--green-d);
 }
+.tlab-home ol.refs .pubdate {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
 .tlab-home ol.refs .ds {
   color: var(--muted);
   font-size: 0.92rem;

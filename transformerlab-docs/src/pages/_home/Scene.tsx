@@ -635,7 +635,7 @@ export default function Scene({
   }, [cells, jobs]);
 
   // assign a few trail papers to publication rows (and the last to §4)
-  const PUB_COUNT = 5;
+  const PUB_COUNT = 7;
   const { pubByK, loopK } = useMemo(() => {
     const map: Record<number, number> = {};
     // spread the featured papers across the early/middle of the trail
