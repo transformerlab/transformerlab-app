@@ -95,6 +95,7 @@
 .tlab-home .head-in nav a {
   margin-left: 18px;
   color: var(--muted);
+  cursor: pointer; /* keep clickable look even before hydration sets href */
 }
 .tlab-home .head-in nav a:hover {
   color: var(--green-d);

@@ -5,7 +5,7 @@
  * running head and footer. The scroll scene is rendered declaratively with
  * Framer Motion (see ./_home/Scene), so nothing manipulates the DOM directly.
  */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from '@docusaurus/Head';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 import { TypeAnimation } from 'react-type-animation';
@@ -14,6 +14,14 @@ import { Logo } from './_home/visuals';
 import './_home/homepage.css';
 
 function RunningHead(): React.ReactElement {
+  // The §1–§4 nav targets live inside the pinned, scroll-transformed scene, so
+  // their smooth-scroll handler only works after JS hydrates. Until then we
+  // withhold the `#id` href so a pre-hydration click can't trigger the broken
+  // native jump into the middle of the pinned scene. (#top / #contact are real
+  // document positions, so they keep their href and work even without JS.)
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
+  const scene = (href: string) => (ready ? href : undefined);
   return (
     <div className="head">
       <div className="head-in">
@@ -22,12 +30,12 @@ function RunningHead(): React.ReactElement {
           Transformer&nbsp;Lab
         </a>
         <nav>
-          <a href="#lab">1&nbsp;Research</a>
-          <a href="#pubs">2&nbsp;Publications</a>
-          <a href="#tools" className="opt">
+          <a href={scene('#lab')}>1&nbsp;Research</a>
+          <a href={scene('#pubs')}>2&nbsp;Publications</a>
+          <a href={scene('#tools')} className="opt">
             3&nbsp;Tooling
           </a>
-          <a href="#loop" className="opt">
+          <a href={scene('#loop')} className="opt">
             4&nbsp;Why
           </a>
           <a href="#contact">Contact</a>

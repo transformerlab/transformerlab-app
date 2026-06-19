@@ -743,6 +743,47 @@ export default function Scene({
     return lerp(H * 0.62, -(fgH - H), tp);
   });
 
+  // In-scene nav: §1–§4 live inside the pinned, scroll-transformed foreground,
+  // so a plain `#lab` anchor jump lands on a meaningless scroll position (blank
+  // p, broken offset). Intercept those clicks and smooth-scroll to the scroll
+  // position whose progress p brings the section into the pinned scene. We solve
+  // it analytically: section offset within the foreground → required fgY → text
+  // progress tp (inverse smoothstep) → p → document scrollY.
+  useEffect(() => {
+    const IN_SCENE = new Set(['lab', 'pubs', 'tools', 'loop']);
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement).closest?.(
+        'a[href^="#"]',
+      ) as HTMLAnchorElement | null;
+      if (!a) return;
+      const id = (a.getAttribute('href') || '').slice(1);
+      if (!IN_SCENE.has(id)) return;
+      const sec = sectionRef.current,
+        fg = fgRef.current;
+      const target = fg?.querySelector('#' + id) as HTMLElement | null;
+      if (!sec || !fg || !target) return;
+      e.preventDefault();
+      const stageHpx = window.innerHeight - HEADER_OFFSET;
+      const fgHpx = fg.offsetHeight || stageHpx;
+      // section's offset within the foreground (transform-invariant: both rects
+      // carry the same fgY translate, which cancels in the difference)
+      const ot =
+        target.getBoundingClientRect().top - fg.getBoundingClientRect().top;
+      const A = stageHpx * 0.62,
+        B = -(fgHpx - stageHpx);
+      const L = 80; // land the heading ~80px below the stage top
+      let tp = (L - ot - A) / (B - A || 1e-6);
+      tp = Math.min(1, Math.max(0, tp));
+      const loc = 0.5 - Math.sin(Math.asin(1 - 2 * tp) / 3); // inverse smoothstep
+      const pTarget = T.text[0] + loc * (T.text[1] - T.text[0]);
+      const secTopDoc = sec.getBoundingClientRect().top + window.scrollY;
+      const top = secTopDoc + pTarget * (sec.offsetHeight - window.innerHeight);
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, []);
+
   const setSession = (idx: number) => (el: HTMLDivElement | null) => {
     sessionRefs.current[idx] = el;
   };
