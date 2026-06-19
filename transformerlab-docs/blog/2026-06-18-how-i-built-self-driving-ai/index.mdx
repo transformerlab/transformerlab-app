@@ -95,7 +95,7 @@ I dove into the research literature to see how the pros handle this. My understa
 
 The conventional wisdom in the literature is blunt: ViTs are notoriously **data-hungry**. They lack the built-in assumption that CNNs have (that pixels near each other are related), so they require massive datasets to learn those relationships from scratch. On a small slice of driving data, the literature overwhelmingly predicts the CNN should win easily.
 
-That made it the perfect hypothesis to test. CNNs are a bit boring, and getting a Transformer model to work on a budget would be amazing. LET'S FIND OUT!
+That made it the perfect hypothesis to test. But CNNs are BORING! Getting a Transformer model to work on a budget would be amazing. LET'S FIND OUT!
 
 ## Step 5: the experiments (and the part that surprised me)
 
@@ -108,7 +108,7 @@ Initial Result: on my first tests, my ViT based rig sucked at steering (but a CN
 
 😭😭😭😭
 
-I started writing a blog post about how "transformers don't work on small driving data" (and why what Tesla does is out of reach for amature developers) and started to move on. The breakthrough was realizing the problem was not the architecture, it was **how I was adapting it**. So I used the exact same ViT backbone (that failed bady), and tried three different ways of training it:
+I started writing a blog post about how "transformers don't work on small driving data" (and why what Tesla does is out of reach for amateur developers) and started to move on. The breakthrough was realizing the problem was not the architecture, it was **how I was adapting it**. So I used the exact same ViT backbone (that failed badly), and tried three different ways of training it:
 
 <AdaptationLadderDiagram />
 
@@ -128,7 +128,7 @@ Once adapted properly, the result genuinely surprised me. The supposedly data-hu
 
 <ParityScalingDiagram />
 
-As far as I know there are no public rigorous research projects that compare these two models on real driving data. I'll publish an official report in the next couple days.
+As far as I kno, there are no public rigorous research projects that compare these two models on real driving data. I'll publish an official report in the next couple days.
 
 The headline is that if you are trying to experiment with working on self-driving car technology using ViTs, and you don't have access to a massive super-cluster, there are realistic pathways to getting valuable results.
 
@@ -136,7 +136,9 @@ The headline is that if you are trying to experiment with working on self-drivin
 
 It worked: I got a ViT to learn to steer effectively on real roads with 0.96 Pearson score which is great.
 
-And it points right back at the thing that hooked me. My model goes straight from vision to action with no scene in between, exactly like the direct controller I was fascinated by. A future next step, and the direction the field (Tesla included) is heading, is to add a reasoning layer so the model can think about the scene before it acts, instead of only being able to reflexively map pixels to a steering angle. That is the next dream.
+And it points right back at the thing that hooked me. My model goes straight from vision to action with no scene in between, exactly like the direct controller I was fascinated by. A future next step, would be to add more controls (e.g. acceleration and braking). In the future I'd love to look into the direction the field (Tesla included) is heading, where they add a reasoning layer so the model can think about the scene before it acts, instead of only being able to reflexively map pixels to a steering angle.
+
+For academia and industry this project proves that you CAN use ViT models on smaller datasets, so this whole setup can be used to test hypotheses for self-driving that would hopefully map to real-world applications.
 
 ## You can try this too
 
