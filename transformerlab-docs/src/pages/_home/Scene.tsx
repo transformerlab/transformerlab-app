@@ -670,18 +670,14 @@ export default function Scene({
       <div className="scene-stage">
         <div ref={wrapRef} className="scene-wrap">
           {/* experiments box */}
-          <motion.div
-            className="fleet-box"
-            style={{
-              borderColor: boxBorder as unknown as string,
-              opacity: boxOpacity,
-            }}
-          >
+          <div className="fleet-box">
             <motion.div
+              className="fleet-inner"
               style={{
                 scale: boxScale,
                 y: boxY,
-                height: '100%',
+                opacity: boxOpacity,
+                borderColor: boxBorder as unknown as string,
                 transformOrigin: '50% 50%',
               }}
             >
@@ -726,7 +722,7 @@ export default function Scene({
                 </div>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
 
           {/* flow lines (distil sessions → report) */}
           <svg className="flows">

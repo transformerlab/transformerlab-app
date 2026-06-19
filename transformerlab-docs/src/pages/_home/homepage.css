@@ -462,7 +462,10 @@
   padding: 0 36px;
 }
 
-/* the experiments box (sessions + clouds) */
+/* the experiments box (sessions + clouds). The outer .fleet-box only handles
+   centring; the inner .fleet-inner carries the border + the shrink/rise
+   transform, so the border always wraps the (scaling) content tightly instead
+   of being a fixed frame the fleet pokes out of. */
 .tlab-home .fleet-box {
   position: absolute;
   left: 36px;
@@ -470,6 +473,9 @@
   top: 50%;
   transform: translateY(-50%);
   height: min(600px, 72vh);
+}
+.tlab-home .fleet-inner {
+  height: 100%;
   border: 1px solid transparent;
   border-radius: 12px;
   padding: 14px;
