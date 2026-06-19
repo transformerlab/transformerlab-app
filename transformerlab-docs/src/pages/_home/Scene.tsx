@@ -265,26 +265,72 @@ function SceneHero({
     Math.round(data.K * (0.5 + 0.5 * ease(v, T.fill[0], T.fill[1]))),
   );
 
-  // dock transform — translate from the hero's STATIC anchor centre toward
-  // slot 0's live centre. (Reading the hero's *transformed* rect here would
-  // feed its own offset back in each frame and never settle.)
+  const stageH = vp.h - HEADER_OFFSET;
+
+  // Measure slot 0's geometry at the fleet's FULL scale (and the wrap/hero
+  // anchors) once, decoupled from the live shrink. Reading slot 0's live rect
+  // each frame raced the fleet's own shrink transform, so the docked hero kept
+  // a stale full-size position while the session cards shrank around it. We
+  // invert whatever shrink is currently applied to recover the full-scale
+  // values, then re-apply the shrink analytically in the dock transform.
+  const geom = useRef<{
+    cx0: number;
+    cy0: number;
+    w0: number;
+    h0: number;
+    fcx: number;
+    fcy: number;
+    hcy: number;
+    heroW: number;
+    heroH: number;
+  } | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const wrap = wrapRef.current,
+        slot = slot0Ref.current,
+        hero = heroRef.current;
+      if (!wrap || !slot || !hero) return;
+      const wr = wrap.getBoundingClientRect();
+      const fcx = wr.width / 2, // fleet-inner centre (its transform origin)
+        fcy = wr.height / 2;
+      const sr = relRect(slot, wrap); // possibly mid-shrink
+      const sh = ease(p.get(), T.shrink[0], T.shrink[1]);
+      const sNow = 1 - sh * 0.42;
+      const byNow = -sh * 0.21 * stageH;
+      geom.current = {
+        w0: sr.width / sNow,
+        h0: sr.height / sNow,
+        cx0: fcx + (sr.cx - fcx) / sNow,
+        cy0: fcy + (sr.cy - byNow - fcy) / sNow,
+        fcx,
+        fcy,
+        hcy: wr.height * HERO_TOP,
+        heroW: hero.offsetWidth || 540,
+        heroH: hero.offsetHeight || 300,
+      };
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [vp.w, vp.h, stageH, heroRef, slot0Ref, wrapRef, p]);
+
+  // dock transform: place the hero onto slot 0 (full-scale), then move/scale it
+  // exactly as the fleet's shrink (boxScale s about the fleet centre + boxY)
+  // moves slot 0 — all analytically, so it tracks the shrinking fleet.
   const dock = useTransform(p, (v): [number, number, number, number] => {
+    const g = geom.current;
+    if (!g) return [0, 0, 1, 1];
     const dk = ease(v, T.dock[0], T.dock[1]);
-    const hero = heroRef.current,
-      slot = slot0Ref.current,
-      wrap = wrapRef.current;
-    if (!hero || !slot || !wrap) return [0, 0, 1, 1];
-    const wr = wrap.getBoundingClientRect();
-    const s = relRect(slot, wrap);
-    const heroW = hero.offsetWidth || 540,
-      heroH = hero.offsetHeight || 300;
-    // hero's untransformed centre (left:50%, top:HERO_TOP, translate(-50%,-50%))
-    const hcx = wr.width * 0.5,
-      hcy = wr.height * HERO_TOP;
-    const scaleX = lerp(1, (s.width || 300) / heroW, dk);
-    const scaleY = lerp(1, (s.height || 100) / heroH, dk);
-    const tx = lerp(0, s.cx - hcx, dk);
-    const ty = lerp(0, s.cy - hcy, dk);
+    const sh = ease(v, T.shrink[0], T.shrink[1]);
+    const s = 1 - sh * 0.42;
+    const by = -sh * 0.21 * stageH;
+    // slot 0's centre/size after the fleet shrink
+    const sCx = g.fcx + s * (g.cx0 - g.fcx);
+    const sCy = g.fcy + by + s * (g.cy0 - g.fcy);
+    const scaleX = lerp(1, (g.w0 * s) / g.heroW, dk);
+    const scaleY = lerp(1, (g.h0 * s) / g.heroH, dk);
+    const tx = lerp(0, sCx - g.fcx, dk); // hero anchor x === fleet centre x
+    const ty = lerp(0, sCy - g.hcy, dk);
     return [tx, ty, scaleX, scaleY];
   });
   const x = useTransform(dock, (a) => a[0]);
