@@ -9,7 +9,7 @@ import React, { useState, useEffect } from 'react';
 import Head from '@docusaurus/Head';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 import { TypeAnimation } from 'react-type-animation';
-import Scene from './_home/Scene';
+import Scene, { LoopPaperGrip } from './_home/Scene';
 import { Logo } from './_home/visuals';
 import './_home/homepage.css';
 
@@ -346,7 +346,9 @@ function SceneForeground(): React.ReactElement {
               </em>
             </p>
           </div>
-          <div className="loop-fig" aria-hidden="true" />
+          <div className="loop-fig" aria-hidden="true">
+            <LoopPaperGrip />
+          </div>
         </div>
       </section>
     </>
