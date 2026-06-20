@@ -377,6 +377,18 @@
   flex: 0 0 132px;
   align-self: center;
   min-height: 172px;
+  position: relative;
+}
+/* transparent grip over the spinning §4 paper — the paper itself lives in a
+   lower layer the foreground covers, so this catches the pointer hover/move and
+   hands it to the spin controller. Padded out a little for a comfortable hit
+   area. No click needed: moving the pointer across it scratches the spin. */
+.tlab-home .loop-paper-grip {
+  position: absolute;
+  inset: -14px;
+  z-index: 1;
+  cursor: grab;
+  touch-action: none; /* scratching the paper must not scroll the page */
 }
 @media (max-width: 760px) {
   .tlab-home .loop-fig {
@@ -711,15 +723,6 @@
     right: 2px;
     font-size: 0.6rem;
   }
-}
-
-@keyframes tlab-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-.tlab-home .spin-on {
-  animation: tlab-spin 8s linear infinite;
 }
 
 @media (max-width: 860px) {
