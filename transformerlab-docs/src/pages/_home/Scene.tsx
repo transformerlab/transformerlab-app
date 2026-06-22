@@ -16,12 +16,16 @@ import React, {
   useState,
   useLayoutEffect,
   useEffect,
+  useContext,
+  createContext,
 } from 'react';
 import {
   motion,
   useScroll,
   useTransform,
+  useMotionValue,
   useMotionValueEvent,
+  useAnimationFrame,
   type MotionValue,
 } from 'framer-motion';
 import { DescentChart, PaperSVG, ReportPaper } from './visuals';
@@ -88,6 +92,126 @@ function useViewport(): { w: number; h: number } {
     return () => window.removeEventListener('resize', on);
   }, []);
   return vp;
+}
+
+// ---------------------------------------------------------------------------
+// Loop-paper spin controller — drives the §4 finale paper's perpetual rotation
+// in JS (a MotionValue advanced each frame by an angular velocity) instead of a
+// fixed CSS keyframe, so the speed can react to the pointer. The paper always
+// spins freely under its own angular velocity; the pointer only feeds that
+// velocity — no click required, like dragging a hand across a spinning record:
+//   • hovering eases the resting speed up;
+//   • moving the pointer over the paper injects velocity from how fast it whips
+//     around the centre (either direction), so you can scratch it faster, slow
+//     it, or reverse it. When the pointer stops or leaves, it coasts back down.
+// The pointer sets *speed*, never the exact angle, so a quick flick leaves it
+// spinning fast.
+// ---------------------------------------------------------------------------
+const REST_VEL = 45; // deg/s — matches the old 8s-per-turn CSS spin
+const HOVER_VEL = 170; // deg/s — ~2.1s per turn while hovered
+const MAX_VEL = 1500; // clamp a hard fling so it can't spin absurdly fast
+const VEL_APPROACH = 1.6; // how quickly velocity coasts toward its target (per s)
+const DRAG_SMOOTH = 0.55; // blend of fresh drag speed into the running velocity
+
+interface LoopSpin {
+  rotation: MotionValue<number>;
+  setArmed: (v: boolean) => void;
+  onPointerEnter: (e: React.PointerEvent) => void;
+  onPointerLeave: () => void;
+  onPointerMove: (e: React.PointerEvent) => void;
+}
+
+const LoopSpinContext = createContext<LoopSpin | null>(null);
+
+function useLoopSpinController(): LoopSpin {
+  const rotation = useMotionValue(0);
+  const vel = useRef(REST_VEL); // current angular velocity (deg/s)
+  const target = useRef(REST_VEL); // velocity it coasts toward when idle
+  const over = useRef(false); // pointer is currently over the paper
+  const armed = useRef(false); // true once the paper has landed in §4
+  const reduced = useRef(false); // honour prefers-reduced-motion
+  const center = useRef({ x: 0, y: 0 }); // paper centre, refreshed each move
+  const last = useRef({ a: 0, t: 0 }); // last pointer angle + timestamp
+
+  useEffect(() => {
+    reduced.current =
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  }, []);
+
+  // perpetual integrator: coast the velocity toward its target (hover or rest)
+  // and advance the angle every frame. A pointer moving over the paper bumps
+  // the velocity directly (see onPointerMove); between those bumps it eases
+  // back here, so a flick spins up then gradually settles.
+  useAnimationFrame((_t, delta) => {
+    if (!armed.current || reduced.current) return;
+    const dt = Math.min(delta, 64) / 1000; // clamp huge tab-restore frames
+    vel.current +=
+      (target.current - vel.current) * Math.min(1, dt * VEL_APPROACH);
+    rotation.set(rotation.get() + vel.current * dt);
+  });
+
+  const angleTo = (e: React.PointerEvent) =>
+    Math.atan2(e.clientY - center.current.y, e.clientX - center.current.x);
+
+  return {
+    rotation,
+    setArmed: (v: boolean) => {
+      armed.current = v;
+    },
+    onPointerEnter: (e: React.PointerEvent) => {
+      if (!armed.current) return;
+      over.current = true;
+      const r = e.currentTarget.getBoundingClientRect();
+      center.current = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      last.current = { a: angleTo(e), t: performance.now() };
+      if (!reduced.current) target.current = HOVER_VEL; // hover → spins faster
+    },
+    onPointerLeave: () => {
+      over.current = false;
+      target.current = REST_VEL; // let it coast back down
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (!over.current || reduced.current) return;
+      // refresh the centre each move so it stays correct if the page scrolls
+      const r = e.currentTarget.getBoundingClientRect();
+      center.current = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      const a = angleTo(e);
+      // shortest signed angular delta, normalised to (-π, π]
+      let dA = a - last.current.a;
+      dA =
+        ((((dA + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) -
+        Math.PI;
+      const now = performance.now();
+      const dt = Math.max(8, now - last.current.t) / 1000;
+      // how fast the pointer is whipping around the centre, in deg/s — this
+      // sets the spin *speed*, not the angle, like a hand on a record. Blend it
+      // in so the motion stays smooth.
+      const drag = clamp((dA * 180) / Math.PI / dt, -MAX_VEL, MAX_VEL);
+      vel.current = vel.current * (1 - DRAG_SMOOTH) + drag * DRAG_SMOOTH;
+      last.current = { a, t: now };
+    },
+  };
+}
+
+/**
+ * Transparent hit-area placed inside the §4 `.loop-fig` slot. The spinning
+ * paper renders in a lower layer (`.report`, z-index 8) that the foreground
+ * (z-index 9) covers, so the paper itself can't catch pointer events — this
+ * grip sits on top, exactly over the paper, and forwards them to the shared
+ * spin controller.
+ */
+export function LoopPaperGrip(): React.ReactElement | null {
+  const spin = useContext(LoopSpinContext);
+  if (!spin) return null;
+  return (
+    <div
+      className="loop-paper-grip"
+      aria-hidden="true"
+      onPointerEnter={spin.onPointerEnter}
+      onPointerLeave={spin.onPointerLeave}
+      onPointerMove={spin.onPointerMove}
+    />
+  );
 }
 
 const CloudIcon = (
@@ -562,26 +686,32 @@ function TrailPaper({
     a[3] < 0.999 || pubIndex != null ? 60 : k,
   );
 
-  // §4 loop paper: once it lands, hand rotation off to a CSS animation so it
-  // spins forever — a MotionValue can't keep advancing after scrolling stops.
+  // §4 loop paper: once it lands, hand rotation off to the shared spin
+  // controller so it keeps turning forever (a scroll-derived MotionValue can't
+  // advance after scrolling stops) and can react to the pointer — hover to
+  // speed up, click-drag to fling it. While still descending, the scroll-driven
+  // `rotate` MotionValue stays in charge.
+  const loopSpin = useContext(LoopSpinContext);
   const [spinning, setSpinning] = useState(false);
   useMotionValueEvent(p, 'change', (v) => {
     if (isLoop) setSpinning(ease(v, T.loop[0], T.loop[1]) >= 0.999);
   });
+  useEffect(() => {
+    if (isLoop && loopSpin) loopSpin.setArmed(spinning);
+  }, [isLoop, spinning, loopSpin]);
 
   if (isLoop) {
-    // outer positions/scales; inner card rotates (JS while descending, CSS once
-    // landed) — they can't share one element since a CSS transform animation
-    // would clobber the motion-driven x/y/scale.
+    // outer holds the motion-driven position/scale; the inner card rotates —
+    // they can't share one element because the controller's perpetual rotate
+    // would otherwise clobber the motion-driven x/y/scale. Once landed, the
+    // inner card's rotation comes from the interactive spin controller.
+    const landedRotate = spinning && loopSpin ? loopSpin.rotation : rotate;
     return (
       <motion.div
         className="pcopy-pos"
         style={{ x, y, scale, opacity, zIndex }}
       >
-        <motion.div
-          className={spinning ? 'pcopy spin-on' : 'pcopy'}
-          style={spinning ? undefined : { rotate }}
-        >
+        <motion.div className="pcopy" style={{ rotate: landedRotate }}>
           <PaperSVG seed={seed} />
         </motion.div>
       </motion.div>
@@ -616,6 +746,7 @@ export default function Scene({
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const vp = useViewport();
+  const loopSpin = useLoopSpinController();
   const { scrollYProgress: p } = useScroll({
     target: sectionRef,
     offset: ['start start', 'end end'],
@@ -799,160 +930,162 @@ export default function Scene({
   let cellCursor = 0;
 
   return (
-    <section
-      ref={sectionRef}
-      className="scene"
-      style={{ minHeight: `${SCENE_VH}vh` }}
-    >
-      <div className="scene-stage">
-        <div ref={wrapRef} className="scene-wrap">
-          {/* experiments box */}
-          <div className="fleet-box">
+    <LoopSpinContext.Provider value={loopSpin}>
+      <section
+        ref={sectionRef}
+        className="scene"
+        style={{ minHeight: `${SCENE_VH}vh` }}
+      >
+        <div className="scene-stage">
+          <div ref={wrapRef} className="scene-wrap">
+            {/* experiments box */}
+            <div className="fleet-box">
+              <motion.div
+                className="fleet-inner"
+                style={{
+                  scale: boxScale,
+                  y: boxY,
+                  opacity: boxOpacity,
+                  borderColor: boxBorder as unknown as string,
+                  transformOrigin: '50% 50%',
+                }}
+              >
+                <div className="fleet-cols">
+                  <div className="fleet-left">
+                    {/* slot 0 hosts the docked hero — kept as an invisible spacer */}
+                    <div
+                      ref={slot0Ref}
+                      className="session"
+                      style={{ visibility: 'hidden' }}
+                    />
+                    {Array.from({ length: SESSIONS - 1 }, (_, n) => {
+                      const i = n + 1;
+                      return (
+                        <SessionCard
+                          key={i}
+                          p={p}
+                          i={i}
+                          jobs={jobs}
+                          cardRef={setSession(i)}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div className="fleet-right">
+                    {Array.from({ length: CLOUDS }, (_, c) => {
+                      const n = CLOUD_SIZES[c % CLOUD_SIZES.length];
+                      const start = cellCursor;
+                      cellCursor += n;
+                      return (
+                        <Cloud
+                          key={c}
+                          p={p}
+                          index={c}
+                          size={n}
+                          startCell={start}
+                          cellEvents={cellEvents}
+                          setCell={setCell}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* flow lines (distil sessions → report) */}
+            <svg className="flows">
+              {Array.from({ length: SESSIONS }, (_, i) => (
+                <Flow
+                  key={i}
+                  p={p}
+                  i={i}
+                  tint={TINTS[i % TINTS.length]}
+                  sessionRefs={sessionRefs}
+                  reportRef={reportRef}
+                  wrapRef={wrapRef}
+                />
+              ))}
+            </svg>
+
+            {/* packets (finished experiments → sessions) */}
+            <svg className="packets">
+              {jobs.map((job, idx) => (
+                <Packet
+                  key={idx}
+                  p={p}
+                  job={job}
+                  tint={TINTS[job.i % TINTS.length]}
+                  cellRefs={cellRefs}
+                  sessionRefs={sessionRefs}
+                  wrapRef={wrapRef}
+                />
+              ))}
+            </svg>
+
+            {/* the hero descent chart */}
+            <SceneHero
+              p={p}
+              heroRef={heroRef}
+              slot0Ref={slot0Ref}
+              wrapRef={wrapRef}
+              vp={vp}
+            />
+
+            {/* the report + its streaming paper trail */}
             <motion.div
-              className="fleet-inner"
-              style={{
-                scale: boxScale,
-                y: boxY,
-                opacity: boxOpacity,
-                borderColor: boxBorder as unknown as string,
-                transformOrigin: '50% 50%',
-              }}
+              ref={reportRef}
+              className="report"
+              style={{ opacity: reportOpacity }}
             >
-              <div className="fleet-cols">
-                <div className="fleet-left">
-                  {/* slot 0 hosts the docked hero — kept as an invisible spacer */}
-                  <div
-                    ref={slot0Ref}
-                    className="session"
-                    style={{ visibility: 'hidden' }}
-                  />
-                  {Array.from({ length: SESSIONS - 1 }, (_, n) => {
-                    const i = n + 1;
-                    return (
-                      <SessionCard
-                        key={i}
-                        p={p}
-                        i={i}
-                        jobs={jobs}
-                        cardRef={setSession(i)}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="fleet-right">
-                  {Array.from({ length: CLOUDS }, (_, c) => {
-                    const n = CLOUD_SIZES[c % CLOUD_SIZES.length];
-                    const start = cellCursor;
-                    cellCursor += n;
-                    return (
-                      <Cloud
-                        key={c}
-                        p={p}
-                        index={c}
-                        size={n}
-                        startCell={start}
-                        cellEvents={cellEvents}
-                        setCell={setCell}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
+              {trail.map((node) => (
+                <TrailPaper
+                  key={node.k}
+                  p={p}
+                  node={node}
+                  seed={SEED + 200 + node.k * 7}
+                  pubIndex={pubByK[node.k] ?? null}
+                  isLoop={node.k === loopK}
+                  wrapRef={wrapRef}
+                  reportRef={reportRef}
+                  figGeom={figGeom}
+                  pileN={trail.length + 1}
+                  fgH={fgH}
+                  vp={vp}
+                />
+              ))}
+              {/* the distilled head paper, which writes itself */}
+              <motion.div
+                className="pfront"
+                style={{ y: frontY, opacity: frontOpacity }}
+              >
+                <ReportPaper rp={reportProgress} />
+              </motion.div>
+            </motion.div>
+
+            {/* the §1–§4 foreground scrolls up over the papers */}
+            <motion.div
+              ref={fgRef}
+              className="scene-fg"
+              style={{ opacity: fgOpacity, y: fgY, translateX: '-50%' }}
+            >
+              <div className="scene-fg-inner">{children}</div>
+            </motion.div>
+
+            {/* subtle "keep scrolling" cue on the RHS — the scene is scroll-
+              driven, so nudge the user; fades out as soon as they scroll in */}
+            <motion.div
+              className="scroll-hint"
+              style={{ opacity: hintOpacity }}
+              aria-hidden="true"
+            >
+              <span className="scroll-hint-label">keep&nbsp;scrolling</span>
+              <span className="scroll-hint-arrow">↓</span>
             </motion.div>
           </div>
-
-          {/* flow lines (distil sessions → report) */}
-          <svg className="flows">
-            {Array.from({ length: SESSIONS }, (_, i) => (
-              <Flow
-                key={i}
-                p={p}
-                i={i}
-                tint={TINTS[i % TINTS.length]}
-                sessionRefs={sessionRefs}
-                reportRef={reportRef}
-                wrapRef={wrapRef}
-              />
-            ))}
-          </svg>
-
-          {/* packets (finished experiments → sessions) */}
-          <svg className="packets">
-            {jobs.map((job, idx) => (
-              <Packet
-                key={idx}
-                p={p}
-                job={job}
-                tint={TINTS[job.i % TINTS.length]}
-                cellRefs={cellRefs}
-                sessionRefs={sessionRefs}
-                wrapRef={wrapRef}
-              />
-            ))}
-          </svg>
-
-          {/* the hero descent chart */}
-          <SceneHero
-            p={p}
-            heroRef={heroRef}
-            slot0Ref={slot0Ref}
-            wrapRef={wrapRef}
-            vp={vp}
-          />
-
-          {/* the report + its streaming paper trail */}
-          <motion.div
-            ref={reportRef}
-            className="report"
-            style={{ opacity: reportOpacity }}
-          >
-            {trail.map((node) => (
-              <TrailPaper
-                key={node.k}
-                p={p}
-                node={node}
-                seed={SEED + 200 + node.k * 7}
-                pubIndex={pubByK[node.k] ?? null}
-                isLoop={node.k === loopK}
-                wrapRef={wrapRef}
-                reportRef={reportRef}
-                figGeom={figGeom}
-                pileN={trail.length + 1}
-                fgH={fgH}
-                vp={vp}
-              />
-            ))}
-            {/* the distilled head paper, which writes itself */}
-            <motion.div
-              className="pfront"
-              style={{ y: frontY, opacity: frontOpacity }}
-            >
-              <ReportPaper rp={reportProgress} />
-            </motion.div>
-          </motion.div>
-
-          {/* the §1–§4 foreground scrolls up over the papers */}
-          <motion.div
-            ref={fgRef}
-            className="scene-fg"
-            style={{ opacity: fgOpacity, y: fgY, translateX: '-50%' }}
-          >
-            <div className="scene-fg-inner">{children}</div>
-          </motion.div>
-
-          {/* subtle "keep scrolling" cue on the RHS — the scene is scroll-
-              driven, so nudge the user; fades out as soon as they scroll in */}
-          <motion.div
-            className="scroll-hint"
-            style={{ opacity: hintOpacity }}
-            aria-hidden="true"
-          >
-            <span className="scroll-hint-label">keep&nbsp;scrolling</span>
-            <span className="scroll-hint-arrow">↓</span>
-          </motion.div>
         </div>
-      </div>
-    </section>
+      </section>
+    </LoopSpinContext.Provider>
   );
 }
 
