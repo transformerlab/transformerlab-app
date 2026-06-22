@@ -119,7 +119,9 @@ export default function TokenGenDiagram(): JSX.Element {
       </div>
 
       <div className={styles.label}>
-        <strong>The LLM chooses the next token and discards the logprobs.</strong>{' '}
+        <strong>
+          The LLM chooses the next token and discards the logprobs.
+        </strong>{' '}
         Whatever confidence it had in that pick is gone. Only the token is
         appended to the history and fed back in &mdash; replayed from then on as
         if it had always been certain.
