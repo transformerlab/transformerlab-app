@@ -85,3 +85,5 @@ The headline isn't "we beat the baseline." It's that **a model's own confidence 
 The whole study, covering six models across two families (Llama and Qwen3, from 1B to 8B), the baselines, the controls, the sweeps, and the judged evaluation, ran on [Transformer Lab](https://transformerlab.ai) driving GPUs on Lambda Cloud, for about **16 GPU-hours total**. It's a LoRA-scale recipe, not a giant training run. Code and artifacts are available on request.
 
 If you want to try the idea on your own model, the ingredients are: greedily decode answers, record the average log-probability over each answer, pick a cutoff, relabel the low-confidence half to "I'm not sure," and LoRA-fine-tune. That's the whole thing.
+
+arXiv link to the full paper will be shared here as soon as it's published.
