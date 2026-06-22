@@ -1,6 +1,6 @@
 ---
 slug: abstain-from-your-own-doubt
-title: 'Teaching a language model to say "I''m not sure" using its own doubt, for free'
+title: 'Teaching a language model to say "I''m not sure" using its own doubt'
 authors: [ali, deep, tony]
 tags: [ml-research, hallucination, language-models, fine-tuning]
 date: 2026-06-19
@@ -8,24 +8,32 @@ date: 2026-06-19
 
 import MethodDiagram from './MethodDiagram';
 import PipelineDiagram from './PipelineDiagram';
+import TokenGenDiagram from './TokenGenDiagram';
 
 _A model already has a quiet sense of when it is bluffing. We turned that sense into an off-switch for confident wrong answers, without ever telling it which answers were right._
 
-Language models state false facts as smoothly as true ones. But underneath, a model is often _less sure_ when it is about to be wrong: the probabilities it assigns to its own words quietly slip. The usual way to make a model "know when to shut up" is to build a labelled dataset, a big answer key of right and wrong. We asked whether the model's _own_ doubt, which is free and needs no answer key, could do the same job. We fine-tuned six open-weights models to say "I'm not sure" exactly where their own confidence was low, and the label-free recipe held its own against the answer-key version on every model.
+Imagine you're a student, and the teacher asks you a math question in front of the class. As you start to answer, you have an internal feeling about how well you actually know this topic. That feeling shapes everything: how quickly you speak, how long you pause to think, whether you hedge or commit. You aren't just producing an answer; you're monitoring your own confidence as you go and adjusting based on how you feel about the thoughts forming in your mind.
 
 <!--truncate-->
 
-## The problem: confident nonsense
+That sense of your own thinking has a name. Scientists call it **metacognition** — thinking about your thinking — and it runs on two gears:
 
-Ask a language model a question it doesn't really know, and it usually won't hesitate; it will hand you a wrong answer in the same confident voice it uses for things it knows cold. There's no "um," no asterisk, no tell. That's what makes hallucination dangerous: the surface gives you nothing to go on.
+- **Monitoring.** Your brain constantly watches itself work: how easily a sentence is parsing, how much effort a math problem is taking, whether a memory feels crisp or degraded. This monitoring is what produces those _epistemic feelings_ — the felt sense of "I've got this" or "I'm not sure."
+- **Control.** Once your brain feels how things are going, it acts on it. Hit a paragraph that feels confusing, and your control system tells your eyes to stop and re-read it. Feel unsure of an answer, and you slow down, qualify it, or decline to give one.
 
-So here's a more useful goal than "never be wrong" (impossible): **teach the model to keep quiet when it's likely wrong.** If it could just say _"I'm not sure"_ on the questions it would have flubbed, and still answer the ones it knows, you'd trust it a lot more.
+Large language models are missing this loop. We wanted to investigate whether we could give an LLM at least one piece of metacognition — and whether it would improve what the model generates.
 
-## The secret: models flinch
+To see what's missing, step back and look at how an LLM actually writes. It generates one token (roughly, one word-piece) at a time. To pick the next token, it maps out a probability for every possible candidate and selects one of the likely ones — not always the very top one, since a little randomness is what gives it some creativity. But here's the catch: the moment a token is chosen, the probability behind it — its _logprob_, the model's own confidence in that choice — is discarded. The chosen token is appended to the history and fed back in, and from then on it's written in stone. No matter how unsure the model was when it picked a word, the past is replayed as though it were 100% certain.
 
-Here's the thing the model won't tell you out loud but tells you in its math. When a model writes an answer, it assigns a _probability_ to each word it picks: basically, "how much do I believe this is the right next word?" Average those probabilities across the answer and you get a single number: a **confidence score**.
+<TokenGenDiagram />
 
-It turns out that number is informative. When the model is about to state something false, that confidence tends to dip: it's internally hedging even while sounding sure. We checked this on our own models, and the signal is real: across six models it separates right answers from wrong ones well above chance (for the curious: AUROC 0.73–0.86), and it holds even for a tiny 1-billion-parameter model.
+Perhaps this is part of why LLMs are so prone to **hallucination** — stating false facts in the same fluent, confident voice they use for true ones. The model's own hesitation, the dip in confidence right as it goes off the rails, is thrown away at the exact moment it could be useful. So we asked: what if we fed that signal back? What if the model could see not just _what_ it said before, but _how confident_ it was when it said it?
+
+## First, is there even a signal?
+
+Before reshaping how the model thinks, we wanted to confirm there was something there to reshape. The confidence score is simple to compute: take the probability the model assigned to each word in its answer and average them into a single number. The question was whether that number actually means anything — does it dip _before_ the model goes wrong?
+
+So we checked it against datasets of known hallucinations. Good news: across these hallucinated datasets we found a clear pattern of lower confidence scores right before hallucinated answers. Concretely, across six models the score separates right answers from wrong ones well above chance — AUROC 0.73–0.86 — and the pattern holds even for a tiny 1-billion-parameter model. The signal is real, and it's there to use.
 
 So the model already has a doubt meter. It just doesn't act on it.
 
@@ -37,7 +45,9 @@ That's the moment we got curious. The model _already_ produces a doubt signal, f
 
 ## Our method: let the model's doubt write the lesson plan
 
-The recipe is almost suspiciously simple. Here's the whole thing, one example at a time:
+First, how should the model voice its doubt at all? We considered a few options, including the heavy-handed one: training a brand-new "doubt token" the model could emit mid-stream whenever its confidence sagged. In the end we picked something far simpler — when the model is unsure, we inject or replace its answer with a short written hedge that reads like a flash of internal reflection: something like _"(I am not sure)"_ in brackets, triggered when the confidence across the answer's tokens drops below a threshold. No architecture changes, no new vocabulary.
+
+With that decided, the rest of the recipe is almost suspiciously simple. Here's the whole thing, one example at a time:
 
 <PipelineDiagram />
 
