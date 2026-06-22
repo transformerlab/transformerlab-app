@@ -28,7 +28,7 @@ Only one survived: **Arabic.** But the other five didn't fail because they were 
 
 That's the key insight we built the study around. We treated the measurement itself as a variable by scoring the same ablations under four metrics, two separate corpora, and both a permissive and a conservative statistical rule. A real module should survive the change, but most didn't.
 
-{/* TODO: Figure 1 — Family separation bar chart. Qwen3 (positive control) shows a within-vs-cross-group gap of 0.41; Command A+ shows only 0.09. */}
+![Family separation: Qwen3 shows a within-vs-cross-group gap of 0.41; Command A+ shows only 0.09.](./images/fig1_separation.png)
 
 ## The autopsy
 
@@ -42,7 +42,7 @@ What I found interesting about this negative result is that each failed module f
 
 **Chinese and general reasoning** cleared neither bar.
 
-{/* TODO: Figure 3 — Verdict-by-measurement heatmap. Each cell shows a family's modularity verdict under a different metric and corpus combination. Only Arabic is modular wherever it can be tested. */}
+![Verdict-by-measurement heatmap: only Arabic is modular wherever it can be tested.](./images/fig3_metric_flip.png)
 
 ## The one that survived and what it tells us
 
