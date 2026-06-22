@@ -8,6 +8,7 @@ import os
 from transformerlab.db.session import async_session
 from transformerlab.db.session import run_alembic_migrations
 from transformerlab.services.experiment_init import seed_default_admin_user, seed_default_experiments
+from transformerlab.services.juicefs_gateway import ensure_juicefs_gateway, stop_juicefs_gateway
 from transformerlab.shared.remote_workspace import create_buckets_for_all_teams, get_default_aws_profile
 from transformerlab.shared import dirs, galleries
 
@@ -17,36 +18,48 @@ async def main() -> None:
     # prestart_once runs standalone (e.g. in Docker build), so set it here too.
     os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 
-    # Ensure expected directory structure exists before other startup steps.
-    await dirs.initialize_dirs()
+    # Start the local JuiceFS S3 gateway before any storage access (no-op unless
+    # TFL_STORAGE_PROVIDER=juicefs). This prestart script runs in its own process,
+    # so it needs its own gateway; the API lifespan starts a supervised one later.
+    await asyncio.to_thread(ensure_juicefs_gateway)
+    try:
+        # Ensure expected directory structure exists before other startup steps.
+        await dirs.initialize_dirs()
 
-    print("✅ Running one-time startup tasks")
-    await run_alembic_migrations()
-    await seed_default_admin_user()
-    await galleries.update_gallery_cache()
+        print("✅ Running one-time startup tasks")
+        await run_alembic_migrations()
+        await seed_default_admin_user()
+        await galleries.update_gallery_cache()
 
-    # Buckets/containers/local workspace dirs must exist before seed_default_experiments(),
-    # which writes experiment metadata to remote storage (e.g. Azure block upload).
-    tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
-    if tfl_remote_storage_enabled or (os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI")):
-        print("✅ CHECKING STORAGE FOR EXISTING TEAMS")
-        try:
-            async with async_session() as session:
-                success_count, failure_count, error_messages = await create_buckets_for_all_teams(
-                    session, profile_name=get_default_aws_profile()
-                )
-                if success_count > 0:
-                    print(f"✅ Created/verified storage for {success_count} team(s)")
-                if failure_count > 0:
-                    print(f"⚠️  Failed to create storage for {failure_count} team(s)")
-                    for error in error_messages:
-                        print(f"   - {error}")
-        except Exception as e:
-            print(f"⚠️  Error creating storage for existing teams: {e}")
+        # Buckets/containers/local workspace dirs must exist before seed_default_experiments(),
+        # which writes experiment metadata to remote storage (e.g. Azure block upload).
+        tfl_remote_storage_enabled = os.getenv("TFL_REMOTE_STORAGE_ENABLED", "false").lower() == "true"
+        if (
+            tfl_remote_storage_enabled
+            or os.getenv("TFL_STORAGE_PROVIDER") == "juicefs"
+            or (os.getenv("TFL_STORAGE_PROVIDER") == "localfs" and os.getenv("TFL_STORAGE_URI"))
+        ):
+            print("✅ CHECKING STORAGE FOR EXISTING TEAMS")
+            try:
+                async with async_session() as session:
+                    success_count, failure_count, error_messages = await create_buckets_for_all_teams(
+                        session, profile_name=get_default_aws_profile()
+                    )
+                    if success_count > 0:
+                        print(f"✅ Created/verified storage for {success_count} team(s)")
+                    if failure_count > 0:
+                        print(f"⚠️  Failed to create storage for {failure_count} team(s)")
+                        for error in error_messages:
+                            print(f"   - {error}")
+            except Exception as e:
+                print(f"⚠️  Error creating storage for existing teams: {e}")
 
-    await seed_default_experiments()
+        await seed_default_experiments()
 
-    print("✅ One-time startup tasks complete")
+        print("✅ One-time startup tasks complete")
+    finally:
+        # No-op unless this process spawned the gateway.
+        stop_juicefs_gateway()
 
 
 if __name__ == "__main__":
