@@ -9,7 +9,8 @@ export interface Paper {
   authors: string[];
   date: string; // "YYYY-MM" or "YYYY-MM-DD"
   abstract: string;
-  pdf: string; // filename in static/papers/
+  pdf: string; // filename in static/papers/ ("" if not uploaded yet)
+  tag?: string; // optional modality label, e.g. "3D", "LLM"
 }
 
 /** Sort papers newest-first by `date` (string compare works for ISO-ish dates). */
@@ -21,7 +22,7 @@ export function sortByDateDesc(papers: Paper[]): Paper[] {
 
 /** Format a "YYYY-MM" or "YYYY-MM-DD" date as a human-readable string. */
 export function formatDate(date: string): string {
-  const [year, month] = date.split('-');
+  const [year, month, day] = date.split('-');
   if (!month) return year;
   const monthName = [
     'January',
@@ -37,7 +38,8 @@ export function formatDate(date: string): string {
     'November',
     'December',
   ][Number(month) - 1];
-  return monthName ? `${monthName} ${year}` : year;
+  if (!monthName) return year;
+  return day ? `${monthName} ${Number(day)}, ${year}` : `${monthName} ${year}`;
 }
 
 /** Public URL of a paper's hosted PDF (served from static/papers/). */

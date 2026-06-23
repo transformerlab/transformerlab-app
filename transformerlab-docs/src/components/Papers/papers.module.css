@@ -1,7 +1,9 @@
-/* Styling for the /papers list and /papers/<slug> detail pages. */
+/* Styling for the /papers list and /papers/<slug> detail pages.
+ * Uses the site's theme tokens (--vp-c-* / --ifm-*) so it follows light/dark
+ * mode instead of hardcoding colors. */
 
 .page {
-  background: #191919;
+  /* Inherit the theme background; just give the page some breathing room. */
   min-height: 70vh;
   padding: 3rem 1rem 4rem;
 }
@@ -14,11 +16,11 @@
 .header h1 {
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
-  color: #fff;
+  color: var(--vp-c-text-1);
 }
 
 .header p {
-  color: var(--ifm-color-emphasis-600);
+  color: var(--vp-c-text-2);
   font-size: 1.1rem;
   margin: 0;
 }
@@ -36,9 +38,9 @@
 .card {
   display: block;
   padding: 1.5rem;
-  border: 1px solid var(--ifm-color-emphasis-300);
+  border: 1px solid var(--vp-c-divider);
   border-radius: 14px;
-  background: #1f1f1f;
+  background: var(--vp-c-bg-elv);
   text-decoration: none;
   color: inherit;
   transition:
@@ -52,24 +54,28 @@
   color: inherit;
   border-color: var(--ifm-color-primary);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .cardTitle {
   font-size: 1.35rem;
   font-weight: 600;
-  color: #fff;
+  color: var(--vp-c-text-1);
   margin: 0 0 0.4rem;
 }
 
 .meta {
   font-size: 0.95rem;
-  color: var(--ifm-color-emphasis-600);
+  color: var(--vp-c-text-3);
   margin: 0 0 0.75rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.15rem;
 }
 
 .authors {
-  color: var(--ifm-color-emphasis-700);
+  color: var(--vp-c-text-2);
 }
 
 .dot {
@@ -77,16 +83,28 @@
   opacity: 0.6;
 }
 
+.tag {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: rgba(99, 102, 241, 0.14);
+  color: #6366f1;
+}
+
 .abstract {
   margin: 0;
-  color: var(--ifm-color-emphasis-800);
+  color: var(--vp-c-text-2);
   line-height: 1.6;
 }
 
 .empty {
   max-width: 860px;
   margin: 0 auto;
-  color: var(--ifm-color-emphasis-600);
+  color: var(--vp-c-text-2);
 }
 
 /* ---- detail ---- */
@@ -105,12 +123,12 @@
 
 .detail h1 {
   font-size: 2.25rem;
-  color: #fff;
+  color: var(--vp-c-text-1);
   margin-bottom: 0.5rem;
 }
 
 .detailAbstract {
-  color: var(--ifm-color-emphasis-800);
+  color: var(--vp-c-text-2);
   line-height: 1.7;
   font-size: 1.05rem;
   margin: 1.5rem 0 2rem;
@@ -123,7 +141,7 @@
 .download {
   display: inline-block;
   padding: 0.65rem 1.25rem;
-  background: var(--ifm-color-primary);
+  background: #6366f1;
   color: #fff;
   border-radius: 10px;
   font-weight: 600;
@@ -139,7 +157,15 @@
 .pdfFrame {
   width: 100%;
   height: 80vh;
-  border: 1px solid var(--ifm-color-emphasis-300);
+  border: 1px solid var(--vp-c-divider);
   border-radius: 12px;
   background: #fff;
+}
+
+.pending {
+  padding: 1.25rem 1.5rem;
+  border: 1px dashed var(--vp-c-divider);
+  border-radius: 12px;
+  color: var(--vp-c-text-2);
+  background: var(--vp-c-bg-soft);
 }
