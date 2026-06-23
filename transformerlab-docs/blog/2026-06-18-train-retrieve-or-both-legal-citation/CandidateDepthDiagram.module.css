@@ -1,0 +1,115 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 2rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.2rem;
+}
+
+.title {
+  font-weight: 700;
+  font-size: 1rem;
+  max-width: 70%;
+}
+
+.toggle {
+  display: inline-flex;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.tab {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.95rem;
+  border: none;
+  background: transparent;
+  color: var(--ifm-color-emphasis-700);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.tab.tabActive {
+  background: var(--ifm-color-primary);
+  color: #fff;
+}
+
+.chart {
+  display: flex;
+  gap: 3rem;
+  align-items: flex-end;
+  justify-content: center;
+  height: 200px;
+}
+
+.barcol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  width: 110px;
+}
+
+.barArea {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  flex: 1;
+}
+
+.bar {
+  width: 64px;
+  border-radius: 6px 6px 0 0;
+  transition:
+    height 400ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 220ms ease;
+}
+
+.barval {
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.3rem;
+}
+
+.barlabel {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-700);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  margin: 0.9rem 0 0;
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-600);
+}

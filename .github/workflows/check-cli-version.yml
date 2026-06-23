@@ -18,7 +18,7 @@ jobs:
         working-directory: cli
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Ensure version is set in pyproject.toml
         run: |
