@@ -18,7 +18,7 @@ With that image in my mind, I started to speculate on the possibilities of MoE m
 
 <!--truncate-->
 
-Routing studies keep finding hints that point this way: tokens of one kind tend to go to the same experts. But there's a gap between "tokens get _routed to_ certain experts" and "the model's output actually _depends on_ those experts." Routing is observational. Modularity is a causal claim. We wanted to close that gap on a real frontier model, measured honestly. So we ran the test.
+That speculation is what convinced our team to investigate. Routing studies keep finding hints that tokens of one kind tend to go to the same experts. But there's a gap between "tokens get _routed to_ certain experts" and "the model's output actually _depends on_ those experts." Routing is observational. Modularity is a causal claim. We wanted to close that gap on a real frontier model, measured honestly. So we did the test.
 
 ## The twist: only one survived
 
@@ -32,7 +32,7 @@ That's the key insight we built the study around. We treated the measurement its
 
 ## The autopsy
 
-What I found interesting about this negative result is that each failed module fails for a _different_, instructive reason. It's not that modularity is uniformly absent. It's that it's fragile in specific, predictable ways.
+What's interesting about this negative result is that each failed module fails for a _different_, instructive reason. It's not that modularity is uniformly absent. It's that it's fragile in specific, predictable ways.
 
 **Spanish is corpus-dependent.** On the FLoRes-200 test passages, Spanish looks like a clean module: ablating it breaks Spanish and spares everything else. Switch to held-out Wikipedia text and it bleeds +0.43 nats into Arabic putting it right at the threshold. The Spanish and Arabic expert families share only 2 of their 16 experts, but that small overlap was enough to flip the verdict when the corpus changed. Same ablation, same model, different text, different answer.
 
