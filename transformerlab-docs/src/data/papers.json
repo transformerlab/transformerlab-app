@@ -1,5 +1,50 @@
 [
   {
+    "slug": "instruction-tuning-brain-alignment",
+    "title": "Is Instruction-Tuning More Brain-Aligned? Mostly a Chat-Template Artifact",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-23",
+    "tags": ["LLM", "INTERPRETABILITY"],
+    "abstract": "Reports that instruction-tuned models are more \"brain-aligned\" than their base versions are mostly a chat-template artifact, not a property of alignment training. Under identical raw text, post-training weight changes leave fMRI encoding alignment essentially unchanged (Qwen base→Instruct p=0.92), while merely applying the chat template significantly raises apparent alignment — even for the base model.",
+    "pdf": "instruction-tuning-brain-alignment.pdf"
+  },
+  {
+    "slug": "parsimony-not-the-clip",
+    "title": "Parsimony, Not the Clip: What Controls the Search in Reinforcement-Learning Symbolic Regression",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-23",
+    "tags": ["RL", "LLM"],
+    "abstract": "A mechanistic study of how an RL objective shapes symbolic-regression search: the parsimony coefficient λ cleanly and monotonically sets the operating point on the accuracy–parsimony frontier, while the DAPO clip-higher asymmetry does not — it is the entropy regularizer, not the clip, that sustains exploration. On held-out Feynman the final model recovers a modest fraction (symbolic recovery 0.205), in the range of a deep-SR baseline and below the GP incumbent PySR.",
+    "pdf": "parsimony-not-the-clip.pdf"
+  },
+  {
+    "slug": "reward-maximization-collapses-diversity",
+    "title": "Reward Maximization Collapses Generative Diversity: Characterizing and Controlling the Trade-off in Verifiable Procedural Generation",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-22",
+    "tags": ["LLM", "RL"],
+    "abstract": "Verifiable-reward RL (RLVR) for procedural Sokoban-level generation triggers a sharp reward↔diversity phase transition: the model mode-collapses to one or two level templates (distinct-valid fraction ≈1.0 → <0.05) across three trust-region objectives (PPO, DAPO, DPPO), seeds, and scales. The trade-off is controllable — passively via early-stopping at the Pareto knee, actively via a novelty-bonus reward — but which clipping objective is used is not a robust lever for diversity.",
+    "pdf": "reward-maximization-collapses-diversity.pdf"
+  },
+  {
+    "slug": "label-free-doubt-signals",
+    "title": "Can a Model Catch Its Own Hallucinations for Free? Label-Free Doubt Signals Hold Their Own Against a Labelled Dataset for Abstention",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-19",
+    "tags": ["LLM"],
+    "abstract": "A model's own token-probability \"doubt\" signal, used to decide when to abstain, matches label-supervised abstention-tuning without using any correctness labels. Across six open-weights models (1B–8B, two families) on short-form QA, the label-free LoRA recipe shows no statistically detectable difference from the labelled one at matched coverage — the gain is calibration, not memorization, and its one blind spot is confidently-wrong facts.",
+    "pdf": "label-free-doubt-signals.pdf"
+  },
+  {
+    "slug": "adaptation-not-architecture",
+    "title": "It's the Adaptation, Not the Architecture: Pretrained Vision Transformers Are Competitive for End-to-End Steering on Small Driving Data",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-18",
+    "tags": ["VISION"],
+    "abstract": "A DINO-pretrained ViT-S is competitive with a pretrained ResNet-50 at end-to-end steering-angle prediction on a small slice (~5–16k frames) of the comma2k19 driving dataset — turn-slice Pearson 0.964 vs 0.967. Competitiveness is conditional on adaptation (low-LR full fine-tuning, a cost-sensitive loss, dropping flip augmentation); the practitioner defaults of a frozen linear probe and horizontal flips reproduce the usual \"ViTs don't work at small scale\" conclusion.",
+    "pdf": "adaptation-not-architecture.pdf"
+  },
+  {
     "slug": "judging-to-improve",
     "title": "Judging to Improve: A De-biased VLM-as-3D-Judge Protocol for Single-Image 3D Generation",
     "authors": ["Asaria", "Salomone", "Gandhi"],
