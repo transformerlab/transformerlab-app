@@ -1,0 +1,90 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.button {
+  border: 1px solid var(--ifm-color-primary);
+  background: var(--ifm-color-primary);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: opacity 0.15s ease;
+}
+
+.button:hover {
+  opacity: 0.88;
+}
+
+.gaugeLabel {
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+}
+
+.track {
+  position: relative;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--ifm-color-emphasis-200);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: #2e8b57;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.note {
+  font-size: 0.9rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.breakdownLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.stack {
+  display: flex;
+  width: 100%;
+  height: 30px;
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 0.72rem;
+  color: #fff;
+}
+
+.seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.fixed {
+  background: #2e8b57;
+}
+
+.wrong {
+  background: #d9534f;
+}
+
+.looped {
+  background: var(--ifm-color-emphasis-500);
+}
+
+.caption {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-700);
+  margin: 0.85rem 0 0;
+}

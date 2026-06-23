@@ -1,0 +1,129 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  padding: 1.25rem 1.25rem 1rem;
+  margin: 1.5rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.button {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: transparent;
+  color: var(--ifm-font-color-base);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.button:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.active {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #fff;
+}
+
+.bits {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 1rem;
+}
+
+.row {
+  margin-bottom: 1.1rem;
+}
+
+.metricLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.track {
+  position: relative;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--ifm-color-emphasis-200);
+  overflow: hidden;
+}
+
+.band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--ifm-color-primary);
+  opacity: 0.18;
+}
+
+.refLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--ifm-color-primary);
+  opacity: 0.7;
+}
+
+.marker {
+  position: absolute;
+  top: -3px;
+  width: 4px;
+  height: 28px;
+  border-radius: 2px;
+  transform: translateX(-2px);
+}
+
+.markerGood {
+  background: #2e8b57;
+}
+
+.markerBad {
+  background: #d9534f;
+}
+
+.fill {
+  height: 100%;
+  background: var(--ifm-color-primary);
+  border-radius: 6px;
+  transition: width 0.25s ease;
+}
+
+.scaleRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-top: 0.25rem;
+}
+
+.bandLabel {
+  font-style: italic;
+}
+
+.value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 0.3rem;
+}
+
+.verdict {
+  font-size: 0.92rem;
+  margin: 0.75rem 0 0.4rem;
+}
+
+.caption {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-700);
+  margin: 0;
+}

@@ -1,0 +1,84 @@
+---
+slug: is-4-bit-the-ceiling
+title: "Is 4-bit the ceiling?"
+authors: [tony, ali, deep]
+tags: [mlx, quantization, apple-silicon, moe, code-models, ml-research]
+date: 2026-06-23
+---
+
+import BitWidthDiagram from './BitWidthDiagram';
+import LoopingDiagram from './LoopingDiagram';
+
+*Fitting a 30-billion-parameter coding model into 24 GB on a Mac, and finding out what actually holds it back.*
+
+**Quick summary.** Our lab took a strong open coding model, North-Mini-Code-1.0, and tried to make it both smaller and better so it would run on a 24 GB Apple Silicon Mac with nothing sent to the cloud. Shrinking a model means storing each of its numbers with fewer bits, which saves memory but makes the numbers coarser. The model already ships in a 4-bit form (4 bits per number instead of the usual 16), which is what makes it fit. We wanted to beat that 4-bit version on coding accuracy, and we could not. Every route we tried, fewer bits, a smarter mix of bits, calibration, or training a smaller copy, either tied plain 4-bit or scored worse. Plain 4-bit is as good as anything else we found that fits in 24 GB. The more useful discovery came from real bug-fixing tasks. On the tasks where the model finished and returned a fix, it solved 60% of the bugs. But on 21 of 30 tasks it ran past its length limit without finishing, and 20 of those produced no fix at all. The thing that limits this model on a Mac is its tendency to loop instead of stopping, which has nothing to do with its size.
+
+<!--truncate-->
+
+## Why you would care
+
+Say you have a Mac with 24 GB of memory. You want a coding assistant that runs entirely on the machine in front of you. No subscription, no network round-trip, no code leaving your laptop. The question is which model is the best one that actually fits.
+
+North-Mini-Code-1.0 is a good candidate. It is a 30-billion-parameter model, but it is a **mixture of experts** (MoE): only a small slice of it, about 3 billion parameters, runs at any one moment, while the other parts sit idle. That makes it fast for its memory size. All 30 billion parameters still have to sit in memory at once. At full precision that is far more than 24 GB.
+
+The standard way to shrink a model is **quantization**: storing each number in the model with fewer bits. Full precision uses 16 bits per number. The public build of this model uses **4 bits per number**, which is what lets it fit. Our goal was to do better than that 4-bit build, either by going smaller still or by being cleverer about where the bits go. The two limits were 24 GB of memory and a speed floor of about 20 tokens per second. A token is a word-piece, the unit a model reads and writes, and 20 per second is roughly reading speed.
+
+## How we measured "better"
+
+We scored every version on two standard coding tests. **HumanEval** and **MBPP** are sets of small Python problems where the model writes a function and we run the real unit tests against it. The score is **pass@1**: the fraction of problems it gets right on the first try. The 4-bit model we were trying to beat scores 0.8902 on HumanEval's 164 problems and 0.9066 on MBPP, for a pooled 0.9002 across all 421.
+
+We set the bar before running anything: to count as a real win, a new version had to beat 4-bit by at least 1.5 points of pass@1, which is 0.015 on that 0-to-1 scale. That margin is the measurement noise of the test itself. A smaller gap cannot be told apart from chance.
+
+## What we tried, and why none of it won
+
+Going below 4 bits is the obvious move, so we tried it first. It does not work for this model. At about 3.5 bits the score lands at 0.86, below the 4-bit 0.89, and it reaches even that only with a longer answer budget. Held to the same budget as the other settings it falls to 0.81, because it rambles more before it answers. Push the experts down to 2 bits and the model collapses: it scores 0.02 and never stops generating. A function with one wrong token does not run, which is why coding punishes lost precision more than most tasks.
+
+Going the other direction, spending more bits than 4, is the version most likely to beat 4-bit, so we gave it the full test. A mixed setting that puts the sensitive parts at 8 bits and the rest at 4, averaging about 5.2 bits, fits in 20.5 GB and scores 0.9024. That is 2 more problems right than the 4-bit model, out of 164. Two problems is within the test's noise. We checked it with McNemar's test, which compares the two versions only on the problems where they disagree. It gives p=0.79. A value that close to 1 means a gap this size is what you would see from chance alone, so the two versions cannot be told apart at this sample size. The 1.2-point gap sits under our 1.5-point bar and under the 2.3-point noise floor of the test. On every one of the 6 problems where 4-bit wins and the bigger model loses, the bigger model ran out of tokens mid-answer. It did not write worse code.
+
+The diagram below lets you walk across the settings and watch both numbers move. Below 4 bits the score falls. Above 4 bits the score stops climbing and the memory bill grows.
+
+<BitWidthDiagram />
+
+We also tried the two paths that are not just "pick a bit count":
+
+- **Calibration.** Instead of rounding every number blindly, you can show the model a few hundred code samples and let the rounding adapt to what it actually computes, a method called GPTQ. The standard implementation cannot run here. It needs the whole full-precision 60 GB model plus bookkeeping for every layer in memory at once, which is hundreds of gigabytes. We rebuilt it to run one layer at a time and to track each expert only over the tokens routed to it, which we describe below, and ran it. The calibrated 4-bit model scores 0.8841. A paired test against plain 4-bit gives p=1.000, a dead tie. Calibration did not help this model.
+- **Distillation.** You can train a smaller, ordinary (non-MoE) model to imitate the big one. We ran a cheap version of this as a go/no-go check. The student scored 0 out of 32 on HumanEval. That does not prove distillation is hopeless here, only that a cheap pass does not clear the bar, so we stopped before spending more on it.
+
+So the answer to the title is yes. For this model, on this hardware, 4-bit is the ceiling we could find. Nothing that fits in 24 GB beats it by a margin that survives a noise check.
+
+## What limits the model on real bugs
+
+Passing small function tests is a proxy. The real job is fixing bugs in real repositories. So we ran the 4-bit model on a slice of **SWE-Bench Verified**, a benchmark of real GitHub issues where the model has to produce a patch that makes a project's failing tests pass. We used a fixed, seeded set of 30 issues across 12 projects.
+
+It resolved 20% of them (6 of 30). Most of the misses share one cause. On 21 of the 30 tasks the model ran past its 9000-token limit, and on 20 of those it produced no patch at all, because it never reached a stopping point. On the 10 tasks where it did finish and hand back a patch, it resolved 6, a 60% rate.
+
+<LoopingDiagram />
+
+The two numbers point to the same cause. The model's editing skill is intact at 4-bit. What fails is termination. This reframes the whole project. We spent the effort hunting for a smaller or smarter set of weights, and the weights were never the bottleneck. A model that loops is fixed with better stopping rules and decoding settings. The bit-width does not change it.
+
+The published version of this model reports 67.6% on the full SWE-Bench Verified test, far above our 20%. The two numbers are not comparable. They ran the model as a full agent that takes many steps and uses tools, over all the issues. We ran it once per issue, a setup called single-shot, on a 30-issue slice, which is a deliberate lower bound. Our number is useful for the jump from 20% to 60%, which isolates the failure mode.
+
+## What we built along the way
+
+Two pieces are reusable even though the headline is a tie.
+
+**Streaming GPTQ for large MoEs.** Calibrating a 128-expert, 60 GB model is normally infeasible on a 48 GB machine. Running GPTQ one layer at a time is standard. The part that makes a 128-expert model fit is tracking each expert only over the tokens routed to it, so the bookkeeping never holds all 128 experts at once. Our version peaks at 3.75 GB of memory instead of hundreds. That makes calibrated quantization of a model this size possible on hardware a person actually owns. The code is in the companion repository.
+
+**A negative result, run carefully.** We refused to call the +2-problem result a win before testing it. A result that is noise but looks like a win is worse than no result. It points the next person at a dead approach. The whole study cost about 1 GPU-hour of paid compute. That makes it cheap to reproduce and check.
+
+## What did not work, kept on the record
+
+- Going below 4 bits costs real accuracy (3.5-bit lands at 0.86) or breaks the model outright (2-bit collapses to 0.02).
+- Calibration (GPTQ) and a cheap distilled student each failed to beat plain 4-bit.
+- 5 bits across the board fits at short context, but it crosses 24 GB once the model holds a full 32,000-token conversation, so it fails the memory limit where it counts.
+
+## Where this does not generalize
+
+This is one model, on one runtime (MLX, Apple's framework for on-device models), under one memory budget. We did not measure a full-precision reference, because the unquantized model does not fit on our development machine, so we cannot claim 4-bit is lossless, only that nothing we tried beats it. We held the model's routing and attention at higher precision to match the public build, and a different choice there could move the result. The agentic number is a small, single-shot sample with a wide confidence range, meant to characterize the failure mode, not to rank the model.
+
+## Takeaways
+
+- For a strong MoE coding model on a 24 GB Mac, 4-bit is both the smallest setting that fits and the best accuracy we found at that size. Spending more bits raises the memory cost without improving accuracy.
+- Test a 2-problem lead before you believe it. A paired significance check showed the apparent win was a tie.
+- When a local model underperforms on real tasks, check whether it is producing wrong answers or no answers. Here the limiter was non-termination. Decoding and stopping rules fix that; the bit-width does not.
+- Calibrating a 60 GB mixture-of-experts model is feasible on a 48 GB machine if you do it one layer at a time.
