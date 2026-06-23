@@ -3,6 +3,7 @@
 import asyncio
 import io
 import logging
+import time
 from typing import Dict, Any, Optional, Union, List
 
 import requests
@@ -486,10 +487,49 @@ class RunpodProvider(ComputeProvider):
             else:
                 return {"pod_id": None, "request_id": None, "response": result}
         except requests.exceptions.HTTPError as e:
+            # RunPod's create-pod endpoint has a known server-side bug: it creates the pod, then
+            # fails on its own read-back query (a broken SQL join referencing a non-existent
+            # `NetworkVolume.userId` column), returning a 500 even though the pod now exists. When we
+            # get a 5xx, the pod may well be running and billing, so look it up by name before giving
+            # up. See https://github.com/runpod/runpodctl/issues/172.
+            status_code = getattr(e.response, "status_code", None)
+            if status_code is not None and status_code >= 500:
+                recovered = self._recover_pod_after_error(cluster_name)
+                if recovered:
+                    pod_id = recovered.get("id")
+                    logger.warning(
+                        "RunPod create-pod returned %s but pod '%s' (%s) was created; recovered via lookup.",
+                        status_code,
+                        cluster_name,
+                        pod_id,
+                    )
+                    self._cluster_name_to_pod_id[cluster_name] = pod_id
+                    return {"pod_id": pod_id, "request_id": pod_id}
+
             error_msg = f"Failed to create pod: {e}"
             if hasattr(e.response, "text"):
                 error_msg += f" - {e.response.text}"
             raise RuntimeError(error_msg) from e
+
+    def _recover_pod_after_error(
+        self, cluster_name: str, attempts: int = 3, delay_seconds: float = 2.0
+    ) -> Optional[Dict[str, Any]]:
+        """
+        After a 5xx from create-pod, RunPod may have created the pod despite the error response.
+        Poll the pod list by name (with a few retries to absorb listing lag) and return the pod
+        dict if one with a usable ID shows up, else None.
+        """
+        for attempt in range(attempts):
+            try:
+                pod = self._find_pod_by_name(cluster_name)
+            except Exception as lookup_error:  # noqa: BLE001 - best-effort recovery, never mask original error
+                logger.warning("Error looking up pod '%s' during recovery: %s", cluster_name, lookup_error)
+                pod = None
+            if pod and pod.get("id"):
+                return pod
+            if attempt < attempts - 1:
+                time.sleep(delay_seconds)
+        return None
 
     def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
         """Stop/terminate a pod."""
