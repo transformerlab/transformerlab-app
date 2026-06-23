@@ -1,0 +1,145 @@
+/* Styling for the /papers list and /papers/<slug> detail pages. */
+
+.page {
+  background: #191919;
+  min-height: 70vh;
+  padding: 3rem 1rem 4rem;
+}
+
+.header {
+  max-width: 860px;
+  margin: 0 auto 2.5rem;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  color: #fff;
+}
+
+.header p {
+  color: var(--ifm-color-emphasis-600);
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+/* ---- list ---- */
+
+.list {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.card {
+  display: block;
+  padding: 1.5rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 14px;
+  background: #1f1f1f;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.card:hover {
+  text-decoration: none;
+  color: inherit;
+  border-color: var(--ifm-color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.cardTitle {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 0.4rem;
+}
+
+.meta {
+  font-size: 0.95rem;
+  color: var(--ifm-color-emphasis-600);
+  margin: 0 0 0.75rem;
+}
+
+.authors {
+  color: var(--ifm-color-emphasis-700);
+}
+
+.dot {
+  margin: 0 0.5rem;
+  opacity: 0.6;
+}
+
+.abstract {
+  margin: 0;
+  color: var(--ifm-color-emphasis-800);
+  line-height: 1.6;
+}
+
+.empty {
+  max-width: 860px;
+  margin: 0 auto;
+  color: var(--ifm-color-emphasis-600);
+}
+
+/* ---- detail ---- */
+
+.detail {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+.detail h1 {
+  font-size: 2.25rem;
+  color: #fff;
+  margin-bottom: 0.5rem;
+}
+
+.detailAbstract {
+  color: var(--ifm-color-emphasis-800);
+  line-height: 1.7;
+  font-size: 1.05rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.actions {
+  margin-bottom: 1.5rem;
+}
+
+.download {
+  display: inline-block;
+  padding: 0.65rem 1.25rem;
+  background: var(--ifm-color-primary);
+  color: #fff;
+  border-radius: 10px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.download:hover {
+  text-decoration: none;
+  color: #fff;
+  opacity: 0.9;
+}
+
+.pdfFrame {
+  width: 100%;
+  height: 80vh;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  background: #fff;
+}
