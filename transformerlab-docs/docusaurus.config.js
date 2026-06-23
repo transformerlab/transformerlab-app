@@ -6,14 +6,14 @@ const lightCodeTheme = require('prism-react-renderer').themes.github;
 const darkCodeTheme = require('prism-react-renderer').themes.dracula;
 
 // Generates a static page at /papers/<slug> for every entry in
-// src/data/papers.js, all rendered by the shared PaperDetailPage component.
+// src/data/papers.json, all rendered by the shared PaperDetailPage component.
 // This keeps paper authoring in a single data file while still producing real,
 // shareable URLs per paper.
 function papersPlugin() {
   return {
     name: 'papers-pages',
     async contentLoaded({ actions }) {
-      const { papers } = require('./src/data/papers.js');
+      const papers = require('./src/data/papers.json');
       const { addRoute, createData } = actions;
       await Promise.all(
         papers.map(async (paper) => {

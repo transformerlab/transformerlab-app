@@ -1,13 +1,13 @@
 import React from 'react';
 import Layout from '@theme/Layout';
-// @ts-expect-error — papers.js is plain JS (required by the build-time route
-// plugin); see src/data/papers.js.
-import { papers as rawPapers } from '@site/src/data/papers';
+import papersData from '@site/src/data/papers.json';
 import PaperList from '@site/src/components/Papers/PaperList';
 import { type Paper } from '@site/src/components/Papers/types';
 import styles from '@site/src/components/Papers/papers.module.css';
 
-const papers = rawPapers as Paper[];
+// Papers are authored in src/data/papers.json (the single source of truth,
+// also read by the build-time route plugin in docusaurus.config.js).
+const papers = papersData as Paper[];
 
 export default function PapersPage(): JSX.Element {
   return (
