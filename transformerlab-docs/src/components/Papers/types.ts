@@ -1,7 +1,6 @@
 // TypeScript view of a paper entry. The runtime data lives in
-// src/data/papers.js (plain JS so the build-time route plugin can require it);
-// this interface mirrors that file's JSDoc `Paper` typedef for the .tsx
-// components.
+// src/data/papers.json (the single source of truth); this interface describes
+// the shape of each entry in that file for the .tsx components.
 
 export interface Paper {
   slug: string;
