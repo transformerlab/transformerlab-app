@@ -37,7 +37,7 @@ const papers = [
     tag: '3D',
     abstract:
       'A trainable, de-biased VLM-as-judge for single-image 3D generation — one VLM family labels training pairs, a different family scores, and verdicts only count when they survive an order swap. Used to test cheap label-free adaptation of a strong base: six methods reach only parity (0.50 win-rate), never the 0.65 bar — the durable artifact is the judge protocol, not a model.',
-    pdf: '',
+    pdf: 'judging-to-improve.pdf',
   },
   {
     slug: 'train-retrieve-or-both',
@@ -48,7 +48,7 @@ const papers = [
     tag: 'LLM',
     abstract:
       'A four-arm head-to-head (base, LoRA SFT, RAG, SFT+RAG) for correct statutory citation on Ontario tenancy law. The base model hallucinates 81% of its citations; retrieval is the decisive lever, driving hallucinations to zero by construction and lifting citation exact-match to 0.44, with the SFT+RAG hybrid best at 0.481.',
-    pdf: '',
+    pdf: 'train-retrieve-or-both.pdf',
   },
   {
     slug: 'cross-model-vlm-judge',
@@ -59,7 +59,7 @@ const papers = [
     tag: '3D',
     abstract:
       "A standardized evaluation protocol for single-image-to-3D mesh generators, using 24-view rendering and position-bias correction — and showing that common proxies like CLIP similarity and geometry-validity metrics don't substitute for a VLM judge.",
-    pdf: '',
+    pdf: 'cross-model-vlm-judge.pdf',
   },
   {
     slug: 'reliable-neural-codec-tts',
@@ -70,7 +70,7 @@ const papers = [
     tag: 'AUDIO',
     abstract:
       'ASR-based self-verification drives catastrophic failures (silence, early termination, repetition) to near zero in autoregressive neural-codec TTS, then distills the behavior for inference-time efficiency — generalizing across four TTS systems and three codecs.',
-    pdf: '',
+    pdf: 'reliable-neural-codec-tts.pdf',
   },
   {
     slug: 'diffusiongemma-token-commitment',
@@ -81,7 +81,7 @@ const papers = [
     tag: 'LLM',
     abstract:
       'A close look at token-commitment patterns in DiffusionGemma 26B. Contrary to parallel-decoding marketing, the behavior is neither parallel nor block-autoregressive — weak left-to-right bias and substantial within-batch ordering ambiguity.',
-    pdf: '',
+    pdf: 'diffusiongemma-token-commitment.pdf',
   },
   {
     slug: 'int8-gemm-ideogram',
@@ -92,7 +92,7 @@ const papers = [
     tag: 'SYSTEMS',
     abstract:
       'A fused Triton kernel that properly drives the INT8 tensor cores on consumer Ampere GPUs — ~1.1× end-to-end speedup, making 1024px generation feasible on a single RTX 3090.',
-    pdf: '',
+    pdf: 'int8-gemm-ideogram.pdf',
   },
   {
     slug: 'fp8-quality-ceiling-ideogram',
@@ -103,7 +103,7 @@ const papers = [
     tag: 'VISION',
     abstract:
       'Post-training quantization of Ideogram 4.0 where INT8 W8A8 comes out statistically indistinguishable from FP8 on key quality metrics, with INT8 and GGUF Q4_K both cutting compute for consumer-GPU deployment.',
-    pdf: '',
+    pdf: 'fp8-quality-ceiling-ideogram.pdf',
   },
 ];
 

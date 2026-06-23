@@ -25,13 +25,21 @@ export default function PaperDetail({ paper }: { paper: Paper }): JSX.Element {
               Download PDF ↓
             </a>
           </div>
-          {/* Same-origin PDF from static/papers; sandbox still scopes it. */}
-          <iframe
+          {/* <object> renders the browser's native PDF viewer (an <iframe>
+              with a sandbox would block it) and degrades to the link below. */}
+          <object
             className={styles.pdfFrame}
-            src={url}
-            title={paper.title}
-            sandbox="allow-same-origin allow-scripts allow-popups allow-downloads"
-          />
+            data={url}
+            type="application/pdf"
+            aria-label={paper.title}
+          >
+            <p className={styles.pending}>
+              Your browser can’t display the PDF inline.{' '}
+              <a href={url} download>
+                Download it instead.
+              </a>
+            </p>
+          </object>
         </>
       ) : (
         <p className={styles.pending}>📄 PDF coming soon.</p>
