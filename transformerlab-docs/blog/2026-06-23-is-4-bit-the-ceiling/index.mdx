@@ -1,6 +1,6 @@
 ---
 slug: is-4-bit-the-ceiling
-title: "Is 4-bit the ceiling?"
+title: 'Is 4-bit the ceiling?'
 authors: [tony, ali, deep]
 tags: [mlx, quantization, apple-silicon, moe, code-models, ml-research]
 date: 2026-06-23
@@ -9,7 +9,7 @@ date: 2026-06-23
 import BitWidthDiagram from './BitWidthDiagram';
 import LoopingDiagram from './LoopingDiagram';
 
-*Fitting a 30-billion-parameter coding model into 24 GB on a Mac, and finding out what actually holds it back.*
+_Fitting a 30-billion-parameter coding model into 24 GB on a Mac, and finding out what actually holds it back._
 
 **Quick summary.** Our lab took a strong open coding model, North-Mini-Code-1.0, and tried to make it both smaller and better so it would run on a 24 GB Apple Silicon Mac with nothing sent to the cloud. Shrinking a model means storing each of its numbers with fewer bits, which saves memory but makes the numbers coarser. The model already ships in a 4-bit form (4 bits per number instead of the usual 16), which is what makes it fit. We wanted to beat that 4-bit version on coding accuracy, and we could not. Every route we tried, fewer bits, a smarter mix of bits, calibration, or training a smaller copy, either tied plain 4-bit or scored worse. Plain 4-bit is as good as anything else we found that fits in 24 GB. The more useful discovery came from real bug-fixing tasks. On the tasks where the model finished and returned a fix, it solved 60% of the bugs. But on 21 of 30 tasks it ran past its length limit without finishing, and 20 of those produced no fix at all. The thing that limits this model on a Mac is its tendency to loop instead of stopping, which has nothing to do with its size.
 
