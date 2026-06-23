@@ -10,7 +10,7 @@ export interface Paper {
   date: string; // "YYYY-MM" or "YYYY-MM-DD"
   abstract: string;
   pdf: string; // filename in static/papers/ ("" if not uploaded yet)
-  tag?: string; // optional modality label, e.g. "3D", "LLM"
+  tags?: string[]; // optional modality labels, e.g. ["3D", "LLM"]
 }
 
 /** Sort papers newest-first by `date` (string compare works for ISO-ish dates). */

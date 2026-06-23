@@ -15,7 +15,11 @@ export default function PaperDetail({ paper }: { paper: Paper }): JSX.Element {
         <span className={styles.authors}>{paper.authors.join(', ')}</span>
         <span className={styles.dot}>·</span>
         <span>{formatDate(paper.date)}</span>
-        {paper.tag && <span className={styles.tag}>{paper.tag}</span>}
+        {paper.tags?.map((tag) => (
+          <span key={tag} className={styles.tag}>
+            {tag}
+          </span>
+        ))}
       </p>
       <p className={styles.detailAbstract}>{paper.abstract}</p>
       {url ? (

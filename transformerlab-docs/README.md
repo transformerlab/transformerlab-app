@@ -61,7 +61,7 @@ the PDF.
      "title": "My New Paper: A Catchy Subtitle",
      "authors": ["Asaria", "Salomone", "Gandhi"],
      "date": "2026-07-01",
-     "tag": "LLM",
+     "tags": ["LLM", "SYSTEMS"],
      "abstract": "One paragraph summarizing the paper.",
      "pdf": "my-new-paper.pdf"
    }
@@ -72,16 +72,16 @@ the PDF.
 
 ### Fields
 
-| Field      | Required | Notes                                                                     |
-| ---------- | -------- | ------------------------------------------------------------------------- |
-| `slug`     | yes      | URL part: `/papers/<slug>`. Lowercase, hyphenated, unique, stable.        |
-| `title`    | yes      | Full paper title.                                                         |
-| `authors`  | yes      | Array of names, e.g. `["Asaria", "Salomone", "Gandhi"]`.                  |
-| `date`     | yes      | `"YYYY-MM-DD"` or `"YYYY-MM"`. Newest dates sort to the top.              |
-| `abstract` | yes      | Shown in full on the paper page, truncated on the list.                   |
-| `pdf`      | yes      | Filename in `static/papers/`. Use `""` if the PDF isn't ready yet —       |
-|            |          | the page shows a "PDF coming soon" note until you fill it in.             |
-| `tag`      | no       | Short modality label, e.g. `"3D"`, `"LLM"`, `"VISION"`. Shown as a badge. |
+| Field      | Required | Notes                                                                        |
+| ---------- | -------- | ---------------------------------------------------------------------------- |
+| `slug`     | yes      | URL part: `/papers/<slug>`. Lowercase, hyphenated, unique, stable.           |
+| `title`    | yes      | Full paper title.                                                            |
+| `authors`  | yes      | Array of names, e.g. `["Asaria", "Salomone", "Gandhi"]`.                     |
+| `date`     | yes      | `"YYYY-MM-DD"` or `"YYYY-MM"`. Newest dates sort to the top.                 |
+| `abstract` | yes      | Shown in full on the paper page, truncated on the list.                      |
+| `pdf`      | yes      | Filename in `static/papers/`. Use `""` if the PDF isn't ready yet —          |
+|            |          | the page shows a "PDF coming soon" note until you fill it in.                |
+| `tags`     | no       | Array of short modality labels, e.g. `["3D", "LLM"]`. Each shown as a badge. |
 
 ### Tips
 
