@@ -19,7 +19,7 @@ dependencies = [
   "fastapi==0.125.0",
   "fastapi-users[sqlalchemy,oauth]==15.0.5",
   "httpx-oauth==0.16.1",
-  "matplotlib==3.10.9",
+  "matplotlib==3.11.0",
   "nebius==0.3.80",
   "packaging==26.2",
   "psutil==7.2.2",
