@@ -15,6 +15,7 @@ export default function ClipToggleDiagram(): React.ReactElement {
   return (
     <div className={styles.wrapper}>
       <button
+        type="button"
         className={styles.button}
         onClick={() => setClipOn((v) => !v)}
         aria-pressed={clipOn}

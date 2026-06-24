@@ -17,6 +17,7 @@ export default function TemplateToggleDiagram(): React.ReactElement {
   return (
     <div className={styles.wrapper}>
       <button
+        type="button"
         className={styles.button}
         onClick={() => setTemplated((v) => !v)}
         aria-pressed={templated}
