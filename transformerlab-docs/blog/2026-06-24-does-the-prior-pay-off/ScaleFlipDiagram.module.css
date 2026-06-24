@@ -1,0 +1,82 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  padding: 1.1rem 1.2rem;
+  margin: 1.4rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.button {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  border: 1px solid var(--ifm-color-primary);
+  background: transparent;
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 0.55rem 0.8rem;
+  margin-bottom: 1.1rem;
+  font-size: 0.95rem;
+}
+
+.button:hover {
+  background: var(--ifm-color-primary);
+  color: #fff;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 13rem 1fr 2.6rem;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0.5rem 0;
+}
+
+.label {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.track {
+  height: 1.4rem;
+  background: var(--ifm-color-emphasis-200);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 7px;
+  transition:
+    width 0.5s ease,
+    background 0.5s ease;
+}
+
+.value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+.note {
+  margin: 1rem 0 0.3rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.caption {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 8rem 1fr 2.4rem;
+  }
+  .label {
+    font-size: 0.78rem;
+  }
+}
