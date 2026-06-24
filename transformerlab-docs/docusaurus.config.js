@@ -5,6 +5,34 @@ require('dotenv').config();
 const lightCodeTheme = require('prism-react-renderer').themes.github;
 const darkCodeTheme = require('prism-react-renderer').themes.dracula;
 
+// Generates a static page at /papers/<slug> for every entry in
+// src/data/papers.json, all rendered by the shared PaperDetailPage component.
+// This keeps paper authoring in a single data file while still producing real,
+// shareable URLs per paper.
+function papersPlugin() {
+  return {
+    name: 'papers-pages',
+    async contentLoaded({ actions }) {
+      const papers = require('./src/data/papers.json');
+      const { addRoute, createData } = actions;
+      await Promise.all(
+        papers.map(async (paper) => {
+          const data = await createData(
+            `paper-${paper.slug}.json`,
+            JSON.stringify(paper),
+          );
+          addRoute({
+            path: `/papers/${paper.slug}`,
+            component: '@site/src/components/Papers/PaperDetailPage.tsx',
+            modules: { paper: data },
+            exact: true,
+          });
+        }),
+      );
+    },
+  };
+}
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Transformer Lab',
@@ -123,6 +151,7 @@ const config = {
     ],
   ],
   plugins: [
+    papersPlugin,
     [
       '@docusaurus/plugin-content-docs',
       {
@@ -184,6 +213,11 @@ const config = {
           {
             to: '/blog',
             label: 'Blog',
+            position: 'left',
+          },
+          {
+            to: '/papers',
+            label: 'Papers',
             position: 'left',
           },
           // { to: "/docs/local/download", label: "Download ↓", position: "right" },
