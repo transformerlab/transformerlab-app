@@ -1,0 +1,55 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+  margin-bottom: 1rem;
+}
+
+.row {
+  margin-bottom: 0.85rem;
+}
+
+.rowLabel {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 0.25rem;
+}
+
+.track {
+  position: relative;
+  height: 1.8rem;
+  border-radius: 6px;
+  background: var(--ifm-color-emphasis-200);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  min-width: 2px;
+  transition: width 0.3s ease;
+}
+
+.rowNum {
+  position: absolute;
+  top: 50%;
+  right: 0.6rem;
+  transform: translateY(-50%);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-color-emphasis-900);
+}
+
+.note {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--ifm-color-emphasis-700);
+  margin: 0.75rem 0 0;
+}

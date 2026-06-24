@@ -1,0 +1,173 @@
+---
+slug: does-fine-tuning-make-llms-more-brain-like
+title: 'Does fine-tuning a chatbot make it more brain-like? We checked'
+authors: [ali, deep, tony]
+tags: [ml-research, interpretability, language-models, neuroscience]
+date: 2026-06-23
+---
+
+import TemplateToggleDiagram from './TemplateToggleDiagram';
+import ControlLadderDiagram from './ControlLadderDiagram';
+
+_There is a popular idea that a language model's internals line up with activity in the human
+brain. We asked whether the fine-tuning that turns a raw model into a helpful chatbot
+strengthens that match. The fine-tuning itself does not change the match. What looked like a
+change came from how the text was formatted on the way in._
+
+When a person reads a sentence, specific parts of their brain light up, and you can measure it
+with an fMRI scanner (a brain scanner that tracks blood flow as a stand-in for activity). When
+a language model reads the same sentence, specific patterns of numbers light up inside the
+network. Over the last few years, researchers have found something striking: if you fit a
+simple translator from the model's internal numbers to the brain's activity, it predicts the
+brain better than chance. The model and the brain are not identical, but they line up better
+than chance.
+
+<!--truncate-->
+
+Almost all of that work used **base** models: raw language models fresh from pre-training (the
+first phase, where a model learns to predict text from a huge pile of writing), before anyone
+tuned them to be helpful, polite, and safe. But the models people actually use are
+**post-trained**. They have been through instruction tuning (taught to follow directions) and
+preference tuning (nudged toward answers humans prefer), the steps together called RLHF,
+reinforcement learning from human feedback, that turn a raw text predictor into a chatbot.
+Nobody had cleanly checked whether that tuning makes a model's internals more brain-like or
+less. It could go either way. Tuning on human preferences might pull the model toward us.
+Optimizing hard for a reward might pull it away.
+
+## Quick summary
+
+We measured how well a model's internals predict human brain activity, then compared a base
+model against its post-trained (chatbot) sibling. A typical brain-match score in this setup is
+around 0.18. Using identical plain-text input, post-training moved that score by just −0.0003,
+which is statistically indistinguishable from zero. It is a clean **null**: a careful
+measurement that finds no real difference, which here means the weights, on their own, do not
+become more or less brain-like. We then found where the field's apparent effect comes from. If
+you wrap the input in the **chat template** an instruct (chatbot) model expects, the hidden
+scaffolding like "user:" and "assistant:" tags, the brain match rises by +0.019, a reliable
+effect. That same formatting shift appears even in the untuned base model (though only
+marginally there), so it is about the shape of the input, not about the tuning. This rests on
+a single dataset, 10 people reading sentences, so the obvious next step is to replicate it on a
+second.
+
+## Why you would care
+
+"Brain-alignment" numbers get quoted as evidence that a model is doing something genuinely
+human. If a chatbot scored higher than a raw model, you would be tempted to say tuning made it
+"more like us." Our result is a caution. The thing that moved the score was not the learning at
+all. It was a formatting detail in how the text was fed in, the kind of thing that is easy to
+leave uncontrolled. The transferable lesson is for anyone comparing two models on a brain or
+behavior benchmark: match the inputs, or you will measure the wrapper instead of the model.
+
+## First, check that the measurement works
+
+The method is called an **encoding model**, and it is simpler than it sounds. Take a set of
+sentences. Show them to a person in a scanner and record the brain response. Feed the same
+sentences to the language model and record its internal activations, layer by layer. Then fit a
+plain linear translator from the model's activations to the brain response, train it on some
+sentences, and test how well it predicts the brain on held-out sentences it never saw. The
+score is a correlation, **r**, between predicted and real brain activity (r = 1 would be a
+perfect match, r = 0 is chance). We ran this on the Pereira dataset: 10 people reading 627
+sentences, measured across the brain's language network.
+
+Before trusting any comparison, you have to know the measurement detects real structure. So we
+checked it against controls.
+
+<ControlLadderDiagram />
+
+A real trained model scores about 0.184. The same network with random weights scores about half
+that. Pure random features sit at chance. That ordering is exactly what you want: the method
+clearly picks up real structure in a trained model. So when we report "no difference" between
+two models below, it is a genuine null, not a measurement failure.
+
+## The result: the weights do not change the match
+
+Here is what we found. We took Qwen2.5-7B and its instruction-tuned sibling, fed both the exact
+same plain sentences, and compared their brain-match scores per person, across all 10 people.
+The difference was −0.0003, with a p-value of 0.92 (a p-value near 1 means the difference is
+almost certainly just noise; a p-value near 0 means it is unlikely to be a fluke). There is no
+reliable effect. We saw the same thing in a second model family. Across a four-stage tuning
+ladder for OLMo (base, then instruction tuning, then preference tuning, then the final instruct
+model), no stage produced a reliable increase. The preference-tuning step even showed a tiny but
+statistically significant _decrease_ of about 0.0007.
+
+Post-training changes a lot about how a model behaves. It does not, on this measurement, change
+how well the model's internals line up with the brain.
+
+## The effect came from the input formatting
+
+If the weights do not change the match, why have people seen instruct models look more
+brain-like? We found the answer by changing one thing: the formatting of the input. Toggle it
+below.
+
+<TemplateToggleDiagram />
+
+Plain raw text gives the null you just saw. But wrap those same sentences in the **chat
+template**, the formatting scaffold an instruct model is trained to expect, and the brain match
+rises by +0.019 (p = 0.020). That effect is not a one-model fluke: it replicates across all four
+OLMo checkpoints at p ≤ 0.006. And the result that settles the question is that the same shift
+appears even in the untuned **base** model (+0.0125, though only marginally there, p = 0.064).
+If the effect were about instruction tuning, it would not show up in a model that was never
+tuned. So it is about the shape of the input, not about the learning. The formatting effect was
+several times larger than any change from the tuning, and far larger still compared with the
+tuning changes that came out statistically zero.
+
+This reconciles a real disagreement in the field. Studies that fed instruct models their native
+templated input, and compared against base models on plain input, were partly measuring the
+template. Match the input, and the weight effect goes away.
+
+The p-values above are per-comparison, not corrected for testing many layers and models at
+once. The template effect holds up on that front because it repeats across four OLMo
+checkpoints at p ≤ 0.006; a single p = 0.020 on its own would be weaker.
+
+## What we dropped after checking it per subject
+
+One result we almost reported turned out to be an artifact, and it is worth showing why.
+
+- **A pooled estimate that vanished per person.** When we pooled everyone's data together, one
+  tuning step looked like a small positive effect (+0.004). When we tested it properly, person by
+  person across all 10 people, it shrank to +0.002 and was not significant. Pooling can
+  manufacture confidence that falls apart once you respect that the data comes from separate
+  people.
+- **Why the template effect is trustworthy by the same test.** The formatting effect passed
+  exactly that per-person check: all 10 people moved in the same direction, which is why the
+  statistics hold up.
+
+## Where this does not reach
+
+We are deliberately not over-claiming, and two limits matter most.
+
+- **One dataset.** This is the Pereira reading dataset only. We planned a replication on a larger
+  listening dataset (Narratives) and have not run it yet. A single dataset does not establish a
+  general law. This is the first thing we would extend.
+- **No noise-ceiling normalization.** Brain data is noisy, and there is a ceiling on how well
+  _any_ model could predict it. Our plan called for scores rescaled against that ceiling; we
+  report the raw held-out correlation instead, so this is a departure from the planned metric, not
+  just a refinement. It does not affect the base-versus-instruct comparison (it is the same brain
+  locations in each pair), but it does limit comparing absolute numbers across brain regions.
+
+Also worth stating plainly: the absolute match is low. A peak around r = 0.18 means most of the
+predictable brain signal is still unexplained. That is normal for this literature, and it is the
+reason the careful per-person _difference_, not the absolute score, is the number we lean on.
+
+## Takeaways
+
+- **Match the inputs before comparing models on a brain or behavior benchmark.** The single
+  biggest effect we found was a formatting artifact. If base and instruct models get different
+  input wrappers, the wrapper can dominate the result.
+- **A null is a finding when the measurement is validated.** Our controls show the method detects
+  real structure, so "no weight effect" is informative, not a failed experiment.
+- **Test effects per subject, not pooled.** A pooled +0.004 became a non-significant +0.002 once
+  we respected that the data came from 10 separate people. Pooling overstates.
+- **Separate the wrapper from the weights.** The apparent "more brain-like after tuning" came from
+  feeding the model differently, not from anything it learned. Name which one your number measures.
+
+## How we ran it
+
+This is an analysis-only study. We did not train or fine-tune any large model; we instrument
+released checkpoints (Qwen and OLMo) and public brain data, which is what makes it a clean
+measurement of someone else's models. The whole thing ran on
+[Transformer Lab](https://transformerlab.ai) for about 4.9 GPU-hours, since it is activation
+extraction plus small linear fits rather than any model training. It is cheap to reproduce. Code
+and artifacts are available on request.
+
+_Full paper: [Is Instruction-Tuning More Brain-Aligned? Mostly a Chat-Template Artifact](/papers/instruction-tuning-brain-alignment)._
