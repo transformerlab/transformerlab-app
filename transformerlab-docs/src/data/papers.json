@@ -1,5 +1,14 @@
 [
   {
+    "slug": "does-the-prior-pay-off",
+    "title": "Does the Prior Pay Off? Scaling a Protein Language Model Lets Reinforcement Learning Beat Directed Evolution on GB1",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-24",
+    "tags": ["RL", "LLM"],
+    "abstract": "A deliberately fair, matched-query-budget comparison of GRPO reinforcement-learning fine-tuning of a protein language model (ESM-2) against classical directed evolution on the GB1 four-site fitness landscape, using an exact-lookup oracle (nothing to game), a strong simulated-annealing baseline, a novelty floor, and five seeds. The protein-LM prior is a poor fitness predictor (masked-marginal Spearman 0.04 at 35M, 0.15 at 150M; its top-ranked variants have near-zero fitness), so a no-RL masked-marginal proposer is weak. Simulated annealing nearly solves the landscape, and tuned GRPO over a 35M prior only matches it, missing a pre-registered 10% bar. Scaling the prior to 150M changes the outcome: GRPO then beats annealing by about 10% in the sample-limited regime where queries are scarce (significant at a 1k-query budget; the gap narrows to a tie as both methods saturate). The gain is decoupled from the prior's fitness-ranking quality, which stays poor, indicating the larger model helps as an initialization and inductive bias rather than as a fitness oracle. GRPO also collapses without discovery-shaped reward, an entropy bonus, and a low learning rate.",
+    "pdf": "does-the-prior-pay-off.pdf"
+  },
+  {
     "slug": "is-4-bit-the-ceiling",
     "title": "Is 4-bit the Ceiling? Fitting North-Mini-Code into 24 GB on Apple Silicon, and a Streaming GPTQ for Large MoEs",
     "authors": ["Asaria", "Salomone", "Gandhi"],
