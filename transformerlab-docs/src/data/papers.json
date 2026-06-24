@@ -1,0 +1,137 @@
+[
+  {
+    "slug": "does-the-prior-pay-off",
+    "title": "Does the Prior Pay Off? Scaling a Protein Language Model Lets Reinforcement Learning Beat Directed Evolution on GB1",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-24",
+    "tags": ["RL", "LLM"],
+    "abstract": "A deliberately fair, matched-query-budget comparison of GRPO reinforcement-learning fine-tuning of a protein language model (ESM-2) against classical directed evolution on the GB1 four-site fitness landscape, using an exact-lookup oracle (nothing to game), a strong simulated-annealing baseline, a novelty floor, and five seeds. The protein-LM prior is a poor fitness predictor (masked-marginal Spearman 0.04 at 35M, 0.15 at 150M; its top-ranked variants have near-zero fitness), so a no-RL masked-marginal proposer is weak. Simulated annealing nearly solves the landscape, and tuned GRPO over a 35M prior only matches it, missing a pre-registered 10% bar. Scaling the prior to 150M changes the outcome: GRPO then beats annealing by about 10% in the sample-limited regime where queries are scarce (significant at a 1k-query budget; the gap narrows to a tie as both methods saturate). The gain is decoupled from the prior's fitness-ranking quality, which stays poor, indicating the larger model helps as an initialization and inductive bias rather than as a fitness oracle. GRPO also collapses without discovery-shaped reward, an entropy bonus, and a low learning rate.",
+    "pdf": "does-the-prior-pay-off.pdf"
+  },
+  {
+    "slug": "is-4-bit-the-ceiling",
+    "title": "Is 4-bit the Ceiling? Fitting North-Mini-Code into 24 GB on Apple Silicon, and a Streaming GPTQ for Large MoEs",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-23",
+    "tags": ["SYSTEMS", "LLM"],
+    "abstract": "Asks whether a 30B-total / 3B-active MoE coding model (North-Mini-Code-1.0, 128 experts, top-8) can be quantized to beat its vendor 4-bit while still fitting a hard ≤24 GB Apple Silicon budget — and finds 4-bit is the ceiling. Across a structured search (uniform bit-width, group size, number format, built-in mixed-bit, custom per-expert allocation, calibrated streaming GPTQ), no in-budget route beats round-to-nearest 4-bit on coding eval; the closest, mixed_4_8 at 5.2 avg bits / 20.5 GB, only ties (148 vs 146 of 164, McNemar exact p=0.79). The practical agentic limiter turns out to be generation-length instability (repetition loops), not bit-width — 21/30 SWE-Bench Verified instances looped to the cap. The portable contribution is a memory-efficient streaming GPTQ that quantizes a 60 GB / 128-expert MoE on a 48 GB Mac at 3.75 GB peak.",
+    "pdf": "is-4-bit-the-ceiling.pdf"
+  },
+  {
+    "slug": "expert-modularity-dissolves",
+    "title": "How Modular Is a Frontier Mixture-of-Experts? A Pre-registered Causal Test in Which Apparent Expert Modularity Mostly Dissolves",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-20",
+    "tags": ["LLM", "INTERPRETABILITY"],
+    "abstract": "A pre-registered causal test of whether the experts in a frontier MoE (Command A+, 218B total / 25B active, 128 experts) form functional modules tied to capabilities or languages. Of six pre-registered expert families ablated at inference time against a size-matched random-expert null, only one — the Arabic-language family — is a clean selective module that survives an independent corpus and a conservative statistical bar; every other family has a real causal effect but its apparent modularity flips with the corpus, the metric, or the threshold. A positive control on Qwen3-30B-A3B recovers its known disjoint structure, and the verdict reproduces on the un-quantized BF16 model: robust expert modularity is rare and measurement-dependent.",
+    "pdf": "expert-modularity-dissolves.pdf"
+  },
+  {
+    "slug": "instruction-tuning-brain-alignment",
+    "title": "Is Instruction-Tuning More Brain-Aligned? Mostly a Chat-Template Artifact",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-23",
+    "tags": ["LLM", "INTERPRETABILITY"],
+    "abstract": "Reports that instruction-tuned models are more \"brain-aligned\" than their base versions are mostly a chat-template artifact, not a property of alignment training. Under identical raw text, post-training weight changes leave fMRI encoding alignment essentially unchanged (Qwen base→Instruct p=0.92), while merely applying the chat template significantly raises apparent alignment — even for the base model.",
+    "pdf": "instruction-tuning-brain-alignment.pdf"
+  },
+  {
+    "slug": "parsimony-not-the-clip",
+    "title": "Parsimony, Not the Clip: What Controls the Search in Reinforcement-Learning Symbolic Regression",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-23",
+    "tags": ["RL", "LLM"],
+    "abstract": "A mechanistic study of how an RL objective shapes symbolic-regression search: the parsimony coefficient λ cleanly and monotonically sets the operating point on the accuracy–parsimony frontier, while the DAPO clip-higher asymmetry does not — it is the entropy regularizer, not the clip, that sustains exploration. On held-out Feynman the final model recovers a modest fraction (symbolic recovery 0.205), in the range of a deep-SR baseline and below the GP incumbent PySR.",
+    "pdf": "parsimony-not-the-clip.pdf"
+  },
+  {
+    "slug": "reward-maximization-collapses-diversity",
+    "title": "Reward Maximization Collapses Generative Diversity: Characterizing and Controlling the Trade-off in Verifiable Procedural Generation",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-22",
+    "tags": ["LLM", "RL"],
+    "abstract": "Verifiable-reward RL (RLVR) for procedural Sokoban-level generation triggers a sharp reward↔diversity phase transition: the model mode-collapses to one or two level templates (distinct-valid fraction ≈1.0 → <0.05) across three trust-region objectives (PPO, DAPO, DPPO), seeds, and scales. The trade-off is controllable — passively via early-stopping at the Pareto knee, actively via a novelty-bonus reward — but which clipping objective is used is not a robust lever for diversity.",
+    "pdf": "reward-maximization-collapses-diversity.pdf"
+  },
+  {
+    "slug": "label-free-doubt-signals",
+    "title": "Can a Model Catch Its Own Hallucinations for Free? Label-Free Doubt Signals Hold Their Own Against a Labelled Dataset for Abstention",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-19",
+    "tags": ["LLM"],
+    "abstract": "A model's own token-probability \"doubt\" signal, used to decide when to abstain, matches label-supervised abstention-tuning without using any correctness labels. Across six open-weights models (1B–8B, two families) on short-form QA, the label-free LoRA recipe shows no statistically detectable difference from the labelled one at matched coverage — the gain is calibration, not memorization, and its one blind spot is confidently-wrong facts.",
+    "pdf": "label-free-doubt-signals.pdf"
+  },
+  {
+    "slug": "adaptation-not-architecture",
+    "title": "It's the Adaptation, Not the Architecture: Pretrained Vision Transformers Are Competitive for End-to-End Steering on Small Driving Data",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-18",
+    "tags": ["VISION"],
+    "abstract": "A DINO-pretrained ViT-S is competitive with a pretrained ResNet-50 at end-to-end steering-angle prediction on a small slice (~5–16k frames) of the comma2k19 driving dataset — turn-slice Pearson 0.964 vs 0.967. Competitiveness is conditional on adaptation (low-LR full fine-tuning, a cost-sensitive loss, dropping flip augmentation); the practitioner defaults of a frozen linear probe and horizontal flips reproduce the usual \"ViTs don't work at small scale\" conclusion.",
+    "pdf": "adaptation-not-architecture.pdf"
+  },
+  {
+    "slug": "judging-to-improve",
+    "title": "Judging to Improve: A De-biased VLM-as-3D-Judge Protocol for Single-Image 3D Generation",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-18",
+    "tags": ["3D", "VISION", "LLM"],
+    "abstract": "A trainable, de-biased VLM-as-judge for single-image 3D generation — one VLM family labels training pairs, a different family scores, and verdicts only count when they survive an order swap. Used to test cheap label-free adaptation of a strong base: six methods reach only parity (0.50 win-rate), never the 0.65 bar — the durable artifact is the judge protocol, not a model.",
+    "pdf": "judging-to-improve.pdf"
+  },
+  {
+    "slug": "train-retrieve-or-both",
+    "title": "Train, Retrieve, or Both? A Four-Arm Head-to-Head for Correct Statutory Citation on the Ontario Residential Tenancies Act",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-18",
+    "tags": ["LLM", "RAG"],
+    "abstract": "A four-arm head-to-head (base, LoRA SFT, RAG, SFT+RAG) for correct statutory citation on Ontario tenancy law. The base model hallucinates 81% of its citations; retrieval is the decisive lever, driving hallucinations to zero by construction and lifting citation exact-match to 0.44, with the SFT+RAG hybrid best at 0.481.",
+    "pdf": "train-retrieve-or-both.pdf"
+  },
+  {
+    "slug": "cross-model-vlm-judge",
+    "title": "A Cross-Model VLM-Judge Protocol for Single-Image 3D Mesh Quality (and Why Cheap Proxies Fall Short)",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-16",
+    "tags": ["3D", "VISION"],
+    "abstract": "A standardized evaluation protocol for single-image-to-3D mesh generators, using 24-view rendering and position-bias correction — and showing that common proxies like CLIP similarity and geometry-validity metrics don't substitute for a VLM judge.",
+    "pdf": "cross-model-vlm-judge.pdf"
+  },
+  {
+    "slug": "reliable-neural-codec-tts",
+    "title": "Reliable Neural-Codec Text-to-Speech by ASR Self-Verification and Distillation: Near-Zero Catastrophic Failures Across Models and Codecs",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-16",
+    "tags": ["AUDIO", "LLM"],
+    "abstract": "ASR-based self-verification drives catastrophic failures (silence, early termination, repetition) to near zero in autoregressive neural-codec TTS, then distills the behavior for inference-time efficiency — generalizing across four TTS systems and three codecs.",
+    "pdf": "reliable-neural-codec-tts.pdf"
+  },
+  {
+    "slug": "diffusiongemma-token-commitment",
+    "title": "Neither Parallel Nor Sequential: How DiffusionGemma Actually Commits Tokens",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-12",
+    "tags": ["LLM"],
+    "abstract": "A close look at token-commitment patterns in DiffusionGemma 26B. Contrary to parallel-decoding marketing, the behavior is neither parallel nor block-autoregressive — weak left-to-right bias and substantial within-batch ordering ambiguity.",
+    "pdf": "diffusiongemma-token-commitment.pdf"
+  },
+  {
+    "slug": "int8-gemm-ideogram",
+    "title": "Realizing Native INT8 Compute for Diffusion Transformers on Consumer GPUs: A Fused INT8 GEMM Kernel for Ideogram 4.0",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-12",
+    "tags": ["SYSTEMS", "VISION"],
+    "abstract": "A fused Triton kernel that properly drives the INT8 tensor cores on consumer Ampere GPUs — ~1.1× end-to-end speedup, making 1024px generation feasible on a single RTX 3090.",
+    "pdf": "int8-gemm-ideogram.pdf"
+  },
+  {
+    "slug": "fp8-quality-ceiling-ideogram",
+    "title": "Holding the FP8 Quality Ceiling at 8-Bit Weights and Activations: INT8 and GGUF Post-Training Quantization of Ideogram 4.0 for Consumer GPUs",
+    "authors": ["Gandhi", "Asaria", "Salomone"],
+    "date": "2026-06-10",
+    "tags": ["VISION", "SYSTEMS"],
+    "abstract": "Post-training quantization of Ideogram 4.0 where INT8 W8A8 comes out statistically indistinguishable from FP8 on key quality metrics, with INT8 and GGUF Q4_K both cutting compute for consumer-GPU deployment.",
+    "pdf": "fp8-quality-ceiling-ideogram.pdf"
+  }
+]

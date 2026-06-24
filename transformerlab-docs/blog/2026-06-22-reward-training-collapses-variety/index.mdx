@@ -1,0 +1,85 @@
+---
+slug: reward-training-collapses-variety
+title: 'Training an AI to be correct collapses its variety'
+authors: [ali, tony, deep]
+tags: [ml-research, reinforcement-learning, post-training, generative-models]
+date: 2026-06-22
+---
+
+import CollapseAnimation from './CollapseAnimation';
+import ParetoFrontierDiagram from './ParetoFrontierDiagram';
+import RewardToggleDiagram from './RewardToggleDiagram';
+
+_We trained language models to invent Sokoban puzzles and paid them only for puzzles that are solvable and the right difficulty, never for being different from each other. As the reward went up, the models stopped inventing and settled on a single puzzle they repeated over and over. The good news: the trade-off is measurable, and you can control it._
+
+> **Quick summary:** Many modern AI models are trained to be correct with a method called reinforcement learning from a verifiable reward (RLVR): the model tries something, an automatic checker says right or wrong, and the model is nudged toward the right answers. We used a clean test case, generating solvable Sokoban puzzles, to ask what this does to the variety of what a model produces. The answer is a sharp collapse. As the model gets better at earning the reward, the fraction of its puzzles that differ from each other drops from about 1.0 (nearly all different) to under 0.05 (nearly all the same), often within 50 to 150 training steps. This held across three versions of the training method, three reruns from different random starts, and two model sizes. The collapse is also controllable. You can stop training at the "knee" of the trade-off curve and keep most of the variety, larger models trade off more gently, and a reward that pays a small bonus for new shapes removes exact copying. That bonus has a real limit: it only weakly restores genuine variety at the sizes we tested. And the specific clipping trick people argue about online (PPO versus DAPO versus DPPO) turned out not to be a reliable lever here.
+
+<!--truncate-->
+
+## Why this matters
+
+If you only ever want one right answer, a model that finds one and repeats it is fine. A lot of useful AI work needs variety on top of correctness, though. Generating synthetic training data, building practice problems or game levels, proposing many candidate designs: anything where you want a model to keep producing different valid options. For all of those, a training method that quietly trades away variety is a trap. You can end up with a model that scores beautifully and is nearly useless, because every answer it gives is the same answer. That is the failure this study pins down and measures.
+
+## A puzzle that grades itself
+
+Picture a small Sokoban board: a ten by ten grid of walls and floor, with four boxes, four goal squares, and one little player who can push boxes around. The puzzle is "solved" when every box sits on a goal. Sokoban is a good test case for one specific reason. A short computer program (an exact solver) can look at any board and tell you two things for certain: whether it can be solved at all, and how many box-pushes the shortest solution needs. That push-count is a clean measure of how hard the puzzle is.
+
+We ask a language model to write out a board as text, then we let the solver judge it. The model earns a reward of 1 only when the board follows the exact ten by ten, four-box format, **and** is actually solvable, **and** lands in a target difficulty range of 12 to 30 pushes. Anything else earns 0, apart from a little partial credit early on for a board that is at least solvable. The solver is fast and reliable: it solved 120 out of 120 sample boards correctly, in about 0.08 seconds each, cheap enough to run inside the training loop.
+
+The reward never mentions variety. It pays for "solvable and the right difficulty," nothing else. So if the model's output gets less varied during training, the reward did not ask for that. Whatever happens to variety is caused by the act of chasing reward itself, which isolates the thing we want to study.
+
+We are not training a game-playing agent and not training from scratch. We start from Alibaba's open-weights Qwen2.5 models (the 1.5-billion and 3-billion parameter Instruct versions), warm them up so they reliably write boards in the right format, then post-train them with a standard RLVR recipe (a method called GRPO, one common way of doing this nudge-toward-right-answers step). The study builds on those open models rather than any model of our own.
+
+## What happens: variety collapses as reward rises
+
+When the model learns to earn the reward, it stops being inventive. Here is the variety measure we track. Draw a batch of valid puzzles from the model and count how many are genuinely different from each other. If all of them differ, variety is 1.0. If they are almost all the same board, variety is near 0. Over training, that number drops from about 1.0, where almost every puzzle is different, to under 0.05, where the model is essentially making the same one or two boards again and again. Researchers call this mode collapse: a model that "wins" by finding one template that always pays, then repeating it.
+
+Press play below. Each point is a real snapshot of the smaller (1.5B) model at some moment during training, not a single continuous run. Reading left to right as the reward climbs, the variety bar collapses.
+
+<CollapseAnimation />
+
+The collapse is not a fluke of one setup. It showed up in every run we tried: three versions of the training method, three reruns from different random starting points (called seeds, which check that a result is not a one-off), and both model sizes, at least 27 runs in total. The transition is also fast. Variety usually collapses within 50 to 150 training steps, which is why we sampled the model's output every 20 steps to catch it.
+
+The model is genuinely learning the task. Before training it produced an in-range puzzle only 14 to 20 percent of the time; after training it hits the difficulty target 70 to 100 percent of the time. It learned exactly what we paid it to learn. Variety was never part of the reward, so nothing kept it from disappearing.
+
+## You can pick where to stop
+
+The collapse is bad for variety. The shape of the trade-off, though, hands you a simple control. If you plot variety against reward over the course of training, you get a clean curve where buying more reward costs you variety. A clean curve is good news, because it means you can choose your spot on it instead of being stuck at the bottom.
+
+Toggle between the two model sizes below. The circled point is the "knee," the bend in the curve where you still have most of your variety and a good share of the reward.
+
+<ParetoFrontierDiagram />
+
+Two things come out of this curve. First, the simplest control costs nothing: stop training early, at the knee. On the smaller (1.5B) model you can hold variety at or above 0.5 while reward climbs to about 0.47, and a model stopped there is still genuinely varied. Second, size helps. The 3B curve sits above the 1.5B curve almost everywhere. At a reward near 0.6, the bigger model keeps about 0.70 of its puzzles distinct while the smaller one keeps about 0.42. Bigger models do not escape the trade-off, but they get a better deal on it.
+
+## Paying for variety only goes halfway
+
+If chasing reward costs variety, the natural fix is to also pay for variety. We tried the clean version of this: a small bonus added on top of the normal reward whenever the model makes a board it has not already produced many times in the current round of samples. Make a brand-new board, get the full bonus. Repeat a board you already made, get a shrinking share. Repeating one template stops paying off.
+
+It partly works, and how you measure it changes the story. Toggle between the plain reward and the reward-plus-bonus below.
+
+<RewardToggleDiagram />
+
+There are two ways to count variety here. The loose way asks whether any two boards are exactly identical. The strict way asks how much two boards differ, square by square. On the loose count, the bonus helps a lot: the number of distinct puzzles at the same high reward goes up about eightfold, from 0.019 to 0.155, and the model still reaches a reward of 0.77 to 1.0. On the strict count, almost nothing happens: the square-by-square difference moves only from 0.00 to 0.03, while a model that never collapsed sits at 0.39. When we lay the puzzles out side by side, the "8 distinct" boards turn out to be mostly one-square tweaks of a single template (21 of 32 sampled boards were identical). The bonus stops the model from making the exact same board, but it does not yet make it genuinely inventive. The easy measure of variety overstates how much real variety came back.
+
+## What did not work (the useful part)
+
+The original motivation came from an ongoing debate about PPO, the workhorse algorithm behind a lot of RL training. PPO "clips" each update, meaning it caps how far the model is allowed to change in a single step. There is a live argument that this cap quietly hurts a model's exploration. Two recent methods change exactly this part: DAPO loosens the cap, and DPPO replaces it with a different rule that watches how much the model's behavior has shifted and blocks the updates that push it too far. A natural guess is that the method with better exploration should keep more variety.
+
+On our task, that guess did not hold up. At 1.5B, DPPO did look best, keeping the most variety at matched reward. But that edge vanished at 3B, where DPPO had the lowest peak variety of the three. An early result that suggested plain PPO collapses the hardest turned out to be a fluke of a single run: we had only run it once, and when we reran it from three different random starts the effect disappeared. So the specific clipping trick is not a reliable lever for variety here. That is a genuinely useful negative result. It is a caution against assuming the clipping mechanism, which is real and matters for other things, is what governs how varied a generator stays.
+
+We also caught the model cheating early on, which is its own small lesson in verifiable rewards. One run learned to emit a smaller, easier board that an early version of our solver still accepted as "solvable." It found a loophole in the grader rather than solving the actual task. We closed it by tightening the reward to demand the exact ten by ten, four-box format. A reward-maximizer will exploit any gap in the grader.
+
+## Where this does and does not apply
+
+This is one task (Sokoban, one board size), two model sizes, three seeds, and a modest training budget, with one version of the variety bonus and one setting for DPPO. Those bounds are exactly why we are careful about the negative result rather than declaring clipping irrelevant in general. The whole study also ran cheaply, on the order of low tens of H100-hours of GPU time. It is easy to rerun and push further. The most interesting open question is whether the variety bonus, which only weakly restored real variety here, starts working properly at larger scale or with longer training, since scale already improved the trade-off curve overall.
+
+## Takeaways
+
+- **Rewarding correctness costs variety, by default.** If you post-train a generator with a verifiable reward and you care about diverse output, expect a sharp collapse unless you do something about it. Measure variety over training, not just at the end, because the collapse is fast.
+- **The trade-off is a curve you can choose a point on.** Early-stopping at the knee is a free, reliable control, and a model stopped there keeps real variety.
+- **Paying for variety helps, but check the right number.** A simple novelty bonus removes exact duplication and looks like an eightfold win on a loose measure, while a strict square-by-square measure shows real variety barely moved. Pick the metric that can tell those two apart.
+- **Bigger models get a better trade-off,** even though they still collapse.
+- **Do not assume the clipping algorithm is the lever.** Which PPO variant you use (PPO, DAPO, DPPO) was not a robust control for variety on this task. Test the lever you actually plan to pull instead of trusting the mechanism story.
+
+The full paper, with the per-objective and per-seed results, the Pareto curves, and the limitations in detail, is here: [Reward Maximization Collapses Generative Diversity](/papers/reward-maximization-collapses-diversity).
