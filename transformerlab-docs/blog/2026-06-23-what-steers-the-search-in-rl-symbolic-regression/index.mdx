@@ -68,14 +68,16 @@ the model is trained to raise):
 
 - **Fit**: how well the equation predicts held-out data points it was not fit on. Higher is
   better.
-- **Parsimony**: how short and simple the equation is. We penalize size, because a giant
-  tangled formula that happens to fit is not a "law."
+- **Parsimony**: a preference for short, simple equations. A giant tangled formula that
+  happens to fit the numbers is not a "law," so the reward docks points for size.
 
-So the reward is roughly `fit − λ·complexity`. That little `λ` (lambda) is the **simplicity
-penalty**: a single number that says how much we punish a longer equation. Parsimony, the
-simplicity penalty, and λ are three names for this one dial. Crank it up and the model is
-told, in effect, "keep it short." Set it to zero and the model is free to write sprawling
-expressions if they fit.
+So the reward is roughly `fit − λ·complexity`. It helps to keep two things separate here.
+**Parsimony** is the _principle_ — favor the shortest law that explains the data. **λ**
+(lambda), the **simplicity penalty**, is the _dial that enforces it_: a single number setting
+how steeply each extra piece of the equation costs the model. Crank λ up and the model is
+told, in effect, "keep it short," even when a longer formula would fit a little better. Set it
+to zero and the model is free to write sprawling expressions, as long as they match the data.
+That dial is the lever this whole study turns on.
 
 There is no human grader and no learned judge anywhere in this loop. The reward is computed
 exactly, by checking the equation against data and counting its parts. That makes it a clean
