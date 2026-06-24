@@ -11,7 +11,7 @@
   {
     "slug": "is-4-bit-the-ceiling",
     "title": "Is 4-bit the Ceiling? Fitting North-Mini-Code into 24 GB on Apple Silicon, and a Streaming GPTQ for Large MoEs",
-    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "authors": ["Salomone", "Gandhi", "Asaria"],
     "date": "2026-06-23",
     "tags": ["SYSTEMS", "LLM"],
     "abstract": "Asks whether a 30B-total / 3B-active MoE coding model (North-Mini-Code-1.0, 128 experts, top-8) can be quantized to beat its vendor 4-bit while still fitting a hard ≤24 GB Apple Silicon budget — and finds 4-bit is the ceiling. Across a structured search (uniform bit-width, group size, number format, built-in mixed-bit, custom per-expert allocation, calibrated streaming GPTQ), no in-budget route beats round-to-nearest 4-bit on coding eval; the closest, mixed_4_8 at 5.2 avg bits / 20.5 GB, only ties (148 vs 146 of 164, McNemar exact p=0.79). The practical agentic limiter turns out to be generation-length instability (repetition loops), not bit-width — 21/30 SWE-Bench Verified instances looped to the cap. The portable contribution is a memory-efficient streaming GPTQ that quantizes a 60 GB / 128-expert MoE on a 48 GB Mac at 3.75 GB peak.",
@@ -20,7 +20,7 @@
   {
     "slug": "expert-modularity-dissolves",
     "title": "How Modular Is a Frontier Mixture-of-Experts? A Pre-registered Causal Test in Which Apparent Expert Modularity Mostly Dissolves",
-    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "authors": ["Salomone", "Gandhi", "Asaria"],
     "date": "2026-06-20",
     "tags": ["LLM", "INTERPRETABILITY"],
     "abstract": "A pre-registered causal test of whether the experts in a frontier MoE (Command A+, 218B total / 25B active, 128 experts) form functional modules tied to capabilities or languages. Of six pre-registered expert families ablated at inference time against a size-matched random-expert null, only one — the Arabic-language family — is a clean selective module that survives an independent corpus and a conservative statistical bar; every other family has a real causal effect but its apparent modularity flips with the corpus, the metric, or the threshold. A positive control on Qwen3-30B-A3B recovers its known disjoint structure, and the verdict reproduces on the un-quantized BF16 model: robust expert modularity is rare and measurement-dependent.",
