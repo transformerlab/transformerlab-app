@@ -1,5 +1,14 @@
 [
   {
+    "slug": "tiny-seismic-phase-picker",
+    "title": "How small can a seismic phase picker be? A 34,000-parameter model matches a pretrained deep baseline under leakage-controlled evaluation",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-25",
+    "tags": ["Efficiency", "Seismology"],
+    "abstract": "Deep neural pickers such as PhaseNet and EQTransformer are the default tools for detecting P- and S-wave arrivals, but they carry hundreds of thousands of parameters and are usually benchmarked on randomly split data, where near-duplicate windows of the same event leak between training and test. On STEAD, split so that no earthquake straddles the partitions, a 33,610-parameter 1-D U-Net reaches a mean P/S pick-F1 of 0.76 on held-out data at strict tolerance; a pretrained PhaseNet with about eight times as many parameters, scored through the identical pipeline, reaches 0.64. The decisive ingredient is a foreground-weighted loss: without it the model never learns the P onset (P-F1 0.00) and mean F1 falls to 0.40. As an ablation, masked-waveform self-supervised pretraining gives no detectable low-label gain across three seeds and two fine-tuning schedules, and a single-seed run would have reported a spurious +0.15 improvement. Careful supervision, not scale or pretraining, is what a small seismic picker needs.",
+    "pdf": "tiny-seismic-phase-picker.pdf"
+  },
+  {
     "slug": "does-the-prior-pay-off",
     "title": "Does the Prior Pay Off? Scaling a Protein Language Model Lets Reinforcement Learning Beat Directed Evolution on GB1",
     "authors": ["Asaria", "Salomone", "Gandhi"],
@@ -14,7 +23,7 @@
     "authors": ["Asaria", "Salomone", "Gandhi"],
     "date": "2026-06-23",
     "tags": ["SYSTEMS", "LLM"],
-    "abstract": "Asks whether a 30B-total / 3B-active MoE coding model (North-Mini-Code-1.0, 128 experts, top-8) can be quantized to beat its vendor 4-bit while still fitting a hard ≤24 GB Apple Silicon budget — and finds 4-bit is the ceiling. Across a structured search (uniform bit-width, group size, number format, built-in mixed-bit, custom per-expert allocation, calibrated streaming GPTQ), no in-budget route beats round-to-nearest 4-bit on coding eval; the closest, mixed_4_8 at 5.2 avg bits / 20.5 GB, only ties (148 vs 146 of 164, McNemar exact p=0.79). The practical agentic limiter turns out to be generation-length instability (repetition loops), not bit-width — 21/30 SWE-Bench Verified instances looped to the cap. The portable contribution is a memory-efficient streaming GPTQ that quantizes a 60 GB / 128-expert MoE on a 48 GB Mac at 3.75 GB peak.",
+    "abstract": "Asks whether a 30B-total / 3B-active MoE coding model (North-Mini-Code-1.0, 128 experts, top-8) can be quantized to beat its vendor 4-bit while still fitting a hard \u226424 GB Apple Silicon budget \u2014 and finds 4-bit is the ceiling. Across a structured search (uniform bit-width, group size, number format, built-in mixed-bit, custom per-expert allocation, calibrated streaming GPTQ), no in-budget route beats round-to-nearest 4-bit on coding eval; the closest, mixed_4_8 at 5.2 avg bits / 20.5 GB, only ties (148 vs 146 of 164, McNemar exact p=0.79). The practical agentic limiter turns out to be generation-length instability (repetition loops), not bit-width \u2014 21/30 SWE-Bench Verified instances looped to the cap. The portable contribution is a memory-efficient streaming GPTQ that quantizes a 60 GB / 128-expert MoE on a 48 GB Mac at 3.75 GB peak.",
     "pdf": "is-4-bit-the-ceiling.pdf"
   },
   {
@@ -23,7 +32,7 @@
     "authors": ["Asaria", "Salomone", "Gandhi"],
     "date": "2026-06-20",
     "tags": ["LLM", "INTERPRETABILITY"],
-    "abstract": "A pre-registered causal test of whether the experts in a frontier MoE (Command A+, 218B total / 25B active, 128 experts) form functional modules tied to capabilities or languages. Of six pre-registered expert families ablated at inference time against a size-matched random-expert null, only one — the Arabic-language family — is a clean selective module that survives an independent corpus and a conservative statistical bar; every other family has a real causal effect but its apparent modularity flips with the corpus, the metric, or the threshold. A positive control on Qwen3-30B-A3B recovers its known disjoint structure, and the verdict reproduces on the un-quantized BF16 model: robust expert modularity is rare and measurement-dependent.",
+    "abstract": "A pre-registered causal test of whether the experts in a frontier MoE (Command A+, 218B total / 25B active, 128 experts) form functional modules tied to capabilities or languages. Of six pre-registered expert families ablated at inference time against a size-matched random-expert null, only one \u2014 the Arabic-language family \u2014 is a clean selective module that survives an independent corpus and a conservative statistical bar; every other family has a real causal effect but its apparent modularity flips with the corpus, the metric, or the threshold. A positive control on Qwen3-30B-A3B recovers its known disjoint structure, and the verdict reproduces on the un-quantized BF16 model: robust expert modularity is rare and measurement-dependent.",
     "pdf": "expert-modularity-dissolves.pdf"
   },
   {
@@ -32,7 +41,7 @@
     "authors": ["Asaria", "Salomone", "Gandhi"],
     "date": "2026-06-23",
     "tags": ["LLM", "INTERPRETABILITY"],
-    "abstract": "Reports that instruction-tuned models are more \"brain-aligned\" than their base versions are mostly a chat-template artifact, not a property of alignment training. Under identical raw text, post-training weight changes leave fMRI encoding alignment essentially unchanged (Qwen base→Instruct p=0.92), while merely applying the chat template significantly raises apparent alignment — even for the base model.",
+    "abstract": "Reports that instruction-tuned models are more \"brain-aligned\" than their base versions are mostly a chat-template artifact, not a property of alignment training. Under identical raw text, post-training weight changes leave fMRI encoding alignment essentially unchanged (Qwen base\u2192Instruct p=0.92), while merely applying the chat template significantly raises apparent alignment \u2014 even for the base model.",
     "pdf": "instruction-tuning-brain-alignment.pdf"
   },
   {
@@ -41,7 +50,7 @@
     "authors": ["Asaria", "Salomone", "Gandhi"],
     "date": "2026-06-23",
     "tags": ["RL", "LLM"],
-    "abstract": "A mechanistic study of how an RL objective shapes symbolic-regression search: the parsimony coefficient λ cleanly and monotonically sets the operating point on the accuracy–parsimony frontier, while the DAPO clip-higher asymmetry does not — it is the entropy regularizer, not the clip, that sustains exploration. On held-out Feynman the final model recovers a modest fraction (symbolic recovery 0.205), in the range of a deep-SR baseline and below the GP incumbent PySR.",
+    "abstract": "A mechanistic study of how an RL objective shapes symbolic-regression search: the parsimony coefficient \u03bb cleanly and monotonically sets the operating point on the accuracy\u2013parsimony frontier, while the DAPO clip-higher asymmetry does not \u2014 it is the entropy regularizer, not the clip, that sustains exploration. On held-out Feynman the final model recovers a modest fraction (symbolic recovery 0.205), in the range of a deep-SR baseline and below the GP incumbent PySR.",
     "pdf": "parsimony-not-the-clip.pdf"
   },
   {
@@ -50,7 +59,7 @@
     "authors": ["Asaria", "Salomone", "Gandhi"],
     "date": "2026-06-22",
     "tags": ["LLM", "RL"],
-    "abstract": "Verifiable-reward RL (RLVR) for procedural Sokoban-level generation triggers a sharp reward↔diversity phase transition: the model mode-collapses to one or two level templates (distinct-valid fraction ≈1.0 → <0.05) across three trust-region objectives (PPO, DAPO, DPPO), seeds, and scales. The trade-off is controllable — passively via early-stopping at the Pareto knee, actively via a novelty-bonus reward — but which clipping objective is used is not a robust lever for diversity.",
+    "abstract": "Verifiable-reward RL (RLVR) for procedural Sokoban-level generation triggers a sharp reward\u2194diversity phase transition: the model mode-collapses to one or two level templates (distinct-valid fraction \u22481.0 \u2192 <0.05) across three trust-region objectives (PPO, DAPO, DPPO), seeds, and scales. The trade-off is controllable \u2014 passively via early-stopping at the Pareto knee, actively via a novelty-bonus reward \u2014 but which clipping objective is used is not a robust lever for diversity.",
     "pdf": "reward-maximization-collapses-diversity.pdf"
   },
   {
@@ -59,7 +68,7 @@
     "authors": ["Asaria", "Salomone", "Gandhi"],
     "date": "2026-06-19",
     "tags": ["LLM"],
-    "abstract": "A model's own token-probability \"doubt\" signal, used to decide when to abstain, matches label-supervised abstention-tuning without using any correctness labels. Across six open-weights models (1B–8B, two families) on short-form QA, the label-free LoRA recipe shows no statistically detectable difference from the labelled one at matched coverage — the gain is calibration, not memorization, and its one blind spot is confidently-wrong facts.",
+    "abstract": "A model's own token-probability \"doubt\" signal, used to decide when to abstain, matches label-supervised abstention-tuning without using any correctness labels. Across six open-weights models (1B\u20138B, two families) on short-form QA, the label-free LoRA recipe shows no statistically detectable difference from the labelled one at matched coverage \u2014 the gain is calibration, not memorization, and its one blind spot is confidently-wrong facts.",
     "pdf": "label-free-doubt-signals.pdf"
   },
   {
@@ -68,7 +77,7 @@
     "authors": ["Asaria", "Salomone", "Gandhi"],
     "date": "2026-06-18",
     "tags": ["VISION"],
-    "abstract": "A DINO-pretrained ViT-S is competitive with a pretrained ResNet-50 at end-to-end steering-angle prediction on a small slice (~5–16k frames) of the comma2k19 driving dataset — turn-slice Pearson 0.964 vs 0.967. Competitiveness is conditional on adaptation (low-LR full fine-tuning, a cost-sensitive loss, dropping flip augmentation); the practitioner defaults of a frozen linear probe and horizontal flips reproduce the usual \"ViTs don't work at small scale\" conclusion.",
+    "abstract": "A DINO-pretrained ViT-S is competitive with a pretrained ResNet-50 at end-to-end steering-angle prediction on a small slice (~5\u201316k frames) of the comma2k19 driving dataset \u2014 turn-slice Pearson 0.964 vs 0.967. Competitiveness is conditional on adaptation (low-LR full fine-tuning, a cost-sensitive loss, dropping flip augmentation); the practitioner defaults of a frozen linear probe and horizontal flips reproduce the usual \"ViTs don't work at small scale\" conclusion.",
     "pdf": "adaptation-not-architecture.pdf"
   },
   {
@@ -77,7 +86,7 @@
     "authors": ["Asaria", "Salomone", "Gandhi"],
     "date": "2026-06-18",
     "tags": ["3D", "VISION", "LLM"],
-    "abstract": "A trainable, de-biased VLM-as-judge for single-image 3D generation — one VLM family labels training pairs, a different family scores, and verdicts only count when they survive an order swap. Used to test cheap label-free adaptation of a strong base: six methods reach only parity (0.50 win-rate), never the 0.65 bar — the durable artifact is the judge protocol, not a model.",
+    "abstract": "A trainable, de-biased VLM-as-judge for single-image 3D generation \u2014 one VLM family labels training pairs, a different family scores, and verdicts only count when they survive an order swap. Used to test cheap label-free adaptation of a strong base: six methods reach only parity (0.50 win-rate), never the 0.65 bar \u2014 the durable artifact is the judge protocol, not a model.",
     "pdf": "judging-to-improve.pdf"
   },
   {
@@ -95,7 +104,7 @@
     "authors": ["Asaria", "Salomone", "Gandhi"],
     "date": "2026-06-16",
     "tags": ["3D", "VISION"],
-    "abstract": "A standardized evaluation protocol for single-image-to-3D mesh generators, using 24-view rendering and position-bias correction — and showing that common proxies like CLIP similarity and geometry-validity metrics don't substitute for a VLM judge.",
+    "abstract": "A standardized evaluation protocol for single-image-to-3D mesh generators, using 24-view rendering and position-bias correction \u2014 and showing that common proxies like CLIP similarity and geometry-validity metrics don't substitute for a VLM judge.",
     "pdf": "cross-model-vlm-judge.pdf"
   },
   {
@@ -104,7 +113,7 @@
     "authors": ["Asaria", "Salomone", "Gandhi"],
     "date": "2026-06-16",
     "tags": ["AUDIO", "LLM"],
-    "abstract": "ASR-based self-verification drives catastrophic failures (silence, early termination, repetition) to near zero in autoregressive neural-codec TTS, then distills the behavior for inference-time efficiency — generalizing across four TTS systems and three codecs.",
+    "abstract": "ASR-based self-verification drives catastrophic failures (silence, early termination, repetition) to near zero in autoregressive neural-codec TTS, then distills the behavior for inference-time efficiency \u2014 generalizing across four TTS systems and three codecs.",
     "pdf": "reliable-neural-codec-tts.pdf"
   },
   {
@@ -113,7 +122,7 @@
     "authors": ["Asaria", "Salomone", "Gandhi"],
     "date": "2026-06-12",
     "tags": ["LLM"],
-    "abstract": "A close look at token-commitment patterns in DiffusionGemma 26B. Contrary to parallel-decoding marketing, the behavior is neither parallel nor block-autoregressive — weak left-to-right bias and substantial within-batch ordering ambiguity.",
+    "abstract": "A close look at token-commitment patterns in DiffusionGemma 26B. Contrary to parallel-decoding marketing, the behavior is neither parallel nor block-autoregressive \u2014 weak left-to-right bias and substantial within-batch ordering ambiguity.",
     "pdf": "diffusiongemma-token-commitment.pdf"
   },
   {
@@ -122,7 +131,7 @@
     "authors": ["Asaria", "Salomone", "Gandhi"],
     "date": "2026-06-12",
     "tags": ["SYSTEMS", "VISION"],
-    "abstract": "A fused Triton kernel that properly drives the INT8 tensor cores on consumer Ampere GPUs — ~1.1× end-to-end speedup, making 1024px generation feasible on a single RTX 3090.",
+    "abstract": "A fused Triton kernel that properly drives the INT8 tensor cores on consumer Ampere GPUs \u2014 ~1.1\u00d7 end-to-end speedup, making 1024px generation feasible on a single RTX 3090.",
     "pdf": "int8-gemm-ideogram.pdf"
   },
   {
