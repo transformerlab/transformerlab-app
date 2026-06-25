@@ -9,13 +9,13 @@ date: 2026-06-24
 import ParetoExplorer from './ParetoExplorer';
 import RepetitionLoopDiagram from './RepetitionLoopDiagram';
 
-_We tried to beat an open coding model's stock 4-bit build so it would run better on a 24 GB Mac. Nothing did, and the bottleneck turned out not to be the bits._
+_We explored ways to beat the existing open coding model's stock quantizations. In the end, the bottleneck turned out to be something else._
 
-> **Quick summary:** We wanted the best coding model that fits in 24 GB on an Apple Silicon Mac. We started from North-Mini-Code, a 30-billion-parameter open model (Apache-2.0), and tried roughly a dozen ways to quantize it past its stock 4-bit version: cheaper formats, more expensive ones, custom per-part bit budgets, and a calibrated method we had to build new tooling just to run. None of them beat plain round-to-nearest 4-bit on coding tests. The 4-bit model already fits in 20.81 GB at a realistic working context and decodes at about 40 tokens per second, so memory and speed were never the real limit. The real limit only showed up when we ran the model as an agent: it often falls into repetition loops and never finishes the task. That is a decoding problem, not a quantization problem.
+> **Quick summary:** Our goal was to find the best coding model that fits in 24 GB on an Apple Silicon Mac. We started from North-Mini-Code, a 30-billion-parameter open model (Apache-2.0), and tried roughly a dozen ways to quantize it past its stock 4-bit version: cheaper formats, more expensive ones, custom per-part bit budgets, and a calibrated method we had to build new tooling just to run. None of them beat plain round-to-nearest 4-bit on coding tests. The 4-bit model already fits in 20.81 GB at a realistic working context and decodes at about 40 tokens per second, so memory and speed were never the real limit. The real limit only showed up when we ran the model as an agent: it often falls into repetition loops and never finishes the task. That is a decoding problem, not a quantization problem.
 
 <!--truncate-->
 
-## We wanted a coding agent that runs locally
+## Running a local coding agent
 
 With the ongoing surge in token prices, uncertainty over model availability, and a growing need for data privacy, many developers are looking to run a local coding agent. A common version of this is a Mac mini with a 24 GB memory cap, used as a private, always-on box. That cap is the whole challenge. The model's weights, a running scratchpad of everything it has read and written so far (the KV cache), and some overhead all have to fit at once. It also has to generate fast enough to be usable.
 
