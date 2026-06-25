@@ -1,6 +1,6 @@
 ---
 slug: distilled-reasoners-trust-given-reasoning-more-than-their-own
-title: 'Reasoning models trust the reasoning you give them more than the reasoning they write'
+title: 'Distilled reasoning models trust the reasoning you give them more than the reasoning they write'
 authors: [ali, tony, deep]
 tags: [ml-research, interpretability, chain-of-thought, reasoning-models]
 date: 2026-06-25
@@ -8,7 +8,7 @@ date: 2026-06-25
 
 import PositionalDiagram from './PositionalDiagram';
 
-_Reasoning models write out their thinking before they answer. We tested whether the answer actually depends on that thinking. When we hand the model a chain of steps to follow, its answer tracks those steps almost perfectly. When the model writes its own steps, only about half of them actually change the answer, and the ones that matter sit near the end._
+_Reasoning models write out their thinking before they answer. We tested whether the answer actually depends on that thinking, on two distilled reasoning models. When we hand the model a chain of steps to follow, its answer tracks those steps almost perfectly. When the model writes its own steps, only about half of them actually change the answer, and the ones that matter sit near the end._
 
 > **Quick summary:** A reasoning model is a language model that writes a chain of intermediate steps (a "chain-of-thought") before giving a final answer. People read that chain as an explanation and use it to monitor what the model is doing, which only works if the answer really depends on the steps. We measured that dependence on two open models, DeepSeek-R1-Distill-Qwen 1.5B and 7B, by corrupting one step at a time and watching how much the model's confidence in its answer moves. Two settings, two different answers. When we provide the reasoning chain, the models follow it tightly: corrupting a step that matters collapses the right answer, corrupting an irrelevant step does nothing, and the two are cleanly separated on over 99% of problems. When the models reason for themselves on grade-school math, the dependence is real but thin: only about 43% (1.5B) and 53% (7B) of the steps they write actually move the answer, and that share rises through the chain, so the early steps carry the least. The bigger model is more faithful in both settings. One honest limit: the generated-reasoning result rests on 25 and 32 solved problems, so we report it as suggestive, not settled.
 
@@ -34,13 +34,13 @@ One caution we keep in view. Our provided chain restates the running total at ea
 
 ## When the model writes its own reasoning, only half of it counts
 
-Self-written reasoning is a weaker constraint on the answer. Corrupting a generated step does lower the model's confidence in its answer on average, and the effect clears zero (problem-clustered 95% intervals [1.23, 2.11] for the 1.5B and [1.55, 2.39] for the 7B). So the generated chain is used. It is just not all used. At our one-nat bar for "this step matters," only 43% of the 1.5B's steps and 53% of the 7B's qualify, and the median step sits below the bar for the smaller model. About 30% of generated steps have a slightly negative effect, meaning corrupting them does nothing useful at all.
+Self-written reasoning is a weaker constraint on the answer. Corrupting a generated step does lower the model's confidence in its answer on average, and the effect clears zero (problem-clustered 95% intervals [1.23, 2.11] for the 1.5B and [1.55, 2.39] for the 7B). So the generated chain is used. It is just not all used. At our one-nat bar for "this step matters," and pooling every step in the chain regardless of where it sits, only 43% of the 1.5B's steps and 53% of the 7B's qualify, and the median step sits below the bar for the smaller model. About 30% of generated steps have a slightly negative effect, meaning corrupting them does nothing useful at all. That chain-wide figure also hides a strong gradient, which is what the next section pulls apart.
 
-Where the load-bearing steps sit is the clearer story. We split each model's reasoning into thirds and measured the effect in each. It rises steadily from the start of the chain to the end.
+Where the load-bearing steps sit is the clearer story. We split each model's reasoning into thirds and measured the effect in each. It rises steadily from the start of the chain to the end. The diagram below shows the 1.5B; the 7B traces the same shape one step higher.
 
 <PositionalDiagram />
 
-The early third of the reasoning barely moves the answer (mean effect 0.47, with 19% of steps load-bearing). The late third carries most of the weight (2.74, with 64% load-bearing). This is not just an artifact of comparing different problems: inside a single problem, a step's position and its effect are positively correlated (mean correlation 0.42, 95% interval [0.26, 0.57], positive in 83% of problems). Later steps do constrain the answer more. They are also closer to the answer and more likely to repeat a number that ends up in it, so we report the gradient as a robust pattern, not as proof that early reasoning is purely decorative.
+The early third of the 1.5B's reasoning barely moves the answer (mean effect 0.47, with 19% of steps load-bearing). The middle third sits at 34%, and the late third carries most of the weight (2.74, with 64% load-bearing). These bins are what the 43% chain-wide figure pools over: most early steps do nothing, most late steps matter, and averaging across all of them lands just under halfway. The headline number is held down by the early steps, not spread evenly across the chain. This is not just an artifact of comparing different problems: inside a single problem, a step's position and its effect are positively correlated (mean correlation 0.42, 95% interval [0.26, 0.57], positive in 83% of problems). Later steps do constrain the answer more. They are also closer to the answer and more likely to repeat a number that ends up in it, so we report the gradient as a robust pattern, not as proof that early reasoning is purely decorative.
 
 ## How you measure it changes the answer
 
@@ -54,7 +54,7 @@ The honest ceiling: we studied two checkpoints from one model family, on arithme
 
 ## Takeaways
 
-- A reasoning model can track reasoning you hand it far more tightly than reasoning it writes itself. Treat a generated chain-of-thought as a partial explanation, not a complete one.
+- A distilled reasoning model can track reasoning you hand it far more tightly than reasoning it writes itself. Treat a generated chain-of-thought as a partial explanation, not a complete one.
 - In self-written reasoning, the steps are not equal. The later steps carry most of the causal weight; the earliest steps carry the least.
 - Any single faithfulness score depends on the intervention. Corrupting a step and deleting a step give different verdicts, so report which you used.
 - Bigger helped. The 7B model was more faithful than the 1.5B in both settings.
