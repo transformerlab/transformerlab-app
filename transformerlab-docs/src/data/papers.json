@@ -18,13 +18,13 @@
     "pdf": "does-the-prior-pay-off.pdf"
   },
   {
-    "slug": "is-4-bit-the-ceiling",
-    "title": "Is 4-bit the Ceiling? Fitting North-Mini-Code into 24 GB on Apple Silicon, and a Streaming GPTQ for Large MoEs",
-    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "slug": "round-to-nearest-hard-to-beat",
+    "title": "Round-to-Nearest Is Hard to Beat: A 30B MoE Coding Model in 24 GB on Apple Silicon",
+    "authors": ["Salomone", "Asaria", "Gandhi"],
     "date": "2026-06-23",
     "tags": ["SYSTEMS", "LLM"],
-    "abstract": "Asks whether a 30B-total / 3B-active MoE coding model (North-Mini-Code-1.0, 128 experts, top-8) can be quantized to beat its vendor 4-bit while still fitting a hard ≤24 GB Apple Silicon budget — and finds 4-bit is the ceiling. Across a structured search (uniform bit-width, group size, number format, built-in mixed-bit, custom per-expert allocation, calibrated streaming GPTQ), no in-budget route beats round-to-nearest 4-bit on coding eval; the closest, mixed_4_8 at 5.2 avg bits / 20.5 GB, only ties (148 vs 146 of 164, McNemar exact p=0.79). The practical agentic limiter turns out to be generation-length instability (repetition loops), not bit-width — 21/30 SWE-Bench Verified instances looped to the cap. The portable contribution is a memory-efficient streaming GPTQ that quantizes a 60 GB / 128-expert MoE on a 48 GB Mac at 3.75 GB peak.",
-    "pdf": "is-4-bit-the-ceiling.pdf"
+    "abstract": "Asks whether a 30B-total / 3B-active MoE coding model (North-Mini-Code-1.0, 128 experts, top-8, Apache-2.0) can be quantized to beat its vendor 4-bit while still fitting a hard ≤24 GB Apple Silicon budget — and finds round-to-nearest (RTN) 4-bit is the ceiling, a careful negative result. Across a structured search (uniform bit-width, group size, number format, built-in mixed-bit, a North-aware custom per-expert allocation, and calibrated streaming GPTQ), no in-budget route beats RTN 4-bit on coding eval, including configurations that spend more memory than 4-bit. The two closest tie RTN on full HumanEval-164: the in-budget higher-bit mixed_4_8 (5.2 avg bits, 20.5 GB) scores 0.9024 (148 vs 146 of 164, McNemar exact p=0.79), and calibrated streaming-GPTQ scores 0.8841 (p=1.000); a cheap MoE→dense distillation pilot fails its triage gate (0/32). The 4-bit model fits 20.81 GB at a real 32K-token agentic turn and decodes 40.2 tok/s, so both hard constraints are met while the primary success criterion is not. The portable contribution is a memory-efficient streaming GPTQ that quantizes a 60 GB / 128-expert MoE on a 48 GB Mac at 3.75 GB peak, where stock mlx-lm GPTQ is infeasible. What limits agentic use is generation-length instability (21/30 SWE-Bench Verified instances loop to the token cap), not bit-width or memory.",
+    "pdf": "round-to-nearest-hard-to-beat.pdf"
   },
   {
     "slug": "expert-modularity-dissolves",
