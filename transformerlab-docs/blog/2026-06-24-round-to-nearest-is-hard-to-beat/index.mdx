@@ -7,7 +7,6 @@ date: 2026-06-24
 ---
 
 import ParetoExplorer from './ParetoExplorer';
-import StreamingMemoryDiagram from './StreamingMemoryDiagram';
 import RepetitionLoopDiagram from './RepetitionLoopDiagram';
 
 _We tried to beat an open coding model's stock 4-bit build so it would run better on a 24 GB Mac. Nothing did, and the bottleneck turned out not to be the bits._
@@ -38,8 +37,6 @@ We ran a structured search across the obvious levers:
 - **Calibrated GPTQ:** a stronger method that looks at example data to decide how to round each weight more carefully, instead of rounding blindly.
 
 The standard calibrated-GPTQ implementation could not run on our 48 GB development Mac at all. It needs the full model resident (about 60 GB) plus a large statistical table per expert, which for 128 experts balloons into hundreds of gigabytes. So we built a streaming version that processes one layer at a time and frees each layer's scratch data before moving on. It quantizes the whole 128-expert model at a 3.75 GB peak, roughly 13 times under the 48 GB box. This independent streaming port is what let us test the strongest method at all, where the stock implementation simply could not run.
-
-<StreamingMemoryDiagram />
 
 ## Nothing beat 4-bit
 
