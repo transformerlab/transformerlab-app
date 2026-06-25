@@ -47,7 +47,7 @@ Across every in-budget route, nothing beat plain RTN 4-bit. On the full test the
 - The higher-bit mixed build scored 0.9024 against RTN's 0.8902 on the full HumanEval test (a standard set of coding problems). That is a 1.2-point gap, below our 1.5-point significance bar, and a paired statistical test says they are indistinguishable. It also costs about 1.2 GB more for no measurable gain.
 - The calibrated streaming-GPTQ build scored 0.8841, statistically identical to RTN.
 
-A cheap attempt to distill the model into a smaller dense one (training a smaller student to imitate the big model) failed its early checkpoint outright, scoring 0 out of 32. So the best model you can run in 24 GB is the stock 4-bit build.
+A cheap attempt to distill the model into a smaller dense one (training a smaller student to imitate the big model) failed its early checkpoint outright, scoring 0 out of 32. So the best model you can run in 24 GB is the stock 4-bit build. We never measured the original full-precision model, so the finding is that nothing we tried beats 4-bit, not that 4-bit gives up no quality at all.
 
 ## The bottleneck is the model not stopping
 
@@ -56,14 +56,6 @@ The 4-bit model clears both hard constraints with room to spare: 20.81 GB at a 3
 <RepetitionLoopDiagram />
 
 We ran a deliberately bare-bones harness (a single shot, no multi-step loop), so this 20% is a floor on the model's ability, not a fair score. The diagnosis is what matters: for agentic use, the fix to chase is better decoding and stopping rules. The bit budget is already fine.
-
-## The things that tied or lost (the useful part)
-
-The whole study is a negative result. That is what makes it useful. Mixed precision, per-expert budgets, calibrated GPTQ, and distillation each tied or lost to a method with no calibration data and no tuning. Reporting that plainly is more useful than a cherry-picked win, because it tells you where not to spend effort on this class of model.
-
-## Where this does not apply
-
-This is one model, on one runtime (MLX), under one memory budget. We never measured the original higher-precision model (8-bit or 16-bit), so we cannot call 4-bit lossless, only say that nothing we tried beat it. We also held the router and attention at full precision and did not calibrate the router (the part that picks which experts handle each token), which the literature rates as the most important lever, so a different setup could move the result. And the agentic number is a lower bound from a weak harness.
 
 ## Takeaways
 
