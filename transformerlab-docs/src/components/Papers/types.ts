@@ -68,6 +68,25 @@ const BIBTEX_MONTHS = [
   'dec',
 ];
 
+/**
+ * Escape LaTeX/BibTeX reserved characters in a plain-text field value so they
+ * render literally instead of breaking the citation (e.g. `&` in a title).
+ */
+function escapeBibtex(value: string): string {
+  return value.replace(/[\\&%$#_{}~^]/g, (char) => {
+    switch (char) {
+      case '\\':
+        return '\\textbackslash{}';
+      case '~':
+        return '\\textasciitilde{}';
+      case '^':
+        return '\\textasciicircum{}';
+      default:
+        return `\\${char}`;
+    }
+  });
+}
+
 /** Build a BibTeX citation key from the first author's last name + year. */
 function bibtexKey(paper: Paper): string {
   const [year] = paper.date.split('-');
@@ -90,12 +109,13 @@ export function toBibtex(paper: Paper, siteUrl: string): string {
   const [year, month] = paper.date.split('-');
   const url = `${siteUrl.replace(/\/$/, '')}/papers/${paper.slug}`;
   const fields: [string, string][] = [
-    ['author', paper.authors.join(' and ')],
-    ['title', paper.title],
+    ['author', escapeBibtex(paper.authors.join(' and '))],
+    ['title', escapeBibtex(paper.title)],
     ['year', year],
   ];
   const monthName = month ? BIBTEX_MONTHS[Number(month) - 1] : undefined;
   if (monthName) fields.push(['month', monthName]);
+  // `\url{}` is intentional LaTeX, so the URL is not escaped here.
   fields.push(['howpublished', `\\url{${url}}`]);
   fields.push(['note', 'Transformer Lab']);
 
