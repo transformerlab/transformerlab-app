@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 270" width="360" height="270" role="img" aria-label="AUDIO, EVALUATION">
+  <defs>
+    <linearGradient id="g" gradientTransform="rotate(265 0.5 0.5)">
+      <stop offset="0" stop-color="hsl(258 72% 56%)" />
+      <stop offset="1" stop-color="hsl(296 68% 46%)" />
+    </linearGradient>
+    <radialGradient id="v" cx="0.3" cy="0.25" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16" />
+      <stop offset="1" stop-color="#000000" stop-opacity="0.14" />
+    </radialGradient>
+  </defs>
+  <rect width="360" height="270" fill="url(#g)" />
+  <rect x="30.8" y="99.1" width="8.3" height="71.9" rx="4.1" fill="#ffffff" opacity="0.34" />
+  <rect x="44.6" y="122.5" width="8.3" height="25.0" rx="4.1" fill="#ffffff" opacity="0.66" />
+  <rect x="58.4" y="103.7" width="8.3" height="62.7" rx="4.1" fill="#ffffff" opacity="0.44" />
+  <rect x="72.2" y="93.1" width="8.3" height="83.8" rx="4.1" fill="#ffffff" opacity="0.33" />
+  <rect x="86.0" y="126.1" width="8.3" height="17.8" rx="4.1" fill="#ffffff" opacity="0.65" />
+  <rect x="99.9" y="97.4" width="8.3" height="75.2" rx="4.1" fill="#ffffff" opacity="0.57" />
+  <rect x="113.7" y="119.0" width="8.3" height="32.0" rx="4.1" fill="#ffffff" opacity="0.51" />
+  <rect x="127.5" y="110.0" width="8.3" height="50.0" rx="4.1" fill="#ffffff" opacity="0.53" />
+  <rect x="141.3" y="103.5" width="8.3" height="63.0" rx="4.1" fill="#ffffff" opacity="0.45" />
+  <rect x="155.1" y="125.3" width="8.3" height="19.3" rx="4.1" fill="#ffffff" opacity="0.40" />
+  <rect x="168.9" y="105.9" width="8.3" height="58.2" rx="4.1" fill="#ffffff" opacity="0.55" />
+  <rect x="182.8" y="97.6" width="8.3" height="74.9" rx="4.1" fill="#ffffff" opacity="0.43" />
+  <rect x="196.6" y="96.2" width="8.3" height="77.6" rx="4.1" fill="#ffffff" opacity="0.36" />
+  <rect x="210.4" y="93.5" width="8.3" height="82.9" rx="4.1" fill="#ffffff" opacity="0.34" />
+  <rect x="224.2" y="107.9" width="8.3" height="54.2" rx="4.1" fill="#ffffff" opacity="0.63" />
+  <rect x="238.0" y="87.9" width="8.3" height="94.2" rx="4.1" fill="#ffffff" opacity="0.40" />
+  <rect x="251.9" y="81.6" width="8.3" height="106.7" rx="4.1" fill="#ffffff" opacity="0.62" />
+  <rect x="265.7" y="113.7" width="8.3" height="42.6" rx="4.1" fill="#ffffff" opacity="0.70" />
+  <rect x="279.5" y="117.0" width="8.3" height="36.0" rx="4.1" fill="#ffffff" opacity="0.33" />
+  <rect x="293.3" y="125.6" width="8.3" height="18.8" rx="4.1" fill="#ffffff" opacity="0.48" />
+  <rect x="307.1" y="122.7" width="8.3" height="24.6" rx="4.1" fill="#ffffff" opacity="0.35" />
+  <rect x="320.9" y="121.3" width="8.3" height="27.3" rx="4.1" fill="#ffffff" opacity="0.52" />
+  <rect width="360" height="270" fill="url(#v)" />
+</svg>

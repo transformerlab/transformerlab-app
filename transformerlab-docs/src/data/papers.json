@@ -1,5 +1,15 @@
 [
   {
+    "slug": "beyond-fad-and-clap",
+    "title": "Beyond FAD and CLAP: A Modern Perceptual Re-Ranking and a Controllability Audit of Open-Source Instrumental Music Generators",
+    "authors": ["Salomone", "Gandhi", "Asaria"],
+    "date": "2026-06-25",
+    "tags": ["AUDIO", "EVALUATION"],
+    "abstract": "Vendor reports for text-to-music models rank systems with Frechet Audio Distance (FAD) and CLAP score computed on a single CLAP encoder, the same family a model may be trained against, raising a circularity concern. We ask two questions about three open-source instrumental generators: Stable Audio 3 Medium (SA3), ACE-Step 1.5, and DiffRhythm 2. (1) Does SA3's reported FAD/CLAP win survive a modern, encoder-diverse perceptual stack? Re-ranking the same three models on the Song Describer instrumental subset with Kernel Audio Distance (KAD) on two encoders, FAD-infinity, Audiobox Aesthetics, and MuQ-MuLan, we find that SA3 ranks first on all nine metrics, with non-overlapping bootstrap intervals on every distribution metric. The circularity that motivated the study does not materialize: SA3's lead is as large or larger on the metrics that do not use the vendor's encoder, so the win is not a CLAP artifact. (2) How well do these models obey explicit tempo and key constraints? On 240 prompts that name a target tempo and key, SA3 obeys (tempo within 4 percent on 61 percent of clips, exact key on 64 percent), DiffRhythm 2 partially, and ACE-Step near chance. Explicit controllability is the dimension that most separates the models. SA3 thus leads on both perceptual quality and controllability, while the open comparators trade off differently below it. The harness, prompts, per-clip measurements, and reproducible recipe are available from the authors on request.",
+    "pdf": "beyond-fad-and-clap.pdf",
+    "image": "beyond-fad-and-clap.svg"
+  },
+  {
     "slug": "given-vs-generated-cot-faithfulness",
     "title": "Whose Reasoning Is It? Distilled Reasoning Models Are Faithful to Provided Chains but Only Sparsely to Their Own",
     "authors": ["Asaria", "Salomone", "Gandhi"],
