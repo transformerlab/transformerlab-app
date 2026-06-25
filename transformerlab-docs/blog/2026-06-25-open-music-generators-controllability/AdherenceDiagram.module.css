@@ -1,0 +1,83 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.button {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: transparent;
+  color: var(--ifm-font-color-base);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.button:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.active {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #fff;
+}
+
+.gauge {
+  margin: 0.9rem 0;
+}
+
+.gaugeHead {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+}
+
+.pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.track {
+  position: relative;
+  height: 18px;
+  background: var(--ifm-color-emphasis-200);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 9px;
+  transition:
+    width 0.35s ease,
+    background 0.35s ease;
+}
+
+.chance {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 0;
+  border-left: 2px dotted var(--ifm-font-color-base);
+  opacity: 0.6;
+}
+
+.caption {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+  margin: 1rem 0 0;
+  line-height: 1.5;
+}

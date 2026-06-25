@@ -1,0 +1,73 @@
+---
+slug: open-music-generators-controllability
+title: 'The best-sounding open-source music generator is also the only one you can steer'
+description: 'We re-ranked three open-source music generators on a wider metric stack, then checked whether they actually hit a requested tempo and key. The same model wins both.'
+authors: [tony, deep, ali]
+tags: [ml-research, music-generation, evaluation]
+date: 2026-06-25
+---
+
+import AdherenceDiagram from './AdherenceDiagram';
+import RadarDiagram from './RadarDiagram';
+
+Ask an open-source music model for "a lo-fi hip-hop beat at 90 BPM in the key of C major" and you get back something that sounds like lo-fi hip-hop. Whether it is actually at 90 BPM, or in C major, is a different question. Our lab measured it across three open instrumental generators, and the answer separates them more than sound quality does.
+
+<!--truncate-->
+
+> **Quick summary.** A recent vendor report ranks three open-source instrumental music generators by audio quality, using two metrics from one model family. We re-ranked the same three models, Stable Audio 3 Medium, ACE-Step 1.5, and DiffRhythm 2, on a wider stack of nine metrics, and the reported winner (Stable Audio 3) holds up: it places first on all nine, including metrics built on completely different models. Then we tested something the quality scores never check, whether a model obeys an explicit tempo and key. Here the three models split apart. Stable Audio 3 hits the requested tempo on 61% of clips and the exact key on 64%. ACE-Step sits at chance on key and barely above it on tempo. That controllability gap is the one that matters for real work, and it is invisible to the benchmarks these reports use. One honest limit up front: every number here is an automated score, not a human listening test, which is the study's main caveat.
+
+## Why this is worth measuring
+
+Text-to-music models are usually ranked in their own technical reports with two scores: Fréchet Audio Distance, which measures how close a batch of generated clips sits to a batch of real recordings, and a CLAP score, which uses a separate model to rate how well audio matches its text prompt. Both are normally computed with the same audio encoder.
+
+That sets up a fair worry. If a model was trained to score well on one particular CLAP model, and you then grade it with that same CLAP model, you are testing it on the rubric it studied for. The score can flatter it on the exact metric used to crown it. So when a vendor report says its model wins, the first honest question is whether the win comes from the audio or from the metric.
+
+The second question is the one the reports skip entirely. A music model is useful in a real pipeline when you can tell it what to make: this tempo, this key, so it slots under a vocalist or cuts to a video. None of FAD, CLAP, or the usual quality scores check whether the model did what it was told.
+
+We took both questions to three models a recent report compares, and built them as a finding-oriented evaluation rather than a leaderboard.
+
+## Finding 1: the quality win survives a harder test
+
+To check whether the reported ranking depends on the metric, we re-scored all three models on nine metrics instead of two. The set deliberately spans different model families so they cannot all share one blind spot: Kernel Audio Distance (a newer distribution score that is less biased than FAD on small reference sets and tracks human ratings better), an extrapolated FAD, the vendor CLAP score, Audiobox Aesthetics (a quality model trained directly on human ratings), and MuQ-MuLan (an audio-text matching model independent of CLAP). We ran each on 395 instrumental prompts from the Song Describer Dataset, generating one clip per model per prompt, and compared against 329 real reference tracks.
+
+Stable Audio 3 places **first on all nine metrics**. On the distribution scores, which compare the whole batch of generated clips against the whole batch of real recordings, the lead is wide: its scores do not overlap either competitor even after bootstrap resampling, a standard way to check the gap is not a fluke. On the per-clip quality scores the three models are closer, and Stable Audio 3 still comes out ahead. As a sanity check, our vendor CLAP score for Stable Audio 3 came out at 0.395, almost exactly the 0.390 in the original report, so the harness is measuring what theirs measured.
+
+<RadarDiagram />
+
+The shared-encoder version of that worry did not hold up. If the CLAP model were quietly inflating Stable Audio 3, its lead should shrink on the metrics that do not use it. It does not. On Kernel Audio Distance measured with an independent music model, Stable Audio 3's score is 4.1 times smaller than DiffRhythm 2's, a wider margin than the 2.4 times it shows on the CLAP model it supposedly benefits from. On MuQ-MuLan, a different model again, it leads by more than double the runner-up. The ranking holds, and an independent stack confirms it rather than overturning it. That rules out the shared-encoder explanation. It does not prove the metrics track what a human would hear, which is a separate limit we come back to.
+
+## Finding 2: only one model follows directions
+
+Quality is the axis these reports measure, and on it the three models are closer than the headline suggests: on Audiobox quality the gap between first and third is small. So we asked what actually separates them.
+
+We wrote 240 prompts that each name an explicit target: six styles, five tempos from 70 to 150 BPM, and eight keys. The prompt is the ground truth. Then we generated all 240 with each model, estimated the tempo and key from the audio, and scored each clip against what was asked. Try it:
+
+<AdherenceDiagram />
+
+The three models diverge sharply. Stable Audio 3 lands the requested tempo within 4% on 61% of clips and the exact key on 64%. The key detector we use itself tops out around 72%, so 64% is close to the most this measurement can show. DiffRhythm 2 follows tempo about a third of the time and key rarely. ACE-Step is statistically at chance: its exact-key rate of 0.067 is within noise of the 0.042 you would get by guessing uniformly among the 24 keys. It makes coherent music. It just does not condition on the tempo and key you typed.
+
+The ranking, Stable Audio 3 well ahead of DiffRhythm 2, then ACE-Step, is the same on every adherence measure, and it holds up under repetition. We regenerated all 240 prompts three times with different seeds. The three-seed averages, 58% tempo and 62% key for Stable Audio 3, sit within a point or two of the single run, and the model-to-model gaps (0.19 to 0.50) dwarf the run-to-run variation (0.01 to 0.03). The order is not down to which seeds we happened to use.
+
+## What we had to double-check (the useful part)
+
+Two results only became trustworthy after we tried to break them.
+
+The first subset we built leaked. An early keyword filter for "instrumental" captions let about 21 vocal descriptions slip through ("female singers", "male rapping"). Those clips do not belong in an instrumental evaluation, and they were dragging down the two lower-ranked models. We wrote a stricter filter, released it as code, and re-ran the entire stack on the clean 395-clip set. The ranking did not change, and Stable Audio 3 barely moved. Removing the leaks improved the two other models enough to break a near-tie between them: on the clean set DiffRhythm 2 is clearly second, where the messy set had it level with ACE-Step. The top of the ranking survived the cleanup, and the filter that produced the clean set ships as code anyone can rerun.
+
+The per-style numbers also needed the seed check. On a single run, Stable Audio 3 hit 95% on jazz tempo, which reads like near-perfect control. Across three seeds the honest figure is 84% give or take 8 points; the 95% was a favorable draw. The pattern (tempo control is strongest on the styles with a clear beat, like jazz and lo-fi) holds, but that specific cell was noisier than one run showed.
+
+## Where this does not reach
+
+The biggest limit is that every number here is an automated proxy for human judgment. We did not run a listening test. The metrics we chose carry published evidence that they track human preference better than FAD does, and the three quality metrics come from independent model families, so they are not all measuring the same thing. But we have no direct human rating on these three models, so Finding 1 rests on agreement among metrics rather than on ears. A listening test, which would also let us measure how well each metric predicts human preference on this exact audio, is the first thing we would add next.
+
+The tempo and key estimators also have their own ceilings, around 0.85 and 0.72, so the adherence rates are lower bounds for every model equally. And ACE-Step exposes separate, structured tempo and key controls that we did not use on purpose. Finding 2 measures obedience to a plain text prompt, which is how most people will actually drive these models, not the best score ACE-Step could post with its own control inputs.
+
+## Takeaways
+
+- **The vendor ranking held up across independent metric families, not just the one it was scored on.** Re-scoring on nine metrics from different model families, including ones the model was not trained against, left Stable Audio 3 first on all of them. That answers the shared-encoder worry, not whether the metrics match human ears.
+- **Quality is converging; control is not.** The open instrumental generators sound close on raw quality. Whether they hit a requested tempo and key splits the best and worst of the three by nearly an order of magnitude.
+- **If a constraint is the point, choose the model on control, not on the leaderboard.** For a track that has to sit at a specific tempo for video or in a specific key for a vocalist, Stable Audio 3 is, of the three open generators we tested, currently the only one that reliably delivers from a text prompt. That axis is exactly what standard FAD and CLAP rankings omit.
+
+---
+
+_Paper and the full reproducibility package (prompts, the instrumental filter, seeds, and the exact recipe) are coming soon. Built on three open models we did not train: Stable Audio 3 Medium, ACE-Step 1.5, and DiffRhythm 2; evaluated on the Song Describer Dataset._

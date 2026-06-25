@@ -1,0 +1,73 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: transparent;
+  color: var(--ifm-color-emphasis-700);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.button:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.active {
+  font-weight: 600;
+}
+
+.swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.svg {
+  width: 100%;
+  max-width: 420px;
+  display: block;
+  margin: 0 auto;
+}
+
+.ring {
+  fill: none;
+  stroke: var(--ifm-color-emphasis-300);
+  stroke-width: 1;
+}
+
+.spoke {
+  stroke: var(--ifm-color-emphasis-300);
+  stroke-width: 1;
+}
+
+.axisLabel {
+  fill: var(--ifm-color-emphasis-800);
+  font-size: 12px;
+}
+
+.caption {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+  margin: 0.75rem 0 0;
+  line-height: 1.5;
+}
