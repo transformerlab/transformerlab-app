@@ -11,6 +11,7 @@ export interface Paper {
   pdf: string; // filename in static/papers/ ("" if not uploaded yet)
   tags?: string[]; // optional modality labels, e.g. ["3D", "LLM"]
   bibtex?: string; // optional verbatim BibTeX; auto-generated when absent
+  image?: string; // optional thumbnail filename in static/papers/icons/ (shown on the card)
 }
 
 /** Sort papers newest-first by `date` (string compare works for ISO-ish dates). */
@@ -45,6 +46,11 @@ export function formatDate(date: string): string {
 /** Public URL of a paper's hosted PDF (served from static/papers/). */
 export function pdfUrl(paper: Paper): string {
   return `/papers/${paper.pdf}`;
+}
+
+/** Public URL of a paper's thumbnail image, or null when none is set. */
+export function imageUrl(paper: Paper): string | null {
+  return paper.image ? `/papers/icons/${paper.image}` : null;
 }
 
 const BIBTEX_MONTHS = [

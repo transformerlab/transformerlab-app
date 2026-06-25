@@ -129,6 +129,41 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
+/* When a paper has a thumbnail, lay the card out as image + text column. */
+.cardWithImage {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.cardThumb {
+  flex: 0 0 180px;
+  width: 180px;
+  height: 135px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg-soft);
+}
+
+.cardBody {
+  /* Allow the abstract to truncate within the flex row instead of overflowing. */
+  min-width: 0;
+  flex: 1;
+}
+
+@media (max-width: 600px) {
+  .cardWithImage {
+    flex-direction: column;
+  }
+
+  .cardThumb {
+    flex-basis: auto;
+    width: 100%;
+    height: 180px;
+  }
+}
+
 .cardTitle {
   font-size: 1.35rem;
   font-weight: 600;

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import Link from '@docusaurus/Link';
-import { type Paper, sortByDateDesc, formatDate } from './types';
+import { type Paper, sortByDateDesc, formatDate, imageUrl } from './types';
 import styles from './papers.module.css';
 
 const ABSTRACT_PREVIEW_CHARS = 280;
@@ -130,28 +130,45 @@ export default function PaperList({
           </button>
         </p>
       ) : (
-        visible.map((paper) => (
-          <Link
-            key={paper.slug}
-            to={`/papers/${paper.slug}`}
-            className={styles.card}
-          >
-            <h2 className={styles.cardTitle}>{paper.title}</h2>
-            <p className={styles.meta}>
-              <span className={styles.authors}>{paper.authors.join(', ')}</span>
-              <span className={styles.dot}>·</span>
-              <span>{formatDate(paper.date)}</span>
-              {paper.tags?.map((tag) => (
-                <span key={tag} className={styles.tag}>
-                  {tag}
-                </span>
-              ))}
-            </p>
-            <p className={styles.abstract}>
-              {truncate(paper.abstract, ABSTRACT_PREVIEW_CHARS)}
-            </p>
-          </Link>
-        ))
+        visible.map((paper) => {
+          const image = imageUrl(paper);
+          return (
+            <Link
+              key={paper.slug}
+              to={`/papers/${paper.slug}`}
+              className={
+                image ? `${styles.card} ${styles.cardWithImage}` : styles.card
+              }
+            >
+              {image && (
+                <img
+                  className={styles.cardThumb}
+                  src={image}
+                  alt=""
+                  loading="lazy"
+                />
+              )}
+              <div className={styles.cardBody}>
+                <h2 className={styles.cardTitle}>{paper.title}</h2>
+                <p className={styles.meta}>
+                  <span className={styles.authors}>
+                    {paper.authors.join(', ')}
+                  </span>
+                  <span className={styles.dot}>·</span>
+                  <span>{formatDate(paper.date)}</span>
+                  {paper.tags?.map((tag) => (
+                    <span key={tag} className={styles.tag}>
+                      {tag}
+                    </span>
+                  ))}
+                </p>
+                <p className={styles.abstract}>
+                  {truncate(paper.abstract, ABSTRACT_PREVIEW_CHARS)}
+                </p>
+              </div>
+            </Link>
+          );
+        })
       )}
     </div>
   );
