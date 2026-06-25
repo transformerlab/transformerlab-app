@@ -68,8 +68,8 @@ const BUILDS: Build[] = [
 
 const X_MIN = 12;
 const X_MAX = 25;
-const Y_MIN = 0.87;
-const Y_MAX = 0.93;
+const Y_MIN = 0.85;
+const Y_MAX = 0.92;
 const W = 640;
 const H = 360;
 const PAD = { l: 58, r: 16, t: 18, b: 46 };
@@ -84,7 +84,7 @@ function sy(score: number): number {
 export default function ParetoExplorer(): JSX.Element {
   const [sel, setSel] = useState(0);
   const capX = sx(24);
-  const yTicks = [0.87, 0.88, 0.89, 0.9, 0.91, 0.92, 0.93];
+  const yTicks = [0.85, 0.86, 0.87, 0.88, 0.89, 0.9, 0.91, 0.92];
   const xTicks = [12, 14, 16, 18, 20, 22, 24];
 
   return (
