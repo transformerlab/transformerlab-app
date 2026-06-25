@@ -109,7 +109,9 @@ export function toBibtex(paper: Paper, siteUrl: string): string {
   const [year, month] = paper.date.split('-');
   const url = `${siteUrl.replace(/\/$/, '')}/papers/${paper.slug}`;
   const fields: [string, string][] = [
-    ['author', escapeBibtex(paper.authors.join(' and '))],
+    // BibTeX separates authors with the literal " and " keyword; escape each
+    // name individually so the separator is never altered by the escaper.
+    ['author', paper.authors.map(escapeBibtex).join(' and ')],
     ['title', escapeBibtex(paper.title)],
     ['year', year],
   ];
