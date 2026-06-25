@@ -48,7 +48,8 @@
   border-radius: 8px;
   background: var(--ifm-color-emphasis-100);
   border: 1px solid var(--ifm-color-emphasis-200);
-  min-height: 9.5rem;
+  height: 20.5rem;
+  overflow: hidden;
 }
 .line {
   color: var(--ifm-color-emphasis-800);
