@@ -1,0 +1,58 @@
+.wrap {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  background: var(--ifm-background-surface-color);
+}
+.controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.controls button {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ifm-font-color-base);
+  cursor: pointer;
+}
+.controls button.active {
+  background: #3b6ea5;
+  color: white;
+  border-color: #3b6ea5;
+}
+.svg {
+  width: 100%;
+  height: auto;
+}
+.barEffect {
+  fill: #3b6ea5;
+}
+.barFrac {
+  fill: #c0504d;
+}
+.val {
+  font-size: 12px;
+  fill: var(--ifm-font-color-base);
+  font-weight: 600;
+}
+.lbl {
+  font-size: 12px;
+  fill: var(--ifm-color-emphasis-700);
+}
+.axis {
+  font-size: 12px;
+  fill: var(--ifm-color-emphasis-700);
+}
+.thr {
+  font-size: 10px;
+  fill: #c0504d;
+}
+.caption {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+  margin: 0.5rem 0 0;
+}

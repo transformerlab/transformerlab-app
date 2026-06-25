@@ -1,0 +1,189 @@
+---
+slug: what-steers-the-search-in-rl-symbolic-regression
+title: 'When an AI searches for the equation behind your data, one dial steers it'
+authors: [ali, deep, tony]
+tags: [ml-research, reinforcement-learning, symbolic-regression, ai-for-science]
+date: 2026-06-23
+---
+
+import LambdaFrontierDiagram from './LambdaFrontierDiagram';
+import ClipToggleDiagram from './ClipToggleDiagram';
+
+_Our lab trained a model to rediscover physics equations from raw data. We wanted to know
+which training dial actually controls how hard it searches. The simplicity penalty does. A
+popular clipping knob barely does._
+
+Picture a table of numbers. One column is how far a pendulum swings, another is how long each
+swing takes, and a third is the answer you care about. Somewhere behind those numbers is a
+short formula that produced them. A human physicist might stare at the table and guess that
+the swing time grows with the square root of the pendulum's length. The goal of this project
+was to get a machine to make that kind of guess on its own: read the data, propose a compact
+equation, and check whether it matches the law that really generated the numbers.
+
+<!--truncate-->
+
+That task has a name. It is called **symbolic regression**: instead of fitting a black-box
+model that just predicts well, you search for an actual readable formula. It is one of the
+most literal versions of "AI for science," because the output is a law a person can read,
+not a pile of weights.
+
+## Quick summary
+
+Our lab post-trained a small model with **reinforcement learning** (the model proposes an
+equation, gets a score, and updates itself to score higher next time) to do symbolic
+regression on the Feynman equations, a standard set of about 100 physics formulas. We say the
+model **recovered** a law when it wrote the actual correct formula, not merely one that fits
+the numbers. We wanted to know what the training objective controls. The answer: the
+**simplicity penalty**, a single dial that punishes long equations, is clean. Turn it up and
+the model searches less widely and writes shorter equations, in a smooth, predictable way.
+The **clipping** knob from modern reinforcement-learning recipes, the one people reach for to
+encourage exploration, did almost nothing to the search. Removing clipping altogether did
+break training, so some of it is load-bearing, but the _amount_ did not steer anything. On
+raw score the model recovered about 1 in 5 of the laws (0.205), in the same range as an older
+reinforcement-learning method (0.308) and well behind the strong classical tool PySR (0.615),
+so the contribution here is the mechanism, not a leaderboard win. Two honest caveats up front:
+the score swings a lot from run to run, and fitting the data well is not the same as finding
+the true formula.
+
+## Why you would care
+
+Reinforcement learning is everywhere in modern model training, and recipes like GRPO and
+DAPO (two popular reinforcement-learning training methods) ship with a handful of knobs that
+are supposed to control how much a model explores new options versus exploits what already
+works. Most of the time you cannot see exploration directly. You tune a knob, the final score
+wiggles, and you guess at why.
+
+Symbolic regression is a rare case where exploration is **visible**. Every equation the model
+writes is a discrete object you can count, measure the size of, and check for correctness. So
+this setting works as a clean test bench: you can watch a training knob and literally see
+whether the model started trying more kinds of equations or fewer. What we learned about which
+knobs matter is the part we hope transfers to other settings, though that is a hypothesis to
+test, not something this one study proves.
+
+## How the model gets a score
+
+The model writes an equation one piece at a time, like `+`, then `sin`, then a variable. For
+each finished equation, two things get measured and added into a single **reward** (the score
+the model is trained to raise):
+
+- **Fit**: how well the equation predicts held-out data points it was not fit on. Higher is
+  better.
+- **Parsimony**: a preference for short, simple equations. A giant tangled formula that
+  happens to fit the numbers is not a "law," so the reward docks points for size.
+
+So the reward is roughly `fit − λ·complexity`. It helps to keep two things separate here.
+**Parsimony** is the _principle_ — favor the shortest law that explains the data. **λ**
+(lambda), the **simplicity penalty**, is the _dial that enforces it_: a single number setting
+how steeply each extra piece of the equation costs the model. Crank λ up and the model is
+told, in effect, "keep it short," even when a longer formula would fit a little better. Set it
+to zero and the model is free to write sprawling expressions, as long as they match the data.
+That dial is the lever this whole study turns on.
+
+There is no human grader and no learned judge anywhere in this loop. The reward is computed
+exactly, by checking the equation against data and counting its parts. That makes it a clean
+place to study what the training objective does, because nothing fuzzy is in the way.
+
+## The simplicity penalty is a clean dial
+
+Drag the slider. As we raise the simplicity penalty, the model explores fewer distinct
+equation shapes and writes shorter formulas, smoothly and predictably.
+
+<LambdaFrontierDiagram />
+
+At `λ = 0` the model tried 144 different equation shapes over training; by `λ = 0.05` it tried
+3 (these counts are summed across three training runs). The average equation shrank from about
+7.7 parts to a single part. Recovery follows the same dial: it is best near `λ = 0`, where the
+final model recovers 0.205 of the laws, and falls to 0.13 once `λ` is pushed up to 0.05 and the
+model becomes too eager to keep things short. That is exactly the behavior you want from a
+control knob: turn it, and the search moves where you expect. This relationship held across
+three random seeds, which makes it the project's most solid result.
+
+## The clipping knob barely moves the search
+
+Modern recipes like DAPO include a trick called **clipping**: a safeguard that caps how far
+the model can shift in a single training step. DAPO loosens that cap in one direction on
+purpose, a move that is supposed to let the model reach for bolder equations. We expected that
+knob to matter. It did not.
+
+<ClipToggleDiagram />
+
+Widening the clipping knob across its whole range left recovery flat, and the same held under
+more than one training configuration. The model did not explore more or write different
+equations. There is one real catch worth keeping: if you remove clipping entirely, training
+breaks down. The model collapses to trivial expressions (a bare constant or a single variable,
+about 2 parts) and recovers nothing. So in our setup some clipping is needed to keep training
+stable, but the exact setting of the exploration dial people tune did not change the search.
+
+Put the two findings together: the simplicity penalty steers where the search lands, and the
+clipping degree does not. If you only had time to tune one of them, tune the penalty.
+
+## How the model actually scored
+
+The mechanism story is the point, but you should know how the model did. On the 13-equation
+held-out set, scored as a 3-seed average and using the same recovery definition for every
+method:
+
+| Method                                    | Laws recovered |
+| ----------------------------------------- | -------------- |
+| PySR (classical genetic-programming tool) | 0.615          |
+| DSR (older RL symbolic-regression method) | 0.308          |
+| **Ours (DAPO-trained policy, our model)** | **0.205**      |
+
+So the model is in the same range as the older reinforcement-learning baseline, and well
+behind the strong classical incumbent PySR. On a smaller, easier subset of 5 equations (the
+ones whose true formula is short enough to be tractable) its best configuration recovered 0.60
+of the laws. We are not claiming a new state of the art on recovery, and the comparison set is
+right there so you can see exactly where it stands.
+
+## What did not work (the useful part)
+
+Reinforcement learning here is genuinely noisy, and a few failures taught us a lot.
+
+- **The score swings a lot between runs.** A **seed** is one full rerun of the same recipe with
+  a different stream of randomness. The three seeds recovered 0.31, 0.23, and 0.08 of the laws.
+  The standard deviation is almost half the mean, so any single-seed result in this setting
+  would be unsafe to trust. That is why every number here is a three-seed average.
+- **A high fit score does not mean the right formula.** The model reached a near-perfect match
+  to held-out data (R² at least 0.999, where R² = 1 is perfect) on 0.282 of equations. But of
+  those, it wrote the wrong underlying formula 27% of the time (5 cases): the right numbers
+  from the wrong equation. Counting only formulas that are provably the true law, recovery is
+  0.103. Fit is a necessary filter, not proof of truth.
+- **Removing clipping broke training**, as the toggle above shows. That counts as a finding: it
+  separates "clipping needs to be present" from "the clipping amount is a useful dial." Only the
+  first held up.
+
+## Where it does not work
+
+The model has three clear blind spots, and they line up with how hard each equation is to
+search for.
+
+- **Trigonometry.** It never recovered a single equation built on `sin` or `cos` (0 out of 4),
+  even simple ones. It tends to substitute polynomial or exponential shapes instead. This looks
+  like a bias in which building blocks the model reaches for first.
+- **Long equations.** Every formula with 15 or more parts went unrecovered. The model's search
+  budget and maximum equation length cap out before it can reach them.
+- **More variables, much harder.** Recovery on three-variable equations was 0.07, against 0.56
+  on two-variable ones. The space of possible equations explodes as you add variables, and a
+  small model with a fixed budget does not keep up.
+
+## Takeaways
+
+- **When you can, make exploration observable.** Symbolic regression let us count distinct
+  equations and measure their size, so we could see a knob's effect instead of inferring it from
+  a final score. If your own setup has a countable notion of "how many different things did the
+  model try," instrument it.
+- **Tune the objective term that maps onto what you care about.** The simplicity penalty controls
+  simplicity directly and behaved like a clean dial. The clipping knob is an indirect,
+  optimization-side lever, and here it did not change search behavior.
+- **Separate "present" from "how much."** A setting can be necessary (training breaks without
+  clipping) while its exact value is irrelevant. Test both questions, not just one.
+- **In noisy reinforcement learning, report the spread.** A 0.31 single seed and a 0.08 single
+  seed came from the same recipe. The average with its spread is the honest number.
+
+## How we ran it
+
+The whole study ran on [Transformer Lab](https://transformerlab.ai) using a single mid-range
+A10 GPU, and it is cheap to reproduce because evaluating an equation is fast (a few dozen
+GPU-hours end to end, not a large training run). Code and artifacts are available on request.
+
+_Full paper: [Parsimony, Not the Clip: What Controls the Search in Reinforcement-Learning Symbolic Regression](/papers/parsimony-not-the-clip)._
