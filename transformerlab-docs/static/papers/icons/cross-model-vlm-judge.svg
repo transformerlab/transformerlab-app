@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 270" width="360" height="270" role="img" aria-label="3D, VISION">
+  <defs>
+    <linearGradient id="g" gradientTransform="rotate(340 0.5 0.5)">
+      <stop offset="0" stop-color="hsl(233 72% 56%)" />
+      <stop offset="1" stop-color="hsl(267 68% 46%)" />
+    </linearGradient>
+    <radialGradient id="v" cx="0.3" cy="0.25" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16" />
+      <stop offset="1" stop-color="#000000" stop-opacity="0.14" />
+    </radialGradient>
+  </defs>
+  <rect width="360" height="270" fill="url(#g)" />
+  <line x1="244.0" y1="170.0" x2="244.0" y2="106.0" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.5" />
+  <line x1="180.0" y1="138.0" x2="180.0" y2="74.0" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.5" />
+  <line x1="116.0" y1="170.0" x2="116.0" y2="106.0" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.5" />
+  <line x1="180.0" y1="74.0" x2="244.0" y2="106.0" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.7" />
+  <line x1="180.0" y1="74.0" x2="116.0" y2="106.0" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.7" />
+  <line x1="244.0" y1="106.0" x2="180.0" y2="138.0" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.7" />
+  <line x1="116.0" y1="106.0" x2="180.0" y2="138.0" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.7" />
+  <line x1="180.0" y1="138.0" x2="244.0" y2="170.0" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.4" />
+  <line x1="180.0" y1="138.0" x2="116.0" y2="170.0" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.4" />
+  <rect width="360" height="270" fill="url(#v)" />
+</svg>
