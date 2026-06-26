@@ -69,7 +69,8 @@ _RUNPOD_GPU_NAME_MAP: Dict[str, str] = {
     "RTX4000": "NVIDIA RTX 4000 Ada Generation",
     "RTX2000": "NVIDIA RTX 2000 Ada Generation",
     # AMD Instinct (ROCm). Launching these requires a ROCm container image, not
-    # the default CUDA image — see _is_amd_gpu_id / _default_image_for_gpu below.
+    # the default CUDA image — see _is_amd_gpu_id and the image selection in
+    # launch_cluster().
     "MI300X": "AMD Instinct MI300X OAM",
 }
 
