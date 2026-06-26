@@ -22,7 +22,7 @@ Text-to-music models are usually ranked in their own technical reports with two 
 
 That sets up a fair worry. If a model was trained to score well on one particular CLAP model, and you then grade it with that same CLAP model, you are testing it on the rubric it studied for. The score can flatter it on the exact metric used to crown it. So when a vendor report says its model wins, the first honest question is whether the win comes from the audio or from the metric.
 
-The second question is the one the reports skip entirely. A music model is useful in a real pipeline when you can tell it what to make: this tempo, this key, so it slots under a vocalist or cuts to a video. None of FAD, CLAP, or the usual quality scores check whether the model did what it was told.
+The second question is the one the reports skip entirely, and how much it matters depends on what you do with the output. If you just want a finished one-shot to listen to, a quick pop song, the model can choose its own tempo and key and you take what you get. But if you are pulling generated loops, samples, or instrumental stems into a track you are already building, each one has to land in your project's tempo and key, or it will not sit with the other parts. There, hitting the requested tempo and key is not a nicety. It is the whole point. None of FAD, CLAP, or the usual quality scores check whether the model did what it was told.
 
 We took both questions to three models a recent report compares, and built them as a finding-oriented evaluation rather than a leaderboard.
 
