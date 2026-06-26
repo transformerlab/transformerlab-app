@@ -227,12 +227,14 @@ const MOTIFS = {
   '3D': motifCube,
   RAG: motifGraph,
   AUDIO: motifWave,
+  SEISMOLOGY: motifWave, // seismograms read like waveforms too
   LLM: motifTokens,
 };
 const PRIORITY = [
   'INTERPRETABILITY',
   '3D',
   'AUDIO',
+  'SEISMOLOGY',
   'RAG',
   'VISION',
   'SYSTEMS',
@@ -241,8 +243,9 @@ const PRIORITY = [
 ];
 
 function pickMotif(tags = []) {
+  const up = tags.map((t) => t.toUpperCase());
   for (const key of PRIORITY) {
-    if (tags.includes(key)) return MOTIFS[key];
+    if (up.includes(key)) return MOTIFS[key];
   }
   return motifDots;
 }
