@@ -78,9 +78,9 @@ export default function PositionalDiagram() {
               strokeDasharray="4 3"
             />
             <text
-              x={W - 24}
+              x={PAD_L + 4}
               y={thrY - 5}
-              textAnchor="end"
+              textAnchor="start"
               className={styles.thr}
             >
               load-bearing threshold (1 nat)
