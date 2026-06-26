@@ -106,39 +106,6 @@ updates:
       - dependency-name: '@teamsupercell/typings-for-css-modules-loader'
         update-types: ['version-update:semver-major']
 
-  # Docs site (Docusaurus, managed with yarn classic — dependabot's npm ecosystem auto-detects yarn.lock)
-  # Build runs on Node 22 via transformerlab-docs/netlify.toml. Major bumps are ignored across
-  # the board (manual coordination needed); minor/patch updates flow through for security.
-  - package-ecosystem: 'npm'
-    directory: '/transformerlab-docs'
-    schedule:
-      interval: 'weekly'
-      day: 'monday'
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: 'docs-deps'
-      include: 'scope'
-    labels:
-      - 'dependencies'
-      - 'docs'
-    groups:
-      docusaurus:
-        patterns:
-          - '@docusaurus/*'
-          - '@mdx-js/*'
-      react:
-        patterns:
-          - 'react'
-          - 'react-dom'
-      minor-and-patch:
-        update-types:
-          - 'minor'
-          - 'patch'
-    ignore:
-      # Major bumps on docs deps need manual coordination; minor/patch is enough for security.
-      - dependency-name: '*'
-        update-types: ['version-update:semver-major']
-
   # API (FastAPI, managed with uv)
   - package-ecosystem: 'uv'
     directory: '/api'
