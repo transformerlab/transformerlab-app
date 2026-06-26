@@ -125,18 +125,30 @@ _LAMBDA_STATE_TO_CLUSTER_STATE = {
 _GPU_INSTANCE_TYPE_MAP: Dict[tuple, str] = {
     ("A10", 1): "gpu_1x_a10",
     ("A100", 1): "gpu_1x_a100",
+    ("A100", 2): "gpu_2x_a100",
+    ("A100", 4): "gpu_4x_a100",
     ("A100", 8): "gpu_8x_a100",
     ("A100-SXM4", 1): "gpu_1x_a100_sxm4",
     ("A100-80GB", 8): "gpu_8x_a100_80gb_sxm4",
     ("A6000", 1): "gpu_1x_a6000",
     ("A6000", 2): "gpu_2x_a6000",
     ("A6000", 4): "gpu_4x_a6000",
+    # Bare "H100:1" is PCIe (the only single-GPU H100 Lambda sells); multi-GPU
+    # H100 is SXM5-only. Keep bare "H100" aliases for 2x/4x/8x (resolution
+    # convenience) alongside the explicit "H100-SXM5" keys, which stay last so
+    # they win in the reverse instance-type lookup.
     ("H100", 1): "gpu_1x_h100_pcie",
-    ("H100-SXM5", 1): "gpu_1x_h100_sxm5",
+    ("H100", 2): "gpu_2x_h100_sxm5",
+    ("H100", 4): "gpu_4x_h100_sxm5",
     ("H100", 8): "gpu_8x_h100_sxm5",
+    ("H100-SXM5", 1): "gpu_1x_h100_sxm5",
+    ("H100-SXM5", 2): "gpu_2x_h100_sxm5",
+    ("H100-SXM5", 4): "gpu_4x_h100_sxm5",
     ("H100-SXM5", 8): "gpu_8x_h100_sxm5",
-    ("H200", 8): "gpu_8x_h200",
-    ("B200", 8): "gpu_8x_b200",
+    ("B200", 1): "gpu_1x_b200_sxm6",
+    ("B200", 2): "gpu_2x_b200_sxm6",
+    ("B200", 4): "gpu_4x_b200_sxm6",
+    ("B200", 8): "gpu_8x_b200_sxm6",
     ("V100", 8): "gpu_8x_v100",
     ("RTX6000", 1): "gpu_1x_rtx6000",
     ("GH200", 1): "gpu_1x_gh200",

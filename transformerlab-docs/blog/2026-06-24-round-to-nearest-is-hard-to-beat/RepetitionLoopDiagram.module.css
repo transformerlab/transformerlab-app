@@ -1,0 +1,117 @@
+.wrap {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 1.75rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.9rem;
+}
+
+.meter {
+  margin-bottom: 0.8rem;
+}
+.meterLabel {
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 0.3rem;
+  font-variant-numeric: tabular-nums;
+}
+.capText {
+  color: var(--ifm-color-danger);
+}
+.track {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--ifm-color-emphasis-200);
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  border-radius: 6px;
+  background: var(--ifm-color-primary);
+  transition: width 0.22s linear;
+}
+.fillCapped {
+  background: var(--ifm-color-danger);
+}
+
+.transcript {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  height: 20.5rem;
+  overflow: hidden;
+}
+.line {
+  color: var(--ifm-color-emphasis-800);
+  white-space: pre;
+}
+.ellipsis {
+  color: var(--ifm-color-emphasis-500);
+  font-style: italic;
+  margin: 0.2rem 0;
+}
+.loopLine {
+  color: var(--ifm-color-danger);
+  white-space: pre;
+}
+.stamp {
+  margin-top: 0.6rem;
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ifm-color-danger);
+  border: 2px dashed var(--ifm-color-danger);
+  padding: 0.25rem 0.6rem;
+  border-radius: 8px;
+}
+
+.controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+.ctrl {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-emphasis-800);
+  cursor: pointer;
+}
+.ctrl:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.tally {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--ifm-color-emphasis-800);
+}
+.tallyBig {
+  font-weight: 700;
+  color: var(--ifm-color-danger);
+}
+
+.caption {
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed var(--ifm-color-emphasis-200);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--ifm-color-emphasis-800);
+}

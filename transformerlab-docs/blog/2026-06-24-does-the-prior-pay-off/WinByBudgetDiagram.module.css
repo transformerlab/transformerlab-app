@@ -1,0 +1,92 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  padding: 1.1rem 1.2rem;
+  margin: 1.4rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.button {
+  cursor: pointer;
+  border: 1px solid var(--ifm-color-primary);
+  background: transparent;
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+.button:hover {
+  background: var(--ifm-color-primary);
+  color: #fff;
+}
+
+.budget {
+  margin-left: auto;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 9rem 1fr 2.6rem;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0.5rem 0;
+}
+
+.label {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.track {
+  height: 1.4rem;
+  background: var(--ifm-color-emphasis-200);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 7px;
+  transition:
+    width 0.6s ease,
+    background 0.6s ease;
+}
+
+.value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+.note {
+  margin: 0.9rem 0 0.3rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.caption {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 6.5rem 1fr 2.4rem;
+  }
+  .label {
+    font-size: 0.78rem;
+  }
+}

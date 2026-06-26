@@ -1,0 +1,137 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.button {
+  display: inline-block;
+  border: 1px solid var(--ifm-color-primary);
+  background: var(--ifm-color-primary);
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+.button:hover {
+  opacity: 0.9;
+}
+
+.plot {
+  position: relative;
+  height: 220px;
+  border-left: 1px solid var(--ifm-color-emphasis-300);
+}
+
+.zeroLine {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--ifm-color-emphasis-500);
+}
+.zeroLabel {
+  position: absolute;
+  right: 0;
+  top: -1.2rem;
+  font-size: 0.72rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+}
+
+.barCol {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 80px;
+}
+.barTop {
+  height: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+.barBottom {
+  height: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.bar {
+  width: 46px;
+  border-radius: 4px;
+  position: relative;
+}
+.pos {
+  background: var(--ifm-color-primary);
+}
+.neg {
+  background: #d9534f;
+}
+
+.barVal {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pos .barVal {
+  top: -1.2rem;
+  color: var(--ifm-color-primary);
+}
+.neg .barVal {
+  bottom: -1.2rem;
+  color: #d9534f;
+}
+
+.barLabel {
+  position: absolute;
+  bottom: -1.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.72rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.meanLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px solid var(--ifm-color-emphasis-800);
+}
+.meanLabel {
+  position: absolute;
+  left: 0;
+  top: -1.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.note {
+  margin-top: 1.75rem;
+  font-size: 0.92rem;
+}
+.caption {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-600);
+  font-style: italic;
+}
