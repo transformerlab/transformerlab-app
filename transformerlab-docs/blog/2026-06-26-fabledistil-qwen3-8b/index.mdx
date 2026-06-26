@@ -11,7 +11,7 @@ import NllToggleDiagram from './NllToggleDiagram';
 
 Our lab took a static dump of Fable 5's coding-agent traces, its step-by-step reasoning and tool calls, and trained a small open model to imitate it. On held-out sessions the student's next-step perplexity (how surprised it is by the teacher's real continuation, lower is better) dropped by half. Its general coding and math ability barely moved, with one small exception we cover below.
 
-{/* truncate */}
+<!--truncate-->
 
 :::tip Quick summary
 
@@ -42,7 +42,7 @@ The base model is already decent at tool calls and worse at the free-text reason
 
 ## The result we were most worried about
 
-Training a small model hard on one narrow skill often costs it others. The literature on chain-of-thought distillation reports exactly this, a base model that gets worse elsewhere after fine-tuning. So we measured two things the traces never taught: HumanEval (writing standalone Python functions) and GSM8K (grade-school math word problems).
+Training a small model hard on one narrow skill often costs it others. The literature on chain-of-thought distillation reports exactly this, a base model that gets worse elsewhere after fine-tuning. So we measured three things the traces never taught: HumanEval and MBPP (writing standalone Python functions) and GSM8K (grade-school math word problems).
 
 Mostly held. HumanEval went from 0.87 to 0.86 and GSM8K stayed at 0.92, both within run-to-run noise at 100 problems. MBPP dropped more, from 0.85 to 0.79, which is a real if small cost. So the model got much better at imitating the agent and gave up a little on one code benchmark, not nothing. We think the small cost comes from a gentle update: a low-rank adapter, two epochs, clean data. It nudges the model toward the teacher's behavior instead of overwriting what it already knew.
 
