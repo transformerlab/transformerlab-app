@@ -11,7 +11,7 @@ import SeedTrapDiagram from './SeedTrapDiagram';
 
 _We built a very small neural network, a program that learns from examples, that reads earthquake recordings and marks when the shaking starts. It does that job as well as the big standard tools._
 
-> **Quick summary:** When an earthquake happens, a sensor records two bumps: a small early one (the P wave) and a bigger later one (the S wave). Software has to mark exactly when each one arrives. The popular tools for this are large neural networks. We trained a tiny one instead, with about 34,000 parameters (the values a network learns). We tested it carefully so it could not peek at the answers. It scored 0.76 out of a possible 1.0, where higher is better. A standard model called PhaseNet scored 0.64, and it is about 8 times bigger. One simple change to how we trained our model was the key. We also tested self-supervised pretraining, a popular method where a model first studies lots of unlabeled recordings before training on the few labeled ones. It did not actually help here, and one lucky test run made it look like it did.
+> **Quick summary:** When an earthquake happens, a sensor records two bumps: a small early one (the P wave) and a bigger later one (the S wave). Software has to mark exactly when each one arrives. The popular tools for this are large neural networks. We trained a tiny one instead, with about 34,000 parameters (the values a network learns). We tested it carefully so it could not peek at the answers. It scored 0.76 out of a possible 1.0, where higher is better. A standard model called PhaseNet scored 0.64, and it is about 8 times bigger. One simple change to how we trained our model was the key. We also tested self-supervised pretraining, a popular method where a model first studies lots of unlabeled recordings before training on the few labeled recordings. It did not actually help here, and one lucky test run made it look like it did.
 
 <!--truncate-->
 
@@ -29,7 +29,7 @@ We wanted to drop both habits at once and ask a simple question. How small can a
 
 ## A fair test, and a small model
 
-We used a public collection called STEAD: about 1.2 million earthquake recordings, each one already marked by a human expert with the true arrival times. We split it so that every earthquake goes entirely into either the practice set or the test set, never both. That way the test has no sneaky copies. We only count a pick as correct if it lands within a tenth of a second of the true P arrival, or two tenths of a second for the slower S wave.
+We used a public collection called STEAD: about 1.2 million earthquake recordings, each one already marked by a human expert with the true arrival times. We split it so that every earthquake goes entirely into either the practice set or the test set, never both. That way the test has no sneaky copies. We only count a pick as correct if it lands within a tenth of a second of the true P arrival, or two tenths of a second for the slower S wave. The score we report throughout is an F1 score on a 0-to-1 scale, where 1 is perfect. It rewards the model for marking each arrival at the right instant: catching the real P and S onsets while not crying wolf on quiet stretches.
 
 Our model is a small network with 33,610 parameters. That is tiny by today's standards, small enough to run on an ordinary computer without special hardware.
 
@@ -59,7 +59,7 @@ The likely reason is that our carefully trained small model already does well wi
 
 ## Where it does not work
 
-The model has real limits. How well it does depends mostly on how far away the earthquake is. For nearby quakes it scores 0.93. For ones more than 150 kilometers away, where the signal is faint, it drops to 0.38 (measured on only 54 far-away quakes, so that number is rough). It also raises false alarms on quiet data: when there is no earthquake at all, it still calls a P pick 69 percent of the time and an S pick 51 percent of the time. In a real system you would put a separate earthquake-detection step in front of it to catch those false alarms. Our score measures picking inside a clip that already has a quake in it, not finding the quake from scratch.
+The model has real limits. How well it does depends mostly on how far away the earthquake is. For nearby quakes it scores 0.93. For quakes more than 150 kilometers away, where the signal is faint, it drops to 0.38 (measured on only 54 far-away quakes, so that number is rough). It also raises false alarms on quiet data: when there is no earthquake at all, it still calls a P pick 69 percent of the time and an S pick 51 percent of the time. In a real system you would put a separate earthquake-detection step in front of it to catch those false alarms. Our score measures picking inside a clip that already has a quake in it, not finding the quake from scratch.
 
 ## Takeaways
 
