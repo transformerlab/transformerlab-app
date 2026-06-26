@@ -1,0 +1,71 @@
+---
+slug: llm-decode-faster-coreml-mac
+title: 'Making a language model decode 3x faster on a MacBook Air'
+authors: [ali, tony, deep]
+tags: [ml-research, quantization, local-inference, on-device, apple-silicon]
+date: 2026-06-26
+---
+
+import QuantSchemeDiagram from './QuantSchemeDiagram';
+import ComputeUnitDiagram from './ComputeUnitDiagram';
+
+Our lab ran a small open language model on a plain MacBook Air, with no cloud. We tried the obvious tricks Apple gives you for making it fast. Most of them did not work. One plain one did, and it made the model decode about three times faster at the same quality.
+
+{/* truncate */}
+
+**Quick summary.** A language model is built from weights, the values it learns during training. It answers by decoding: generating the reply one word-piece (called a token) at a time. We converted SmolLM2-1.7B (a 1.7-billion-parameter language model built by Hugging Face) to Apple's on-device runtime, Core ML, and measured it on a 16 GB M3 MacBook Air. Storing each weight in 4 bits instead of 16 (plain 4-bit linear quantization), run on the GPU, generated 75.8 tokens per second against 23.8 for the original full-precision model. That is 3.2 times faster, in a model 3.3 times smaller, with no quality change we could measure on a small test. The two things we expected to help did not: Apple's Neural Engine never actually ran the model, and Apple's own weight-compression scheme, palettization, was slower at 4 bits than doing nothing. This is one model on one laptop with a small quality check. Treat the numbers as a careful case study.
+
+## Why you would care
+
+Running a language model on your own device, instead of sending every word to a server, keeps your data private and removes network lag. The price is that the model has to fit in the device's memory and run on its chips. On a Mac, Apple's Core ML runtime can send the work to three places: the CPU (the general-purpose processor), the GPU (the graphics chip, which is also good at this kind of math), and the Apple Neural Engine, a chip built specifically for neural networks. If you are a developer trying to ship an on-device feature, you want to know which chip to target and how to shrink the model without hurting its accuracy. The common advice is "use the Neural Engine, it is purpose-built" and "use palettization, Apple ships it for exactly this." We measured whether that advice holds.
+
+## Decode is the slow part
+
+A language model answers in two phases. First it reads your prompt (this is **prefill**, processing all the prompt words at once). Then it writes the answer one word-piece at a time (this is **decode**). Decode is usually what you feel as "slow," because the model has to read its entire set of weights from memory for every single token it writes. When a job is limited by how fast you can move data from memory rather than by math, we call it memory-bandwidth bound. This is the explanation we lean on later, not something we measured directly.
+
+## 4-bit linear quantization on the GPU tripled decode speed
+
+**Quantization** means storing each weight in fewer bits. The full-precision model keeps each weight in 16 bits; 4-bit quantization keeps it in 4, which makes the model about a quarter of the size and a quarter of the memory traffic to read. **Linear** quantization is the plain version: spread the values evenly across the available steps. We applied it after training, with no retraining and no extra data, using one function in Apple's `coremltools`.
+
+On the GPU, this was the clear winner. The diagram below shows decode speed for every scheme we tried. Only one of them is both fast and still produces correct text.
+
+<QuantSchemeDiagram />
+
+The 4-bit linear model decoded at 75.8 tokens per second against the full-precision model's 23.8, a 3.2 times speedup, and shrank from 3.2 GB to 0.96 GB. Quality held: on a fixed set of 120 multiple-choice questions, the same ones for every model (ARC-Easy, grade-school science questions), the 4-bit model got 88 right and the full-precision model got 87. That difference is a single question. With only 120 questions the test can only catch differences of about ten points, so the honest reading is "we could not measure any quality loss," not "proven identical." (To be precise, the 4-bit model is not bit-for-bit identical to the original; it matches the original's top choice on our checks and reads as fluent, which is what we are claiming.)
+
+The other schemes were fast on the chart but failed a correctness check, so their speed is beside the point. int8 quantization (8 bits per weight) ran at 46 tokens per second, yet its output came out garbled. The cause was a fixable mistake on our side, not a flaw in int8: we let the quantizer compress the model's shared input-and-output word table, which feeds straight into the predicted words and does not tolerate coarse compression. We report it as an honest negative result and did not retune it.
+
+## A default conversion never used the Neural Engine
+
+We asked Core ML to run the model on the Neural Engine, and the speed came out the same as running on the CPU alone: 20.7 tokens per second either way, while the GPU did 23.8. When asking for an accelerator gives you exactly the CPU's number, that is the signature of the work quietly falling back to the CPU. A default conversion never actually ran on the Neural Engine.
+
+<ComputeUnitDiagram />
+
+There is a real reason a default conversion avoids it. Prior research on the Neural Engine reports that it is built for fixed-shape 16-bit math and converts low-bit weights back to 16 bits before computing. If so, 4-bit quantization saves the Neural Engine no work, while on the memory-bound GPU the smaller weights directly mean less to read and faster decoding. We did not hand-build a Neural-Engine-specific version of the model, so the honest claim is narrow: a default conversion will not use the Neural Engine on this device, not that the Neural Engine could never help.
+
+## Palettization was slower than doing nothing
+
+**Palettization** is Apple's built-in compression that replaces the weights with a small codebook (a short list) of shared values. It is the scheme Apple's tooling promotes for on-device models, so we expected it to win. It lost twice over. First, like int8, the palettized models came out incoherent under the same quantize-the-shared-table mistake, so we would not ship them regardless of speed. Second, even their speed was bad: the 4-bit palettized model decoded at 10.8 tokens per second, slower than doing nothing (23.8), and far slower than the 4-bit linear model that did stay correct (75.8).
+
+We do not fully understand the speed. One oddity is that the 3-bit palettized model (25.1 tokens per second) was faster than the 4-bit one (10.8), which a simple "looking things up in a codebook is slow" story does not explain. Both were broken anyway, so we report the numbers plainly and stop there: on the GPU, palettization did not beat plain linear quantization, and its 4-bit setting was slower than the original.
+
+## Where this does not hold
+
+We tested one model on one laptop, so treat the numbers as a case study. The quality check was a single 120-question test, which is too small to confirm a tight quality guarantee. It only failed to find a problem.
+
+Our 3.2x is measured against Apple's own full-precision Core ML model. A different on-device toolkit, Apple's MLX, ran the same full-precision model a little faster, at 25.6 tokens per second. Measured against that starting line the speedup is about 3.0x, and we did not benchmark a 4-bit model in MLX, so we are not claiming our model beats every alternative. The win we are confident about is inside Core ML.
+
+Our decode numbers also come from a microbenchmark, not a full conversation. The timing model runs a single decode step at a fixed position, which captures the per-step cost but not a long, growing context. The speed and the correctness numbers also come from two slightly different converted models, which is why we describe the speed as a per-step measurement.
+
+The model we actually wanted to ship, a 7-billion-parameter one, would not even convert on a 16 GB machine. The conversion step ran out of memory and disk, even though the finished 4-bit model would have fit. We will retry it on a machine with more memory.
+
+## Takeaways
+
+If you are putting a small language model on a Mac with Core ML:
+
+- Quantize the weights to 4 bits with plain linear quantization, and run on the GPU. That was the only configuration that was both fast and correct.
+- Do not expect a default conversion to use the Neural Engine. It quietly ran on the CPU for us. Prior research also reports that the Neural Engine gains little from quantized weights, because it expands them back to 16 bits before computing, so even when it does run, low-bit quantization may not speed it up.
+- Do not reach for palettization first just because Apple ships it. Our palettized models came out incoherent, and the 4-bit one was slower than plain linear quantization and slower than no compression at all.
+- Check that the chip you target actually ran the model, and measure quality on a fixed test rather than trusting that smaller is free.
+
+The conversion scripts, the exact tool versions (the setup is finicky and depends on specific versions), and the 4-bit models are available from us on request. A 7B follow-up on a larger machine is coming next.

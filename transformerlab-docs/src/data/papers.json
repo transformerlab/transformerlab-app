@@ -1,5 +1,14 @@
 [
   {
+    "slug": "quantize-for-the-gpu-not-the-neural-engine",
+    "title": "Quantize for the GPU, Not the Neural Engine: Optimizing On-Device LLM Decode for Apple Core ML on a 16 GB Mac",
+    "authors": ["Asaria", "Salomone", "Gandhi"],
+    "date": "2026-06-26",
+    "tags": ["SYSTEMS", "LLM"],
+    "abstract": "Running a language model on an Apple device through Core ML offers two tempting levers for speed: the Apple Neural Engine, a dedicated accelerator, and low-bit weight compression such as palettization, which Apple's tooling exposes natively. Conventional wisdom treats both as the obvious path to fast on-device inference. We test that wisdom directly. Converting a dense 1.7B-parameter language model to Core ML and benchmarking it on a 16 GB M3 MacBook Air, we sweep post-training quantization schemes against the three Core ML compute-unit policies and measure decode throughput, model size, and task quality. The result inverts the common assumptions: within Core ML, plain int4 linear weight quantization run on the GPU decodes 3.2x faster than the fp16 Core ML baseline while shrinking the model 3.3x and holding task accuracy within measurement noise, whereas a default conversion is never placed on the Neural Engine to any benefit (its requested-ANE decode is indistinguishable from CPU-only, i.e. it falls back to the CPU) and Apple-native palettization at 4 bits is actually slower than fp16 on the GPU. These outcomes are consistent with single-token decode being memory-bandwidth bound and with how each backend handles low-bit weights, though we did not instrument that mechanism directly. The practical recipe is simple and training-free; the negative results, that a default conversion will not use the Neural Engine and that palettization does not pay off on the GPU, are, we argue, the more useful contribution.",
+    "pdf": "quantize-for-the-gpu-not-the-neural-engine.pdf"
+  },
+  {
     "slug": "given-vs-generated-cot-faithfulness",
     "title": "Whose Reasoning Is It? Distilled Reasoning Models Are Faithful to Provided Chains but Only Sparsely to Their Own",
     "authors": ["Asaria", "Salomone", "Gandhi"],
