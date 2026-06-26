@@ -14,7 +14,9 @@ Stable Audio 3 shipped as the strongest open-source instrumental music generator
 
 <!--truncate-->
 
-> **Quick summary.** A recent vendor report ranks three open-source instrumental music generators by audio quality, using two metrics from one model family. We re-ranked the same three models, Stable Audio 3 Medium, ACE-Step 1.5, and DiffRhythm 2, on a wider stack of nine metrics, and the reported winner (Stable Audio 3) holds up: it places first on all nine, including metrics built on completely different models. Then we tested something the quality scores never check, whether a model obeys an explicit tempo and key. Here the three models split apart. Stable Audio 3 hits the requested tempo on 61% of clips and the exact key on 64%. ACE-Step sits at chance on key and barely above it on tempo. That controllability gap is the one that matters for real work, and it is invisible to the benchmarks these reports use. One honest limit up front: every number here is an automated score, not a human listening test, which is the study's main caveat.
+> **Quick summary.** We compared three open instrumental music generators: Stable Audio 3, ACE-Step, and DiffRhythm. On a wider, more human-aligned set of nine quality metrics (the vendor report used two), Stable Audio 3 places first on all nine, including metrics built on completely different models, so its reported win is not an artifact of the two scores it was ranked on.
+>
+> The bigger gap is on control. When a prompt names an exact tempo and key, Stable Audio 3 lands the tempo on 61% of clips and the exact key on 64%, while ACE-Step sits at chance. That is the difference that matters when you are dropping a generated loop into a track you are building, and it is something quality benchmarks never check. One honest limit: every number here is an automated score, not a human listening test.
 
 ## Why this is worth measuring
 
