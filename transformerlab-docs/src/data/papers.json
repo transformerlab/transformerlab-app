@@ -6,7 +6,8 @@
     "date": "2026-06-25",
     "tags": ["Efficiency", "Seismology"],
     "abstract": "Deep neural pickers such as PhaseNet and EQTransformer are the default tools for detecting P- and S-wave arrivals, but they carry hundreds of thousands of parameters and are usually benchmarked on randomly split data, where near-duplicate windows of the same event leak between training and test. On STEAD, split so that no earthquake straddles the partitions, a 33,610-parameter 1-D U-Net reaches a mean P/S pick-F1 of 0.76 on held-out data at strict tolerance; a pretrained PhaseNet with about eight times as many parameters, scored through the identical pipeline, reaches 0.64. The decisive ingredient is a foreground-weighted loss: without it the model never learns the P onset (P-F1 0.00) and mean F1 falls to 0.40. As an ablation, masked-waveform self-supervised pretraining gives no detectable low-label gain across three seeds and two fine-tuning schedules, and a single-seed run would have reported a spurious +0.15 improvement. Careful supervision, not scale or pretraining, is what a small seismic picker needs.",
-    "pdf": "tiny-seismic-phase-picker.pdf"
+    "pdf": "tiny-seismic-phase-picker.pdf",
+    "image": "tiny-seismic-phase-picker.svg"
   },
   {
     "slug": "given-vs-generated-cot-faithfulness",
