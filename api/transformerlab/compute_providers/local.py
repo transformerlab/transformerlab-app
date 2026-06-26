@@ -21,6 +21,7 @@ from transformerlab.services.process_registry import _terminate_process_tree, ge
 from .base import ComputeProvider
 from .models import (
     ClusterConfig,
+    GpuInfo,
     JobConfig,
     ClusterStatus,
     JobInfo,
@@ -753,6 +754,30 @@ class LocalProvider(ComputeProvider):
         }
 
         return [cluster]
+
+    def show_gpus(self) -> List[GpuInfo]:
+        """Return GPUs detected on this local machine.
+
+        Reads the local provider config snapshot (the same source used by
+        get_clusters_detailed) and aggregates its detected GPUs by name. Returns
+        an empty list when no config/GPUs are present (e.g. CPU-only host).
+        """
+        cfg = _read_local_provider_config()
+        if not cfg:
+            return []
+
+        gpu_list = cfg.get("gpu") or []
+        gpu_counts: Dict[str, int] = {}
+        if isinstance(gpu_list, list):
+            for g in gpu_list:
+                if not isinstance(g, dict):
+                    continue
+                name = g.get("name")
+                if not name or name == "cpu":
+                    continue
+                gpu_counts[str(name)] = gpu_counts.get(str(name), 0) + 1
+
+        return [GpuInfo(gpu=name, count=count) for name, count in sorted(gpu_counts.items())]
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         """Return minimal local resource info. Resources are not applicable for local runs."""

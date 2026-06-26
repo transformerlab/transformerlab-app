@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Checkout git repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Node and NPM
         uses: actions/setup-node@v6

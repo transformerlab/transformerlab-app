@@ -1,0 +1,78 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.toggle {
+  display: inline-flex;
+  border: 1px solid var(--ifm-color-primary);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+}
+.toggle button {
+  border: none;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.active {
+  background: var(--ifm-color-primary);
+  color: #fff;
+}
+.inactive {
+  background: transparent;
+  color: var(--ifm-color-primary);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  margin: 0.6rem 0;
+}
+.name {
+  width: 160px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  text-align: right;
+}
+.track {
+  flex: 1;
+  background: var(--ifm-color-emphasis-200);
+  border-radius: 5px;
+  height: 30px;
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  min-width: fit-content;
+  transition: width 0.4s ease;
+}
+.ours {
+  background: var(--ifm-color-primary);
+}
+.other {
+  background: var(--ifm-color-emphasis-500);
+}
+.val {
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0 0.6rem;
+}
+
+.caption {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-600);
+  font-style: italic;
+}

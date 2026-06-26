@@ -16,10 +16,16 @@ from transformerlab.services import job_service, quota_service
 from transformerlab.services.compute_provider.launch_credentials import (
     COPY_FILE_MOUNTS_SETUP,
     RUNPOD_AWS_CREDENTIALS_DIR,
+    WORKDIR_FILE_PATH,
     generate_aws_credentials_setup,
     generate_azure_credentials_setup,
     generate_gcp_credentials_setup,
     get_aws_credentials_from_file,
+)
+from transformerlab.services.compute_provider.launch_juicefs import (
+    build_juicefs_backend_credentials_setup,
+    build_juicefs_install_command,
+    build_juicefs_pod_config,
 )
 from transformerlab.services.compute_provider.launch_secrets import find_missing_secrets_for_template_launch
 from transformerlab.services.compute_provider.launch_sweep import create_sweep_parent_job, launch_sweep_jobs
@@ -53,6 +59,36 @@ from lab.dirs import (
 from lab.job_status import JobStatus
 from lab.storage import STORAGE_PROVIDER
 from werkzeug.utils import secure_filename
+
+
+def prepend_remote_workdir_cd(
+    command: str,
+    *,
+    task_id: Optional[str],
+    file_mounts: Any,
+    provider_type: str,
+) -> str:
+    """Prefix a remote run command with a `cd` into the synced task-file directory.
+
+    When task files are synced to a remote box via lab.copy_file_mounts() (any non-Local
+    provider with file_mounts enabled), the files land in the directory copy_file_mounts
+    resolved at runtime (~/sky_workdir or $HOME) and recorded in the WORKDIR_FILE_PATH
+    file. The remote run command, however, executes from the provider's default cwd —
+    `/` for Lambda cloud-init, the image WORKDIR for RunPod — so a bare `python main.py`
+    can't find the synced file (CPython reports it as `//main.py` when cwd is `/`). cd into
+    the recorded workdir first so the user's run command sees its files, matching the Local
+    provider's cwd == $HOME invariant.
+
+    We read the workdir file rather than hardcoding $HOME because the run shell's $HOME may
+    not match expanduser("~") used during sync (e.g. Lambda cloud-init runs as root with
+    HOME unset, so bash $HOME is empty while expanduser("~") resolves to /root). The `||
+    echo "$HOME"` is a best-effort fallback for the case where the file is somehow absent.
+
+    Local is excluded because it already forces cwd == $HOME == the file-drop dir.
+    """
+    if task_id and file_mounts is True and provider_type != ProviderType.LOCAL.value:
+        return f'cd "$(cat {WORKDIR_FILE_PATH} 2>/dev/null || echo "$HOME")" && {command}'
+    return command
 
 
 async def launch_template_on_provider(
@@ -263,6 +299,13 @@ async def launch_template_on_provider(
                 if azure_sas:
                     env_vars["AZURE_STORAGE_SAS_TOKEN"] = azure_sas
 
+    # JuiceFS: inject backing object-storage credentials unconditionally
+    # (TFL_REMOTE_STORAGE_ENABLED guards cloud-bucket providers, not JuiceFS).
+    if STORAGE_PROVIDER == "juicefs":
+        juicefs_cred_cmds, juicefs_cred_env = await build_juicefs_backend_credentials_setup(provider.type)
+        setup_commands.extend(juicefs_cred_cmds)
+        env_vars.update(juicefs_cred_env)
+
     # Ensure transformerlab SDK is available on remote machines for live_status tracking and other helpers.
     # This runs after AWS credentials are configured so we have access to any remote storage if needed.
     if provider.type != ProviderType.LOCAL.value:
@@ -386,7 +429,14 @@ async def launch_template_on_provider(
     # For localfs, explicitly provide an org-scoped URI so subprocess code can
     # resolve storage without relying on contextvar propagation.
     tfl_storage_uri = None
-    if STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
+    if STORAGE_PROVIDER == "juicefs" and team_id:
+        juicefs_env, juicefs_gateway_cmd, tfl_storage_uri = build_juicefs_pod_config(team_id=str(team_id))
+        env_vars.update(juicefs_env)  # sets TFL_REMOTE_STORAGE_ENABLED=true for pod
+
+        # Gateway setup runs after credential materialization so juicefs auth can use ACCESS_KEY/SECRET_KEY.
+        setup_commands.append(build_juicefs_install_command())
+        setup_commands.append(juicefs_gateway_cmd)
+    elif STORAGE_PROVIDER == "localfs" and os.getenv("TFL_STORAGE_URI") and team_id:
         tfl_storage_uri = storage.join(os.getenv("TFL_STORAGE_URI", ""), "orgs", str(team_id), "workspace")
     else:
         try:
@@ -668,6 +718,15 @@ async def launch_template_on_provider(
             pre_hook=str(pre_setup_hook) if pre_setup_hook is not None else None,
             post_hook=str(post_setup_hook) if post_setup_hook is not None else None,
         )
+
+    # On remote providers, cd into the directory where lab.copy_file_mounts() synced the
+    # task files so a bare `python main.py` resolves (see prepend_remote_workdir_cd).
+    command_with_hooks = prepend_remote_workdir_cd(
+        command_with_hooks,
+        task_id=request.task_id,
+        file_mounts=request.file_mounts,
+        provider_type=provider.type,
+    )
 
     # Wrap the user command with tfl-remote-trap so we can track live_status in job_data.
     # This uses the tfl-remote-trap helper from the transformerlab SDK, which:

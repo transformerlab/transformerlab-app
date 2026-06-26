@@ -221,6 +221,51 @@ def test_provider_check_shows_reason_and_fails(_mock_check, _mock_api):
     assert "Bad API key" in result.output
 
 
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_gpus_renders_table(_mock_check):
+    """`provider gpus` resolves the provider then renders a GPU/count table."""
+    gpus_payload = {
+        "provider_id": "p2",
+        "provider_type": "slurm",
+        "gpus": [{"gpu": "A100", "count": 8}, {"gpu": "H100", "count": 4}],
+    }
+    with patch(
+        "transformerlab_cli.commands.provider.api.get",
+        side_effect=[_mock_response(200, SAMPLE_PROVIDERS), _mock_response(200, gpus_payload)],
+    ) as mock_get:
+        result = runner.invoke(app, ["provider", "gpus", "slurm-1"])
+    assert result.exit_code == 0
+    assert "A100" in result.output
+    assert "H100" in result.output
+    # Resolves name -> id (p2) and hits the gpus endpoint.
+    assert mock_get.call_args_list[-1].args[0] == "/compute_provider/providers/p2/gpus"
+
+
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_gpus_empty(_mock_check):
+    """`provider gpus` reports when no GPU info is available."""
+    gpus_payload = {"provider_id": "p2", "provider_type": "dstack", "gpus": []}
+    with patch(
+        "transformerlab_cli.commands.provider.api.get",
+        side_effect=[_mock_response(200, SAMPLE_PROVIDERS), _mock_response(200, gpus_payload)],
+    ):
+        result = runner.invoke(app, ["provider", "gpus", "slurm-1"])
+    assert result.exit_code == 0
+    assert "No GPU information available" in result.output
+
+
+@patch(
+    "transformerlab_cli.commands.provider.api.get",
+    return_value=_mock_response(200, SAMPLE_PROVIDERS),
+)
+@patch("transformerlab_cli.commands.provider.check_configs")
+def test_provider_gpus_not_found(_mock_check, _mock_get):
+    """`provider gpus` errors when the identifier doesn't resolve."""
+    result = runner.invoke(app, ["provider", "gpus", "nope"])
+    assert result.exit_code == 1
+    assert "not found" in result.output
+
+
 @patch(
     "transformerlab_cli.commands.provider.api.get",
     return_value=_mock_response(200, {"found": True, "path": "/ws/debug/storage-probe-7.txt"}),

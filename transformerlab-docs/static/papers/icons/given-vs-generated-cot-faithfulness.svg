@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 270" width="360" height="270" role="img" aria-label="LLM, INTERPRETABILITY">
+  <defs>
+    <linearGradient id="g" gradientTransform="rotate(29 0.5 0.5)">
+      <stop offset="0" stop-color="hsl(233 72% 56%)" />
+      <stop offset="1" stop-color="hsl(282 68% 46%)" />
+    </linearGradient>
+    <radialGradient id="v" cx="0.3" cy="0.25" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16" />
+      <stop offset="1" stop-color="#000000" stop-opacity="0.14" />
+    </radialGradient>
+  </defs>
+  <rect width="360" height="270" fill="url(#g)" />
+  <circle cx="261" cy="115" r="144" fill="none" stroke="#ffffff" stroke-width="5" opacity="0.100" />
+  <circle cx="261" cy="115" r="120" fill="none" stroke="#ffffff" stroke-width="5" opacity="0.150" />
+  <circle cx="261" cy="115" r="96" fill="none" stroke="#ffffff" stroke-width="5" opacity="0.200" />
+  <circle cx="261" cy="115" r="72" fill="none" stroke="#ffffff" stroke-width="5" opacity="0.250" />
+  <circle cx="261" cy="115" r="48" fill="none" stroke="#ffffff" stroke-width="5" opacity="0.300" />
+  <circle cx="261" cy="115" r="24" fill="none" stroke="#ffffff" stroke-width="5" opacity="0.350" />
+  <circle cx="261" cy="115" r="9" fill="#ffffff" opacity="0.9" />
+  <rect width="360" height="270" fill="url(#v)" />
+</svg>

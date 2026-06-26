@@ -19,11 +19,12 @@ import requests
 
 from transformerlab.shared.ssh_policy import get_add_if_verified_policy
 
-from .base import ComputeProvider
+from .base import ComputeProvider, gpu_catalog_from_map_keys
 from .models import (
     ClusterConfig,
     ClusterState,
     ClusterStatus,
+    GpuInfo,
     JobConfig,
     JobInfo,
     ResourceInfo,
@@ -124,18 +125,30 @@ _LAMBDA_STATE_TO_CLUSTER_STATE = {
 _GPU_INSTANCE_TYPE_MAP: Dict[tuple, str] = {
     ("A10", 1): "gpu_1x_a10",
     ("A100", 1): "gpu_1x_a100",
+    ("A100", 2): "gpu_2x_a100",
+    ("A100", 4): "gpu_4x_a100",
     ("A100", 8): "gpu_8x_a100",
     ("A100-SXM4", 1): "gpu_1x_a100_sxm4",
     ("A100-80GB", 8): "gpu_8x_a100_80gb_sxm4",
     ("A6000", 1): "gpu_1x_a6000",
     ("A6000", 2): "gpu_2x_a6000",
     ("A6000", 4): "gpu_4x_a6000",
+    # Bare "H100:1" is PCIe (the only single-GPU H100 Lambda sells); multi-GPU
+    # H100 is SXM5-only. Keep bare "H100" aliases for 2x/4x/8x (resolution
+    # convenience) alongside the explicit "H100-SXM5" keys, which stay last so
+    # they win in the reverse instance-type lookup.
     ("H100", 1): "gpu_1x_h100_pcie",
-    ("H100-SXM5", 1): "gpu_1x_h100_sxm5",
+    ("H100", 2): "gpu_2x_h100_sxm5",
+    ("H100", 4): "gpu_4x_h100_sxm5",
     ("H100", 8): "gpu_8x_h100_sxm5",
+    ("H100-SXM5", 1): "gpu_1x_h100_sxm5",
+    ("H100-SXM5", 2): "gpu_2x_h100_sxm5",
+    ("H100-SXM5", 4): "gpu_4x_h100_sxm5",
     ("H100-SXM5", 8): "gpu_8x_h100_sxm5",
-    ("H200", 8): "gpu_8x_h200",
-    ("B200", 8): "gpu_8x_b200",
+    ("B200", 1): "gpu_1x_b200_sxm6",
+    ("B200", 2): "gpu_2x_b200_sxm6",
+    ("B200", 4): "gpu_4x_b200_sxm6",
+    ("B200", 8): "gpu_8x_b200_sxm6",
     ("V100", 8): "gpu_8x_v100",
     ("RTX6000", 1): "gpu_1x_rtx6000",
     ("GH200", 1): "gpu_1x_gh200",
@@ -653,6 +666,41 @@ exit $?
                 )
             )
         return result
+
+    def show_gpus(self) -> List[GpuInfo]:
+        """List GPUs available on Lambda Cloud.
+
+        Queries ``GET /instance-types`` and reports the GPU types that currently
+        have regional capacity, mapping each available instance type back to its
+        ``(gpu_type, count)`` via _GPU_INSTANCE_TYPE_MAP. Falls back to the full
+        launch catalog when the live query fails or reports no capacity anywhere.
+        """
+        # instance_type_name -> (gpu_type, count), keeping the largest count when
+        # a name appears for multiple specs (it won't, but be defensive).
+        reverse_map: Dict[str, tuple] = {name: key for key, name in _GPU_INSTANCE_TYPE_MAP.items()}
+
+        try:
+            types = self._unwrap(self._make_request("GET", "/instance-types").json()) or {}
+            available: Dict[str, int] = {}
+            if isinstance(types, dict):
+                for name, entry in types.items():
+                    if not isinstance(entry, dict):
+                        continue
+                    regions = entry.get("regions_with_capacity_available") or []
+                    if not regions:
+                        continue
+                    spec = reverse_map.get(name)
+                    if not spec:
+                        continue
+                    gpu_type, count = spec
+                    available[gpu_type] = max(available.get(gpu_type, 0), int(count))
+            if available:
+                return [GpuInfo(gpu=gpu, count=count) for gpu, count in sorted(available.items())]
+        except Exception as exc:  # pragma: no cover - network failures
+            logger.warning("Lambda show_gpus live query failed, using catalog: %s", exc)
+
+        # Fallback: full catalog of launchable GPU types.
+        return gpu_catalog_from_map_keys(_GPU_INSTANCE_TYPE_MAP.keys())
 
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         instance = self._find_instance_by_name(cluster_name)

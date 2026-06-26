@@ -1,0 +1,147 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem 1.25rem;
+  margin: 1.5rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.button {
+  border: 1px solid var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+  background: transparent;
+  border-radius: 6px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--ifm-color-primary);
+  color: #fff;
+}
+
+.stepLabel {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.gauges {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-bottom: 1.1rem;
+}
+
+.gaugeHead {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.gaugeVal {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.track {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--ifm-color-emphasis-200);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 6px;
+  transition:
+    width 0.6s ease,
+    background-color 0.6s ease;
+}
+
+.rewardFill {
+  background: var(--ifm-color-primary);
+}
+
+.good {
+  background: #2e8b57;
+}
+
+.mid {
+  background: #d9a334;
+}
+
+.bad {
+  background: #d9534f;
+}
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px;
+  border-radius: 4px;
+  background: var(--ifm-color-emphasis-200);
+  transition: outline-color 0.4s ease;
+  outline: 2px solid transparent;
+}
+
+.tileDim {
+  outline: 2px solid #d9534f;
+}
+
+.tileRow {
+  display: flex;
+  gap: 1px;
+}
+
+.cell {
+  width: 11px;
+  height: 11px;
+  border-radius: 1px;
+}
+
+.floor {
+  background: var(--ifm-background-surface-color);
+}
+
+.wall {
+  background: var(--ifm-color-emphasis-700);
+}
+
+.player {
+  background: var(--ifm-color-primary);
+}
+
+.box {
+  background: #e08a3c;
+}
+
+.goal {
+  background: #d9534f;
+}
+
+.caption {
+  margin: 1.1rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ifm-color-emphasis-700);
+}

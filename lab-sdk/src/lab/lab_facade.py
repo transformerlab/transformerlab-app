@@ -376,6 +376,20 @@ class Lab:
         else:
             dest_dir = home_dir
 
+        # Record the resolved destination so the remote run command can `cd` into the
+        # exact directory where these task files land. The launch template prepends
+        # `cd "$(cat /tmp/.tfl_task_workdir ...)"` to the run command on remote
+        # providers. We write the absolute path here rather than letting the run shell
+        # recompute it because the run shell's $HOME may not match expanduser("~") used
+        # during sync — e.g. Lambda's cloud-init runs as root with HOME unset, so bash
+        # `$HOME` is empty while expanduser("~") resolves to /root. (Keep this path in
+        # sync with launch_template.py's cd prefix.)
+        try:
+            with open("/tmp/.tfl_task_workdir", "w") as workdir_file:
+                workdir_file.write(dest_dir)
+        except Exception:
+            logger.debug("Failed to write task workdir file", exc_info=True)
+
         # Determine if we're working with a remote URI (e.g., s3://)
         is_remote = storage.is_remote_path(task_dir)
         protocol_prefix = ""

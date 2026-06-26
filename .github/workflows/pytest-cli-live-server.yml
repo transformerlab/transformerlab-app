@@ -43,7 +43,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
@@ -92,12 +92,6 @@ jobs:
           ./run.sh -c > /tmp/api-server.log 2>&1 &
           python scripts/wait_for_server.py --timeout 120 --interval 2
 
-      - name: Print API server logs on failure
-        if: failure()
-        run: |
-          echo "===== API SERVER LOGS ====="
-          cat /tmp/api-server.log || true
-
       - name: Run live CLI route-contract smoke test
         env:
           TLAB_RUN_LIVE_SERVER_TESTS: "1"
@@ -105,3 +99,9 @@ jobs:
         run: |
           cd ../cli
           uv run pytest tests/integration/test_live_cli_routes.py -v
+
+      - name: Print API server logs on failure
+        if: failure()
+        run: |
+          echo "===== API SERVER LOGS ====="
+          cat /tmp/api-server.log || true
