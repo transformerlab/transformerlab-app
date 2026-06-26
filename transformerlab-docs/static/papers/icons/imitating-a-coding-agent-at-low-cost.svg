@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 270" width="360" height="270" role="img" aria-label="LLM, Efficiency">
+  <defs>
+    <linearGradient id="g" gradientTransform="rotate(111 0.5 0.5)">
+      <stop offset="0" stop-color="hsl(215 72% 56%)" />
+      <stop offset="1" stop-color="hsl(254 68% 46%)" />
+    </linearGradient>
+    <radialGradient id="v" cx="0.3" cy="0.25" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16" />
+      <stop offset="1" stop-color="#000000" stop-opacity="0.14" />
+    </radialGradient>
+  </defs>
+  <rect width="360" height="270" fill="url(#g)" />
+  <rect x="40" y="58" width="62" height="16" rx="8" fill="#ffffff" opacity="0.198" />
+  <rect x="116" y="58" width="57" height="16" rx="8" fill="#ffffff" opacity="0.178" />
+  <rect x="187" y="58" width="78" height="16" rx="8" fill="#ffffff" opacity="0.164" />
+  <rect x="279" y="58" width="42" height="16" rx="8" fill="#ffffff" opacity="0.212" />
+  <rect x="40" y="90" width="76" height="16" rx="8" fill="#ffffff" opacity="0.183" />
+  <rect x="130" y="90" width="46" height="16" rx="8" fill="#ffffff" opacity="0.211" />
+  <rect x="190" y="90" width="42" height="16" rx="8" fill="#ffffff" opacity="0.201" />
+  <rect x="246" y="90" width="90" height="16" rx="8" fill="#ffffff" opacity="0.172" />
+  <rect x="40" y="122" width="56" height="16" rx="8" fill="#ffffff" opacity="0.600" />
+  <rect x="110" y="122" width="84" height="16" rx="8" fill="#ffffff" opacity="0.600" />
+  <rect x="208" y="122" width="57" height="16" rx="8" fill="#ffffff" opacity="0.600" />
+  <rect x="279" y="122" width="58" height="16" rx="8" fill="#ffffff" opacity="0.600" />
+  <rect x="40" y="154" width="71" height="16" rx="8" fill="#ffffff" opacity="0.165" />
+  <rect x="125" y="154" width="64" height="16" rx="8" fill="#ffffff" opacity="0.243" />
+  <rect x="203" y="154" width="93" height="16" rx="8" fill="#ffffff" opacity="0.166" />
+  <rect x="40" y="186" width="37" height="16" rx="8" fill="#ffffff" opacity="0.250" />
+  <rect x="91" y="186" width="78" height="16" rx="8" fill="#ffffff" opacity="0.238" />
+  <rect x="183" y="186" width="70" height="16" rx="8" fill="#ffffff" opacity="0.173" />
+  <rect x="267" y="186" width="46" height="16" rx="8" fill="#ffffff" opacity="0.216" />
+  <rect width="360" height="270" fill="url(#v)" />
+</svg>

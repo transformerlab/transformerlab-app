@@ -1,5 +1,15 @@
 [
   {
+    "slug": "imitating-a-coding-agent-at-low-cost",
+    "title": "Imitating a Coding Agent at Low Cost: Offline Distillation of Fable 5 Traces into Qwen3-8B",
+    "authors": ["Gandhi"],
+    "date": "2026-06-26",
+    "tags": ["LLM", "Efficiency"],
+    "abstract": "Large agentic models such as Fable 5 reason and call tools to solve software tasks, but they are expensive to run. We ask whether a small open model can absorb that behavior from a static dump of the larger model's execution traces, with no teacher logits and no live environment. Using 4,665 Fable 5 coding-agent steps (60 sessions), we apply span-masked supervised fine-tuning, predicting the teacher's reasoning and next action from the running transcript, to Qwen3-8B with a small LoRA adapter. On a group-disjoint held-out test split, the distilled student cuts next-step perplexity by 50% (negative log-likelihood 1.61 to 0.93), with the largest gain on the free-text reasoning the base model handled worst. The cost to general ability is small: HumanEval pass@1 and GSM8K accuracy are unchanged (0.87 to 0.86 and 0.92 to 0.92), while MBPP pass@1 falls modestly (0.85 to 0.79). A controlled sweep shows the recipe is simple and robust: two epochs on the full, unfiltered data beats aggressive LLM-judge filtering, SVD-based (PiSSA) initialization, larger LoRA rank, and a third epoch, all of which hurt. We release the training and evaluation code, the adapter, and a full reproducibility package. We do not report an end-to-end agentic-coding resolve rate (e.g.\\ SWE-bench): single-shot patch generation from an 8B model rarely yields applying patches, so a multi-step agentic harness is the appropriate evaluation, which we leave as the main open question.",
+    "pdf": "imitating-a-coding-agent-at-low-cost.pdf",
+    "image": "imitating-a-coding-agent-at-low-cost.svg"
+  },
+  {
     "slug": "tiny-seismic-phase-picker",
     "title": "How small can a seismic phase picker be? A 34,000-parameter model matches a pretrained deep baseline under leakage-controlled evaluation",
     "authors": ["Asaria", "Salomone", "Gandhi"],

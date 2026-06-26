@@ -1,0 +1,79 @@
+.wrapper {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  padding: 1.1rem 1.2rem;
+  margin: 1.6rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.button {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--ifm-color-primary);
+  background: var(--ifm-color-primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+
+.button:hover {
+  filter: brightness(1.06);
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 11rem 1fr 3rem;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.rowLabel {
+  font-size: 0.85rem;
+  color: var(--ifm-font-color-base);
+}
+
+.track {
+  position: relative;
+  height: 1.05rem;
+  background: var(--ifm-color-emphasis-200);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 6px;
+  transition:
+    width 0.35s ease,
+    background 0.35s ease;
+}
+
+.value {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.note {
+  margin: 1rem 0 0.4rem;
+  font-size: 0.9rem;
+}
+
+.caption {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-600);
+}

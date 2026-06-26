@@ -1,0 +1,75 @@
+---
+title: 'Teaching a small model to code like an agent, at a small cost'
+description: "We distilled Fable 5's agentic coding traces into Qwen3-8B with a small LoRA adapter. Held-out next-step perplexity dropped 50%, with only a small dip on one code benchmark (MBPP) and no change on the others."
+slug: fabledistil-qwen3-8b
+authors: [deep]
+tags: [distillation, agents, qwen, lora, evaluation]
+date: 2026-06-26
+---
+
+import NllToggleDiagram from './NllToggleDiagram';
+
+Our lab took a static dump of Fable 5's coding-agent traces, its step-by-step reasoning and tool calls, and trained a small open model to imitate it. On held-out sessions the student's next-step perplexity (how surprised it is by the teacher's real continuation, lower is better) dropped by half. Its general coding and math ability barely moved, with one small exception we cover below.
+
+{/* truncate */}
+
+:::tip Quick summary
+
+- **What:** offline distillation of Fable 5 (`claude-fable-5`) agentic coding traces into **Qwen3-8B** with a LoRA adapter (a small set of extra weights, base model frozen).
+- **Result:** held-out next-step loss fell from 1.61 to 0.93 (perplexity 5.01 to 2.52, a 50% cut), measured on sessions the model never trained on.
+- **The part we watched for:** forgetting. HumanEval (0.87 to 0.86) and GSM8K (0.92) held, but MBPP dropped 0.85 to 0.79. So specializing on coding traces cost a little, not nothing.
+- **The recipe is boring on purpose:** two epochs on the full, unfiltered data. Quality-filtering the traces, a fancier adapter initialization, a bigger adapter, and a third epoch all made it worse.
+- **What we did not measure:** end-to-end task success on a real agent benchmark like SWE-bench. That is the open question.
+  :::
+
+## The setup
+
+Fable 5 solves coding tasks by reasoning and then acting: read a file, run a shell command, edit code, repeat. We had 4,665 of those steps from 60 sessions (`Glint-Research/Fable-5-traces`). Each step is the running transcript so far, the model's reasoning, and its next action. 81% of the actions are tool calls; the rest is assistant text.
+
+The constraints made this the hard version of distillation. The teacher is a closed model, so there are no output probabilities to match, only the text it produced. The data is a fixed file, so there is no environment to query and no way to correct the student on its own mistakes. And the corpus is small and comes from one agent harness.
+
+So we did the simplest thing that fits those constraints. We fine-tuned Qwen3-8B (built on Alibaba's Qwen3) to predict, for each step, the teacher's reasoning followed by its next action, given the transcript. The loss only counts the target tokens, the reasoning and the action, not the transcript the model is reading and not the tool outputs that come back. We train a LoRA adapter and leave the base weights frozen.
+
+## What the model learned
+
+We test on held-out sessions, chosen so that no session appears in both training and test (sessions share context, so splitting by individual step would leak). The aggregate next-step loss falls from 1.61 to 0.93.
+
+The more useful view is by step type. Tap the toggle.
+
+<NllToggleDiagram />
+
+The base model is already decent at tool calls and worse at the free-text reasoning between them. Distillation helps both, and helps the free-text reasoning most. That fits what a teacher like Fable 5 actually adds: the structured tool syntax is the easy part, and the judgment in the reasoning is the part worth copying.
+
+## The result we were most worried about
+
+Training a small model hard on one narrow skill often costs it others. The literature on chain-of-thought distillation reports exactly this, a base model that gets worse elsewhere after fine-tuning. So we measured two things the traces never taught: HumanEval (writing standalone Python functions) and GSM8K (grade-school math word problems).
+
+Mostly held. HumanEval went from 0.87 to 0.86 and GSM8K stayed at 0.92, both within run-to-run noise at 100 problems. MBPP dropped more, from 0.85 to 0.79, which is a real if small cost. So the model got much better at imitating the agent and gave up a little on one code benchmark, not nothing. We think the small cost comes from a gentle update: a low-rank adapter, two epochs, clean data. It nudges the model toward the teacher's behavior instead of overwriting what it already knew.
+
+## What helped, and what did not
+
+We swept the obvious knobs on Qwen3-8B. The winner is the plainest configuration, and most of the "smarter" ideas hurt.
+
+| Change                         | Held-out loss | Verdict   |
+| ------------------------------ | ------------- | --------- |
+| Base model (no training)       | 1.52          | reference |
+| 1 epoch                        | 0.92          | good      |
+| **2 epochs (final)**           | **0.91**      | **best**  |
+| 3 epochs                       | 0.93          | overfits  |
+| LLM-judge filter, keep top 60% | 0.93          | worse     |
+| PiSSA initialization           | 0.94          | worse     |
+| LoRA rank 16 / 32 / 64         | 0.91 each     | no effect |
+
+The filtering result is the one that surprised us. Using a separate model to score each trace and keeping only the best 60% is a standard trick, and it helps when the data is noisy. Here it hurt, because this data is already clean. Cutting 40% of it removed signal, not noise. On a small, clean corpus, more data beats better-curated data.
+
+(One number we will not dress up: the final model trains in about two GPU-hours on a single A100, so the whole thing is cheap to rerun.)
+
+## What we did not show
+
+The metric here is single-step imitation: given the real transcript, predict the next step. That is not the same as solving a task end to end, where the model acts on its own outputs and small errors compound. Offline imitation is known to drift this way, and we did not measure it. Running a real agentic benchmark like SWE-bench Verified needs a per-task container sandbox we did not have wired up, so we report the single-step result and leave the end-to-end number open rather than approximate it.
+
+The other limits are the obvious ones. Sixty sessions from one harness is a narrow slice. Rare tools barely appear in the data. The teacher transcripts are truncated at about 7,000 characters, so very long sessions lose history. And we did not test whether the distilled 8B can match a larger model in its own family, which would be the real prize.
+
+## Reproducing it
+
+All of our artifacts, the training and evaluation code, the data-split script, the adapter, and the pinned environment, are available from us on request only. The traces are public under AGPL-3.0, and the adapter inherits that provenance. The base Qwen3-8B weights carry their own license. We test the way we would want someone to check us: fixed seed, a held-out split chosen to avoid leakage, the same eval recipe for the base and the distilled model, and every number above traceable to a specific job.
