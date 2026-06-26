@@ -68,7 +68,31 @@ _RUNPOD_GPU_NAME_MAP: Dict[str, str] = {
     "RTX5000": "NVIDIA RTX 5000 Ada Generation",
     "RTX4000": "NVIDIA RTX 4000 Ada Generation",
     "RTX2000": "NVIDIA RTX 2000 Ada Generation",
+    # AMD Instinct (ROCm). Launching these requires a ROCm container image, not
+    # the default CUDA image — see _is_amd_gpu_id / _default_image_for_gpu below.
+    "MI300X": "AMD Instinct MI300X OAM",
 }
+
+# Runpod GPU type IDs for AMD/ROCm cards. Used to pick a ROCm container image at
+# launch time instead of the default CUDA image.
+_RUNPOD_AMD_GPU_IDS: frozenset = frozenset(
+    {
+        "AMD Instinct MI300X OAM",
+    }
+)
+
+# Default ROCm container image for AMD pods. Overridable per-launch via the
+# provider config `image_name` (or legacy `template_id`).
+_RUNPOD_DEFAULT_ROCM_IMAGE = "rocm/pytorch:latest"
+# Default CUDA container image for NVIDIA pods.
+_RUNPOD_DEFAULT_CUDA_IMAGE = "runpod/pytorch:1.0.3-cu1281-torch290-ubuntu2204"
+
+
+def _is_amd_gpu_id(gpu_type_id: Optional[str]) -> bool:
+    """Return True if the resolved Runpod GPU type ID is an AMD/ROCm card."""
+    if not gpu_type_id:
+        return False
+    return gpu_type_id in _RUNPOD_AMD_GPU_IDS or "AMD" in gpu_type_id
 
 
 async def fetch_runpod_provider_logs(
@@ -360,8 +384,12 @@ class RunpodProvider(ComputeProvider):
                 except ValueError:
                     gpu_count = 1
 
-            # Use GPU-enabled image
-            default_image = "runpod/pytorch:1.0.3-cu1281-torch290-ubuntu2204"
+            # Use a GPU-enabled image. AMD/ROCm cards need a ROCm image; the
+            # default CUDA image will not run on them.
+            if _is_amd_gpu_id(gpu_type_id):
+                default_image = _RUNPOD_DEFAULT_ROCM_IMAGE
+            else:
+                default_image = _RUNPOD_DEFAULT_CUDA_IMAGE
         else:
             # CPU pod
             compute_type = "CPU"
