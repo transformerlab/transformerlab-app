@@ -18,7 +18,7 @@ repos:
         entry: npm run format
         language: system
         pass_filenames: false
-        files: ^(src|transformerlab-docs)/.*\.(js|jsx|ts|tsx|json|css|scss|md|mdx|ya?ml)$
+        files: ^src/.*\.(js|jsx|ts|tsx|json|css|scss|md|mdx|ya?ml)$
   - repo: local
     hooks:
       - id: react-doctor
