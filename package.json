@@ -68,7 +68,7 @@
     "@nivo/line": "^0.88.0",
     "@nivo/radar": "^0.88.0",
     "@segment/analytics-next": "^1.84.0",
-    "@sentry/react": "^10.59.0",
+    "@sentry/react": "^10.60.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "dayjs": "^1.11.21",
@@ -83,16 +83,16 @@
     "react-router-dom": "^7.18.0",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
-    "swr": "^2.4.1",
+    "swr": "^2.4.2",
     "three": "^0.184.0",
     "wavesurfer.js": "^7.12.8"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.0",
+    "@playwright/test": "^1.61.1",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.6.2",
     "@svgr/webpack": "^8.0.1",
     "@teamsupercell/typings-for-css-modules-loader": "^2.5.2",
-    "@types/node": "22.19.21",
+    "@types/node": "22.20.0",
     "@types/react": "^18.2.8",
     "@types/react-dom": "^18.2.4",
     "@types/react-sparklines": "^1.7.2",
@@ -124,7 +124,7 @@
     "webpack-cli": "^5.1.1",
     "webpack-dev-server": "^5.2.5",
     "webpack-merge": "^6.0.1",
-    "react-doctor": "^0.5.7"
+    "react-doctor": "^0.5.8"
   },
   "overrides": {
     "serialize-javascript": "^7.0.3",
