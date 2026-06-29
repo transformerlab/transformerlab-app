@@ -6,12 +6,12 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from transformerlab.compute_providers.models import ClusterConfig
+from transformerlab.compute_providers.models import ClusterConfig, ClusterState
 from transformerlab.services import job_service, quota_service
 from transformerlab.services.provider_service import get_provider_by_id, get_provider_instance
 from transformerlab.db.session import async_session
 from lab import dirs as lab_dirs
-from lab.job_status import JobStatus
+from lab.job_status import JobStatus, TERMINAL_STATUSES
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,13 @@ _worker_lock = asyncio.Lock()
 # by the rest of the server for DB queries, file I/O, etc.
 _LAUNCH_MAX_WORKERS = int(os.environ.get("TFL_LAUNCH_MAX_WORKERS", "2"))
 _launch_executor = ThreadPoolExecutor(max_workers=_LAUNCH_MAX_WORKERS, thread_name_prefix="local-launch")
+
+# How often (seconds) to check whether a launched local job's process has exited.
+# This gates how quickly the queue advances to the next job once one finishes.
+_COMPLETION_POLL_INTERVAL = float(os.environ.get("TFL_LOCAL_JOB_POLL_INTERVAL", "3"))
+
+# Cluster states that mean the local job's process is no longer running.
+_FINISHED_CLUSTER_STATES = {ClusterState.DOWN, ClusterState.FAILED, ClusterState.STOPPED}
 
 
 async def enqueue_local_launch(
@@ -95,7 +102,15 @@ async def _run_and_drain(item: LocalLaunchWorkItem) -> None:
 
 
 async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
-    """Process a single local launch work item."""
+    """Process a single local launch work item.
+
+    For batch (non-interactive) jobs this does NOT return until the launched job's
+    process has exited, so the drain loop keeps the local provider strictly serial:
+    one job executes at a time. Interactive jobs are long-lived and return as soon as
+    the cluster is up so they don't block the queue forever.
+    """
+    provider_instance = None
+    launched_ok = False
     async with async_session() as session:
         lab_dirs.set_organization_id(item.team_id)
         try:
@@ -204,6 +219,7 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
                 percent=100,
                 message="Local cluster started",
             )
+            launched_ok = True
         except Exception as exc:  # noqa: BLE001
             print(f"[local_provider_queue] Job {item.job_id}: unexpected error while processing launch item: {exc}")
             if item.quota_hold_id:
@@ -220,3 +236,67 @@ async def _process_launch_item(item: LocalLaunchWorkItem) -> None:
             await session.commit()
         finally:
             lab_dirs.set_organization_id(None)
+
+    # Serialize EXECUTION, not just launch: launch_cluster() spawns the job as a
+    # detached background process and returns immediately. Block here until that
+    # process exits so the drain loop won't start the next local job until this one
+    # is done. Interactive jobs are long-lived servers, so they skip the wait.
+    if launched_ok and provider_instance is not None and item.initial_status != JobStatus.INTERACTIVE:
+        await _wait_for_local_job_completion(provider_instance, item)
+
+
+async def _wait_for_local_job_completion(provider_instance, item: LocalLaunchWorkItem) -> None:
+    """Block until the local job's launched process has exited.
+
+    Detects completion two ways and returns when either fires:
+      - the per-job process is gone (get_cluster_status reports a finished state), or
+      - the job reached a terminal status out-of-band (e.g. the user stopped it, or the
+        background status poller already finalized it).
+    """
+    # get_cluster_status reads the per-job pid file from extra_config["workspace_dir"],
+    # which is per-job and lives in the cluster_config rather than the provider record.
+    workspace_dir = (item.cluster_config.provider_config or {}).get("workspace_dir")
+    if workspace_dir and hasattr(provider_instance, "extra_config"):
+        provider_instance.extra_config["workspace_dir"] = workspace_dir
+
+    def _check_cluster_state() -> ClusterState:
+        lab_dirs.set_organization_id(item.team_id)
+        try:
+            return provider_instance.get_cluster_status(item.cluster_name).state
+        finally:
+            lab_dirs.set_organization_id(None)
+
+    consecutive_errors = 0
+    lab_dirs.set_organization_id(item.team_id)
+    try:
+        while True:
+            await asyncio.sleep(_COMPLETION_POLL_INTERVAL)
+
+            # Out-of-band terminal status (stopped/cancelled/already finalized).
+            try:
+                job = await job_service.job_get(item.job_id, item.experiment_id)
+                if job and job.get("status") in TERMINAL_STATUSES:
+                    print(f"[local_provider_queue] Job {item.job_id}: terminal status reached; releasing queue")
+                    return
+            except Exception as exc:  # noqa: BLE001
+                print(f"[local_provider_queue] Job {item.job_id}: status read failed during wait: {exc}")
+
+            # Primary signal: has the launched process exited?
+            try:
+                state = await asyncio.to_thread(_check_cluster_state)
+                consecutive_errors = 0
+                if state in _FINISHED_CLUSTER_STATES:
+                    print(f"[local_provider_queue] Job {item.job_id}: process exited (state={state}); releasing queue")
+                    return
+            except Exception as exc:  # noqa: BLE001
+                consecutive_errors += 1
+                print(
+                    f"[local_provider_queue] Job {item.job_id}: status check failed during wait "
+                    f"({consecutive_errors}): {exc}"
+                )
+                # Don't wedge the queue forever if status checks keep failing.
+                if consecutive_errors >= 3:
+                    print(f"[local_provider_queue] Job {item.job_id}: giving up wait after repeated errors")
+                    return
+    finally:
+        lab_dirs.set_organization_id(None)
