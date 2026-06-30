@@ -97,6 +97,25 @@ class TestResolveAmiId:
         cpu.assert_called_once()
 
 
+class TestBuildUserDataNeuron:
+    """Neuron launches must activate the AMI's prebuilt venv + Neuron PATH; others must not."""
+
+    def test_neuron_activates_prebuilt_venv(self):
+        ud = AWSProvider._build_user_data(ClusterConfig(accelerators="Trainium:1"), region="us-east-1")
+        assert "/opt/aws/neuron/bin" in ud
+        assert "aws_neuronx_venv_pytorch" in ud
+        assert "activate" in ud
+
+    def test_nvidia_has_no_neuron_block(self):
+        ud = AWSProvider._build_user_data(ClusterConfig(accelerators="A100:8"), region="us-east-1")
+        assert "aws_neuronx_venv" not in ud
+        assert "/opt/aws/neuron/bin" not in ud
+
+    def test_cpu_has_no_neuron_block(self):
+        ud = AWSProvider._build_user_data(ClusterConfig(cpus=4, memory=16), region="us-east-1")
+        assert "aws_neuronx_venv" not in ud
+
+
 class TestResolveCpuInstanceType:
     def test_no_requirements_returns_minimum(self):
         assert _resolve_cpu_instance_type(None, None) == "c5.large"

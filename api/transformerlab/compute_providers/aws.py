@@ -433,6 +433,23 @@ class AWSProvider(ComputeProvider):
         env_exports = "\n".join(env_exports_lines)
         setup_block = config.setup or ""
         run_cmd = config.run or ""
+
+        # On Neuron (Trainium/Inferentia) the DLAMI ships torch-neuronx + the
+        # runtime CLIs in a prebuilt venv (/opt/aws_neuronx_venv_pytorch*) and
+        # under /opt/aws/neuron/bin, but neither is on a non-login shell's PATH.
+        # Activate them so `python`/`pip` and helpers like libneuronpjrt-path
+        # resolve out of the box — the CUDA-on-PATH equivalent for the NVIDIA DLAMI.
+        neuron_env = ""
+        if _is_neuron_accelerator(config.accelerators):
+            neuron_env = (
+                "# --- AWS Neuron (Trainium/Inferentia) runtime ---\n"
+                'export PATH="/opt/aws/neuron/bin:$PATH"\n'
+                "_tfl_neuron_venv=$(ls -d /opt/aws_neuronx_venv_pytorch* 2>/dev/null | head -1) || true\n"
+                'if [ -n "$_tfl_neuron_venv" ]; then\n'
+                '  source "$_tfl_neuron_venv/bin/activate"\n'
+                "fi\n"
+            )
+
         return f"""#!/bin/bash
 set -eo pipefail
 mkdir -p /workspace
@@ -463,7 +480,7 @@ export PATH="$HOME/.local/bin:/root/.local/bin:/home/ubuntu/.local/bin:$PATH"
 # Do not symlink into /root; copy binaries so non-root users can execute them.
 if [ -x /root/.local/bin/uv ]; then cp /root/.local/bin/uv /usr/local/bin/uv && chmod +x /usr/local/bin/uv; fi
 if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx && chmod +x /usr/local/bin/uvx; fi
-{env_exports}
+{neuron_env}{env_exports}
 {setup_block}
 ({run_cmd}) 2>&1 | tee /workspace/run_logs.txt
 """
