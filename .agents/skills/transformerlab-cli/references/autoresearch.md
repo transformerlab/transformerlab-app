@@ -250,6 +250,7 @@ The agent loops autonomously. Never ask "should I continue?" — keep going unti
 6. **Advance.** What this means depends on parallelism:
    - **N = 1 (sequential):** wait for the just-queued job to finish, then go to step 7. Poll with `lab --format json job list --running`.
    - **N ≥ 2 (parallel / fire-and-advance):** **do not wait.** Return to step 0 and pick the next idea immediately, until `RUNNING >= N`. Only block when the queue is full. This is what enables grid-style search; waiting after every queue collapses parallelism back to 1.
+   - **How to "wait" / "block" without stranding the session:** don't hold the turn open with a `while`/`sleep` or `run_in_background` poll loop — on remote providers the harness can't track the job, so a loop that ends before the job finishes leaves the session idle until a manual nudge. If your harness can self-schedule (e.g. Claude Code's `ScheduleWakeup`), do **one** `lab job list --running` / `job info` check, then schedule the next check and end the turn, repeating until a job is terminal. The bare poll loop is the fallback for scripts/cron and agents without self-scheduling.
 7. **Score → keep or discard** any *completed* jobs whose results haven't been processed yet. In parallel mode, this means scanning recently-finished jobs at the start of each cycle, not just the one you queued last.
    ```bash
    # Find COMPLETE jobs we haven't acted on yet (no discard flag set, not the current best).

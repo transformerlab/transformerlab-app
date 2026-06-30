@@ -188,6 +188,13 @@ lab --format json job info JOB_ID
 
 ### Polling Pattern for Agents
 
+> **Interactive agents: prefer your harness's scheduler over this loop.** The `while`/`sleep`
+> loop below blocks a whole turn, and run in the background it can be orphaned by a user
+> message — either way it can leave the session idle with a finished job unnoticed. If your
+> harness can self-schedule a wake (e.g. Claude Code's `ScheduleWakeup`), do **one** `lab job
+> info` check per turn, then schedule the next check and end the turn, repeating until terminal.
+> The blocking loop below is the fallback for scripts, cron, and agents without self-scheduling.
+
 When monitoring a job programmatically, use this pattern:
 
 ```bash
