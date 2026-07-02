@@ -111,6 +111,8 @@ This wrapper reports `live_status` (started/finished/crashed) back to the API an
 ## Local provider queueing
 
 The local provider uses a serialized asyncio queue to ensure only one local job runs at a time.
+Remote providers run jobs in parallel (bounded by `remote_provider_queue`'s semaphore); only the
+local provider is serialized, because all local jobs share the one host machine.
 
 **Source:** `api/transformerlab/services/local_provider_queue.py`
 
@@ -118,16 +120,26 @@ The local provider uses a serialized asyncio queue to ensure only one local job 
 enqueue_local_launch(job_id, provider, cluster_config, ...)
   │
   ├── Add item to asyncio.Queue
-  └── Lazy-start _local_launch_worker() if not already running
+  └── Lazy-start the drain loop if not already running
         │
-        └── _local_launch_worker() [infinite loop]
+        └── _run_and_drain() [processes one item, then drains the next]
               │
               └── _process_launch_item()
                     ├── Transition job: WAITING → LAUNCHING (or INTERACTIVE)
                     ├── get_provider_instance()
                     ├── provider.launch_cluster() [in thread executor]
+                    ├── Wait for the job's process to EXIT before returning
+                    │     (batch jobs only — interactive servers are exempt)
                     └── Release quota hold on completion
 ```
+
+**Why the wait matters:** `launch_cluster()` spawns the job as a detached background
+process and returns as soon as it has *started* — not when it finishes. Without the
+explicit completion wait, the drain loop would launch the next queued job immediately,
+so multiple local jobs would execute in parallel and could exhaust the machine. Batch
+(`LAUNCHING`) jobs therefore hold the queue until their process exits; interactive jobs
+(`INTERACTIVE`) are long-lived servers and return as soon as the cluster is up so they
+don't block the queue. Tune the completion poll interval with `TFL_LOCAL_JOB_POLL_INTERVAL`.
 
 ## Quota management
 
