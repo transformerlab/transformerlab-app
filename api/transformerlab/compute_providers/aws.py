@@ -55,7 +55,27 @@ _GPU_INSTANCE_MAP: Dict[tuple, str] = {
     ("RadeonV520", 1): "g4ad.xlarge",
     ("RadeonV520", 2): "g4ad.8xlarge",
     ("RadeonV520", 4): "g4ad.16xlarge",
+    # AWS Neuron accelerators (Trainium). These require the Neuron SDK + driver
+    # baked into a Neuron Deep Learning AMI, not the NVIDIA DLAMI — see
+    # _is_neuron_accelerator and AMI selection in _resolve_ami_id. Count is the
+    # number of Trainium devices on the instance.
+    ("Trainium", 1): "trn1.2xlarge",
+    ("Trainium", 16): "trn1.32xlarge",
+    ("Trainium2", 16): "trn2.48xlarge",
 }
+
+# Accelerator types that run on AWS Neuron (Trainium/Inferentia) and therefore
+# need a Neuron Deep Learning AMI instead of the default NVIDIA one.
+_NEURON_ACCELERATOR_TYPES: frozenset = frozenset({"Trainium", "Trainium2"})
+
+
+def _is_neuron_accelerator(accelerators: Optional[str]) -> bool:
+    """Return True if the accelerator spec is an AWS Neuron device (Trainium)."""
+    if not accelerators:
+        return False
+    accel_type = accelerators.strip().split(":")[0].strip()
+    return accel_type in _NEURON_ACCELERATOR_TYPES
+
 
 _CPU_INSTANCE_OPTIONS: List[tuple] = sorted(
     [
@@ -364,6 +384,19 @@ class AWSProvider(ComputeProvider):
             return ami_id
         raise RuntimeError(f"No Deep Learning AMI found in region {self.region}")
 
+    def _get_latest_neuron_ami(self, ec2) -> str:
+        # Trainium/Inferentia need the Neuron SDK + driver baked in; the NVIDIA
+        # Deep Learning AMI will not run on them. Try known Neuron DLAMI patterns.
+        neuron_ami_name_patterns = [
+            "Deep Learning AMI Neuron PyTorch*Ubuntu*",
+            "Deep Learning AMI Neuron (Ubuntu*",
+            "Deep Learning Base Neuron AMI*Ubuntu*",
+        ]
+        ami_id = self._find_latest_ami_by_patterns(ec2, owners=["amazon"], name_patterns=neuron_ami_name_patterns)
+        if ami_id:
+            return ami_id
+        raise RuntimeError(f"No Neuron Deep Learning AMI found in region {self.region}")
+
     def _get_latest_cpu_ami(self, ec2) -> str:
         # Prefer lightweight Ubuntu server AMIs for CPU-only runs.
         ubuntu_owners = ["099720109477"]
@@ -380,6 +413,8 @@ class AWSProvider(ComputeProvider):
 
     def _resolve_ami_id(self, ec2, config: ClusterConfig) -> str:
         if config.accelerators:
+            if _is_neuron_accelerator(config.accelerators):
+                return self._get_latest_neuron_ami(ec2)
             return self._get_latest_dl_ami(ec2)
         return self._get_latest_cpu_ami(ec2)
 
@@ -398,6 +433,23 @@ class AWSProvider(ComputeProvider):
         env_exports = "\n".join(env_exports_lines)
         setup_block = config.setup or ""
         run_cmd = config.run or ""
+
+        # On Neuron (Trainium/Inferentia) the DLAMI ships torch-neuronx + the
+        # runtime CLIs in a prebuilt venv (/opt/aws_neuronx_venv_pytorch*) and
+        # under /opt/aws/neuron/bin, but neither is on a non-login shell's PATH.
+        # Activate them so `python`/`pip` and helpers like libneuronpjrt-path
+        # resolve out of the box — the CUDA-on-PATH equivalent for the NVIDIA DLAMI.
+        neuron_env = ""
+        if _is_neuron_accelerator(config.accelerators):
+            neuron_env = (
+                "# --- AWS Neuron (Trainium/Inferentia) runtime ---\n"
+                'export PATH="/opt/aws/neuron/bin:$PATH"\n'
+                "_tfl_neuron_venv=$(ls -d /opt/aws_neuronx_venv_pytorch* 2>/dev/null | head -1) || true\n"
+                'if [ -n "$_tfl_neuron_venv" ]; then\n'
+                '  source "$_tfl_neuron_venv/bin/activate"\n'
+                "fi\n"
+            )
+
         return f"""#!/bin/bash
 set -eo pipefail
 mkdir -p /workspace
@@ -428,7 +480,7 @@ export PATH="$HOME/.local/bin:/root/.local/bin:/home/ubuntu/.local/bin:$PATH"
 # Do not symlink into /root; copy binaries so non-root users can execute them.
 if [ -x /root/.local/bin/uv ]; then cp /root/.local/bin/uv /usr/local/bin/uv && chmod +x /usr/local/bin/uv; fi
 if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx && chmod +x /usr/local/bin/uvx; fi
-{env_exports}
+{neuron_env}{env_exports}
 {setup_block}
 ({run_cmd}) 2>&1 | tee /workspace/run_logs.txt
 """
