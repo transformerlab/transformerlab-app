@@ -1,7 +1,12 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from transformerlab.compute_providers.aws import AWSProvider, _resolve_cpu_instance_type, _resolve_gpu_instance_type
+from transformerlab.compute_providers.aws import (
+    AWSProvider,
+    _is_neuron_accelerator,
+    _resolve_cpu_instance_type,
+    _resolve_gpu_instance_type,
+)
 from transformerlab.compute_providers.models import ClusterConfig
 from transformerlab.shared.models.models import ProviderType
 
@@ -30,6 +35,15 @@ class TestResolveGpuInstanceType:
     def test_implicit_count_one(self):
         assert _resolve_gpu_instance_type("T4") == "g4dn.xlarge"
 
+    def test_trainium_single(self):
+        assert _resolve_gpu_instance_type("Trainium:1") == "trn1.2xlarge"
+
+    def test_trainium_sixteen(self):
+        assert _resolve_gpu_instance_type("Trainium:16") == "trn1.32xlarge"
+
+    def test_trainium2_sixteen(self):
+        assert _resolve_gpu_instance_type("Trainium2:16") == "trn2.48xlarge"
+
     def test_unknown_type_raises(self):
         with pytest.raises(ValueError, match="Unsupported accelerator"):
             _resolve_gpu_instance_type("H200X:1")
@@ -37,6 +51,69 @@ class TestResolveGpuInstanceType:
     def test_unsupported_count_raises(self):
         with pytest.raises(ValueError, match="Unsupported accelerator"):
             _resolve_gpu_instance_type("T4:3")
+
+
+class TestIsNeuronAccelerator:
+    def test_trainium_is_neuron(self):
+        assert _is_neuron_accelerator("Trainium:1") is True
+
+    def test_trainium2_is_neuron(self):
+        assert _is_neuron_accelerator("Trainium2:16") is True
+
+    def test_nvidia_is_not_neuron(self):
+        assert _is_neuron_accelerator("A100:8") is False
+
+    def test_none_is_not_neuron(self):
+        assert _is_neuron_accelerator(None) is False
+
+
+class TestResolveAmiId:
+    """Trainium must boot a Neuron AMI; NVIDIA accelerators the DLAMI; CPU the Ubuntu AMI."""
+
+    def test_trainium_picks_neuron_ami(self, provider):
+        ec2 = MagicMock()
+        with (
+            patch.object(provider, "_get_latest_neuron_ami", return_value="ami-neuron") as neuron,
+            patch.object(provider, "_get_latest_dl_ami", return_value="ami-cuda") as dl,
+        ):
+            assert provider._resolve_ami_id(ec2, ClusterConfig(accelerators="Trainium2:16")) == "ami-neuron"
+        neuron.assert_called_once()
+        dl.assert_not_called()
+
+    def test_nvidia_picks_dl_ami(self, provider):
+        ec2 = MagicMock()
+        with (
+            patch.object(provider, "_get_latest_neuron_ami", return_value="ami-neuron") as neuron,
+            patch.object(provider, "_get_latest_dl_ami", return_value="ami-cuda") as dl,
+        ):
+            assert provider._resolve_ami_id(ec2, ClusterConfig(accelerators="A100:8")) == "ami-cuda"
+        dl.assert_called_once()
+        neuron.assert_not_called()
+
+    def test_cpu_picks_cpu_ami(self, provider):
+        ec2 = MagicMock()
+        with patch.object(provider, "_get_latest_cpu_ami", return_value="ami-cpu") as cpu:
+            assert provider._resolve_ami_id(ec2, ClusterConfig(cpus=4, memory=16)) == "ami-cpu"
+        cpu.assert_called_once()
+
+
+class TestBuildUserDataNeuron:
+    """Neuron launches must activate the AMI's prebuilt venv + Neuron PATH; others must not."""
+
+    def test_neuron_activates_prebuilt_venv(self):
+        ud = AWSProvider._build_user_data(ClusterConfig(accelerators="Trainium:1"), region="us-east-1")
+        assert "/opt/aws/neuron/bin" in ud
+        assert "aws_neuronx_venv_pytorch" in ud
+        assert "activate" in ud
+
+    def test_nvidia_has_no_neuron_block(self):
+        ud = AWSProvider._build_user_data(ClusterConfig(accelerators="A100:8"), region="us-east-1")
+        assert "aws_neuronx_venv" not in ud
+        assert "/opt/aws/neuron/bin" not in ud
+
+    def test_cpu_has_no_neuron_block(self):
+        ud = AWSProvider._build_user_data(ClusterConfig(cpus=4, memory=16), region="us-east-1")
+        assert "aws_neuronx_venv" not in ud
 
 
 class TestResolveCpuInstanceType:

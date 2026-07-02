@@ -56,3 +56,25 @@ def test_default_image_when_no_override():
     config = ClusterConfig(accelerators="A100:1")
     provider.launch_cluster("clust-1", config)
     assert captured["pod_data"]["imageName"] == "runpod/pytorch:1.0.3-cu1281-torch290-ubuntu2204"
+
+
+def test_amd_gpu_defaults_to_rocm_image():
+    provider = _provider()
+    captured = _capture_pod_data(provider)
+    # AMD/ROCm card resolves to a ROCm image, not the default CUDA image.
+    provider._map_gpu_type_to_runpod = lambda _accel: "AMD Instinct MI300X OAM"
+    config = ClusterConfig(accelerators="MI300X:1")
+    provider.launch_cluster("clust-1", config)
+    assert captured["pod_data"]["imageName"] == "rocm/pytorch:latest"
+
+
+def test_amd_gpu_image_name_override_still_honored():
+    provider = _provider()
+    captured = _capture_pod_data(provider)
+    provider._map_gpu_type_to_runpod = lambda _accel: "AMD Instinct MI300X OAM"
+    config = ClusterConfig(
+        accelerators="MI300X:1",
+        provider_config={"image_name": "my-org/rocm-custom:latest"},
+    )
+    provider.launch_cluster("clust-1", config)
+    assert captured["pod_data"]["imageName"] == "my-org/rocm-custom:latest"
