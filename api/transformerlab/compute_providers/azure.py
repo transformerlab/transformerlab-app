@@ -457,6 +457,15 @@ done
 if ! command -v python3.11 >/dev/null 2>&1; then
   echo "[tfl] ERROR: python3.11 unavailable after bootstrap; the workload will fail" >&2
 fi
+# Dev headers + C/C++ toolchain for JIT-compiled CUDA kernels. Inference engines that
+# JIT-build kernels (vLLM/Triton) need python3.11-dev's <Python.h> and gcc/g++; the stock
+# GPU image ships neither, so a `gcc ... cuda_utils.c` compile dies on "Python.h: No such
+# file or directory". Pre-built training jobs never hit this path. deadsnakes may already
+# be present from the python bootstrap above; re-adding it is idempotent. Best-effort:
+# errors land in run_logs.txt and the runner re-runs next boot.
+add-apt-repository -y ppa:deadsnakes/ppa || true
+$_tfl_apt update || true
+$_tfl_apt install python3.11-dev build-essential || true
 if [ ! -x /opt/transformerlab-venv/bin/python ] && command -v python3.11 >/dev/null 2>&1; then
   curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
   python3.11 /tmp/get-pip.py || true
@@ -473,6 +482,21 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
 
 __TFL_ENV__
 __TFL_GPU_WAIT__
+
+# Make libcuda.so.1 linkable for JIT builds (`gcc -l:libcuda.so.1`). The NVIDIA driver
+# extension installs libcuda runtime-loadable, but it isn't always on the compiler's
+# link path, so symlink it into a standard lib dir and refresh the linker cache. Runs
+# after the GPU-driver wait so libcuda exists by now. No-op if already linkable.
+_tfl_libcuda=$(find /usr/lib /usr/local /opt -maxdepth 5 -name 'libcuda.so.1' 2>/dev/null | head -1)
+if [ -n "$_tfl_libcuda" ]; then
+  ln -sf "$_tfl_libcuda" /usr/lib/x86_64-linux-gnu/libcuda.so.1 2>/dev/null || true
+  ln -sf "$_tfl_libcuda" /usr/lib/x86_64-linux-gnu/libcuda.so 2>/dev/null || true
+  ldconfig 2>/dev/null || true
+  echo "[tfl] libcuda.so.1 linkable ($_tfl_libcuda)"
+else
+  echo "[tfl] WARNING: libcuda.so.1 not found; JIT link may fail" >&2
+fi
+
 __TFL_SETUP__
 
 # Run the workload; capture rc so we still self-terminate on failure (not just success).
