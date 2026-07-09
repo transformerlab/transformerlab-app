@@ -842,7 +842,7 @@ async def get_artifacts_from_sdk(job_id: str, experiment_id: str) -> Optional[Li
             return None
 
         sdk_job = Job(job_id, experiment_id)
-        artifact_paths = sdk_job.get_artifact_paths()
+        artifact_paths = await sdk_job.get_artifact_paths()
 
         if not artifact_paths:
             return None
