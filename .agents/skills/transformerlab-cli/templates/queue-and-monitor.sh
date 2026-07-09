@@ -2,6 +2,10 @@
 # Template: Queue a task and monitor until completion
 # Queues a task non-interactively, polls for job completion, and downloads results.
 #
+# NOTE: this blocking poll loop is for scripts/cron. An interactive agent should NOT run it
+# in-session — a self-scheduling harness (e.g. Claude Code's ScheduleWakeup) should check once
+# per turn and reschedule instead, so a finished job can't strand the session.
+#
 # Usage: ./queue-and-monitor.sh <task_id> [output_dir]
 #
 # Arguments:
