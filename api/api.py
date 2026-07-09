@@ -217,12 +217,12 @@ if os.getenv("SENTRY_DSN"):
             integrations=[FastApiIntegration()],
             # Enable sending logs to Sentry
             enable_logs=True,
-            # Set traces_sample_rate to 1.0 to capture 100%
-            # of transactions for tracing.
-            traces_sample_rate=1.0,
-            # Set profile_session_sample_rate to 1.0 to profile 100%
-            # of profile sessions.
-            profile_session_sample_rate=1.0,
+            traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "1.0")),
+            # The profiler samples frames across threads, which can segfault the
+            # interpreter on Python 3.11 (frame_getback race, e.g.
+            # https://github.com/getsentry/sentry-python/issues/2386), so it is
+            # off unless explicitly enabled.
+            profile_session_sample_rate=float(os.getenv("SENTRY_PROFILE_SESSION_SAMPLE_RATE", "0.0")),
             # Set profile_lifecycle to "trace" to automatically
             # run the profiler on when there is an active transaction
             profile_lifecycle="trace",
