@@ -121,8 +121,7 @@ export default function MetricsSection({ job }: { job: JobRecord }) {
 
   const current =
     ((job.job_data as any)?.current_metrics as
-      | Record<string, number>
-      | undefined) ?? undefined;
+      Record<string, number> | undefined) ?? undefined;
 
   if (isLoading && rows.length === 0) {
     return (
