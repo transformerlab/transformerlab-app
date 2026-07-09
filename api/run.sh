@@ -127,6 +127,10 @@ fi
 # Temporary: Turn off python buffering or debug output made by print() may not show up in logs
 export PYTHONUNBUFFERED=1
 
+# Print the Python traceback of the crashing thread if the interpreter dies on a
+# fatal signal (e.g. segfault), so crashes are diagnosable from the service logs
+export PYTHONFAULTHANDLER=1
+
 UVICORN_WORKERS=${TFL_UVICORN_WORKERS:-1}
 
 echo "▶️ Running one-time startup tasks before workers"
