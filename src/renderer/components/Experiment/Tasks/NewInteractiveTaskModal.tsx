@@ -486,11 +486,7 @@ export default function NewInteractiveTaskModal({
         memory: memory || undefined,
         accelerators: accelerators || undefined,
         interactive_type: selectedTemplate.interactive_type as
-          | 'vscode'
-          | 'jupyter'
-          | 'vllm'
-          | 'ssh'
-          | 'ollama',
+          'vscode' | 'jupyter' | 'vllm' | 'ssh' | 'ollama',
         template_id: selectedTemplate.id,
         provider_id: selectedProviderId,
         env_parameters: configFieldValues,
