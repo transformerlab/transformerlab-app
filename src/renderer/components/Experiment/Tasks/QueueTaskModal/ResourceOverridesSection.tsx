@@ -60,13 +60,7 @@ interface ResourceOverridesSectionProps {
 
   // Provider-specific config
   providerType:
-    | 'local'
-    | 'slurm'
-    | 'skypilot'
-    | 'dstack'
-    | 'runpod'
-    | 'other'
-    | null;
+    'local' | 'slurm' | 'skypilot' | 'dstack' | 'runpod' | 'other' | null;
   skypilotOverrides: SkypilotOverrides;
   onSkypilotOverridesChange: (next: SkypilotOverrides) => void;
   supportsSpot: boolean;
