@@ -423,6 +423,11 @@ class RunpodProvider(ComputeProvider):
         # Overridable per-provider via extra_config.cloud_type ("SECURE" or "COMMUNITY").
         cloud_type = str(self.extra_config.get("cloud_type") or "SECURE").upper()
         if cloud_type not in ("SECURE", "COMMUNITY"):
+            logger.warning(
+                "Invalid extra_config.cloud_type %r for RunPod provider; defaulting to SECURE. "
+                "Valid values are 'SECURE' or 'COMMUNITY'.",
+                self.extra_config.get("cloud_type"),
+            )
             cloud_type = "SECURE"
         pod_data["cloudType"] = cloud_type
 

@@ -52,12 +52,14 @@ class TestCloudType:
         pod_data = mock_req.call_args.kwargs["json_data"]
         assert pod_data["cloudType"] == "COMMUNITY"
 
-    def test_falls_back_to_secure_on_invalid_value(self):
+    def test_falls_back_to_secure_on_invalid_value(self, caplog):
         provider = RunpodProvider(api_key="test-key", extra_config={"cloud_type": "bogus"})
         with patch.object(provider, "_make_request", return_value=_mock_response({"id": "pod-1"})) as mock_req:
-            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py", accelerators="RTX3090:1"))
+            with caplog.at_level("WARNING", logger="transformerlab.compute_providers.runpod"):
+                provider.launch_cluster("my-cluster", ClusterConfig(run="train.py", accelerators="RTX3090:1"))
         pod_data = mock_req.call_args.kwargs["json_data"]
         assert pod_data["cloudType"] == "SECURE"
+        assert any("bogus" in r.getMessage() and "SECURE" in r.getMessage() for r in caplog.records)
 
 
 def _http_error(status_code):
