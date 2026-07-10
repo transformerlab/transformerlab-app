@@ -416,6 +416,16 @@ class RunpodProvider(ComputeProvider):
             "computeType": compute_type,
         }
 
+        # Explicitly set the cloud tier instead of relying on RunPod's API default.
+        # SECURE = on-demand Secure Cloud (T3/T4 datacenters), which has reliable
+        # inventory for high-end GPUs (H100/B200); COMMUNITY often has none available,
+        # so leaving it unset risks pods that never provision if RunPod's default shifts.
+        # Overridable per-provider via extra_config.cloud_type ("SECURE" or "COMMUNITY").
+        cloud_type = str(self.extra_config.get("cloud_type") or "SECURE").upper()
+        if cloud_type not in ("SECURE", "COMMUNITY"):
+            cloud_type = "SECURE"
+        pod_data["cloudType"] = cloud_type
+
         # Spot pod: interruptible pods are cheaper but can be reclaimed at any time.
         # RunPod determines pricing automatically; no bid price is required.
         if config.use_spot:
