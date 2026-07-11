@@ -332,6 +332,21 @@ class TestLaunchCluster:
         call_kwargs = mock_ec2.run_instances.call_args[1]
         assert call_kwargs["BlockDeviceMappings"][0]["Ebs"]["VolumeSize"] == 200
 
+    def test_shutdown_behavior_is_terminate(self, provider):
+        """An OS shutdown must terminate the instance — the self-terminate trap's
+        fallback path relies on this when the AMI has no aws CLI."""
+        mock_ec2 = self._make_mock_ec2()
+        with (
+            patch.object(provider, "_get_ec2_client", return_value=mock_ec2),
+            patch("transformerlab.compute_providers.aws.asyncio.run", return_value="ssh-ed25519 AAAA"),
+            patch.object(
+                provider, "_ensure_iam_instance_profile", return_value="arn:aws:iam::123:instance-profile/tfl"
+            ),
+        ):
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py"))
+        call_kwargs = mock_ec2.run_instances.call_args[1]
+        assert call_kwargs["InstanceInitiatedShutdownBehavior"] == "terminate"
+
     def test_no_block_device_when_disk_size_not_set(self, provider):
         mock_ec2 = self._make_mock_ec2()
         with (
@@ -554,6 +569,32 @@ class TestUserDataScript:
         term_lines = [line for line in user_data.splitlines() if "terminate-instances" in line]
         assert len(term_lines) == 1
         assert "|| true" in term_lines[0]
+
+    def test_self_termination_guards_on_aws_cli_presence(self):
+        """The terminate call must be gated on the aws CLI existing, not assumed."""
+        user_data = AWSProvider._build_user_data(ClusterConfig(run="echo hello"), region="us-east-1")
+        guard_lines = [line for line in user_data.splitlines() if '[ -n "$_iid" ]' in line]
+        assert len(guard_lines) == 1
+        assert "command -v aws" in guard_lines[0]
+
+    def test_self_termination_has_shutdown_fallback(self):
+        """The trap must fall back to an OS shutdown (instance launches with
+        InstanceInitiatedShutdownBehavior=terminate), so termination works even
+        without the aws CLI — the stock Ubuntu CPU AMIs do not ship it."""
+        user_data = AWSProvider._build_user_data(ClusterConfig(run="echo hello"), region="us-east-1")
+        trap_body = user_data.split("_tfl_self_terminate()")[1].split("trap _tfl_self_terminate")[0]
+        assert "shutdown -h now" in trap_body
+
+    def test_installs_awscli_when_missing(self):
+        """CPU-only jobs run on stock Ubuntu AMIs without awscli; user-data must install it."""
+        user_data = AWSProvider._build_user_data(ClusterConfig(run="echo hello"), region="us-east-1")
+        install_lines = [line for line in user_data.splitlines() if "pip install -q awscli" in line]
+        assert len(install_lines) == 1
+        # Idempotent: skipped when the AMI (e.g. a DLAMI) already ships the CLI.
+        assert "command -v aws" in install_lines[0]
+        # The install must come after the venv PATH export so pip resolves.
+        venv_idx = user_data.index('export PATH="/opt/transformerlab-venv/bin:$PATH"')
+        assert user_data.index("pip install -q awscli") > venv_idx
 
 
 class TestStopCluster:
