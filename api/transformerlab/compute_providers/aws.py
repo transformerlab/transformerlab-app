@@ -552,10 +552,33 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
                 }
             ]
 
-        # Spot instances: MarketType "spot" with default (one-time, terminate) behavior,
-        # which suits ephemeral job VMs. No SpotOptions => no max price (pay up to on-demand).
-        if config.use_spot:
+        # Capacity reservation targeting. Read from first-class ClusterConfig fields, falling back
+        # to provider_config so callers can set it without a schema change. General across reservation
+        # kinds (ODCR or Capacity Block); see ClusterConfig for semantics.
+        pc = config.provider_config or {}
+        reservation_id = config.capacity_reservation_id or pc.get("capacity_reservation_id")
+        reservation_type = config.capacity_reservation_type or pc.get("capacity_reservation_type") or "on-demand"
+
+        # Spot instances: MarketType "spot" with default (one-time, terminate) behavior, which suits
+        # ephemeral job VMs. No SpotOptions => no max price (pay up to on-demand). Spot and a capacity
+        # reservation are mutually exclusive — a reservation targets guaranteed on-demand/block capacity,
+        # so it takes precedence over use_spot.
+        if config.use_spot and not reservation_id:
             launch_params["InstanceMarketOptions"] = {"MarketType": "spot"}
+
+        if reservation_id:
+            # Target the reserved slot instead of open on-demand capacity. This is what lets a booked
+            # Capacity Block (or ODCR) actually be consumed — an untargeted on-demand launch would ignore
+            # the reservation and can still fail with InsufficientInstanceCapacity.
+            launch_params["CapacityReservationSpecification"] = {
+                "CapacityReservationTarget": {"CapacityReservationId": reservation_id}
+            }
+            if reservation_type == "capacity-block":
+                # Capacity Blocks must be launched with the capacity-block instance-market type.
+                launch_params["InstanceMarketOptions"] = {"MarketType": "capacity-block"}
+            # The instance must launch in the reservation's Availability Zone. Honor an explicit zone.
+            if config.zone:
+                launch_params["Placement"] = {"AvailabilityZone": config.zone}
 
         # IAM instance profiles are eventually consistent. Retry on the specific
         # propagation error so freshly-created profiles don't cause launch failures.

@@ -47,6 +47,18 @@ class ClusterConfig(BaseModel):
     zone: Optional[str] = None
     use_spot: bool = False
 
+    # Capacity reservation targeting (currently honored by the AWS provider). General across
+    # reservation kinds so this works for future reservation use, not just Capacity Blocks:
+    #   - capacity_reservation_id: a reservation id ("cr-..."). Applies to an On-Demand Capacity
+    #     Reservation (ODCR) or a Capacity Block. When set, launches target the *reserved* slot
+    #     instead of open on-demand capacity — i.e. capacity is guaranteed for the reservation's
+    #     lifetime, so repeated ephemeral launches into it don't hit InsufficientInstanceCapacity.
+    #   - capacity_reservation_type: "capacity-block" for a Capacity Block (which additionally
+    #     requires the capacity-block instance-market type); omit/"on-demand" for an ODCR.
+    # NOTE: the instance's AZ must match the reservation's AZ; set `zone` accordingly.
+    capacity_reservation_id: Optional[str] = None
+    capacity_reservation_type: Optional[str] = None  # "capacity-block" | "on-demand" (default)
+
     # Container / VM image override (SkyPilot only).
     # Use "docker:<image>" for Docker containers, e.g. "docker:nvcr.io/nvidia/pytorch:23.10-py3".
     image_id: Optional[str] = None
