@@ -184,6 +184,28 @@ async def _set_provider_empty_jobs_polls(
         )
 
 
+def _is_vm_per_job_provider(job: Dict[str, Any]) -> bool:
+    """Return True when the job's provider allocates one VM/pod per job.
+
+    For these providers the cluster IS the job's VM, so it must be torn down on
+    every terminal transition — there is no shared cluster to preserve.
+    """
+    from transformerlab.shared.models.models import ProviderType
+
+    job_data = job.get("job_data") or {}
+    if not isinstance(job_data, dict):
+        return False
+    return job_data.get("provider_type") in (
+        ProviderType.AWS.value,
+        ProviderType.AZURE.value,
+        ProviderType.GCP.value,
+        ProviderType.NEBIUS.value,
+        ProviderType.LAMBDA.value,
+        ProviderType.RUNPOD.value,
+        ProviderType.VASTAI.value,
+    )
+
+
 async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
     """Check job_data.live_status written by tfl-remote-trap (pure filesystem read).
 
@@ -201,6 +223,8 @@ async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
     job_id = str(job.get("id", ""))
     job_status = job.get("status", "")
 
+    stopped_cluster = False
+
     # Interactive sessions:
     # - allow FAILED only when live_status indicates a crash
     # - allow STOPPED when STOPPING (user requested stop)
@@ -208,6 +232,7 @@ async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
     if _is_interactive_subtype_job(job):
         if is_crashed:
             await _best_effort_stop_cluster_for_job(job)
+            stopped_cluster = True
             new_status = JobStatus.FAILED.value
         elif job_status == JobStatus.STOPPING.value:
             new_status = JobStatus.STOPPED.value if is_finished else JobStatus.FAILED.value
@@ -219,7 +244,16 @@ async def _handle_live_status(job: Dict[str, Any], experiment_id: str) -> bool:
     else:
         if is_crashed:
             await _best_effort_stop_cluster_for_job(job)
+            stopped_cluster = True
         new_status = JobStatus.COMPLETE.value if is_finished else JobStatus.FAILED.value
+
+    # VM-per-job providers: tear the VM down on every terminal transition, not just
+    # crashes. Normal completion otherwise relies solely on in-instance self-termination,
+    # which can fail silently (e.g. no aws CLI on the stock Ubuntu AMIs used for
+    # CPU-only AWS jobs) and leak instances. stop_cluster is safe to call when the
+    # instance is already gone.
+    if not stopped_cluster and _is_vm_per_job_provider(job):
+        await _best_effort_stop_cluster_for_job(job)
 
     try:
         end_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())

@@ -461,9 +461,13 @@ _tfl_self_terminate() {{
     -H "X-aws-ec2-metadata-token-ttl-seconds: 60" 2>/dev/null) || true
   _iid=$(curl -sf -H "X-aws-ec2-metadata-token: $_token" \
     "http://169.254.169.254/latest/meta-data/instance-id" 2>/dev/null) || true
-  if [ -n "$_iid" ]; then
+  if [ -n "$_iid" ] && command -v aws >/dev/null 2>&1; then
     aws ec2 terminate-instances --instance-ids "$_iid" --region "{region}" >/dev/null 2>&1 || true
   fi
+  # Fallback: the instance launches with InstanceInitiatedShutdownBehavior=terminate,
+  # so an OS shutdown also terminates it even when the aws CLI is unavailable (e.g.
+  # the stock Ubuntu AMIs used for CPU-only jobs) or the API call fails.
+  shutdown -h now >/dev/null 2>&1 || true
   return 0
 }}
 trap _tfl_self_terminate EXIT
@@ -473,6 +477,10 @@ apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3 python3-venv python3-pip >/dev/null 2>&1
 python3 -m venv /opt/transformerlab-venv
 export PATH="/opt/transformerlab-venv/bin:$PATH"
+# The self-terminate trap prefers the aws CLI. The DLAMIs ship it, but the stock
+# Ubuntu AMIs used for CPU-only jobs do not — install it into the venv so the
+# primary terminate path works there too.
+command -v aws >/dev/null 2>&1 || pip install -q awscli >/dev/null 2>&1 || true
 # Install uv for task setups that use `uv pip ...`.
 curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:/root/.local/bin:/home/ubuntu/.local/bin:$PATH"
@@ -532,6 +540,9 @@ if [ -x /root/.local/bin/uvx ]; then cp /root/.local/bin/uvx /usr/local/bin/uvx 
             "SecurityGroupIds": [sg_id],
             "IamInstanceProfile": {"Arn": profile_arn},
             "UserData": user_data,
+            # Make an OS-level shutdown terminate (not stop) the instance. This is the
+            # self-terminate trap's fallback when the aws CLI is unavailable on the AMI.
+            "InstanceInitiatedShutdownBehavior": "terminate",
             "TagSpecifications": [
                 {
                     "ResourceType": "instance",
