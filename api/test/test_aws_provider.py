@@ -556,15 +556,17 @@ class TestUserDataScript:
         assert "|| true" in term_lines[0]
 
     def test_installs_awscli_when_missing(self):
-        """CPU-only jobs run on stock Ubuntu AMIs without awscli; user-data must install it."""
+        """CPU-only jobs run on stock Ubuntu AMIs without awscli; user-data must install
+        the official AWS CLI v2 bundle (pip awscli is v1 / maintenance mode)."""
         user_data = AWSProvider._build_user_data(ClusterConfig(run="echo hello"), region="us-east-1")
-        install_lines = [line for line in user_data.splitlines() if "pip install -q awscli" in line]
-        assert len(install_lines) == 1
         # Idempotent: skipped when the AMI (e.g. a DLAMI) already ships the CLI.
-        assert "command -v aws" in install_lines[0]
-        # The install must come after the venv PATH export so pip resolves.
-        venv_idx = user_data.index('export PATH="/opt/transformerlab-venv/bin:$PATH"')
-        assert user_data.index("pip install -q awscli") > venv_idx
+        assert "if ! command -v aws" in user_data
+        # Official v2 bundle, installed via its bundled installer.
+        assert "awscli.amazonaws.com/awscli-exe-linux" in user_data
+        assert "/tmp/aws/install" in user_data
+        # The install must happen before the task's setup/run so the trap works
+        # even when the job command fails early.
+        assert user_data.index("/tmp/aws/install") < user_data.index("tee /workspace/run_logs.txt")
 
 
 class TestStopCluster:
