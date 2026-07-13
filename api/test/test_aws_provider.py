@@ -558,13 +558,16 @@ class TestUserDataScript:
     def test_installs_awscli_when_missing(self):
         """CPU-only jobs run on stock Ubuntu AMIs without awscli; user-data must install it."""
         user_data = AWSProvider._build_user_data(ClusterConfig(run="echo hello"), region="us-east-1")
-        install_lines = [line for line in user_data.splitlines() if "pip install -q awscli" in line]
-        assert len(install_lines) == 1
+        # Installs AWS CLI v2 via the official bundle, not the deprecated pip `awscli` (v1).
+        assert "pip install -q awscli" not in user_data
+        assert "awscli-exe-linux-x86_64.zip" in user_data
+        assert "awscli-exe-linux-aarch64.zip" in user_data
+        assert "/tmp/aws/install --update" in user_data
         # Idempotent: skipped when the AMI (e.g. a DLAMI) already ships the CLI.
-        assert "command -v aws" in install_lines[0]
-        # The install must come after the venv PATH export so pip resolves.
+        assert "if ! command -v aws >/dev/null 2>&1; then" in user_data
+        # The install must come after the venv PATH export.
         venv_idx = user_data.index('export PATH="/opt/transformerlab-venv/bin:$PATH"')
-        assert user_data.index("pip install -q awscli") > venv_idx
+        assert user_data.index("awscli-exe-linux-x86_64.zip") > venv_idx
 
 
 class TestStopCluster:
