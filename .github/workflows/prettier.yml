@@ -26,7 +26,7 @@ jobs:
       # Must match the prettier version in package.json devDependencies,
       # or local `npm run format` and this check will disagree.
       - name: Install Prettier
-        run: npm install -g prettier@3.9.4
+        run: npm install -g prettier@3.9.5
 
       - name: Check Prettier formatting
         run: npm run format:check
