@@ -186,7 +186,7 @@ setup: |                               # Optional — runs before main task
   pip install -r requirements.txt      # The `transformerlab` SDK is preinstalled — do NOT add `pip install transformerlab`
 run: python main.py                    # Required — main entry point
 envs:                                  # Optional environment variables
-  HF_TOKEN: "${HF_TOKEN}"
+  HF_TOKEN: "{{secret._HF_TOKEN}}"     # Secrets use {{secret.<name>}} — NOT ${...} shell syntax (which silently resolves empty)
 parameters:                            # Optional — accessible via lab.get_config()
   learning_rate: 0.001
   batch_size: 32
@@ -202,6 +202,22 @@ github_repo_branch: main
 ```
 
 **Important:** `memory` and `disk_space` are plain numbers in GB (e.g., `4`, `16`), NOT Kubernetes-style strings like `4Gi`. The schema accepts both but the canonical format is plain integers.
+
+### Secrets in task configs (`{{secret.<name>}}`)
+
+Reference account secrets anywhere in a task config with `{{secret.<secret_name>}}` —
+the system substitutes real values at launch. Works in `run` commands
+(`python script.py --api-key {{secret.API_KEY}}`), `setup`
+(`export TOKEN={{secret.TOKEN}}`), and `envs`
+(`HF_TOKEN: "{{secret._HF_TOKEN}}"`); in Python, `lab.get_secret("API_KEY")`.
+
+**Special secrets** are pre-provisioned per account with a leading underscore:
+`_HF_TOKEN`, `_GITHUB_PAT_TOKEN`, `_WANDB_API_KEY`, `_NGROK_AUTH_TOKEN` (managed in
+the UI's Special Secrets section; custom secrets are added under Custom Secrets).
+For gated HuggingFace repos (e.g. meta-llama), the task MUST set
+`HF_TOKEN: "{{secret._HF_TOKEN}}"` in `envs` — jobs get NO HF credentials by default,
+and shell-style `${HF_TOKEN}` silently resolves to empty (HF then 401s with
+"Please log in").
 
 ### Validation
 
@@ -952,7 +968,7 @@ For purely automated templates (`jupyter`, `vllm`, `ollama`, etc.), `tunnel_info
 
 | Template | Required `--env` |
 |---|---|
-| `vllm` | `MODEL_NAME=<hf-model-id>`, `TP_SIZE=<int>`, plus `HF_TOKEN=...` for gated models |
+| `vllm` | `MODEL_NAME=<hf-model-id>`, `TP_SIZE=<int>`, plus `HF_TOKEN={{secret._HF_TOKEN}}` for gated models |
 | `ollama` | `MODEL_NAME=<ollama-model-name>` (e.g. `tinyllama`, `llama2`) |
 | `ollama_gradio` | `MODEL_NAME=<ollama-model-name>` |
 | `mlx_gradio` | `MODEL_NAME=<mlx-compatible-hf-id>` |

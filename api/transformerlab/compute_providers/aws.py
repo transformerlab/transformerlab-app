@@ -473,6 +473,21 @@ apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3 python3-venv python3-pip >/dev/null 2>&1
 python3 -m venv /opt/transformerlab-venv
 export PATH="/opt/transformerlab-venv/bin:$PATH"
+# The self-terminate trap needs the aws CLI. The DLAMIs ship it, but the stock
+# Ubuntu AMIs used for CPU-only jobs do not — without this, the terminate call
+# fails silently (command-not-found swallowed by || true) and the instance leaks.
+# Install AWS CLI v2 via the official bundle: the pip `awscli` package is v1,
+# which entered maintenance mode and is no longer the recommended install path.
+if ! command -v aws >/dev/null 2>&1; then
+  case "$(uname -m)" in
+    aarch64|arm64) _tfl_awscli_url="https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" ;;
+    *)             _tfl_awscli_url="https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" ;;
+  esac
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq unzip >/dev/null 2>&1 || true
+  (curl -sSL "$_tfl_awscli_url" -o /tmp/awscliv2.zip \
+    && unzip -q -o /tmp/awscliv2.zip -d /tmp \
+    && /tmp/aws/install --update) >/dev/null 2>&1 || true
+fi
 # Install uv for task setups that use `uv pip ...`.
 curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:/root/.local/bin:/home/ubuntu/.local/bin:$PATH"
