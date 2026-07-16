@@ -1,3 +1,10 @@
+# Security-only dependency updates.
+# Every ecosystem below sets `open-pull-requests-limit: 0`, which turns off
+# routine version-update PRs while still allowing Dependabot security-advisory
+# PRs to fire (security updates bypass this limit; Dependabot alerts + security
+# updates are enabled in repo Settings, which is a separate system from this
+# file). The `groups:`/`ignore:` blocks are retained as documentation — each
+# ignore rule records a known-incompatible upgrade (see the referenced PRs).
 version: 2
 updates:
   # Root Electron + React app
@@ -6,7 +13,7 @@ updates:
     schedule:
       interval: 'weekly'
       day: 'monday'
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     groups:
       minor-and-patch:
         update-types:
@@ -112,7 +119,7 @@ updates:
     schedule:
       interval: 'weekly'
       day: 'monday'
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     groups:
       # Core web/auth stack. These packages are mostly pre-1.0 (where
       # "minor" bumps ship breaking changes) or tightly coupled to
@@ -219,7 +226,7 @@ updates:
     schedule:
       interval: 'weekly'
       day: 'monday'
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     groups:
       minor-and-patch:
         update-types:
@@ -232,7 +239,7 @@ updates:
     schedule:
       interval: 'weekly'
       day: 'monday'
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     groups:
       minor-and-patch:
         update-types:
