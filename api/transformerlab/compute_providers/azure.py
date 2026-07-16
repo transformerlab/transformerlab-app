@@ -83,6 +83,14 @@ _AZURE_PROV_STATE_MAP: Dict[str, ClusterState] = {
 
 _VM_CONTRIBUTOR_ROLE_DEFINITION_ID = "9980e02c-c2be-4d73-94e8-173b1dc7cf3c"
 
+_NIC_NAME_PREFIX = "transformerlab-nic-"
+_PIP_NAME_PREFIX = "transformerlab-pip-"
+
+# Azure only releases a NIC for deletion once its VM is fully gone, and a public IP
+# once its NIC is gone — both report "in use" errors for a while after the parent's
+# delete has already completed. Sleep this schedule between attempts.
+_NETWORK_DELETE_RETRY_DELAYS_SECONDS: tuple = (5, 10, 15, 30, 30)
+
 
 def _resolve_gpu_vm_size(accelerators: str) -> str:
     """Map an accelerator spec (e.g. 'A100:8') to an Azure VM size.
@@ -212,18 +220,53 @@ class AzureProvider(ComputeProvider):
 
         return AuthorizationManagementClient(self._get_credential(), self.subscription_id)
 
+    @staticmethod
+    def _is_not_found_error(exc: Exception) -> bool:
+        msg = str(exc).lower()
+        return "resourcenotfound" in msg or "notfound" in msg or "not found" in msg
+
+    def _delete_network_resource_with_retries(self, begin_delete: Any, resource_name: str) -> bool:
+        """Delete a NIC or public IP, retrying while Azure still reports it in use.
+
+        Returns True once the resource is gone (deleted here or already absent).
+        """
+        max_attempts = len(_NETWORK_DELETE_RETRY_DELAYS_SECONDS) + 1
+        for attempt in range(1, max_attempts + 1):
+            try:
+                begin_delete(self.resource_group, resource_name).result()
+                return True
+            except Exception as e:
+                if self._is_not_found_error(e):
+                    return True
+                if attempt < max_attempts:
+                    delay = _NETWORK_DELETE_RETRY_DELAYS_SECONDS[attempt - 1]
+                    logger.info(
+                        "Delete of %s failed (attempt %d/%d), retrying in %ds: %s",
+                        resource_name,
+                        attempt,
+                        max_attempts,
+                        delay,
+                        e,
+                    )
+                    time.sleep(delay)
+                else:
+                    logger.warning("Failed to delete %s after %d attempts: %s", resource_name, max_attempts, e)
+        return False
+
     def _delete_cluster_nic_and_public_ip(self, network_client: Any, cluster_name: str) -> None:
-        """Delete per-cluster NIC and public IP (NIC first; tolerates missing resources)."""
-        nic_name = f"transformerlab-nic-{cluster_name}"
-        pip_name = f"transformerlab-pip-{cluster_name}"
-        try:
-            network_client.network_interfaces.begin_delete(self.resource_group, nic_name).result()
-        except Exception as e:
-            logger.warning("Failed to delete NIC %s: %s", nic_name, e)
-        try:
-            network_client.public_ip_addresses.begin_delete(self.resource_group, pip_name).result()
-        except Exception as e:
-            logger.warning("Failed to delete Public IP %s: %s", pip_name, e)
+        """Delete the per-cluster NIC, then its public IP.
+
+        Azure requires this order: the NIC can only be deleted once the VM is fully
+        gone, and the public IP only once the NIC is gone, so each delete retries
+        across the window where the parent resource is still being released.
+        """
+        nic_name = f"{_NIC_NAME_PREFIX}{cluster_name}"
+        pip_name = f"{_PIP_NAME_PREFIX}{cluster_name}"
+        nic_gone = self._delete_network_resource_with_retries(network_client.network_interfaces.begin_delete, nic_name)
+        if not nic_gone:
+            logger.warning("Skipping delete of %s because %s still exists and is holding it", pip_name, nic_name)
+            return
+        self._delete_network_resource_with_retries(network_client.public_ip_addresses.begin_delete, pip_name)
 
     def _ensure_vm_self_delete_role(self, vm: Any) -> None:
         """Best-effort: grant VM identity rights to delete itself."""
@@ -583,8 +626,8 @@ exit $_tfl_rc
         subnet_id, nsg_id = self._ensure_networking(network_client, resource_client)
         public_key_str = asyncio.run(_ensure_and_get_public_key())
 
-        pip_name = f"transformerlab-pip-{cluster_name}"
-        nic_name = f"transformerlab-nic-{cluster_name}"
+        pip_name = f"{_PIP_NAME_PREFIX}{cluster_name}"
+        nic_name = f"{_NIC_NAME_PREFIX}{cluster_name}"
         launch_succeeded = False
         try:
             pip = network_client.public_ip_addresses.begin_create_or_update(
@@ -599,7 +642,14 @@ exit $_tfl_rc
                 {
                     "location": self.location,
                     "ip_configurations": [
-                        {"name": "ipconfig1", "subnet": {"id": subnet_id}, "public_ip_address": {"id": pip.id}}
+                        {
+                            "name": "ipconfig1",
+                            "subnet": {"id": subnet_id},
+                            # delete_option: Azure deletes the public IP along with the VM
+                            # (the VM self-deletes on job completion, so the control plane
+                            # never gets a chance to clean up in that path).
+                            "public_ip_address": {"id": pip.id, "delete_option": "Delete"},
+                        }
                     ],
                     "network_security_group": {"id": nsg_id},
                 },
@@ -684,6 +734,14 @@ exit $_tfl_rc
             raise RuntimeError(f"Failed to launch Azure VM: {last_error}") from last_error
         finally:
             if not launch_succeeded:
+                # A failed create can still leave a VM resource behind (provisioning
+                # failed), and the NIC can't be deleted while that VM holds it — so
+                # remove the VM first.
+                try:
+                    compute_client.virtual_machines.begin_delete(self.resource_group, cluster_name).result()
+                except Exception as e:
+                    if not self._is_not_found_error(e):
+                        logger.warning("Failed to delete partially-created VM %s: %s", cluster_name, e)
                 self._delete_cluster_nic_and_public_ip(network_client, cluster_name)
 
     def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
@@ -693,7 +751,9 @@ exit $_tfl_rc
         try:
             compute_client.virtual_machines.begin_delete(self.resource_group, cluster_name).result()
         except Exception as e:
-            return {"status": "error", "message": str(e), "cluster_name": cluster_name}
+            # The VM self-deletes on job completion; still clean up its NIC/public IP.
+            if not self._is_not_found_error(e):
+                return {"status": "error", "message": str(e), "cluster_name": cluster_name}
 
         self._delete_cluster_nic_and_public_ip(network_client, cluster_name)
 

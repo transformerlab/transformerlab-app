@@ -260,6 +260,42 @@ class TestLaunchCluster:
         assert call_kwargs["identity"]["type"] == "SystemAssigned"
         assert call_kwargs["network_profile"]["network_interfaces"][0]["delete_option"] == "Delete"
 
+    def test_public_ip_reference_has_delete_option(self, provider):
+        mock_cc, mock_nc, mock_rc = self._make_mock_clients()
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch.object(provider, "_ensure_vm_self_delete_role"),
+            patch("transformerlab.compute_providers.azure.asyncio.run", return_value="ssh-ed25519 AAAA"),
+        ):
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py"))
+        nic_params = mock_nc.network_interfaces.begin_create_or_update.call_args[0][2]
+        # The PIP must be deleted along with the VM: the VM self-deletes on job
+        # completion, so the control plane never runs teardown in that path.
+        pip_ref = nic_params["ip_configurations"][0]["public_ip_address"]
+        assert pip_ref["delete_option"] == "Delete"
+
+    def test_launch_failure_deletes_partial_vm_then_nic_then_pip(self, provider):
+        """A failed create can leave a VM resource behind that holds the NIC; cleanup
+        must delete the VM before the NIC and public IP."""
+        mock_cc, mock_nc, mock_rc = self._make_mock_clients()
+        mock_cc.virtual_machines.begin_create_or_update.side_effect = Exception("QuotaExceeded")
+        call_order = []
+        mock_cc.virtual_machines.begin_delete.side_effect = lambda *a: call_order.append("vm") or MagicMock()
+        mock_nc.network_interfaces.begin_delete.side_effect = lambda *a: call_order.append("nic") or MagicMock()
+        mock_nc.public_ip_addresses.begin_delete.side_effect = lambda *a: call_order.append("pip") or MagicMock()
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch.object(provider, "_get_resource_client", return_value=mock_rc),
+            patch.object(provider, "_ensure_vm_self_delete_role"),
+            patch("transformerlab.compute_providers.azure.asyncio.run", return_value="ssh-ed25519 AAAA"),
+            pytest.raises(RuntimeError, match="Failed to launch Azure VM"),
+        ):
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py"))
+        assert call_order == ["vm", "nic", "pip"]
+
     def test_gpu_launch_falls_back_to_secondary_image(self, provider):
         mock_cc, mock_nc, mock_rc = self._make_mock_clients()
         mock_cc.virtual_machines.begin_create_or_update.side_effect = [
@@ -412,13 +448,89 @@ class TestStopCluster:
     def test_returns_error_when_vm_delete_fails(self, provider):
         mock_cc = MagicMock()
         mock_nc = MagicMock()
-        mock_cc.virtual_machines.begin_delete.side_effect = Exception("VM not found")
+        mock_cc.virtual_machines.begin_delete.side_effect = Exception("AuthorizationFailed")
         with (
             patch.object(provider, "_get_compute_client", return_value=mock_cc),
             patch.object(provider, "_get_network_client", return_value=mock_nc),
         ):
             result = provider.stop_cluster("my-cluster")
         assert result["status"] == "error"
+        mock_nc.network_interfaces.begin_delete.assert_not_called()
+        mock_nc.public_ip_addresses.begin_delete.assert_not_called()
+
+    def test_vm_already_gone_still_cleans_up_nic_and_pip(self, provider):
+        """The VM self-deletes on job completion; stop must still remove NIC and public IP."""
+        mock_cc = MagicMock()
+        mock_nc = MagicMock()
+        mock_cc.virtual_machines.begin_delete.side_effect = Exception("ResourceNotFound: VM does not exist")
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+        ):
+            result = provider.stop_cluster("my-cluster")
+        assert result["status"] == "success"
+        mock_nc.network_interfaces.begin_delete.assert_called_once_with(
+            "transformerlab-abc", "transformerlab-nic-my-cluster"
+        )
+        mock_nc.public_ip_addresses.begin_delete.assert_called_once_with(
+            "transformerlab-abc", "transformerlab-pip-my-cluster"
+        )
+
+    def test_nic_delete_retries_until_vm_released_then_deletes_pip(self, provider):
+        """NIC deletion fails with NicInUse until the VM is fully gone; must retry, then delete the PIP."""
+        mock_cc = MagicMock()
+        mock_nc = MagicMock()
+        mock_cc.virtual_machines.begin_delete.return_value = MagicMock(result=MagicMock(return_value=None))
+        mock_nc.network_interfaces.begin_delete.side_effect = [
+            Exception("NicInUse: the network interface is in use by a virtual machine"),
+            Exception("NicInUse: the network interface is in use by a virtual machine"),
+            MagicMock(result=MagicMock(return_value=None)),
+        ]
+        mock_nc.public_ip_addresses.begin_delete.return_value = MagicMock(result=MagicMock(return_value=None))
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch("transformerlab.compute_providers.azure.time.sleep") as mock_sleep,
+        ):
+            result = provider.stop_cluster("my-cluster")
+        assert result["status"] == "success"
+        assert mock_nc.network_interfaces.begin_delete.call_count == 3
+        assert mock_sleep.call_count == 2
+        mock_nc.public_ip_addresses.begin_delete.assert_called_once_with(
+            "transformerlab-abc", "transformerlab-pip-my-cluster"
+        )
+
+    def test_pip_delete_skipped_when_nic_delete_keeps_failing(self, provider):
+        """If the NIC can't be removed, deleting the PIP would fail anyway; leave it to the sweep."""
+        mock_cc = MagicMock()
+        mock_nc = MagicMock()
+        mock_cc.virtual_machines.begin_delete.return_value = MagicMock(result=MagicMock(return_value=None))
+        mock_nc.network_interfaces.begin_delete.side_effect = Exception("NicInUse")
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch("transformerlab.compute_providers.azure.time.sleep"),
+        ):
+            provider.stop_cluster("my-cluster")
+        assert mock_nc.network_interfaces.begin_delete.call_count == 6
+        mock_nc.public_ip_addresses.begin_delete.assert_not_called()
+
+    def test_nic_and_pip_not_found_treated_as_success_without_retry(self, provider):
+        mock_cc = MagicMock()
+        mock_nc = MagicMock()
+        mock_cc.virtual_machines.begin_delete.return_value = MagicMock(result=MagicMock(return_value=None))
+        mock_nc.network_interfaces.begin_delete.side_effect = Exception("ResourceNotFound")
+        mock_nc.public_ip_addresses.begin_delete.side_effect = Exception("ResourceNotFound")
+        with (
+            patch.object(provider, "_get_compute_client", return_value=mock_cc),
+            patch.object(provider, "_get_network_client", return_value=mock_nc),
+            patch("transformerlab.compute_providers.azure.time.sleep") as mock_sleep,
+        ):
+            result = provider.stop_cluster("my-cluster")
+        assert result["status"] == "success"
+        mock_nc.network_interfaces.begin_delete.assert_called_once()
+        mock_nc.public_ip_addresses.begin_delete.assert_called_once()
+        mock_sleep.assert_not_called()
 
 
 class TestImageReferences:
