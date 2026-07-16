@@ -611,7 +611,7 @@ class Lab:
             score: Optional **dict** of named metrics for this run (e.g. ``{"accuracy": 0.78}``).
                 The dict shape is required — pass ``{"score": 0.78}`` rather than ``0.78``.
                 Stored in ``job_data.score`` and surfaced by ``lab job list`` / ``lab job info``,
-                and read by sweep / autoresearch flows for optimization.
+                and read by sweep flows for optimization.
             additional_output_path: Optional path to a directory of extra output files.
             plot_data_path: Optional path to a JSON file with plot data for the job UI.
 

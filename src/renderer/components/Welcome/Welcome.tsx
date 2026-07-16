@@ -143,7 +143,7 @@ function HowItWorksModal({
                 Each time you queue a task, a job is created: that&apos;s the
                 actual run. Jobs have status, progress, artifacts, and a score
                 dict (e.g. <code>{`{accuracy: 0.78}`}</code>) used to compare
-                runs and drive sweeps or autoresearch loops.
+                runs and drive sweeps.
               </Typography>
             </Box>
             <Box>

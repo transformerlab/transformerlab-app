@@ -34,7 +34,7 @@ lab.finish("Training completed successfully")
 
 Pass a **dict** of named metrics to `lab.finish(score=...)`. The dict shape is required —
 metrics are stored under `job_data.score` and surfaced by `lab job list` (Score column)
-and `lab job info`, and read by sweep / autoresearch flows for optimization.
+and `lab job info`, and read by sweep flows for optimization.
 
 ```python
 lab.finish(message="Done!")                              # success, no score
