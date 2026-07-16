@@ -55,7 +55,6 @@ cli/src/transformerlab_cli/
 │   ├── status.py               # lab status
 │   ├── version.py              # lab version
 │   ├── config.py               # lab config
-│   ├── install_agent_skill.py  # lab install-agent-skill
 │   ├── job.py                  # lab job {list,info,machine-logs,task-logs,request-logs,download,chart,metrics,artifacts,discard,stop,delete,delete-all,monitor,publish ...}
 │   ├── task.py                 # lab task {list,init,add,validate,edit,upload,delete,info,queue,gallery,interactive}
 │   ├── interactive.py          # implementation for `lab task interactive`
