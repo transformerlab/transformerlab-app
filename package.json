@@ -127,9 +127,6 @@
     "webpack-merge": "^6.0.1"
   },
   "overrides": {
-    "serialize-javascript": "^7.0.3",
-    "minimatch": "^10.2.3",
-    "postcss": "^8.5.10",
     "js-cookie": "^3.0.7"
   },
   "engines": {
