@@ -36,12 +36,15 @@ def _make_job(
     cluster_name: str = "cluster-abc",
     live_status: str | None = None,
     workspace_dir: str | None = None,
+    provider_type: str | None = None,
 ) -> dict:
     job_data: dict = {"provider_id": provider_id, "cluster_name": cluster_name}
     if live_status:
         job_data["live_status"] = live_status
     if workspace_dir:
         job_data["workspace_dir"] = workspace_dir
+    if provider_type:
+        job_data["provider_type"] = provider_type
     return {
         "id": job_id,
         "type": job_type,
@@ -201,6 +204,90 @@ async def test_handle_live_status_crashed_interactive_subtype_transitions_failed
     result = await _handle_live_status(job, "exp-1")
     assert result is True
     assert ("status", "job-1", "FAILED") in calls
+
+
+@pytest.mark.asyncio
+async def test_handle_live_status_finished_vm_per_job_provider_stops_cluster(monkeypatch):
+    """VM-per-job providers (e.g. AWS) must have their VM torn down on normal
+    completion, not only on crash — in-instance self-termination alone can fail
+    silently and leak instances."""
+    job = _make_job(live_status="Remote command finished", provider_type="aws")
+
+    calls = []
+
+    async def fake_update_kv(job_id, key, value, exp_id):
+        calls.append(("kv", job_id, key))
+
+    async def fake_update_status(job_id, status, experiment_id=None):
+        calls.append(("status", job_id, status))
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        fake_update_kv,
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        fake_update_status,
+    )
+    stop_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(remote_job_status_service, "_best_effort_stop_cluster_for_job", stop_mock)
+
+    result = await _handle_live_status(job, "exp-1")
+
+    assert result is True
+    assert ("status", "job-1", "COMPLETE") in calls
+    stop_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_handle_live_status_finished_shared_cluster_provider_does_not_stop(monkeypatch):
+    """SkyPilot/SLURM clusters are not per-job VMs; normal completion must not stop them."""
+    job = _make_job(live_status="Remote command finished", provider_type="skypilot")
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        AsyncMock(return_value=None),
+    )
+    stop_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(remote_job_status_service, "_best_effort_stop_cluster_for_job", stop_mock)
+
+    result = await _handle_live_status(job, "exp-1")
+
+    assert result is True
+    stop_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_handle_live_status_crashed_vm_per_job_provider_stops_cluster_once(monkeypatch):
+    """On crash the cluster is already stopped by the crash path; the VM-per-job
+    teardown must not call stop a second time."""
+    job = _make_job(live_status="Remote command crashed", provider_type="aws")
+
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_job_data_insert_key_value",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
+        remote_job_status_service.job_service,
+        "job_update_status",
+        AsyncMock(return_value=None),
+    )
+    stop_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(remote_job_status_service, "_best_effort_stop_cluster_for_job", stop_mock)
+
+    result = await _handle_live_status(job, "exp-1")
+
+    assert result is True
+    stop_mock.assert_awaited_once()
 
 
 @pytest.mark.asyncio

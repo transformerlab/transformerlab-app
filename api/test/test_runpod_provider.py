@@ -38,6 +38,30 @@ class TestSpot:
         assert "interruptible" not in pod_data
 
 
+class TestCloudType:
+    def test_defaults_to_secure(self, provider):
+        with patch.object(provider, "_make_request", return_value=_mock_response({"id": "pod-1"})) as mock_req:
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py", accelerators="H100:8"))
+        pod_data = mock_req.call_args.kwargs["json_data"]
+        assert pod_data["cloudType"] == "SECURE"
+
+    def test_honors_extra_config_override(self):
+        provider = RunpodProvider(api_key="test-key", extra_config={"cloud_type": "community"})
+        with patch.object(provider, "_make_request", return_value=_mock_response({"id": "pod-1"})) as mock_req:
+            provider.launch_cluster("my-cluster", ClusterConfig(run="train.py", accelerators="RTX3090:1"))
+        pod_data = mock_req.call_args.kwargs["json_data"]
+        assert pod_data["cloudType"] == "COMMUNITY"
+
+    def test_falls_back_to_secure_on_invalid_value(self, caplog):
+        provider = RunpodProvider(api_key="test-key", extra_config={"cloud_type": "bogus"})
+        with patch.object(provider, "_make_request", return_value=_mock_response({"id": "pod-1"})) as mock_req:
+            with caplog.at_level("WARNING", logger="transformerlab.compute_providers.runpod"):
+                provider.launch_cluster("my-cluster", ClusterConfig(run="train.py", accelerators="RTX3090:1"))
+        pod_data = mock_req.call_args.kwargs["json_data"]
+        assert pod_data["cloudType"] == "SECURE"
+        assert any("bogus" in r.getMessage() and "SECURE" in r.getMessage() for r in caplog.records)
+
+
 def _http_error(status_code):
     """Build an HTTPError whose response carries the given status code (as raise_for_status does)."""
     response = MagicMock()
