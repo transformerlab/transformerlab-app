@@ -23,7 +23,6 @@ from transformerlab_cli.commands.dataset import app as dataset_app
 from transformerlab_cli.commands.model import app as model_app
 from transformerlab_cli.commands.team import app as team_app
 from transformerlab_cli.commands.profile import app as profile_app
-from transformerlab_cli.commands.install_agent_skill import app as install_agent_skill_app
 
 
 # Create custom Help screen so we can show the logo
@@ -57,7 +56,6 @@ app.add_typer(model_app, name="model", help="Model management commands", no_args
 app.add_typer(experiment_app, name="experiment", help="Experiment management commands", no_args_is_help=True)
 app.add_typer(team_app, name="team", help="Team configuration commands", no_args_is_help=True)
 app.add_typer(profile_app, name="profile", help="CLI profile management commands", no_args_is_help=True)
-app.add_typer(install_agent_skill_app)
 
 
 # Apply common setup to all commands
