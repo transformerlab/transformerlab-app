@@ -123,6 +123,14 @@ _current_tfl_storage_uri: contextvars.ContextVar[str | None] = contextvars.Conte
 
 # Single source: aws | gcp | azure | localfs | juicefs (default aws for backward compatibility)
 STORAGE_PROVIDER = (os.getenv("TFL_STORAGE_PROVIDER") or "aws").strip().lower()
+
+# Normalize TFL_STORAGE_URI once at import: expand "~" for local filesystem paths so the
+# literal "~" never reaches consumers that read os.environ directly (dirs.py,
+# remote_workspace folder creation, launch-template env construction, ...). Remote URIs
+# (s3://, gs://, ...) never start with "~" so this only touches localfs paths.
+_env_storage_uri = os.getenv("TFL_STORAGE_URI")
+if _env_storage_uri and _env_storage_uri.startswith("~"):
+    os.environ["TFL_STORAGE_URI"] = os.path.expanduser(_env_storage_uri)
 _AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
 _GCP_PROJECT = os.getenv("GCP_PROJECT", "transformerlab-workspace")
 _AZURE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")

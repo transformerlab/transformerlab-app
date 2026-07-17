@@ -159,6 +159,9 @@ def _prompt_storage(existing: dict[str, str]) -> dict[str, str]:
     if provider == "localfs":
         default_path = existing.get("TFL_STORAGE_URI", "/data/transformerlab")
         storage_path = typer.prompt("Storage directory path", default=default_path)
+        # Expand ~ and normalize to an absolute path — a literal "~" in TFL_STORAGE_URI
+        # breaks downstream consumers that join/makedirs the raw value.
+        storage_path = os.path.abspath(os.path.expanduser(storage_path.strip()))
         env["TFL_STORAGE_URI"] = storage_path
     else:
         env["TFL_REMOTE_STORAGE_ENABLED"] = "true"

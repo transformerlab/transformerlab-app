@@ -27,7 +27,7 @@ dependencies = [
   "python-dotenv==1.2.2",
   "python-multipart==0.0.32",
   "sqlalchemy[asyncio]==2.0.51",
-  "transformerlab==0.1.45",
+  "transformerlab==0.1.46",
   "transformerlab-inference==0.2.52",
   "uvicorn==0.35.0",
   "watchfiles==1.2.0",
