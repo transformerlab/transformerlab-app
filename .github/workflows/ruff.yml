@@ -17,11 +17,17 @@ jobs:
       - uses: actions/checkout@v7
       - uses: astral-sh/ruff-action@v3
         with:
-          args: "check ./api ./lab-sdk ./cli"
+          # Pin to match the ruff version in .pre-commit-config.yaml.
+          # Without a pin, the action installs the latest ruff, whose new
+          # default rules break CI on unchanged files (see PR #2362).
+          version: '0.15.0'
+          args: 'check ./api ./lab-sdk ./cli'
   ruff-format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/ruff-action@v3
         with:
-          args: "format --check ./api ./lab-sdk ./cli"
+          # Keep in sync with the ruff-check job and .pre-commit-config.yaml.
+          version: '0.15.0'
+          args: 'format --check ./api ./lab-sdk ./cli'
