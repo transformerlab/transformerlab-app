@@ -500,20 +500,25 @@ class TestStopCluster:
             "transformerlab-abc", "transformerlab-pip-my-cluster"
         )
 
-    def test_pip_delete_skipped_when_nic_delete_keeps_failing(self, provider):
-        """If the NIC can't be removed, deleting the PIP would fail anyway; leave it to the sweep."""
+    def test_pip_delete_attempted_even_when_nic_delete_keeps_failing(self, provider):
+        """Regression: a NIC mid cascade-delete stays "in use" past our retries, then vanishes
+        on its own — the PIP must still be attempted or it leaks (seen in production)."""
         mock_cc = MagicMock()
         mock_nc = MagicMock()
         mock_cc.virtual_machines.begin_delete.return_value = MagicMock(result=MagicMock(return_value=None))
         mock_nc.network_interfaces.begin_delete.side_effect = Exception("NicInUse")
+        mock_nc.public_ip_addresses.begin_delete.side_effect = [
+            Exception("PublicIPAddressCannotBeDeleted: still referenced by the NIC"),
+            MagicMock(result=MagicMock(return_value=None)),
+        ]
         with (
             patch.object(provider, "_get_compute_client", return_value=mock_cc),
             patch.object(provider, "_get_network_client", return_value=mock_nc),
             patch("transformerlab.compute_providers.azure.time.sleep"),
         ):
             provider.stop_cluster("my-cluster")
-        assert mock_nc.network_interfaces.begin_delete.call_count == 6
-        mock_nc.public_ip_addresses.begin_delete.assert_not_called()
+        assert mock_nc.network_interfaces.begin_delete.call_count == 8
+        assert mock_nc.public_ip_addresses.begin_delete.call_count == 2
 
     def test_nic_and_pip_not_found_treated_as_success_without_retry(self, provider):
         mock_cc = MagicMock()
