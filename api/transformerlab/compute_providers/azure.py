@@ -88,8 +88,10 @@ _PIP_NAME_PREFIX = "transformerlab-pip-"
 
 # Azure only releases a NIC for deletion once its VM is fully gone, and a public IP
 # once its NIC is gone — both report "in use" errors for a while after the parent's
-# delete has already completed. Sleep this schedule between attempts.
-_NETWORK_DELETE_RETRY_DELAYS_SECONDS: tuple = (5, 10, 15, 30, 30)
+# delete has already completed. Sleep this schedule between attempts. The tail is
+# sized for the slowest observed case: a NIC can stay "in use" for ~3 minutes after
+# its VM's delete has finished.
+_NETWORK_DELETE_RETRY_DELAYS_SECONDS: tuple = (5, 10, 15, 30, 30, 60, 60)
 
 
 def _resolve_gpu_vm_size(accelerators: str) -> str:
@@ -264,9 +266,24 @@ class AzureProvider(ComputeProvider):
         pip_name = f"{_PIP_NAME_PREFIX}{cluster_name}"
         nic_gone = self._delete_network_resource_with_retries(network_client.network_interfaces.begin_delete, nic_name)
         if not nic_gone:
-            logger.warning("Skipping delete of %s because %s still exists and is holding it", pip_name, nic_name)
-            return
-        self._delete_network_resource_with_retries(network_client.public_ip_addresses.begin_delete, pip_name)
+            # Do NOT skip the public IP here. When the VM self-deleted, the NIC is
+            # usually mid cascade-delete (delete_option "Delete") and Azure holds it
+            # "in use" past our retry window — it then disappears on its own, so the
+            # public IP delete below succeeds on a later retry. Returning early in
+            # this state is what used to leak public IPs.
+            logger.warning(
+                "NIC %s still exists after all delete retries (likely mid cascade-delete); "
+                "attempting delete of %s anyway",
+                nic_name,
+                pip_name,
+            )
+        pip_gone = self._delete_network_resource_with_retries(network_client.public_ip_addresses.begin_delete, pip_name)
+        if not pip_gone:
+            logger.error(
+                "Public IP %s could not be deleted and is now orphaned; it will keep billing "
+                "until removed manually or by a later teardown",
+                pip_name,
+            )
 
     def _ensure_vm_self_delete_role(self, vm: Any) -> None:
         """Best-effort: grant VM identity rights to delete itself."""
