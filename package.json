@@ -80,7 +80,7 @@
     "react-dom": "^18.2.0",
     "react-dropzone": "^15.0.0",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.18.1",
+    "react-router-dom": "^7.18.2",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "swr": "^2.4.2",
