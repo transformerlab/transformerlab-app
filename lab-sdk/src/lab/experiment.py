@@ -399,7 +399,7 @@ class Experiment(BaseLabResource):
             fs_override = await storage._get_uncached_filesystem(workspace_dir)
         else:
             # For local workspace, also use uncached to ensure fresh data
-            jobs_dir = await get_jobs_dir()
+            jobs_dir = await get_jobs_dir(self.id)
             fs_override = await storage._get_uncached_filesystem(jobs_dir)
 
         try:
@@ -407,7 +407,7 @@ class Experiment(BaseLabResource):
             if workspace_dir:
                 jobs_directory = storage.join(workspace_dir, "jobs")
             else:
-                jobs_directory = await get_jobs_dir()
+                jobs_directory = await get_jobs_dir(self.id)
 
             # Iterate through jobs directories and check for index.json
             # Sort entries numerically since job IDs are numeric strings (descending order)
