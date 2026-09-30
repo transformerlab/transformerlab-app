@@ -134,7 +134,7 @@ Transformer Lab is an open-source machine learning platform that unifies the fra
 ### 1. Install
 
 ```bash
-curl https://lab.cloud/install.sh | bash
+curl -fsSL https://lab.cloud/install.sh | bash
 ```
 
 ### 2. Run
