@@ -15,7 +15,7 @@ dependencies = [
   "asyncpg==0.30.0",
   "alembic==1.18.5",
   "boto3==1.40.70",
-  "datasets==3.6.0",
+  "datasets==5.0.1",
   "fastapi==0.125.0",
   "fastapi-users[sqlalchemy,oauth]==15.0.5",
   "httpx-oauth==0.16.1",
