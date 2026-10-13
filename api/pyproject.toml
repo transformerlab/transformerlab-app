@@ -31,7 +31,7 @@ dependencies = [
   "transformerlab-inference==0.2.52",
   "uvicorn==0.35.0",
   "watchfiles==1.2.0",
-  "werkzeug==3.1.8",
+  "werkzeug==3.1.9",
   "google-cloud-storage==3.13.0",
   "azure-identity==1.25.3",
   "azure-mgmt-compute==34.1.0",
