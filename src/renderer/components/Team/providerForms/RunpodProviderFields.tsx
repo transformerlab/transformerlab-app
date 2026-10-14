@@ -42,7 +42,7 @@ export default function RunpodProviderFields({
         <Input
           value={runpodApiBaseUrl}
           onChange={(event) => setRunpodApiBaseUrl(event.currentTarget.value)}
-          placeholder="https://rest.runpod.io/v1"
+          placeholder="https://api.runpod.io/v2"
           fullWidth
         />
         <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>

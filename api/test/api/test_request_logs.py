@@ -372,7 +372,7 @@ class TestRunPodGetRequestLogs:
 
         p = RunpodProvider.__new__(RunpodProvider)
         p.api_key = "k"
-        p.api_base_url = "https://rest.runpod.io/v1"
+        p.api_base_url = "https://api.runpod.io/v2"
         return p
 
     def test_returns_snapshot(self):
@@ -381,9 +381,10 @@ class TestRunPodGetRequestLogs:
         resp.json.return_value = {
             "id": "pod-1",
             "name": "tfl",
-            "desiredStatus": "RUNNING",
-            "gpuTypeId": "NVIDIA A100",
-            "runtime": {"publicIp": "9.9.9.9"},
+            "status": "RUNNING",
+            "gpu": {"id": "NVIDIA A100", "count": 1},
+            "ssh": {"direct": {"host": "9.9.9.9", "port": 40022}},
+            "cost": 1.19,
         }
         with patch.object(p, "_make_request", return_value=resp) as mock_req:
             out = p.get_request_logs("pod-1")
@@ -391,6 +392,8 @@ class TestRunPodGetRequestLogs:
         assert "RunPod pod pod-1" in out
         assert "Status: RUNNING" in out
         assert "Public IP: 9.9.9.9" in out
+        assert "GPU: NVIDIA A100" in out
+        assert "Cost/hr: 1.19" in out
 
     def test_error_returns_message(self):
         p = self._provider()

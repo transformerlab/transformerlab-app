@@ -25,7 +25,6 @@ SPOT_CAPABLE_PROVIDER_TYPES: frozenset[str] = frozenset(
         ProviderType.GCP.value,
         ProviderType.AZURE.value,
         ProviderType.DSTACK.value,
-        ProviderType.RUNPOD.value,
     }
 )
 

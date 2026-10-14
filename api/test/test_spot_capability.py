@@ -15,8 +15,8 @@ def test_spot_capable_set_contents():
         ProviderType.GCP.value,
         ProviderType.AZURE.value,
         ProviderType.DSTACK.value,
-        ProviderType.RUNPOD.value,
     }
+    assert ProviderType.RUNPOD.value not in SPOT_CAPABLE_PROVIDER_TYPES
     assert ProviderType.VASTAI.value not in SPOT_CAPABLE_PROVIDER_TYPES
     assert ProviderType.SLURM.value not in SPOT_CAPABLE_PROVIDER_TYPES
     assert ProviderType.LOCAL.value not in SPOT_CAPABLE_PROVIDER_TYPES

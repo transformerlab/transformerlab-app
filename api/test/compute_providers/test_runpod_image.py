@@ -36,7 +36,7 @@ def test_image_name_overrides_default_for_gpu_pod():
         provider_config={"image_name": "my-org/custom:latest"},
     )
     provider.launch_cluster("clust-1", config)
-    assert captured["pod_data"]["imageName"] == "my-org/custom:latest"
+    assert captured["pod_data"]["image"] == "my-org/custom:latest"
 
 
 def test_template_id_still_supported_as_fallback():
@@ -47,7 +47,7 @@ def test_template_id_still_supported_as_fallback():
         provider_config={"template_id": "legacy/image:1.0"},
     )
     provider.launch_cluster("clust-1", config)
-    assert captured["pod_data"]["imageName"] == "legacy/image:1.0"
+    assert captured["pod_data"]["image"] == "legacy/image:1.0"
 
 
 def test_default_image_when_no_override():
@@ -55,7 +55,7 @@ def test_default_image_when_no_override():
     captured = _capture_pod_data(provider)
     config = ClusterConfig(accelerators="A100:1")
     provider.launch_cluster("clust-1", config)
-    assert captured["pod_data"]["imageName"] == "runpod/pytorch:1.0.3-cu1281-torch290-ubuntu2204"
+    assert captured["pod_data"]["image"] == "runpod/pytorch:1.0.3-cu1281-torch290-ubuntu2204"
 
 
 def test_amd_gpu_defaults_to_rocm_image():
@@ -65,7 +65,7 @@ def test_amd_gpu_defaults_to_rocm_image():
     provider._map_gpu_type_to_runpod = lambda _accel: "AMD Instinct MI300X OAM"
     config = ClusterConfig(accelerators="MI300X:1")
     provider.launch_cluster("clust-1", config)
-    assert captured["pod_data"]["imageName"] == "rocm/pytorch:latest"
+    assert captured["pod_data"]["image"] == "rocm/pytorch:latest"
 
 
 def test_amd_gpu_image_name_override_still_honored():
@@ -77,4 +77,4 @@ def test_amd_gpu_image_name_override_still_honored():
         provider_config={"image_name": "my-org/rocm-custom:latest"},
     )
     provider.launch_cluster("clust-1", config)
-    assert captured["pod_data"]["imageName"] == "my-org/rocm-custom:latest"
+    assert captured["pod_data"]["image"] == "my-org/rocm-custom:latest"
