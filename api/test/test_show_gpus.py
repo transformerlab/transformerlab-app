@@ -107,19 +107,22 @@ def test_local_show_gpus_empty_without_config():
 
 
 # ---------------------------------------------------------------------------
-# Runpod (live /gpu-types -> catalog fallback)
+# Runpod (live /v2/catalog/gpus -> catalog fallback)
 # ---------------------------------------------------------------------------
 
 
 def test_runpod_show_gpus_live():
     provider = RunpodProvider(api_key="k")
     resp = MagicMock()
-    resp.json.return_value = [
-        {"id": "NVIDIA A100", "displayName": "A100", "maxGpuCount": 8},
-        {"id": "NVIDIA H100", "displayName": "H100", "maxGpuCount": 4},
-    ]
-    with patch.object(provider, "_make_request", return_value=resp):
+    resp.json.return_value = {
+        "gpus": [
+            {"id": "NVIDIA A100-SXM4-80GB", "name": "A100", "maxCount": {"secure": 8, "community": 2}},
+            {"id": "NVIDIA H100 80GB HBM3", "name": "H100", "maxCount": {"secure": 0, "community": 4}},
+        ]
+    }
+    with patch.object(provider, "_make_request", return_value=resp) as mock_req:
         gpus = provider.show_gpus()
+    mock_req.assert_called_once_with("GET", "/catalog/gpus")
     assert _by_name(gpus) == {"A100": 8, "H100": 4}
 
 

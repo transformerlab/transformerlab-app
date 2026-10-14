@@ -87,6 +87,47 @@ _RUNPOD_AMD_GPU_IDS: frozenset = frozenset(
 _RUNPOD_DEFAULT_ROCM_IMAGE = "rocm/pytorch:latest"
 # Default CUDA container image for NVIDIA pods.
 _RUNPOD_DEFAULT_CUDA_IMAGE = "runpod/pytorch:1.0.3-cu1281-torch290-ubuntu2204"
+# Default CPU flavor for CPU-only pods (see GET /v2/catalog/cpus). Overridable via
+# extra_config.cpu_flavor.
+_RUNPOD_DEFAULT_CPU_FLAVOR = "cpu3c"
+
+# Runpod REST API v2. REST v1 (https://rest.runpod.io/v1) retires on 2026-11-15.
+# https://docs.runpod.io/api-reference-v2/migrate-from-v1
+_RUNPOD_API_BASE_URL = "https://api.runpod.io/v2"
+# Saved provider configs carry the old v1 default verbatim, so treat it as "use the default".
+_RUNPOD_LEGACY_API_BASE_URLS = frozenset({"https://rest.runpod.io/v1"})
+
+# Mount path for the pod volume or network volume. Logs and credentials live under it.
+_RUNPOD_WORKSPACE_PATH = "/workspace"
+
+
+def _resolve_api_base_url(api_base_url: Optional[str]) -> str:
+    """Return the v2 base URL, upgrading the legacy v1 default."""
+    url = (api_base_url or "").strip().rstrip("/")
+    if not url or url in _RUNPOD_LEGACY_API_BASE_URLS:
+        return _RUNPOD_API_BASE_URL
+    return url
+
+
+def _power_of_two_at_least(value: int, minimum: int = 2) -> int:
+    """Round up to a power of two, as v2 requires for CPU pod vCPU counts."""
+    n = minimum
+    while n < value:
+        n *= 2
+    return n
+
+
+def _pod_resources_str(pod: Dict[str, Any]) -> str:
+    """Short resource label for a v2 pod: the GPU type ID, else the CPU flavor."""
+    return (pod.get("gpu") or {}).get("id") or (pod.get("cpu") or {}).get("id") or ""
+
+
+def _pod_ssh_endpoint(pod: Dict[str, Any]) -> tuple[Optional[str], Optional[int]]:
+    """Return (host, port) for direct SSH to the pod's exposed 22/tcp, if assigned."""
+    direct = (pod.get("ssh") or {}).get("direct") or {}
+    host = direct.get("host") or None
+    port = direct.get("port") or None
+    return host, port
 
 
 def _is_amd_gpu_id(gpu_type_id: Optional[str]) -> bool:
@@ -107,24 +148,14 @@ async def fetch_runpod_provider_logs(
     """
     status = await asyncio.to_thread(provider_instance.get_cluster_status, cluster_name)
     provider_data = getattr(status, "provider_data", None) or {}
-    # RunPod API returns publicIp directly on the pod object, not nested under runtime
-    # Handle empty string case - pod might still be starting
-    host = provider_data.get("publicIp") or provider_data.get("public_ip")
-    if not host or host == "":
-        runtime = provider_data.get("runtime") or {}
-        host = runtime.get("publicIp") or runtime.get("public_ip")
-    # If still no host, check if pod is still starting (desiredStatus might indicate this)
-    if not host or host == "":
-        desired_status = provider_data.get("desiredStatus", "")
-        if desired_status == "RUNNING":
+    # v2 returns the public IP and the external port mapped to 22/tcp under ssh.direct
+    # once the pod is reachable.
+    host, ssh_port = _pod_ssh_endpoint(provider_data)
+    if not host:
+        if provider_data.get("status") in ("PROVISIONING", "STARTING", "RUNNING"):
             return "Pod is starting up - public IP not yet assigned. Please wait a moment and try again."
         return "Pod has no public IP yet (still starting or not available)."
-
-    # Get SSH port from portMappings - RunPod maps internal port 22 to an external port
-    port_mappings = provider_data.get("portMappings") or {}
-    ssh_port = port_mappings.get("22") or port_mappings.get(22)  # Try both string and int key
     if not ssh_port:
-        # Fallback to port 22 if no mapping found (shouldn't happen if port 22 is exposed)
         ssh_port = 22
 
     try:
@@ -203,7 +234,8 @@ class RunpodProvider(ComputeProvider):
 
         Args:
             api_key: Runpod API key (required)
-            api_base_url: Base URL for Runpod API (defaults to https://rest.runpod.io/v1)
+            api_base_url: Base URL for Runpod API (defaults to https://api.runpod.io/v2;
+                the legacy v1 default is upgraded to v2)
             default_gpu_type: Default GPU type (e.g., "RTX 3090", "A100")
             default_region: Default region
             default_template_id: Default Docker template ID
@@ -211,7 +243,7 @@ class RunpodProvider(ComputeProvider):
             extra_config: Additional provider-specific configuration
         """
         self.api_key = api_key
-        self.api_base_url = (api_base_url or "https://rest.runpod.io/v1").rstrip("/")
+        self.api_base_url = _resolve_api_base_url(api_base_url)
         self.default_gpu_type = default_gpu_type
         self.default_region = default_region
         self.default_template_id = default_template_id
@@ -227,6 +259,7 @@ class RunpodProvider(ComputeProvider):
         endpoint: str,
         json_data: Optional[Dict[str, Any]] = None,
         timeout: int = 30,
+        params: Optional[Dict[str, Any]] = None,
     ) -> requests.Response:
         """
         Make authenticated request to Runpod API.
@@ -236,6 +269,7 @@ class RunpodProvider(ComputeProvider):
             endpoint: API endpoint (e.g., "/pods")
             json_data: Optional JSON payload
             timeout: Request timeout in seconds
+            params: Optional query parameters
 
         Returns:
             Response object
@@ -246,9 +280,32 @@ class RunpodProvider(ComputeProvider):
             "Authorization": f"Bearer {self.api_key}",
         }
 
-        response = requests.request(method=method, url=url, json=json_data, headers=headers, timeout=timeout)
+        response = requests.request(
+            method=method, url=url, json=json_data, headers=headers, timeout=timeout, params=params
+        )
         response.raise_for_status()
         return response
+
+    def _list_pods(self) -> List[Dict[str, Any]]:
+        """Return every pod on the account, following v2 pagination cursors."""
+        pods: List[Dict[str, Any]] = []
+        params: Dict[str, Any] = {}
+        while True:
+            body = self._make_request("GET", "/pods", params=params or None).json()
+            pods.extend(body.get("pods") or [])
+            cursor = (body.get("pagination") or {}).get("nextCursor")
+            if not cursor:
+                return pods
+            params = {"cursor": cursor}
+
+    def _data_center_ids(self) -> frozenset:
+        """Return the Runpod data center IDs (GET /v2/catalog/datacenters), or empty on failure."""
+        try:
+            body = self._make_request("GET", "/catalog/datacenters").json()
+            return frozenset(dc.get("id") for dc in body.get("dataCenters") or [] if dc.get("id"))
+        except Exception as exc:  # noqa: BLE001 - placement hint only, never block a launch
+            logger.warning("Runpod data center lookup failed: %s", exc)
+            return frozenset()
 
     def _find_pod_by_name(self, cluster_name: str) -> Optional[Dict[str, Any]]:
         """
@@ -275,27 +332,12 @@ class RunpodProvider(ComputeProvider):
 
         # Search through all pods
         try:
-            response = self._make_request("GET", "/pods")
-            pods = response.json()
-            if isinstance(pods, list):
-                for pod in pods:
-                    # Check if pod name matches cluster_name
-                    pod_name = pod.get("name", "")
-                    if pod_name == cluster_name:
-                        pod_id = pod.get("id")
-                        if pod_id:
-                            self._cluster_name_to_pod_id[cluster_name] = pod_id
-                        return pod
-            elif isinstance(pods, dict):
-                # Some APIs return {"data": [...]}
-                pod_list = pods.get("data", [])
-                for pod in pod_list:
-                    pod_name = pod.get("name", "")
-                    if pod_name == cluster_name:
-                        pod_id = pod.get("id")
-                        if pod_id:
-                            self._cluster_name_to_pod_id[cluster_name] = pod_id
-                        return pod
+            for pod in self._list_pods():
+                if pod.get("name", "") == cluster_name:
+                    pod_id = pod.get("id")
+                    if pod_id:
+                        self._cluster_name_to_pod_id[cluster_name] = pod_id
+                    return pod
         except Exception as e:
             print(f"Error searching for pod by name: {e}")
 
@@ -322,19 +364,12 @@ class RunpodProvider(ComputeProvider):
         if gpu_type.upper() in _RUNPOD_GPU_NAME_MAP:
             gpu_type = _RUNPOD_GPU_NAME_MAP[gpu_type.upper()]
 
-        # Try to get GPU types from Runpod API
+        # Resolve against the GPU catalog: match the full ID or the short name (e.g. "MI300X").
         try:
-            response = self._make_request("GET", "/gpu-types")
-            gpu_types = response.json()
-            if isinstance(gpu_types, list):
-                for gt in gpu_types:
-                    if gt.get("id") == gpu_type or gt.get("name") == gpu_type:
-                        return gt.get("id")
-            elif isinstance(gpu_types, dict):
-                gpu_list = gpu_types.get("data", [])
-                for gt in gpu_list:
-                    if gt.get("id") == gpu_type or gt.get("name") == gpu_type:
-                        return gt.get("id")
+            response = self._make_request("GET", "/catalog/gpus")
+            for gt in response.json().get("gpus") or []:
+                if gt.get("id") == gpu_type or gt.get("name") == gpu_type:
+                    return gt.get("id")
         except Exception:
             # If API call fails, return the mapped value
             pass
@@ -354,18 +389,20 @@ class RunpodProvider(ComputeProvider):
         """
         status_upper = runpod_status.upper()
         mapping = {
+            "PROVISIONING": ClusterState.INIT,
+            "STARTING": ClusterState.INIT,
             "RUNNING": ClusterState.UP,
-            "STOPPED": ClusterState.STOPPED,
+            "EXITED": ClusterState.STOPPED,
+            "ERROR": ClusterState.FAILED,
             "TERMINATED": ClusterState.DOWN,
-            "TERMINATING": ClusterState.STOPPED,  # Pod is shutting down; treat as STOPPED for status worker
-            "CREATING": ClusterState.INIT,
-            "FAILED": ClusterState.FAILED,
-            "RESTARTING": ClusterState.INIT,
         }
         return mapping.get(status_upper, ClusterState.UNKNOWN)
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         """Launch a pod using Runpod API."""
+        if config.use_spot:
+            # REST v2 has no interruptible pods. Fail loudly rather than launch on-demand at a higher price.
+            raise ValueError("RunPod no longer supports spot (interruptible) pods. Launch without spot.")
         # Determine compute type based on accelerators
         if config.accelerators:
             # GPU pod
@@ -409,11 +446,10 @@ class RunpodProvider(ComputeProvider):
             or default_image
         )
 
-        # Build pod creation payload
-        pod_data = {
+        # Build the v2 pod creation payload (POST /v2/pods). Exactly one of gpu or cpu is set.
+        pod_data: Dict[str, Any] = {
             "name": cluster_name,
-            "imageName": image_name,
-            "computeType": compute_type,
+            "image": image_name,
         }
 
         # Explicitly set the cloud tier instead of relying on RunPod's API default.
@@ -429,58 +465,51 @@ class RunpodProvider(ComputeProvider):
                 self.extra_config.get("cloud_type"),
             )
             cloud_type = "SECURE"
-        pod_data["cloudType"] = cloud_type
+        pod_data["cloud"] = cloud_type
 
-        # Spot pod: interruptible pods are cheaper but can be reclaimed at any time.
-        # RunPod determines pricing automatically; no bid price is required.
-        if config.use_spot:
-            pod_data["interruptible"] = True
-
-        # Add GPU-specific fields if GPU pod
         if compute_type == "GPU":
-            pod_data["gpuTypeIds"] = [gpu_type_id]
-            pod_data["gpuCount"] = gpu_count
-
-        # Add CPU-specific fields if CPU pod
-        elif compute_type == "CPU":
-            # Set default CPU resources if not specified.
-            # RunPod expects an integer for vcpuCount.
+            # Always send count: v2 has matched no machines when it is omitted.
+            pod_data["gpu"] = {"id": gpu_type_id, "count": gpu_count}
+        else:
+            # v2 requires a CPU flavor and a power-of-two vCPU count (minimum 2).
             vcpu_count = 2
             if config.cpus is not None:
                 try:
                     vcpu_count = int(config.cpus)
                 except (TypeError, ValueError):
                     vcpu_count = 2
-            pod_data["vcpuCount"] = vcpu_count
+            pod_data["cpu"] = {
+                "id": str(self.extra_config.get("cpu_flavor") or _RUNPOD_DEFAULT_CPU_FLAVOR),
+                "vcpuCount": _power_of_two_at_least(vcpu_count),
+            }
 
-        uses_network_volume = bool(self.default_network_volume_id or config.provider_config.get("network_volume_id"))
+        network_volume_id = config.provider_config.get("network_volume_id") or self.default_network_volume_id
 
-        # Job disk_space: apply to both container disk and pod volume so root (~ often /workspace) and
-        # RunPod's pod volume stay aligned. With a network volume, /workspace is the NV; RunPod may
-        # still honor volumeInGb for the pod-volume tier—sizing both avoids tiny container disk when
-        # the user asked for more space overall.
+        # Job disk_space sizes the container disk and, on GPU pods without a network volume,
+        # the pod volume at /workspace. With a network volume, the volume is /workspace.
+        # CPU pods support container disk and network volumes only.
+        volume_gb = None
         if config.disk_size:
-            pod_data["containerDiskInGb"] = config.disk_size
-            pod_data["volumeInGb"] = config.disk_size
+            pod_data["disk"] = config.disk_size
+            volume_gb = config.disk_size
         else:
             if self.extra_config.get("default_volume_gb"):
-                pod_data["volumeInGb"] = self.extra_config["default_volume_gb"]
+                volume_gb = self.extra_config["default_volume_gb"]
             if config.provider_config.get("container_disk_gb"):
-                pod_data["containerDiskInGb"] = config.provider_config["container_disk_gb"]
+                pod_data["disk"] = config.provider_config["container_disk_gb"]
+
+        if network_volume_id:
+            pod_data["mounts"] = {"network": [{"volumeId": network_volume_id, "path": _RUNPOD_WORKSPACE_PATH}]}
+        elif volume_gb and compute_type == "GPU":
+            pod_data["mounts"] = {"persistent": {"size": int(volume_gb), "path": _RUNPOD_WORKSPACE_PATH}}
 
         if config.env_vars:
             pod_data["env"] = config.env_vars
 
-        if uses_network_volume:
-            pod_data["networkVolumeId"] = (
-                config.provider_config.get("network_volume_id") or self.default_network_volume_id
-            )
-
         # Expose SSH so we can later read run_logs.txt for provider logs
         pod_data["ports"] = ["22/tcp"]
 
-        # Build dockerStartCmd - Runpod expects a single run command string or array
-        # that will be executed by the container's entrypoint.
+        # Container command (v2 `cmd`, the image CMD in exec form). The image's entrypoint runs it.
         # We tee stdout/stderr to RUNPOD_RUN_LOGS_PATH so provider logs can be read via SSH.
         docker_cmds = []
 
@@ -493,24 +522,22 @@ class RunpodProvider(ComputeProvider):
             docker_cmds.append(config.run)
 
         # Join commands with && so they run sequentially
-        # Tee to a fixed path so get_job_logs can read it via SSH (no RunPod logs API)
+        # Tee to a fixed path so get_job_logs can read it via SSH
         # Append 'runpodctl remove pod $RUNPOD_POD_ID' to keep container from restarting.
         if docker_cmds:
             combined_cmd = " && ".join(docker_cmds)
             # mkdir -p /workspace works with or without a network volume; tee writes run logs there
-            # Run command, tee output to log file, then always sleep to keep container alive
             wrapped_cmd = f"mkdir -p /workspace && (({combined_cmd}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}); runpodctl remove pod $RUNPOD_POD_ID"
-            pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
-        elif config.setup:
-            # For setup-only, still keep container running
-            wrapped_cmd = f"({config.setup}); runpodctl remove pod $RUNPOD_POD_ID"
-            pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
-        elif config.run:
-            wrapped_cmd = f"mkdir -p /workspace && (({config.run}) 2>&1 | tee {RUNPOD_RUN_LOGS_PATH}); runpodctl remove pod $RUNPOD_POD_ID"
-            pod_data["dockerStartCmd"] = ["sh", "-c", wrapped_cmd]
+            pod_data["cmd"] = ["sh", "-c", wrapped_cmd]
 
-        if self.default_region or config.region:
-            pod_data["region"] = config.region or self.default_region
+        # v2 places pods by data center ID (e.g. "US-NC-1"). REST v1 had no region field, so a region
+        # that is not a Runpod data center (e.g. a cloud region like "us-east-1") stays ignored.
+        region = config.region or self.default_region
+        if region:
+            if region in self._data_center_ids():
+                pod_data["dataCenterIds"] = [region]
+            else:
+                logger.warning("Ignoring region %r: not a Runpod data center ID.", region)
 
         # Create pod
         try:
@@ -531,11 +558,9 @@ class RunpodProvider(ComputeProvider):
             else:
                 return {"pod_id": None, "request_id": None, "response": result}
         except requests.exceptions.HTTPError as e:
-            # RunPod's create-pod endpoint has a known server-side bug: it creates the pod, then
-            # fails on its own read-back query (a broken SQL join referencing a non-existent
-            # `NetworkVolume.userId` column), returning a 500 even though the pod now exists. When we
-            # get a 5xx, the pod may well be running and billing, so look it up by name before giving
-            # up. See https://github.com/runpod/runpodctl/issues/172.
+            # A 5xx from create-pod does not prove the pod wasn't created: REST v1 created the pod and
+            # then failed its own read-back query (https://github.com/runpod/runpodctl/issues/172).
+            # The pod may be running and billing, so look it up by name before giving up.
             status_code = getattr(e.response, "status_code", None)
             if status_code is not None and status_code >= 500:
                 recovered = self._recover_pod_after_error(cluster_name)
@@ -652,8 +677,8 @@ class RunpodProvider(ComputeProvider):
         state = self._map_runpod_status_to_cluster_state(runpod_status)
 
         # Extract additional info
-        launched_at = pod.get("createdAt") or pod.get("created_at")
-        last_use = pod.get("lastUsedAt") or pod.get("last_used_at")
+        launched_at = pod.get("createdAt")
+        last_use = pod.get("startedAt")
 
         return ClusterStatus(
             cluster_name=cluster_name,
@@ -662,7 +687,7 @@ class RunpodProvider(ComputeProvider):
             launched_at=str(launched_at) if launched_at else None,
             last_use=str(last_use) if last_use else None,
             num_nodes=1,  # Runpod pods are single-node
-            resources_str=pod.get("gpuTypeId") or pod.get("gpuType", {}).get("name", ""),
+            resources_str=_pod_resources_str(pod),
             provider_data=pod,
         )
 
@@ -675,36 +700,28 @@ class RunpodProvider(ComputeProvider):
             return f"Failed to fetch RunPod pod status for '{request_id}': {e}"
         if not isinstance(pod, dict) or not pod:
             return f"RunPod pod '{request_id}' not found."
-        runtime = pod.get("runtime") or {}
+        gpu = pod.get("gpu") or {}
         fields = {
             "Pod ID": pod.get("id", request_id),
             "Name": pod.get("name"),
-            "Status": pod.get("desiredStatus") or pod.get("status"),
-            "Image": pod.get("image") or pod.get("imageName"),
-            "GPU": pod.get("gpuTypeId") or (pod.get("machine") or {}).get("gpuTypeId"),
-            "GPU count": pod.get("gpuCount"),
-            "Public IP": runtime.get("publicIp") or pod.get("publicIp"),
+            "Status": pod.get("status"),
+            "Image": pod.get("image"),
+            "GPU": gpu.get("id"),
+            "GPU count": gpu.get("count"),
+            "CPU": (pod.get("cpu") or {}).get("id"),
+            "Data center": pod.get("dataCenterId"),
+            "Public IP": _pod_ssh_endpoint(pod)[0],
             "Created at": pod.get("createdAt"),
-            "Last started": pod.get("lastStartedAt"),
-            "Cost/hr": pod.get("costPerHr"),
+            "Last started": pod.get("startedAt"),
+            "Cost/hr": pod.get("cost"),
         }
         return format_status_snapshot(f"RunPod pod {request_id}", fields)
 
     def list_clusters(self) -> List[ClusterStatus]:
         """List all pods."""
         try:
-            response = self._make_request("GET", "/pods")
-            pods_data = response.json()
-
-            # Handle different response formats
-            pods = []
-            if isinstance(pods_data, list):
-                pods = pods_data
-            elif isinstance(pods_data, dict):
-                pods = pods_data.get("data", [])
-
             cluster_statuses = []
-            for pod in pods:
+            for pod in self._list_pods():
                 pod_name = pod.get("name", f"pod-{pod.get('id', 'unknown')}")
                 runpod_status = pod.get("status", "UNKNOWN")
                 state = self._map_runpod_status_to_cluster_state(runpod_status)
@@ -714,8 +731,8 @@ class RunpodProvider(ComputeProvider):
                 if pod_id:
                     self._cluster_name_to_pod_id[pod_name] = pod_id
 
-                launched_at = pod.get("createdAt") or pod.get("created_at")
-                last_use = pod.get("lastUsedAt") or pod.get("last_used_at")
+                launched_at = pod.get("createdAt")
+                last_use = pod.get("startedAt")
 
                 cluster_statuses.append(
                     ClusterStatus(
@@ -725,7 +742,7 @@ class RunpodProvider(ComputeProvider):
                         launched_at=str(launched_at) if launched_at else None,
                         last_use=str(last_use) if last_use else None,
                         num_nodes=1,
-                        resources_str=pod.get("gpuTypeId") or pod.get("gpuType", {}).get("name", ""),
+                        resources_str=_pod_resources_str(pod),
                         provider_data=pod,
                     )
                 )
@@ -738,30 +755,27 @@ class RunpodProvider(ComputeProvider):
     def show_gpus(self) -> List[GpuInfo]:
         """List GPU types Runpod offers.
 
-        Tries the live ``GET /gpu-types`` endpoint first; on any failure (the
-        REST API does not always expose it) falls back to the static catalog of
-        common GPU abbreviations. ``count`` reflects the max GPUs per pod when the
-        live API reports it, otherwise 1 (the type is offered).
+        Tries the live ``GET /v2/catalog/gpus`` endpoint first; on any failure
+        falls back to the static catalog of common GPU abbreviations. ``count``
+        is the max GPUs per pod across clouds when the live API reports it,
+        otherwise 1 (the type is offered).
         """
         # Live attempt.
         try:
-            response = self._make_request("GET", "/gpu-types")
-            gpu_types = response.json()
-            if isinstance(gpu_types, dict):
-                gpu_types = gpu_types.get("data", [])
+            response = self._make_request("GET", "/catalog/gpus")
             live: Dict[str, int] = {}
-            if isinstance(gpu_types, list):
-                for gt in gpu_types:
-                    if not isinstance(gt, dict):
-                        continue
-                    name = gt.get("displayName") or gt.get("name") or gt.get("id")
-                    if not name:
-                        continue
-                    try:
-                        count = int(gt.get("maxGpuCount") or 1)
-                    except (TypeError, ValueError):
-                        count = 1
-                    live[str(name)] = max(live.get(str(name), 0), count)
+            for gt in response.json().get("gpus") or []:
+                if not isinstance(gt, dict):
+                    continue
+                name = gt.get("name") or gt.get("id")
+                if not name:
+                    continue
+                max_count = gt.get("maxCount") or {}
+                try:
+                    count = max(int(max_count.get("secure") or 0), int(max_count.get("community") or 0), 1)
+                except (TypeError, ValueError):
+                    count = 1
+                live[str(name)] = max(live.get(str(name), 0), count)
             if live:
                 return [GpuInfo(gpu=name, count=count) for name, count in sorted(live.items())]
         except Exception as exc:
@@ -783,26 +797,19 @@ class RunpodProvider(ComputeProvider):
                 num_nodes=1,
             )
 
-        # Extract GPU info
+        # v2 pods carry exactly one of gpu {id, count, vcpuCount, memory} or cpu {id, vcpuCount, memory}.
         gpus = []
-        gpu_type = pod.get("gpuTypeId") or pod.get("gpuType", {})
-        if isinstance(gpu_type, dict):
-            gpu_name = gpu_type.get("name")
-            gpu_count = gpu_type.get("count", 1)
-            if gpu_name:
-                gpus.append({"gpu": gpu_name, "count": gpu_count})
-        elif isinstance(gpu_type, str):
-            gpus.append({"gpu": gpu_type, "count": 1})
+        compute = pod.get("gpu") or pod.get("cpu") or {}
+        if pod.get("gpu") and compute.get("id"):
+            gpus.append({"gpu": compute["id"], "count": compute.get("count") or 1})
 
-        # Extract disk info (container disk is what we size from job disk_space)
-        disk_gb = pod.get("containerDiskInGb") or pod.get("containerDiskInGB")
+        # Container disk is what we size from job disk_space; fall back to the pod volume.
+        disk_gb = pod.get("disk")
         if disk_gb is None:
-            disk_gb = pod.get("volumeInGb") or pod.get("volumeInGB")
+            disk_gb = ((pod.get("mounts") or {}).get("persistent") or {}).get("size")
 
-        # CPU and memory might not be directly available in pod data
-        # They're typically determined by the GPU type
-        cpus = pod.get("cpus")
-        memory_gb = pod.get("memoryInGb") or pod.get("memoryInGB")
+        cpus = compute.get("vcpuCount")
+        memory_gb = compute.get("memory")
 
         return ResourceInfo(
             cluster_name=cluster_name,
@@ -905,7 +912,7 @@ class RunpodProvider(ComputeProvider):
                 "backend_type": "Runpod",
                 "elastic_enabled": True,
                 "max_nodes": 1,
-                "head_node_ip": cluster_status.provider_data.get("runtime", {}).get("publicIp"),
+                "head_node_ip": _pod_ssh_endpoint(cluster_status.provider_data or {})[0],
                 "nodes": [node],
             }
 
@@ -918,7 +925,7 @@ class RunpodProvider(ComputeProvider):
         try:
             # Make a lightweight API call to verify API key is valid
 
-            self._make_request("GET", "/pods", timeout=5)
+            self._make_request("GET", "/pods", timeout=5, params={"limit": 1})
             # If we get a response (even empty), the API key is valid
             return True, None
         except Exception as e:

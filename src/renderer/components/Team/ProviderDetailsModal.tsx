@@ -70,7 +70,7 @@ const DEFAULT_CONFIGS = {
   "ssh_port": 22
 }`,
   runpod: `{
-  "api_base_url": "https://rest.runpod.io/v1"
+  "api_base_url": "https://api.runpod.io/v2"
 }`,
   dstack: `{
   "server_url": "<Your dstack server URL e.g. http://0.0.0.0:3000>",
@@ -551,7 +551,7 @@ export default function ProviderDetailsModal({
 
   const buildRunpodConfig = useCallback(() => {
     const configObj: any = {
-      api_base_url: runpodApiBaseUrl || 'https://rest.runpod.io/v1',
+      api_base_url: runpodApiBaseUrl || 'https://api.runpod.io/v2',
     };
     if (!providerId || runpodApiKeyChanged) {
       configObj.api_key = runpodApiKey;

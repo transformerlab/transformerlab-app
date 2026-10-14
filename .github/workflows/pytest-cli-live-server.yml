@@ -37,8 +37,10 @@ jobs:
       AUTH_SUCCESS_REDIRECT_URL: /
       AUTH_ERROR_REDIRECT_URL: /
       AUTH_LOGOUT_REDIRECT_URL: /
-      TRANSFORMERLAB_JWT_SECRET: ${{ secrets.TRANSFORMERLAB_JWT_SECRET }}
-      TRANSFORMERLAB_REFRESH_SECRET: ${{ secrets.TRANSFORMERLAB_REFRESH_SECRET }}
+      # Fork and Dependabot PRs get no repository secrets, and the server refuses to start auth
+      # without them. Fall back to throwaway values for this local, single-run test server.
+      TRANSFORMERLAB_JWT_SECRET: ${{ secrets.TRANSFORMERLAB_JWT_SECRET || 'ci-only-jwt-secret-not-for-production' }}
+      TRANSFORMERLAB_REFRESH_SECRET: ${{ secrets.TRANSFORMERLAB_REFRESH_SECRET || 'ci-only-refresh-secret-not-for-production' }}
       EMAIL_METHOD: "dev"
 
     steps:
