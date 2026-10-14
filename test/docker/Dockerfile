@@ -14,7 +14,6 @@ COPY .erb ./.erb
 COPY src ./src
 COPY tsconfig.json ./
 COPY assets ./assets
-COPY release ./release
 
 
 # Create .env with local-mode settings to satisfy dotenv-cli and configure the build

@@ -23,6 +23,8 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          # Fork PRs: the head branch lives in the fork, not in this repository.
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Setup Node.js
