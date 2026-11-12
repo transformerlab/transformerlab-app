@@ -1,11 +1,11 @@
 """Tests for the RunPod provider against REST v2."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import requests
 
-from transformerlab.compute_providers.runpod import RunpodProvider
+from transformerlab.compute_providers.runpod import RunpodProvider, fetch_runpod_provider_logs
 from transformerlab.compute_providers.models import ClusterConfig
 
 
@@ -112,25 +112,42 @@ class TestV2CreateBody:
         body = _launch_body(provider, ClusterConfig(run="x", accelerators="RTX4090"))
         assert body["gpu"]["count"] == 1
 
-    def test_cpu_pod_uses_flavor_and_power_of_two_vcpus(self, provider):
-        body = _launch_body(provider, ClusterConfig(run="x", cpus=3, disk_size=20))
+    @pytest.mark.parametrize("disk_size", [5, 20])
+    def test_cpu_pod_uses_flavor_and_power_of_two_vcpus(self, provider: RunpodProvider, disk_size: int) -> None:
+        body = _launch_body(provider, ClusterConfig(run="x", cpus=3, disk_size=disk_size))
         assert body["cpu"] == {"id": "cpu3c", "vcpuCount": 4}
         assert "gpu" not in body
         assert body["image"] == "runpod/base:1.0.2-ubuntu2204"
-        assert body["disk"] == 20
+        assert body["disk"] == disk_size
         # CPU pods reject a persistent pod volume.
         assert "mounts" not in body
+
+    @pytest.mark.parametrize("disk_size", [1, 5, 9, 10, 11])
+    def test_gpu_persistent_volume_minimum_preserves_container_disk(
+        self, provider: RunpodProvider, disk_size: int
+    ) -> None:
+        body = _launch_body(provider, ClusterConfig(accelerators="RTX4090:1", disk_size=disk_size))
+        assert body["disk"] == disk_size
+        assert body["mounts"]["persistent"]["size"] == max(10, disk_size)
+
+    @pytest.mark.parametrize("volume_gb", [5, 10, 20])
+    def test_default_persistent_volume_minimum(self, volume_gb: int) -> None:
+        provider = RunpodProvider(api_key="k", extra_config={"default_volume_gb": volume_gb})
+        body = _launch_body(provider, ClusterConfig(accelerators="RTX4090:1"))
+        assert body["mounts"]["persistent"]["size"] == max(10, volume_gb)
+        assert "disk" not in body
 
     def test_cpu_flavor_override(self):
         provider = RunpodProvider(api_key="k", extra_config={"cpu_flavor": "cpu5g"})
         body = _launch_body(provider, ClusterConfig(run="x"))
         assert body["cpu"] == {"id": "cpu5g", "vcpuCount": 2}
 
-    def test_network_volume_replaces_pod_volume(self):
+    @pytest.mark.parametrize("disk_size", [5, 50])
+    def test_network_volume_replaces_pod_volume(self, disk_size: int) -> None:
         provider = RunpodProvider(api_key="k", default_network_volume_id="nv-default")
-        body = _launch_body(provider, ClusterConfig(run="x", accelerators="RTX4090:1", disk_size=50))
+        body = _launch_body(provider, ClusterConfig(run="x", accelerators="RTX4090:1", disk_size=disk_size))
         assert body["mounts"] == {"network": [{"volumeId": "nv-default", "path": "/workspace"}]}
-        assert body["disk"] == 50
+        assert body["disk"] == disk_size
 
     def test_network_volume_per_launch_override(self, provider):
         body = _launch_body(
@@ -172,8 +189,8 @@ class TestV2Reads:
             _mock_response({"pods": [{"id": "b", "name": "two"}], "pagination": {"nextCursor": None}}),
         ]
         with patch.object(provider, "_make_request", side_effect=pages) as mock_req:
-            pod = provider._find_pod_by_name("two")
-        assert pod["id"] == "b"
+            pods = provider._list_pods()
+        assert [pod["id"] for pod in pods] == ["a", "b"]
         assert mock_req.call_args_list[1].kwargs["params"] == {"cursor": "c1"}
 
     @pytest.mark.parametrize(
@@ -209,6 +226,54 @@ class TestV2Reads:
         assert status.launched_at == "2026-10-14T00:00:00Z"
         assert resources.gpus == [{"gpu": "NVIDIA GeForce RTX 4090", "count": 2}]
         assert (resources.cpus, resources.memory_gb, resources.disk_gb) == (12, 62, 100)
+
+    @pytest.mark.parametrize("cached", [False, True])
+    async def test_provider_logs_fetch_live_ssh_mapping(self, provider: RunpodProvider, cached: bool) -> None:
+        listed_pod = {"id": "p1", "name": "my-cluster", "status": "RUNNING", "ssh": {"direct": None}}
+        detail = {**listed_pod, "ssh": {"direct": {"host": "1.2.3.4", "port": 40022}}}
+        if cached:
+            provider._cluster_name_to_pod_id["my-cluster"] = "p1"
+        responses = (
+            [_mock_response(detail)]
+            if cached
+            else [
+                _mock_response({"pods": [listed_pod]}),
+                _mock_response(detail),
+            ]
+        )
+        with (
+            patch.object(provider, "_make_request", side_effect=responses) as mock_req,
+            patch(
+                "transformerlab.compute_providers.runpod.get_org_ssh_private_key",
+                new_callable=AsyncMock,
+                return_value=b"private-key",
+            ),
+            patch("paramiko.Ed25519Key.from_private_key"),
+            patch("paramiko.SSHClient") as mock_ssh,
+        ):
+            stdout, stderr = MagicMock(), MagicMock()
+            stdout.read.return_value = b"training output\n"
+            stderr.read.return_value = b""
+            mock_ssh.return_value.exec_command.return_value = (MagicMock(), stdout, stderr)
+            logs = await fetch_runpod_provider_logs(provider, "my-cluster", "team-1", 50)
+        assert logs == "training output"
+        assert mock_ssh.return_value.connect.call_args.kwargs["hostname"] == "1.2.3.4"
+        assert mock_ssh.return_value.connect.call_args.kwargs["port"] == 40022
+        assert mock_req.call_args.args == ("GET", "/pods/p1")
+        assert mock_req.call_count == (1 if cached else 2)
+
+    def test_detailed_clusters_use_live_ssh_mapping(self, provider: RunpodProvider) -> None:
+        listed_pod = {"id": "p1", "name": "my-cluster", "status": "RUNNING", "ssh": {"direct": None}}
+        detail = {**listed_pod, "ssh": {"direct": {"host": "1.2.3.4", "port": 40022}}}
+        with patch.object(
+            provider,
+            "_make_request",
+            side_effect=[_mock_response({"pods": [listed_pod]}), _mock_response(detail)],
+        ) as mock_req:
+            clusters = provider.get_clusters_detailed()
+        assert clusters[0]["head_node_ip"] == "1.2.3.4"
+        assert mock_req.call_args.args == ("GET", "/pods/p1")
+        assert mock_req.call_count == 2
 
     def test_gpu_resolution_uses_catalog(self, provider):
         catalog = _mock_response({"gpus": [{"id": "AMD Instinct MI300X OAM", "name": "MI300X"}]})

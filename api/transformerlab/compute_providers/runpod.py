@@ -337,6 +337,8 @@ class RunpodProvider(ComputeProvider):
                     pod_id = pod.get("id")
                     if pod_id:
                         self._cluster_name_to_pod_id[cluster_name] = pod_id
+                        # List responses omit ssh.direct; only the detail endpoint has the live mapping.
+                        return self._make_request("GET", f"/pods/{pod_id}").json()
                     return pod
         except Exception as e:
             print(f"Error searching for pod by name: {e}")
@@ -501,7 +503,8 @@ class RunpodProvider(ComputeProvider):
         if network_volume_id:
             pod_data["mounts"] = {"network": [{"volumeId": network_volume_id, "path": _RUNPOD_WORKSPACE_PATH}]}
         elif volume_gb and compute_type == "GPU":
-            pod_data["mounts"] = {"persistent": {"size": int(volume_gb), "path": _RUNPOD_WORKSPACE_PATH}}
+            # v2 requires at least 10 GB of persistent storage, independently of the container disk.
+            pod_data["mounts"] = {"persistent": {"size": max(10, int(volume_gb)), "path": _RUNPOD_WORKSPACE_PATH}}
 
         if config.env_vars:
             pod_data["env"] = config.env_vars
@@ -912,7 +915,7 @@ class RunpodProvider(ComputeProvider):
                 "backend_type": "Runpod",
                 "elastic_enabled": True,
                 "max_nodes": 1,
-                "head_node_ip": _pod_ssh_endpoint(cluster_status.provider_data or {})[0],
+                "head_node_ip": _pod_ssh_endpoint(resource_info.provider_data)[0],
                 "nodes": [node],
             }
 
